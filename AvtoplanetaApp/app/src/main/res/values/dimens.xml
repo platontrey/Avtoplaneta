@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Minimalist Spacing System - Based on 4dp grid -->
+    
+    <!-- Tiny -->
+    <dimen name="spacing_tiny">4dp</dimen>
+    <dimen name="spacing_xsmall">8dp</dimen>
+    <dimen name="spacing_small">12dp</dimen>
+    <dimen name="spacing_medium">16dp</dimen>
+    <dimen name="spacing_large">24dp</dimen>
+    <dimen name="spacing_xlarge">32dp</dimen>
+    <dimen name="spacing_huge">48dp</dimen>
+    <dimen name="spacing_massive">64dp</dimen>
+    
+    <!-- Typography - Clean Sans -->
+    <dimen name="text_size_tiny">10sp</dimen>
+    <dimen name="text_size_small">12sp</dimen>
+    <dimen name="text_size_body">14sp</dimen>
+    <dimen name="text_size_body_large">16sp</dimen>
+    <dimen name="text_size_subheading">18sp</dimen>
+    <dimen name="text_size_heading">22sp</dimen>
+    <dimen name="text_size_title">28sp</dimen>
+    <dimen name="text_size_display">36sp</dimen>
+    
+    <!-- Icon Sizes -->
+    <dimen name="icon_tiny">16dp</dimen>
+    <dimen name="icon_small">20dp</dimen>
+    <dimen name="icon_medium">24dp</dimen>
+    <dimen name="icon_large">32dp</dimen>
+    <dimen name="icon_xlarge">48dp</dimen>
+    
+    <!-- Corner Radius - Subtle -->
+    <dimen name="radius_tiny">4dp</dimen>
+    <dimen name="radius_small">8dp</dimen>
+    <dimen name="radius_medium">12dp</dimen>
+    <dimen name="radius_large">16dp</dimen>
+    <dimen name="radius_xlarge">24dp</dimen>
+    <dimen name="radius_round">9999dp</dimen>
+    
+    <!-- Elevations - Subtle Shadows -->
+    <dimen name="elevation_none">0dp</dimen>
+    <dimen name="elevation_tiny">1dp</dimen>
+    <dimen name="elevation_small">2dp</dimen>
+    <dimen name="elevation_medium">4dp</dimen>
+    <dimen name="elevation_large">8dp</dimen>
+    
+    <!-- Content Paddings -->
+    <dimen name="padding_tiny">4dp</dimen>
+    <dimen name="padding_small">8dp</dimen>
+    <dimen name="padding_medium">16dp</dimen>
+    <dimen name="padding_large">24dp</dimen>
+    <dimen name="padding_xlarge">32dp</dimen>
+    
+    <!-- Component Specific -->
+    <dimen name="button_height">48dp</dimen>
+    <dimen name="button_height_small">40dp</dimen>
+    <dimen name="input_height">56dp</dimen>
+    <dimen name="card_elevation">2dp</dimen>
+    <dimen name="card_padding">16dp</dimen>
+    <dimen name="divider_height">1dp</dimen>
+    
+    <!-- Image Sizes -->
+    <dimen name="image_small">48dp</dimen>
+    <dimen name="image_medium">64dp</dimen>
+    <dimen name="image_large">96dp</dimen>
+    <dimen name="avatar_size">40dp</dimen>
+    
+    <!-- Line Height -->
+    <dimen name="line_height_compact">1.2</dimen>
+    <dimen name="line_height_normal">1.5</dimen>
+    <dimen name="line_height_relaxed">1.8</dimen>
+</resources>
+

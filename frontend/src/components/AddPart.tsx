@@ -1,0 +1,1150 @@
+﻿/*
+* Copyright (c) 2025 Avtoplaneta. All rights reserved.
+*/
+
+import React, { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Save, ArrowLeft, Upload } from "lucide-react";
+import { Link } from "react-router-dom";
+import { getAuthHeaders } from "@/lib/csrf";
+import { sanitizeHtml } from "@/lib/security";
+import ImageCropper from "./ImageCropper";
+
+const partSchema = z.object({
+    brand: z.string().min(1, "Выберите бренд"),
+    name: z.string().min(1, "Введите название запчасти").max(255, "Название слишком длинное (макс 255 символов)"),
+    model: z.string().min(1, "Введите модель"),
+    quantity: z.number().min(0, "Количество должно быть положительным числом"),
+    description: z.string().max(1000, "Описание слишком длинное (макс 1000 символов)").optional(),
+    category: z.string().optional(),
+    location: z.string().optional(),
+    price: z.number().optional(),
+    seller_id: z.string().optional(),
+    // Характеристики запчасти
+    body_brand: z.string().optional(),
+    engine_brand: z.string().optional(),
+    car_release_date: z.string().optional(),
+    front_rear: z.string().optional(),
+    left_right: z.string().optional(),
+    top_bottom: z.string().optional(),
+    number: z.string().optional(),
+    manufacturer: z.string().optional(),
+    manufacturer_code: z.string().optional(),
+    oem_code: z.string().optional(),
+    color: z.string().optional(),
+    condition: z.string().optional(),
+    supplier_code: z.string().optional(),
+    defect: z.string().optional(),
+    transmission: z.string().optional(),
+    drive: z.string().optional(),
+    wear_percentage: z.string().optional(),
+    season: z.string().optional(),
+    diameter: z.string().optional(),
+    width: z.string().optional(),
+    profile: z.string().optional(),
+    tire_quantity: z.string().optional(),
+    drilling: z.string().optional(),
+    offset: z.string().optional(),
+    center_hole_diameter: z.string().optional(),
+    tire_model: z.string().optional(),
+    vin: z.string().optional(),
+});
+
+type PartFormData = z.infer<typeof partSchema>;
+
+interface Part {
+    brand: string;
+    name: string;
+    quantity: number;
+    description?: string;
+    category?: string;
+    model: string;
+    location?: string;
+    price?: number;
+    seller_id?: number;
+    photo?: string;
+    // Характеристики запчасти
+    body_brand?: string;
+    engine_brand?: string;
+    car_release_date?: string;
+    front_rear?: string;
+    left_right?: string;
+    top_bottom?: string;
+    number?: string;
+    manufacturer?: string;
+    manufacturer_code?: string;
+    oem_code?: string;
+    color?: string;
+    condition?: string;
+    supplier_code?: string;
+    defect?: string;
+    transmission?: string;
+    drive?: string;
+    wear_percentage?: string;
+    season?: string;
+    diameter?: string;
+    width?: string;
+    profile?: string;
+    tire_quantity?: string;
+    drilling?: string;
+    offset?: string;
+    center_hole_diameter?: string;
+    tire_model?: string;
+    vin?: string;
+}
+
+interface User {
+    id: number;
+    name: string;
+    email: string;
+}
+
+
+export default function AddPart() {
+    const [loading, setLoading] = useState<boolean>(false);
+    const [photoFile, setPhotoFile] = useState<File | null>(null);
+    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+    const [users, setUsers] = useState<User[]>([]);
+    const [loadingUsers, setLoadingUsers] = useState<boolean>(true);
+    const [showCropper, setShowCropper] = useState<boolean>(false);
+    const [tempImageSrc, setTempImageSrc] = useState<string>("");
+    const [originalFile, setOriginalFile] = useState<File | null>(null);
+
+    const {
+        register,
+        handleSubmit,
+        setValue,
+        watch,
+        formState: { errors },
+    } = useForm<PartFormData>({
+        resolver: zodResolver(partSchema),
+        defaultValues: {
+            quantity: 1,
+            price: 100,
+            seller_id: undefined,
+        },
+    });
+
+    const brand = watch("brand");
+    const category = watch("category");
+    const sellerId = watch("seller_id");
+
+
+    // Функция для определения видимых полей характеристик в зависимости от категории
+    const getVisibleFields = (category: string | undefined) => {
+        if (!category || category === "Другое") {
+            // Для категории "Другое" или если категория не выбрана, показываем все поля
+            return [
+                "body_brand", "engine_brand", "car_release_date", "front_rear", "left_right", "top_bottom",
+                "number", "manufacturer", "manufacturer_code", "oem_code", "color",
+                "supplier_code", "defect", "transmission", "drive", "wear_percentage", "season",
+                "diameter", "width", "profile", "tire_quantity", "drilling", "offset",
+                "center_hole_diameter", "tire_model"
+            ];
+        }
+
+        const fieldMappings: Record<string, string[]> = {
+            "Тормоза": ["front_rear", "left_right", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect", "wear_percentage"],
+            "Двигатель": ["engine_brand", "car_release_date", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
+            "Подвеска": ["front_rear", "left_right", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
+            "Подвеска ДВС/КПП": ["front_rear", "left_right", "top_bottom", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
+            "Подвеска передних колес": ["front_rear", "left_right", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
+            "Подвеска задних колес": ["front_rear", "left_right", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
+            "Электрика": ["number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
+            "Кузов": ["body_brand", "front_rear", "left_right", "top_bottom", "number", "manufacturer", "manufacturer_code", "oem_code", "color", "condition", "supplier_code", "defect"],
+            "Кузов снаружи": ["body_brand", "front_rear", "left_right", "top_bottom", "number", "manufacturer", "manufacturer_code", "oem_code", "color", "condition", "supplier_code", "defect"],
+            "Интерьер": ["top_bottom", "number", "manufacturer", "manufacturer_code", "oem_code", "color", "condition", "supplier_code", "defect"],
+            "Трансмиссия": ["front_rear", "left_right", "transmission", "drive", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
+            "Система охлаждения и отопления": ["number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
+            "Система выхлопа (Глушитель)": ["number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
+            "Система рулевого управления": ["front_rear", "left_right", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
+            "Рулевое управление": ["front_rear", "left_right", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
+            "Система фильтрации (Фильтры)": ["number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
+            "Шины и диски": ["front_rear", "left_right", "diameter", "width", "profile", "tire_quantity", "drilling", "offset", "center_hole_diameter", "tire_model", "season", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect", "wear_percentage"],
+            "Автохимия и масла": ["manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code"],
+            "Аксессуары и тюннинг": ["number", "manufacturer", "manufacturer_code", "oem_code", "color", "condition", "supplier_code", "defect"]
+        };
+
+        return fieldMappings[category] || [];
+    };
+
+    const visibleFields = getVisibleFields(category);
+
+    // Загрузка списка пользователей и шаблонов характеристик при монтировании компонента
+    useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                const response = await fetch("http://localhost:8083/admin/users", {
+                    method: "GET",
+                    headers: getAuthHeaders(),
+                    credentials: 'include',
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    setUsers(data.users || []);
+                } else {
+                    console.error("Failed to fetch users:", response.status);
+                }
+            } catch (error) {
+                console.error("Error fetching users:", error);
+            } finally {
+                setLoadingUsers(false);
+            }
+        };
+
+        void fetchUsers();
+    }, []);
+
+
+    const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        console.log('AddPart handlePhotoChange: file selected:', file?.name, 'size:', file?.size, 'type:', file?.type);
+        if (file) {
+            // Validate file type - only allow images
+            if (!file.type.startsWith('image/')) {
+                alert('Please select a valid image file.');
+                return;
+            }
+
+            // Validate file size (max 5MB to prevent memory issues)
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            if (file.size > maxSize) {
+                alert('File size must be less than 5MB.');
+                return;
+            }
+
+            console.log('AddPart handlePhotoChange: current name value:', watch('name'));
+            const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+            console.log('AddPart handlePhotoChange: file name without extension:', fileNameWithoutExt);
+
+            // Copy the file name (without extension) to the name field
+            console.log('AddPart handlePhotoChange: setting name to file name');
+            setValue('name', fileNameWithoutExt);
+
+            setOriginalFile(file);
+            setPhotoFile(file);
+
+            setPhotoPreview(URL.createObjectURL(file));
+        }
+    };
+
+    const handleCropComplete = (croppedImageBlob: Blob) => {
+        console.log('handleCropComplete called with blob size:', croppedImageBlob.size, 'type:', croppedImageBlob.type);
+        if (croppedImageBlob.size === 0) {
+            alert('Ошибка: обрезанное изображение пустое');
+            return;
+        }
+        const croppedFile = new File([croppedImageBlob], 'cropped-image.jpg', { type: 'image/jpeg' });
+        console.log('Created file:', croppedFile.name, 'size:', croppedFile.size, 'type:', croppedFile.type);
+        setPhotoFile(croppedFile);
+        setOriginalFile(croppedFile); // Update originalFile to cropped version
+        setPhotoPreview(URL.createObjectURL(croppedFile));
+        setShowCropper(false);
+        setTempImageSrc("");
+    };
+
+    const handleCropCancel = () => {
+        setShowCropper(false);
+        setTempImageSrc("");
+        // Reset the input
+        const input = document.getElementById('photo') as HTMLInputElement;
+        if (input) input.value = '';
+    };
+
+
+
+    const onSubmit = async (data: PartFormData) => {
+        setLoading(true);
+
+        // Санитизировать входные данные с помощью DOMPurify
+        const sanitizedName = sanitizeHtml(data.name, 'NAME');
+        const sanitizedDescription = data.description ? sanitizeHtml(data.description, 'DESCRIPTION') : undefined;
+        const sanitizedLocation = data.location ? sanitizeHtml(data.location, 'NAME') : undefined;
+
+        const newPart: Part = {
+            brand: data.brand,
+            name: sanitizedName,
+            model: data.model,
+            quantity: data.quantity,
+            description: sanitizedDescription,
+            category: data.category,
+            location: sanitizedLocation,
+            price: data.price,
+            seller_id: data.seller_id ? parseInt(data.seller_id) : undefined,
+            // Характеристики запчасти (теперь хранятся в основной таблице Part)
+            body_brand: data.body_brand,
+            engine_brand: data.engine_brand,
+            car_release_date: data.car_release_date,
+            front_rear: data.front_rear,
+            left_right: data.left_right,
+            top_bottom: data.top_bottom,
+            number: data.number,
+            manufacturer: data.manufacturer,
+            manufacturer_code: data.manufacturer_code,
+            oem_code: data.oem_code,
+            color: data.color,
+            condition: data.condition,
+            supplier_code: data.supplier_code,
+            defect: data.defect,
+            transmission: data.transmission,
+            drive: data.drive,
+            wear_percentage: data.wear_percentage,
+            season: data.season,
+            diameter: data.diameter,
+            width: data.width,
+            profile: data.profile,
+            tire_quantity: data.tire_quantity,
+            drilling: data.drilling,
+            offset: data.offset,
+            center_hole_diameter: data.center_hole_diameter,
+            tire_model: data.tire_model,
+            vin: data.vin
+        };
+
+        try {
+            // Сначала добавить запчасть
+            const response = await fetch("http://localhost:8081/api/addpart", {
+                method: "POST",
+                headers: getAuthHeaders(),
+                credentials: 'include', // Include cookies in the request
+                body: JSON.stringify(newPart),
+            });
+
+            if (!response.ok) {
+                const text = await response.text().catch(() => null);
+                alert(text || `Ошибка сервера: ${response.status}`);
+                setLoading(false);
+                return;
+            }
+
+            const result = await response.json().catch(() => ({ message: "OK" }));
+
+
+            // Если фото выбрано, загрузить
+            if (photoFile) {
+                console.log('Uploading photo for new part, photoFile:', photoFile, 'part ID:', result.id);
+                const photoFormData = new FormData();
+                photoFormData.append("photo", photoFile);
+
+                // Краткая задержка для обеспечения полного создания запчасти
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                try {
+                    console.log('Making photo upload request to:', `http://localhost:8081/api/uploadpartphoto/${result.id}`);
+                    const photoResponse = await fetch(`http://localhost:8081/api/uploadpartphoto/${result.id}`, {
+                        method: "POST",
+                        headers: {
+                            'X-CSRF-Token': getAuthHeaders()['X-CSRF-Token'] || '',
+                        },
+                        credentials: 'include',
+                        body: photoFormData,
+                    });
+
+                    console.log('Photo upload response status:', photoResponse.status);
+                    if (photoResponse.ok) {
+                        const photoResult = await photoResponse.json();
+                        console.log('Photo upload successful:', photoResult);
+                    } else {
+                        const errorText = await photoResponse.text();
+                        console.error("Failed to upload photo:", errorText);
+                        alert('Запчасть создана, но загрузка фото не удалась. Вы можете загрузить фото позже, отредактировав запчасть.');
+                    }
+                } catch (error) {
+                    console.error('Error during photo upload:', error);
+                    alert('Запчасть создана, но загрузка фото не удалась. Вы можете загрузить фото позже, отредактировав запчасть.');
+                }
+            }
+
+            if (photoFile) {
+                alert("Запчасть и фото успешно добавлены!");
+            } else {
+                alert(result.message || "Запчасть успешно добавлена!");
+            }
+
+            // Перейти к инвентарю и обновить для отображения новой запчасти
+            window.location.href = '/inventory';
+        } catch (err) {
+            console.error("Ошибка сети:", err);
+            alert("Ошибка сети при добавлении запчасти");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="max-w-5xl mx-auto p-4 sm:p-8">
+            <Link
+                to="/inventory"
+                className="flex items-center gap-1 text-gray-600 hover:text-black mb-6 text-sm sm:text-base"
+            >
+                <ArrowLeft size={16} />
+                Назад к инвентарю
+            </Link>
+
+            <h2 className="text-2xl sm:text-3xl font-semibold mb-4">Добавить запчасть</h2>
+            <p className="text-gray-500 mb-8 text-base sm:text-lg">
+                Заполните форму для добавления новой запчасти в инвентарь.
+            </p>
+
+            <div className="bg-white rounded-lg border p-4 sm:p-8 shadow-lg w-full max-w-4xl h-auto min-h-[800px] sm:w-[750px] sm:h-[880px]">
+                <Tabs defaultValue="basic" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="basic">Основная информация</TabsTrigger>
+                        <TabsTrigger value="specifications">Характеристики</TabsTrigger>
+                    </TabsList>
+
+                    <form onSubmit={handleSubmit(onSubmit)}>
+                        <TabsContent value="basic" className="space-y-4 mt-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
+                                {/* Левая колонка */}
+                                <div className="space-y-4 sm:space-y-6">
+                                    <div>
+                                        <Label htmlFor="brand-select" className="min-w-[120px]">Бренд *</Label>
+                                        <div className="relative">
+                                            <Select value={brand || ""} onValueChange={(value) => setValue("brand", value)}>
+                                                <SelectTrigger id="brand-select" className="h-10 w-full">
+                                                    <SelectValue placeholder="Выберите бренд" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="BMW">BMW</SelectItem>
+                                                    <SelectItem value="Audi">Audi</SelectItem>
+                                                    <SelectItem value="Mercedes">Mercedes</SelectItem>
+                                                    <SelectItem value="Toyota">Toyota</SelectItem>
+                                                    <SelectItem value="Volkswagen">Volkswagen</SelectItem>
+                                                    <SelectItem value="Honda">Honda</SelectItem>
+                                                    <SelectItem value="Ford">Ford</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            {brand && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setValue("brand", "")}
+                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
+                                                    title="Очистить"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            )}
+                                        </div>
+                                        <input
+                                            type="hidden"
+                                            {...register("brand")}
+                                            autoComplete="organization"
+                                        />
+                                        {errors.brand && <p className="text-red-500 text-sm">{errors.brand.message}</p>}
+                                    </div>
+
+                                    <div>
+                                        <Label htmlFor="name" className="min-w-[120px]">Название запчасти *</Label>
+                                        <Input
+                                            id="name"
+                                            {...register("name")}
+                                            type="text"
+                                            placeholder="Front Brake Disc"
+                                            className="h-10"
+                                            autoComplete="off"
+                                        />
+                                        {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
+                                    </div>
+
+                                    <div>
+                                        <Label htmlFor="category-select" className="min-w-[120px]">Категория</Label>
+                                        <div className="relative">
+                                            <Select value={category || ""} onValueChange={(value) => setValue("category", value)}>
+                                                <SelectTrigger id="category-select" className="h-10 w-full">
+                                                    <SelectValue placeholder="Выберите категорию" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Тормоза">Тормоза</SelectItem>
+                                                    <SelectItem value="Двигатель">Двигатель</SelectItem>
+                                                    <SelectItem value="Подвеска">Подвеска</SelectItem>
+                                                    <SelectItem value="Подвеска ДВС/КПП">Подвеска ДВС/КПП</SelectItem>
+                                                    <SelectItem value="Подвеска передних колес">Подвеска передних колес</SelectItem>
+                                                    <SelectItem value="Подвеска задних колес">Подвеска задних колес</SelectItem>
+                                                    <SelectItem value="Электрика">Электрика</SelectItem>
+                                                    <SelectItem value="Кузов">Кузов</SelectItem>
+                                                    <SelectItem value="Кузов снаружи">Кузов снаружи</SelectItem>
+                                                    <SelectItem value="Интерьер">Интерьер</SelectItem>
+                                                    <SelectItem value="Трансмиссия">Трансмиссия</SelectItem>
+                                                    <SelectItem value="Система охлаждения и отопления">Система охлаждения и отопления</SelectItem>
+                                                    <SelectItem value="Система выхлопа (Глушитель)">Система выхлопа (Глушитель)</SelectItem>
+                                                    <SelectItem value="Система рулевого управления">Система рулевого управления</SelectItem>
+                                                    <SelectItem value="Рулевое управление">Рулевое управление</SelectItem>
+                                                    <SelectItem value="Система фильтрации (Фильтры)">Система фильтрации (Фильтры)</SelectItem>
+                                                    <SelectItem value="Шины и диски">Шины и диски</SelectItem>
+                                                    <SelectItem value="Автохимия и масла">Автохимия и масла</SelectItem>
+                                                    <SelectItem value="Аксессуары и тюннинг">Аксессуары и тюннинг</SelectItem>
+                                                    <SelectItem value="Другое">Другое</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            {category && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setValue("category", "")}
+                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
+                                                    title="Очистить"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            )}
+                                        </div>
+                                        <input
+                                            type="hidden"
+                                            {...register("category")}
+                                            autoComplete="off"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <Label htmlFor="quantity" className="min-w-[120px]">Количество *</Label>
+                                        <Input
+                                            id="quantity"
+                                            {...register("quantity", { valueAsNumber: true })}
+                                            type="number"
+                                            className="h-10"
+                                            autoComplete="off"
+                                        />
+                                        {errors.quantity && <p className="text-red-500 text-sm">{errors.quantity.message}</p>}
+                                    </div>
+
+                                    <div>
+                                        <Label htmlFor="vin" className="min-w-[120px]">VIN</Label>
+                                        <Input
+                                            id="vin"
+                                            {...register("vin")}
+                                            type="text"
+                                            placeholder="WVWZZZ1JZ3W386549"
+                                            className="h-10"
+                                            autoComplete="off"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Правая колонка */}
+                                <div className="space-y-4 sm:space-y-6">
+                                    <div>
+                                        <Label htmlFor="model" className="min-w-[120px]">Модель *</Label>
+                                        <Input
+                                            id="model"
+                                            {...register("model")}
+                                            type="text"
+                                            placeholder="E90"
+                                            className="h-10"
+                                            autoComplete="model"
+                                        />
+                                        {errors.model && <p className="text-red-500 text-sm">{errors.model.message}</p>}
+                                    </div>
+
+                                    <div>
+                                        <Label htmlFor="location" className="min-w-[120px]">Местоположение</Label>
+                                        <Input
+                                            id="location"
+                                            {...register("location")}
+                                            type="text"
+                                            placeholder="Shelf A-12"
+                                            className="h-10"
+                                            autoComplete="shipping location"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <Label htmlFor="price" className="min-w-[120px]">Цена (₽)</Label>
+                                        <Input
+                                            id="price"
+                                            {...register("price")}
+                                            type="number"
+                                            step="100"
+                                            className="h-10"
+                                            autoComplete="transaction-amount"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <Label htmlFor="seller-select" className="min-w-[120px]">Продавец *</Label>
+                                        <div className="relative">
+                                            <Select
+                                                value={sellerId?.toString() || ""}
+                                                onValueChange={(value) => setValue("seller_id", value === "" ? undefined : value)}
+                                                disabled={loadingUsers}
+                                            >
+                                                <SelectTrigger id="seller-select" className="h-10 w-full">
+                                                    <SelectValue placeholder={loadingUsers ? "Загрузка..." : "Выберите продавца"} />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {users.map((user) => (
+                                                        <SelectItem key={user.id} value={user.id.toString()}>
+                                                            {user.name} ({user.email})
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {sellerId && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setValue("seller_id", undefined)}
+                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
+                                                    title="Очистить"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            )}
+                                        </div>
+                                        <input
+                                            type="hidden"
+                                            id="seller_id"
+                                            {...register("seller_id")}
+                                            autoComplete="off"
+                                        />
+                                        {errors.seller_id && <p className="text-red-500 text-sm">{errors.seller_id.message}</p>}
+                                    </div>
+
+                                    <div>
+                                        <Label htmlFor="condition" className="min-w-[120px]">Состояние</Label>
+                                        <Input
+                                            id="condition"
+                                            {...register("condition")}
+                                            type="text"
+                                            placeholder="Б/у или новый"
+                                            className="h-10"
+                                            autoComplete="off"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Секция загрузки фото */}
+                            <div className="mt-6 sm:mt-8">
+                                <Label htmlFor="photo">Фото запчасти</Label>
+                                <div className="mt-3">
+                                    <input
+                                        type="file"
+                                        id="photo"
+                                        name="photo"
+                                        accept="image/*"
+                                        onChange={handlePhotoChange}
+                                        className="hidden"
+                                        autoComplete="off"
+                                    />
+                                    <label
+                                        htmlFor="photo"
+                                        className="flex items-center justify-center w-full h-24 sm:h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition-colors"
+                                    >
+                                        {photoPreview ? (
+                                            <img
+                                                src={photoPreview}
+                                                alt="Preview"
+                                                className="max-h-20 sm:max-h-28 max-w-full object-contain"
+                                            />
+                                        ) : (
+                                            <div className="text-center">
+                                                <Upload className="mx-auto h-6 w-6 sm:h-8 sm:w-8 text-gray-400" />
+                                                <p className="mt-2 text-xs sm:text-sm text-gray-500">Нажмите для выбора фото</p>
+                                            </div>
+                                        )}
+                                    </label>
+                                    {originalFile && (
+                                        <div className="mt-2 flex justify-center">
+                                            <Button
+                                                type="button"
+                                                onClick={() => {
+                                                    const reader = new FileReader();
+                                                    reader.onload = (e) => {
+                                                        setTempImageSrc(e.target?.result as string);
+                                                        setShowCropper(true);
+                                                    };
+                                                    reader.readAsDataURL(originalFile);
+                                                }}
+                                                variant="outline"
+                                                size="sm"
+                                            >
+                                                Обрезать фото
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Раздел заметок во всю ширину */}
+                            <div className="mt-6 sm:mt-8">
+                                <Label htmlFor="description">Заметки</Label>
+                                <Textarea
+                                    id="description"
+                                    {...register("description")}
+                                    placeholder="Additional information..."
+                                    className="min-h-[100px] sm:min-h-[140px] mt-3"
+                                    autoComplete="off"
+                                />
+                                {errors.description && <p className="text-red-500 text-sm">{errors.description.message}</p>}
+                            </div>
+
+                            {/* Кнопка «Отправить» внутри формы */}
+                            <div className="mt-6 sm:mt-8 flex justify-start">
+                                <Button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="px-8 sm:px-12 py-3 sm:py-4 text-sm sm:text-base"
+                                >
+                                    <Save className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3" />
+                                    {loading ? "Сохранение..." : "Сохранить"}
+                                </Button>
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="specifications" className="space-y-4 mt-6 max-h-[750px] overflow-y-auto">
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-medium">Характеристики запчасти</h3>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {visibleFields.includes("body_brand") && (
+                                        <div>
+                                            <Label htmlFor="body_brand">Марка кузова</Label>
+                                            <Input
+                                                id="body_brand"
+                                                {...register("body_brand")}
+                                                type="text"
+                                                className="h-10"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("engine_brand") && (
+                                        <div>
+                                            <Label htmlFor="engine_brand">Марка двигателя</Label>
+                                            <Input
+                                                id="engine_brand"
+                                                {...register("engine_brand")}
+                                                type="text"
+                                                className="h-10"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("car_release_date") && (
+                                        <div>
+                                            <Label htmlFor="car_release_date">Дата выпуска автомобиля</Label>
+                                            <Input
+                                                id="car_release_date"
+                                                {...register("car_release_date")}
+                                                type="text"
+                                                className="h-10"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("front_rear") && (
+                                        <div>
+                                            <Label htmlFor="front_rear-select">Перед/зад</Label>
+                                            <div className="relative">
+                                                <Select value={watch("front_rear") || ""} onValueChange={(value) => setValue("front_rear", value)}>
+                                                    <SelectTrigger id="front_rear-select" className="h-10 w-full">
+                                                        <SelectValue placeholder="Выберите" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="F">F (Перед)</SelectItem>
+                                                        <SelectItem value="R">R (Зад)</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                {watch("front_rear") && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setValue("front_rear", "")}
+                                                        className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
+                                                        title="Очистить"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <input
+                                                type="hidden"
+                                                {...register("front_rear")}
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("left_right") && (
+                                        <div>
+                                            <Label htmlFor="left_right-select">Право/лево</Label>
+                                            <div className="relative">
+                                                <Select value={watch("left_right") || ""} onValueChange={(value) => setValue("left_right", value)}>
+                                                    <SelectTrigger id="left_right-select" className="h-10 w-full">
+                                                        <SelectValue placeholder="Выберите" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="L">L (Лево)</SelectItem>
+                                                        <SelectItem value="R">R (Право)</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                {watch("left_right") && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setValue("left_right", "")}
+                                                        className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
+                                                        title="Очистить"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <input
+                                                type="hidden"
+                                                {...register("left_right")}
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("top_bottom") && (
+                                        <div>
+                                            <Label htmlFor="top_bottom-select">Верх/низ</Label>
+                                            <div className="relative">
+                                                <Select value={watch("top_bottom") || ""} onValueChange={(value) => setValue("top_bottom", value)}>
+                                                    <SelectTrigger id="top_bottom-select" className="h-10 w-full">
+                                                        <SelectValue placeholder="Выберите" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="Верх">Верх</SelectItem>
+                                                        <SelectItem value="Низ">Низ</SelectItem>
+                                                        <SelectItem value="Середина">Середина</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                {watch("top_bottom") && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setValue("top_bottom", "")}
+                                                        className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
+                                                        title="Очистить"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <input
+                                                type="hidden"
+                                                {...register("top_bottom")}
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("number") && (
+                                        <div>
+                                            <Label htmlFor="number">Номер</Label>
+                                            <Input
+                                                id="number"
+                                                {...register("number")}
+                                                type="text"
+                                                className="h-10"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("manufacturer") && (
+                                        <div>
+                                            <Label htmlFor="manufacturer">Производитель</Label>
+                                            <Input
+                                                id="manufacturer"
+                                                {...register("manufacturer")}
+                                                type="text"
+                                                className="h-10"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("manufacturer_code") && (
+                                        <div>
+                                            <Label htmlFor="manufacturer_code">Код производителя</Label>
+                                            <Input
+                                                id="manufacturer_code"
+                                                {...register("manufacturer_code")}
+                                                type="text"
+                                                className="h-10"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("oem_code") && (
+                                        <div>
+                                            <Label htmlFor="oem_code">OEM код</Label>
+                                            <Input
+                                                id="oem_code"
+                                                {...register("oem_code")}
+                                                type="text"
+                                                className="h-10"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("color") && (
+                                        <div>
+                                            <Label htmlFor="color">Цвет</Label>
+                                            <Input
+                                                id="color"
+                                                {...register("color")}
+                                                type="text"
+                                                className="h-10"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+
+                                    {visibleFields.includes("supplier_code") && (
+                                        <div>
+                                            <Label htmlFor="supplier_code">Код поставки</Label>
+                                            <Input
+                                                id="supplier_code"
+                                                {...register("supplier_code")}
+                                                type="text"
+                                                className="h-10"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("defect") && (
+                                        <div>
+                                            <Label htmlFor="defect">Дефект</Label>
+                                            <Input
+                                                id="defect"
+                                                {...register("defect")}
+                                                type="text"
+                                                className="h-10"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("transmission") && (
+                                        <div>
+                                            <Label htmlFor="transmission-select">Трансмиссия</Label>
+                                            <div className="relative">
+                                                <Select value={watch("transmission") || ""} onValueChange={(value) => setValue("transmission", value)}>
+                                                    <SelectTrigger id="transmission-select" className="h-10 w-full">
+                                                        <SelectValue placeholder="Выберите тип трансмиссии" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="МКПП">МКПП</SelectItem>
+                                                        <SelectItem value="АКПП">АКПП</SelectItem>
+                                                        <SelectItem value="Роботизированная">Роботизированная</SelectItem>
+                                                        <SelectItem value="Вариатор">Вариатор</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                {watch("transmission") && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setValue("transmission", "")}
+                                                        className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
+                                                        title="Очистить"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <input
+                                                type="hidden"
+                                                {...register("transmission")}
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("drive") && (
+                                        <div>
+                                            <Label htmlFor="drive">Привод</Label>
+                                            <Input
+                                                id="drive"
+                                                {...register("drive")}
+                                                type="text"
+                                                className="h-10"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("wear_percentage") && (
+                                        <div>
+                                            <Label htmlFor="wear_percentage">Процент износа (%)</Label>
+                                            <Input
+                                                id="wear_percentage"
+                                                {...register("wear_percentage")}
+                                                type="text"
+                                                className="h-10"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("season") && (
+                                        <div>
+                                            <Label htmlFor="season">Сезон</Label>
+                                            <Input
+                                                id="season"
+                                                {...register("season")}
+                                                type="text"
+                                                className="h-10"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("diameter") && (
+                                        <div>
+                                            <Label htmlFor="diameter">Диаметр</Label>
+                                            <Input
+                                                id="diameter"
+                                                {...register("diameter")}
+                                                type="text"
+                                                className="h-10"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("width") && (
+                                        <div>
+                                            <Label htmlFor="width">Ширина</Label>
+                                            <Input
+                                                id="width"
+                                                {...register("width")}
+                                                type="text"
+                                                className="h-10"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("profile") && (
+                                        <div>
+                                            <Label htmlFor="profile">Профиль</Label>
+                                            <Input
+                                                id="profile"
+                                                {...register("profile")}
+                                                type="text"
+                                                className="h-10"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("tire_quantity") && (
+                                        <div>
+                                            <Label htmlFor="tire_quantity">Количество</Label>
+                                            <Input
+                                                id="tire_quantity"
+                                                {...register("tire_quantity")}
+                                                type="text"
+                                                className="h-10"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("drilling") && (
+                                        <div>
+                                            <Label htmlFor="drilling">Сверловка</Label>
+                                            <Input
+                                                id="drilling"
+                                                {...register("drilling")}
+                                                type="text"
+                                                className="h-10"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("offset") && (
+                                        <div>
+                                            <Label htmlFor="offset">Вылет</Label>
+                                            <Input
+                                                id="offset"
+                                                {...register("offset")}
+                                                type="text"
+                                                className="h-10"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("center_hole_diameter") && (
+                                        <div>
+                                            <Label htmlFor="center_hole_diameter">Диаметр ЦО</Label>
+                                            <Input
+                                                id="center_hole_diameter"
+                                                {...register("center_hole_diameter")}
+                                                type="text"
+                                                className="h-10"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("tire_model") && (
+                                        <div>
+                                            <Label htmlFor="tire_model">Модель шины</Label>
+                                            <Input
+                                                id="tire_model"
+                                                {...register("tire_model")}
+                                                type="text"
+                                                className="h-10"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </TabsContent>
+                    </form>
+                </Tabs>
+            </div>
+
+            {showCropper && (
+                <ImageCropper
+                    src={tempImageSrc}
+                    onCropComplete={handleCropComplete}
+                    onCancel={handleCropCancel}
+                    aspect={null} // Free aspect ratio for parts photos
+                />
+            )}
+        </div>
+    );
+}

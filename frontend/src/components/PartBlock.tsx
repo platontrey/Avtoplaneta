@@ -1,0 +1,1043 @@
+﻿/*
+* Copyright (c) 2025 Avtoplaneta. All rights reserved.
+*/
+
+import React, { useState, useRef, useEffect } from "react";
+import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Trash2, Edit, ShoppingCart } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { usePhotoUpload } from "@/hooks/usePhotoUpload";
+import { usePartEdit } from "@/hooks/usePartEdit";
+import { useDeletePart, partsKeys } from "@/hooks/useParts";
+import { useAuth } from "@/hooks/useAuth";
+import PartOrderDialog from "./PartOrderDialog";
+import ImageCropper from "./ImageCropper";
+import EditPartDialog from "./EditPartDialog";
+import type { Part } from "@/features/parts/types";
+import { API_BASE_URL } from "@/lib/api";
+import { useQueryClient } from '@tanstack/react-query';
+import { getAuthHeaders } from '@/lib/csrf';
+
+interface PartBlockProps {
+    part: Part;
+    isLoading?: boolean;
+    isSelectionMode?: boolean;
+    isSelected?: boolean;
+    onLongPress?: () => void;
+    onSelect?: (isSelected: boolean) => void;
+}
+
+
+export default function PartBlock({
+    part,
+    isLoading = false,
+    isSelectionMode = false,
+    isSelected = false,
+    onLongPress,
+    onSelect
+}: PartBlockProps) {
+    const { user } = useAuth();
+    const accordionRef = useRef<HTMLDivElement>(null);
+    const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const [, setIsPressed] = useState(false);
+
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // Состояние диалога заказа
+
+    const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
+
+    // Состояние обрезки изображения
+
+    const [showCropper, setShowCropper] = useState(false);
+    const [tempImageSrc, setTempImageSrc] = useState("");
+    const [originalFile, setOriginalFile] = useState<File | null>(null);
+    const queryClient = useQueryClient();
+
+    // Используем кастомные хуки для логики фото и редактирования
+    const photoUpload = usePhotoUpload({
+        initialPhoto: part.photo,
+        onPhotoUpload: (photoPath: string) => {
+            console.log('Photo upload completed for part:', part.id, 'New photo path:', photoPath);
+            // Update the main photo display immediately
+            photoUpload.updateCurrentPhoto(photoPath);
+            // Also invalidate to ensure consistency
+            void queryClient.invalidateQueries({ queryKey: partsKeys.lists() });
+        },
+        onUploadComplete: () => {
+            // Invalidate parts list cache when photo upload completes
+            void queryClient.invalidateQueries({ queryKey: partsKeys.lists() });
+        },
+    });
+
+    const partEdit = usePartEdit({
+        initialPart: part,
+    });
+    const deletePartMutation = useDeletePart();
+
+    // Обработчики долгого нажатия
+    const handlePointerDown = (e: React.PointerEvent) => {
+        // Игнорируем если клик на интерактивных элементах
+        const target = e.target as HTMLElement;
+        if (target.closest('input, a, [role="button"]')) {
+            return;
+        }
+
+        setIsPressed(true);
+        longPressTimerRef.current = setTimeout(() => {
+            if (onLongPress) {
+                onLongPress();
+            }
+        }, 300); // 0.3 секунды
+    };
+
+    const handlePointerUp = () => {
+        setIsPressed(false);
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+    };
+
+    const handlePointerLeave = () => {
+        setIsPressed(false);
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+    };
+
+    // Альтернативный подход - использование контекстного меню
+
+    // Очистка таймера при размонтировании
+    useEffect(() => {
+        return () => {
+            if (longPressTimerRef.current) {
+                clearTimeout(longPressTimerRef.current);
+            }
+        };
+    }, []);
+
+// Закрываем диалог заказа при изменении детали (редактирование/удаление)
+    useEffect(() => {
+        console.log('PartBlock: part.id changed to', part.id, 'closing order dialog');
+        setIsOrderDialogOpen(false);
+    }, [part.id]);
+
+    const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        console.log('PartBlock handlePhotoChange: START - event target files:', e.target.files);
+        const file = e.target.files?.[0];
+        console.log('PartBlock handlePhotoChange: file selected:', file?.name, 'size:', file?.size, 'type:', file?.type);
+        if (file) {
+            console.log('PartBlock handlePhotoChange: file validation passed');
+            // Validate file type - only allow images
+            if (!file.type.startsWith('image/')) {
+                console.error('PartBlock handlePhotoChange: invalid file type:', file.type);
+                alert('Please select a valid image file.');
+                return;
+            }
+
+            // Validate file size (max 5MB to prevent memory issues)
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            if (file.size > maxSize) {
+                console.error('PartBlock handlePhotoChange: file too large:', file.size, 'max:', maxSize);
+                alert('File size must be less than 5MB.');
+                return;
+            }
+
+            console.log('PartBlock handlePhotoChange: current part name:', partEdit.editForm.name);
+
+            setOriginalFile(file);
+            console.log('PartBlock handlePhotoChange: calling partEdit.photoUpload.handlePhotoChange');
+            partEdit.photoUpload.handlePhotoChange({
+                target: { files: [file] }
+            } as unknown as React.ChangeEvent<HTMLInputElement>);
+        } else {
+            console.warn('PartBlock handlePhotoChange: no file selected');
+        }
+        console.log('PartBlock handlePhotoChange: END');
+    };
+
+
+    const handleCropComplete = async (croppedImageBlob: Blob) => {
+        console.log('PartBlock handleCropComplete called with blob size:', croppedImageBlob.size, 'type:', croppedImageBlob.type);
+        if (croppedImageBlob.size === 0) {
+            alert('Ошибка: обрезанное изображение пустое');
+            return;
+        }
+        const croppedFile = new File([croppedImageBlob], 'cropped-image.jpg', { type: 'image/jpeg' });
+        console.log('PartBlock created file:', croppedFile.name, 'size:', croppedFile.size, 'type:', croppedFile.type);
+
+        // Set the cropped file for upload on save
+        partEdit.photoUpload.handlePhotoChange({
+            target: { files: [croppedFile] }
+        } as unknown as React.ChangeEvent<HTMLInputElement>);
+
+        setShowCropper(false);
+        setTempImageSrc("");
+    };
+
+    const handleCropCancel = () => {
+        setShowCropper(false);
+        setTempImageSrc("");
+        // Reset the input
+        const input = document.getElementById('photo') as HTMLInputElement;
+        if (input) input.value = '';
+    };
+
+    const handleDelete = async () => {
+        console.log('PartBlock handleDelete: START - part.id:', part.id, 'isDeleting:', isDeleting);
+
+        if (isDeleting) {
+            console.log('PartBlock handleDelete: Already deleting, ignoring click');
+            return;
+        }
+
+        console.log(`PartBlock handleDelete: Starting delete for part ${part.id}`);
+        setIsDeleting(true);
+
+        try {
+            console.log('PartBlock handleDelete: Calling deletePartMutation with:', part.id);
+            await deletePartMutation.mutateAsync(part.id);
+            console.log(`PartBlock handleDelete: Delete completed for part ${part.id}`);
+            // Success - component will unmount as parent removes it from list
+        } catch (error: unknown) {
+            // Error occurred - component still mounted, reset state
+            console.error(`PartBlock handleDelete: Error for part ${part.id}:`, error);
+            console.error('PartBlock handleDelete: Error details:', error instanceof Error ? error.message : error);
+            console.error('PartBlock handleDelete: Error stack:', error instanceof Error ? error.stack : 'No stack');
+            setIsDeleting(false);
+            throw error;
+        }
+        console.log('PartBlock handleDelete: END');
+    };
+
+
+    // Проверка безопасности - валидация данных детали для предотвращения ошибок выполнения
+    if (!part) {
+        console.error('PartBlock: Invalid part data', part);
+        return null;
+    }
+
+    // Отладочное логирование
+    console.log(`PartBlock rendering part ${part.id}:`, {
+        name: part.name,
+        photo: part.photo,
+        brand: part.brand,
+        model: part.model
+    });
+
+    // Логи для отладки фото
+    console.log('PartBlock photo debug:', {
+        partId: part.id,
+        partPhoto: part.photo,
+        photoUploadCurrentPhoto: photoUpload.currentPhoto,
+        photoUploadPhotoPreview: photoUpload.photoPreview,
+        API_BASE_URL: API_BASE_URL,
+        fullImageUrl: photoUpload.currentPhoto ? `${API_BASE_URL}${photoUpload.currentPhoto}?t=${photoUpload.uploadTimestamp}` : 'no photo',
+        uploadTimestamp: photoUpload.uploadTimestamp,
+        forceRefresh: photoUpload.forceRefresh
+    });
+
+    // Логи для отладки фото
+    console.log('PartBlock photo debug:', {
+        partId: part.id,
+        partPhoto: part.photo,
+        photoUploadCurrentPhoto: photoUpload.currentPhoto,
+        photoUploadPhotoPreview: photoUpload.photoPreview,
+        API_BASE_URL: API_BASE_URL,
+        fullImageUrl: photoUpload.currentPhoto ? `${API_BASE_URL}${photoUpload.currentPhoto}?t=${photoUpload.uploadTimestamp}` : 'no photo',
+        uploadTimestamp: photoUpload.uploadTimestamp,
+        forceRefresh: photoUpload.forceRefresh
+    });
+
+    if (isLoading) {
+        return (
+            <motion.div
+                className="border rounded-lg mb-2 p-4"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+            >
+                <div className="flex items-center space-x-4">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.1, duration: 0.3 }}
+                    >
+                        <Skeleton className="h-4 w-48" />
+                    </motion.div>
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.2, duration: 0.3 }}
+                    >
+                        <Skeleton className="h-8 w-8 rounded" />
+                    </motion.div>
+                </div>
+                <motion.div
+                    className="mt-4 space-y-2"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.3, duration: 0.4 }}
+                >
+                    {[32, 40, 36, 28, 30, 34, 26].map((width, index) => (
+                        <motion.div
+                            key={index}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.4 + index * 0.1, duration: 0.3 }}
+                        >
+                            <Skeleton className={`h-4 w-${width}`} />
+                        </motion.div>
+                    ))}
+                </motion.div>
+            </motion.div>
+        );
+    }
+
+
+    return (
+        <motion.div
+            className="bg-transparent border border-gray-300 rounded-lg mb-4 relative group hover:shadow-md transition-shadow p-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+                duration: 1.0,
+                ease: [0.25, 0.46, 0.45, 0.94],
+                delay: 0.1
+            }}
+            whileHover={{
+                scale: 1.005,
+                transition: { duration: 0.05 }
+            }}
+            layout
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={handlePointerDown}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerLeave}
+        >
+            {/* Чекбокс для режима выбора */}
+            {isSelectionMode && (
+                <div className="absolute top-11 left-[-3rem] z-10" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                        className="scale-150"
+                        checked={isSelected}
+                        onCheckedChange={(checked) => {
+                            if (onSelect) {
+                                onSelect(checked as boolean);
+                            }
+                        }}
+                    />
+                </div>
+            )}
+            {/* Элемент аккордеона для деталей детали */}
+            <AccordionItem
+                value={`part-${part.id}`}
+                data-testid="part-accordion"
+                ref={accordionRef}
+                className="border-b last:border-b-0 pointer-events-none"
+            >
+                <AccordionTrigger
+                    className="flex items-center justify-between w-full hover:bg-accent hover:text-accent-foreground pr-4 pointer-events-auto"
+                >
+                    <div className="flex items-center space-x-2 sm:space-x-3 flex-1">
+                        <AnimatePresence initial={false}>
+                            <motion.div
+                                layoutId={`part-image-${part.id}`}
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.8 }}
+                                transition={{ duration: 1.0, delay: 0.1 }}
+                            >
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <motion.img
+                                            key={photoUpload.forceRefresh}
+                                            src={`${photoUpload.currentPhoto ? `${API_BASE_URL}${photoUpload.currentPhoto}?t=${photoUpload.uploadTimestamp}` : '/placeholder-part.svg'}`}
+                                            alt={part.name || 'Изображение детали'}
+                                            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                                                e.currentTarget.onerror = null;
+                                                e.currentTarget.src = '/placeholder-part.svg';
+                                            }}
+                                            fetchPriority="high"
+                                            loading="eager"
+                                            className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded-lg border cursor-pointer ml-3 mr-3"
+                                            whileHover={{ scale: 1.1, rotate: 5 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            transition={{ duration: 0.1 }}
+                                        />
+                                    </DialogTrigger>
+                                    <DialogContent className="max-w-4xl" onClick={(e) => e.stopPropagation()}>
+                                        <DialogTitle>{part.name}</DialogTitle>
+                                        <DialogDescription>Изображение детали</DialogDescription>
+                                        <motion.img
+                                            key={photoUpload.forceRefresh}
+                                            src={photoUpload.currentPhoto ? `${API_BASE_URL}${photoUpload.currentPhoto}?t=${photoUpload.uploadTimestamp}` : '/placeholder-part.svg'}
+                                            alt={part.name}
+                                            className="w-full h-auto max-h-[80vh] object-contain"
+                                            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                                                e.currentTarget.onerror = null;
+                                                e.currentTarget.src = '/placeholder-part.svg';
+                                            }}
+                                            initial={{ opacity: 0, scale: 0.9 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            transition={{ duration: 0.3 }}
+                                        />
+                                    </DialogContent>
+                                </Dialog>
+                            </motion.div>
+                        </AnimatePresence>
+                        <div className="flex flex-col min-w-0 flex-1">
+                            <span className="truncate text-sm sm:text-base font-semibold">{part.name || 'Unnamed Part'}</span>
+                            {(part.brand || part.model) && (
+                                <span className="text-xs sm:text-sm text-muted-foreground truncate">
+                                    {part.brand && part.model ? `${part.brand} ${part.model}` : part.brand || part.model}
+                                </span>
+                            )}
+                            <div className="flex gap-2 mt-1">
+                                {part.category && (
+                                    <span className="text-sm bg-zinc-50 border border-gray-300 px-3 py-1 rounded-md font-medium">{part.category}</span>
+                                )}
+                                <span className="text-sm bg-zinc-50 border border-gray-300 px-3 py-1 rounded-md font-medium">Кол: {part.quantity ?? 0}</span>
+                                <span className="text-sm bg-black text-white px-3 py-1 rounded-md font-medium">Цена: {part.price ? `₽${part.price}` : 'TBD'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {/* Кнопки действий */}
+                    <div className="flex space-x-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {/* Кнопка добавления в заказ */}
+                        <motion.div
+                            className="opacity-100 transition-opacity w-8 h-8 flex items-center justify-center rounded hover:bg-accent"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsOrderDialogOpen(true);
+                            }}
+                            whileHover={{ scale: 1.1, rotate: 10 }}
+                            whileTap={{ scale: 0.9 }}
+                            transition={{ duration: 0.2 }}
+                        >
+                            <ShoppingCart className="h-4 w-4 cursor-pointer" />
+                        </motion.div>
+
+                        {/* Кнопка редактирования */}
+                        {user?.role === 'admin' && (
+                            <motion.div
+                                className="opacity-100 transition-opacity w-8 h-8 flex items-center justify-center rounded hover:bg-accent"
+                                onClick={(e) => {
+                                    console.log('Edit button clicked for part:', part.id);
+                                    partEdit.setIsEditing(true);
+                                    e.stopPropagation();
+                                }}
+                                style={{ cursor: partEdit.isEditing ? 'not-allowed' : 'pointer' }}
+                                whileHover={{ scale: 1.1, rotate: 10 }}
+                                whileTap={{ scale: 0.9 }}
+                                transition={{ duration: 0.1 }}
+                            >
+                                <Edit className="h-4 w-4 cursor-pointer" />
+                            </motion.div>
+                        )}
+                        {/* Диалог редактирования */}
+                        <EditPartDialog
+                            partEdit={partEdit}
+                            part={part}
+                            onPhotoChange={handlePhotoChange}
+                            onCrop={() => {
+                                if (originalFile) {
+                                    const reader = new FileReader();
+                                    reader.onload = (e) => {
+                                        setTempImageSrc(e.target?.result as string);
+                                        setShowCropper(true);
+                                    };
+                                    reader.readAsDataURL(originalFile);
+                                }
+                            }}
+                            onDeletePhoto={async () => {
+                                console.log('Удаление фото начато для детали:', part.id);
+                                try {
+                                    const response = await fetch(`http://localhost:8081/api/deletepartphoto/${part.id}`, {
+                                        method: 'DELETE',
+                                        headers: getAuthHeaders(),
+                                        credentials: 'include',
+                                    });
+
+                                    if (!response.ok) {
+                                        const errorText = await response.text();
+                                        throw new Error(`HTTP ${response.status}: ${errorText}`);
+                                    }
+
+                                    const result = await response.json();
+                                    console.log('Фото успешно удалено:', result);
+
+                                    // Обновить локальное состояние
+                                    partEdit.updateFormField('photo', '');
+                                    // Invalidate queries to refresh the UI
+                                    void queryClient.invalidateQueries({ queryKey: partsKeys.lists() });
+                                } catch (error) {
+                                    console.error('Ошибка при удалении фото:', error);
+                                    alert('Не удалось удалить фото. Попробуйте еще раз.');
+                                    throw error;
+                                }
+                            }}
+                            originalFile={originalFile}
+                        />
+                        {/* Диалог подтверждения удаления */}
+                        {user?.role === 'admin' && (
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <motion.div
+                                        className="w-8 h-8 flex items-center justify-center rounded hover:bg-accent pointer-events-auto"
+                                        whileHover={{ scale: 1.1, rotate: 10 }}
+                                        whileTap={{ scale: 0.9 }}
+                                        transition={{ duration: 0.1 }}
+                                    >
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 w-8 p-0"
+                                            disabled={isDeleting}
+                                        >
+                                            <Trash2 className={`h-4 w-4 ${isDeleting ? 'text-muted' : 'text-destructive hover:text-destructive/90'}`} />
+                                        </Button>
+                                    </motion.div>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Вы абсолютно уверены?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Это действие нельзя отменить. Это навсегда удалит деталь
+                                            и удалит её данные из нашего инвентаря.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                        <AlertDialogAction
+                                            onClick={() => handleDelete()}
+                                            disabled={isDeleting}
+                                        >
+                                            {isDeleting ? 'Удаление...' : 'Продолжить'}
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        )}
+                    </div>
+
+                </AccordionTrigger>
+                {/* Развёрнутый контент с деталями детали */}
+                <motion.div
+                    initial={false}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                >
+                    <AccordionContent className="hover:bg-accent/50 border-t border-gray-200 pt-3 px-4">
+                        <motion.div
+                            className="space-y-1"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1, duration: 0.3 }}
+                        >
+                            {/* Отображение фото в развёрнутом виде */}
+                            <AnimatePresence>
+                                <motion.div
+                                    className="mb-3"
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -20 }}
+                                    transition={{ duration: 1.0, delay: 0.1 }}
+                                >
+                                    <Dialog>
+                                        <DialogTrigger asChild>
+                                            <button onClick={(e) => e.stopPropagation()} className="bg-transparent border-none p-0 pointer-events-auto">
+                                                <motion.img
+                                                    key={photoUpload.forceRefresh}
+                                                    src={photoUpload.currentPhoto ? `${API_BASE_URL}${photoUpload.currentPhoto}?t=${photoUpload.uploadTimestamp}` : '/placeholder-part.svg'}
+                                                    alt={part.name}
+                                                    className="max-w-full h-auto max-h-48 object-contain rounded-lg border cursor-pointer"
+                                                    whileHover={{ scale: 1.05 }}
+                                                    whileTap={{ scale: 0.95 }}
+                                                    transition={{ duration: 0.2 }}
+                                                />
+                                            </button>
+                                        </DialogTrigger>
+                                        <DialogContent className="max-w-4xl" onClick={(e) => e.stopPropagation()}>
+                                            <DialogTitle>{part.name}</DialogTitle>
+                                            <DialogDescription>Изображение детали</DialogDescription>
+                                            <motion.img
+                                                src={photoUpload.currentPhoto ? `${API_BASE_URL}${photoUpload.currentPhoto}?t=${photoUpload.uploadTimestamp}` : '/placeholder-part.svg'}
+                                                alt={part.name || 'Изображение детали'}
+                                                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                                                    e.currentTarget.onerror = null;
+                                                    e.currentTarget.src = '/placeholder-part.svg';
+                                                }}
+                                                className="w-full h-auto max-h-[80vh] object-contain"
+                                                style={{ minHeight: '300px' }}
+                                                initial={{ opacity: 0, scale: 0.9 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                transition={{ duration: 1.0, delay: 0.1 }}
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                        </DialogContent>
+                                    </Dialog>
+                                </motion.div>
+                            </AnimatePresence>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-3">
+                                    <h4 className="font-semibold text-sm text-gray-700 mb-3">Основная информация:</h4>
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {part.brand && (
+                                            <motion.div
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: 0.15, duration: 0.3 }}
+                                                className="text-sm"
+                                            >
+                                                <div className="font-medium text-gray-600">Бренд</div>
+                                                <div>{part.brand}</div>
+                                            </motion.div>
+                                        )}
+                                        {part.model && (
+                                            <motion.div
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: 0.2, duration: 0.3 }}
+                                                className="text-sm"
+                                            >
+                                                <div className="font-medium text-gray-600">Модель</div>
+                                                <div>{part.model}</div>
+                                            </motion.div>
+                                        )}
+                                        {part.vin && (
+                                            <motion.div
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: 0.25, duration: 0.3 }}
+                                                className="text-sm"
+                                            >
+                                                <div className="font-medium text-gray-600">VIN</div>
+                                                <div>{part.vin}</div>
+                                            </motion.div>
+                                        )}
+                                        <motion.div
+                                            initial={{ opacity: 0, x: -20 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{ delay: 0.3, duration: 0.3 }}
+                                            className="text-sm"
+                                        >
+                                            <div className="font-medium text-gray-600">Количество</div>
+                                            <div>{part.quantity ?? 0}</div>
+                                        </motion.div>
+                                        {part.description && (
+                                            <motion.div
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: 0.35, duration: 0.3 }}
+                                                className="text-sm"
+                                            >
+                                                <div className="font-medium text-gray-600">Описание</div>
+                                                <div>{part.description}</div>
+                                            </motion.div>
+                                        )}
+                                        {part.category && (
+                                            <motion.div
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: 0.4, duration: 0.3 }}
+                                                className="text-sm"
+                                            >
+                                                <div className="font-medium text-gray-600">Категория</div>
+                                                <div>{part.category}</div>
+                                            </motion.div>
+                                        )}
+                                        {part.location && (
+                                            <motion.div
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: 0.45, duration: 0.3 }}
+                                                className="text-sm"
+                                            >
+                                                <div className="font-medium text-gray-600">Местоположение</div>
+                                                <div>{part.location}</div>
+                                            </motion.div>
+                                        )}
+                                        {part.salesman && (
+                                            <motion.div
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: 0.5, duration: 0.3 }}
+                                                className="text-sm"
+                                            >
+                                                <div className="font-medium text-gray-600">Продавец</div>
+                                                <div>{part.salesman}</div>
+                                            </motion.div>
+                                        )}
+                                        {/* Характеристики запчасти */}
+                                        {/* Common fields */}
+                                        {part.manufacturer && (
+                                            <motion.div
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: 0.55, duration: 0.3 }}
+                                                className="text-sm"
+                                            >
+                                                <div className="font-medium text-gray-600">Производитель</div>
+                                                <div>{part.manufacturer}</div>
+                                            </motion.div>
+                                        )}
+                                        {part.manufacturer_code && (
+                                            <motion.div
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: 0.6, duration: 0.3 }}
+                                                className="text-sm"
+                                            >
+                                                <div className="font-medium text-gray-600">Код производителя</div>
+                                                <div>{part.manufacturer_code}</div>
+                                            </motion.div>
+                                        )}
+                                        {part.oem_code && (
+                                            <motion.div
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: 0.65, duration: 0.3 }}
+                                                className="text-sm"
+                                            >
+                                                <div className="font-medium text-gray-600">OEM код</div>
+                                                <div>{part.oem_code}</div>
+                                            </motion.div>
+                                        )}
+                                        {part.supplier_code && (
+                                            <motion.div
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: 0.7, duration: 0.3 }}
+                                                className="text-sm"
+                                            >
+                                                <div className="font-medium text-gray-600">Код поставки</div>
+                                                <div>{part.supplier_code}</div>
+                                            </motion.div>
+                                        )}
+                                        {part.condition && (
+                                            <motion.div
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: 0.75, duration: 0.3 }}
+                                                className="text-sm"
+                                            >
+                                                <div className="font-medium text-gray-600">Состояние</div>
+                                                <div>{part.condition}</div>
+                                            </motion.div>
+                                        )}
+                                        {part.wear_percentage && (
+                                            <motion.div
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: 0.8, duration: 0.3 }}
+                                                className="text-sm"
+                                            >
+                                                <div className="font-medium text-gray-600">Процент износа</div>
+                                                <div>{part.wear_percentage}%</div>
+                                            </motion.div>
+                                        )}
+
+                                        {/* Category-specific fields */}
+                                        {(part.category === 'Двигатель' || part.category === 'Трансмиссия') && (
+                                            <>
+                                                {part.engine_brand && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: -20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 0.85, duration: 0.3 }}
+                                                        className="text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-600">Марка двигателя</div>
+                                                        <div>{part.engine_brand}</div>
+                                                    </motion.div>
+                                                )}
+                                                {part.transmission && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: -20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 0.9, duration: 0.3 }}
+                                                        className="text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-600">Трансмиссия</div>
+                                                        <div>{part.transmission}</div>
+                                                    </motion.div>
+                                                )}
+                                                {part.drive && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: -20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 0.95, duration: 0.3 }}
+                                                        className="text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-600">Привод</div>
+                                                        <div>{part.drive}</div>
+                                                    </motion.div>
+                                                )}
+                                            </>
+                                        )}
+
+                                        {(part.category === 'Кузов' || part.category === 'Интерьер') && (
+                                            <>
+                                                {part.body_brand && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: -20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 0.85, duration: 0.3 }}
+                                                        className="text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-600">Марка кузова</div>
+                                                        <div>{part.body_brand}</div>
+                                                    </motion.div>
+                                                )}
+                                                {part.color && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: -20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 0.9, duration: 0.3 }}
+                                                        className="text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-600">Цвет</div>
+                                                        <div>{part.color}</div>
+                                                    </motion.div>
+                                                )}
+                                            </>
+                                        )}
+
+                                        {part.category === 'Шины и диски' && (
+                                            <>
+                                                {part.diameter && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: -20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 0.85, duration: 0.3 }}
+                                                        className="text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-600">Диаметр</div>
+                                                        <div>{part.diameter}</div>
+                                                    </motion.div>
+                                                )}
+                                                {part.width && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: -20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 0.9, duration: 0.3 }}
+                                                        className="text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-600">Ширина</div>
+                                                        <div>{part.width}</div>
+                                                    </motion.div>
+                                                )}
+                                                {part.profile && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: -20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 0.95, duration: 0.3 }}
+                                                        className="text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-600">Профиль</div>
+                                                        <div>{part.profile}</div>
+                                                    </motion.div>
+                                                )}
+                                                {part.tire_quantity && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: -20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 1.0, duration: 0.3 }}
+                                                        className="text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-600">Количество шин</div>
+                                                        <div>{part.tire_quantity}</div>
+                                                    </motion.div>
+                                                )}
+                                                {part.drilling && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: -20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 1.05, duration: 0.3 }}
+                                                        className="text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-600">Сверловка</div>
+                                                        <div>{part.drilling}</div>
+                                                    </motion.div>
+                                                )}
+                                                {part.offset && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: -20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 1.1, duration: 0.3 }}
+                                                        className="text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-600">Вылет</div>
+                                                        <div>{part.offset}</div>
+                                                    </motion.div>
+                                                )}
+                                                {part.center_hole_diameter && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: -20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 1.15, duration: 0.3 }}
+                                                        className="text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-600">Диаметр ЦО</div>
+                                                        <div>{part.center_hole_diameter}</div>
+                                                    </motion.div>
+                                                )}
+                                                {part.tire_model && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: -20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 1.2, duration: 0.3 }}
+                                                        className="text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-600">Модель шины</div>
+                                                        <div>{part.tire_model}</div>
+                                                    </motion.div>
+                                                )}
+                                                {part.season && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: -20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 1.25, duration: 0.3 }}
+                                                        className="text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-600">Сезон</div>
+                                                        <div>{part.season}</div>
+                                                    </motion.div>
+                                                )}
+                                            </>
+                                        )}
+
+                                        {/* Position fields for most categories */}
+                                        {(part.category !== 'Автохимия и масла' && part.category !== 'Аксессуары и тюннинг' && part.category !== 'Другое') && (
+                                            <>
+                                                {part.front_rear && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: -20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 1.3, duration: 0.3 }}
+                                                        className="text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-600">Перед/зад</div>
+                                                        <div>{part.front_rear}</div>
+                                                    </motion.div>
+                                                )}
+                                                {part.left_right && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: -20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 1.35, duration: 0.3 }}
+                                                        className="text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-600">Право/лево</div>
+                                                        <div>{part.left_right}</div>
+                                                    </motion.div>
+                                                )}
+                                                {part.top_bottom && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: -20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 1.4, duration: 0.3 }}
+                                                        className="text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-600">Верх/низ</div>
+                                                        <div>{part.top_bottom}</div>
+                                                    </motion.div>
+                                                )}
+                                                {part.number && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: -20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 1.45, duration: 0.3 }}
+                                                        className="text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-600">Номер</div>
+                                                        <div>{part.number}</div>
+                                                    </motion.div>
+                                                )}
+                                            </>
+                                        )}
+
+                                        {/* Defect field for most categories */}
+                                        {(part.category !== 'Автохимия и масла' && part.category !== 'Аксессуары и тюннинг') && (
+                                            <>
+                                                {part.defect && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: -20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 1.5, duration: 0.3 }}
+                                                        className="text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-600">Дефект</div>
+                                                        <div>{part.defect}</div>
+                                                    </motion.div>
+                                                )}
+                                            </>
+                                        )}
+
+                                        {/* Car release date for most categories */}
+                                        {(part.category !== 'Автохимия и масла' && part.category !== 'Аксессуары и тюннинг' && part.category !== 'Другое') && (
+                                            <>
+                                                {part.car_release_date && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: -20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: 1.55, duration: 0.3 }}
+                                                        className="text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-600">Дата выпуска автомобиля</div>
+                                                        <div>{part.car_release_date}</div>
+                                                    </motion.div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </AccordionContent>
+                </motion.div>
+            </AccordionItem>
+
+            {/* Диалог заказа */}
+            <PartOrderDialog
+                part={part}
+                isOpen={isOrderDialogOpen}
+                onOpenChange={setIsOrderDialogOpen}
+            />
+
+            {showCropper && (
+                <ImageCropper
+                    src={tempImageSrc}
+                    onCropComplete={handleCropComplete}
+                    onCancel={handleCropCancel}
+                    aspect={null} // Free aspect ratio for parts photos
+                />
+            )}
+        </motion.div>
+    );
+}

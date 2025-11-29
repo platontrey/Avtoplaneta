@@ -1,0 +1,72 @@
+<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+  <!-- Title -->
+  <text x="400" y="30" text-anchor="middle" font-size="20" font-weight="bold">Auto Parts Inventory System Architecture</text>
+
+  <!-- User -->
+  <rect x="350" y="50" width="100" height="50" fill="#e3f2fd" stroke="#1976d2" stroke-width="2" rx="10"/>
+  <text x="400" y="80" text-anchor="middle" font-size="14">User</text>
+
+  <!-- Arrow from User to Frontend -->
+  <line x1="400" y1="100" x2="400" y2="130" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <!-- Frontend Layer -->
+  <rect x="200" y="140" width="400" height="80" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" rx="10"/>
+  <text x="400" y="170" text-anchor="middle" font-size="16" font-weight="bold">Frontend Layer (React/TypeScript)</text>
+  <text x="400" y="190" text-anchor="middle" font-size="12">SPA with routing, components, hooks</text>
+
+  <!-- Arrow from Frontend to Backend -->
+  <line x1="400" y1="220" x2="400" y2="250" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="420" y="235" font-size="10">HTTP Requests</text>
+
+  <!-- Backend Layer -->
+  <rect x="200" y="260" width="400" height="80" fill="#e8f5e8" stroke="#388e3c" stroke-width="2" rx="10"/>
+  <text x="400" y="290" text-anchor="middle" font-size="16" font-weight="bold">Backend Layer (Go/Gin)</text>
+  <text x="400" y="310" text-anchor="middle" font-size="12">REST API, handlers, middleware</text>
+
+  <!-- Arrow from Backend to Database -->
+  <line x1="400" y1="340" x2="400" y2="370" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="420" y="355" font-size="10">SQL Queries</text>
+
+  <!-- Database -->
+  <rect x="300" y="380" width="200" height="50" fill="#fff3e0" stroke="#f57c00" stroke-width="2" rx="10"/>
+  <text x="400" y="405" text-anchor="middle" font-size="14" font-weight="bold">Database (SQLite)</text>
+
+  <!-- Arrow from Database back to Backend -->
+  <line x1="400" y1="430" x2="400" y2="460" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="420" y="445" font-size="10">Query Results</text>
+
+  <!-- Arrow from Backend back to Frontend -->
+  <line x1="400" y1="460" x2="400" y2="490" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="420" y="475" font-size="10">JSON Response</text>
+
+  <!-- Arrow from Frontend back to User -->
+  <line x1="400" y1="490" x2="400" y2="520" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="420" y="505" font-size="10">Rendered UI</text>
+
+  <!-- Authentication Flow -->
+  <rect x="50" y="200" width="120" height="60" fill="#fce4ec" stroke="#c2185b" stroke-width="2" rx="10"/>
+  <text x="110" y="225" text-anchor="middle" font-size="12" font-weight="bold">Authentication</text>
+  <text x="110" y="240" text-anchor="middle" font-size="10">Google OAuth</text>
+  <text x="110" y="250" text-anchor="middle" font-size="10">Sessions</text>
+
+  <!-- Arrow from Auth to Backend -->
+  <line x1="170" y1="230" x2="200" y2="290" stroke="#c2185b" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="185" y="260" font-size="8">Auth Tokens</text>
+
+  <!-- File Storage -->
+  <rect x="630" y="200" width="120" height="60" fill="#f1f8e9" stroke="#689f38" stroke-width="2" rx="10"/>
+  <text x="690" y="225" text-anchor="middle" font-size="12" font-weight="bold">File Storage</text>
+  <text x="690" y="240" text-anchor="middle" font-size="10">Image Uploads</text>
+  <text x="690" y="250" text-anchor="middle" font-size="10">Local Files</text>
+
+  <!-- Arrow from Backend to File Storage -->
+  <line x1="600" y1="290" x2="630" y2="230" stroke="#689f38" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="615" y="260" font-size="8">File Ops</text>
+
+  <!-- Arrow definitions -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
+    </marker>
+  </defs>
+</svg>
