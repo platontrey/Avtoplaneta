@@ -1,0 +1,31 @@
+<resources>
+    <string name="app_name">Avtoplaneta</string>
+    
+    <!-- Login Screen -->
+    <string name="login_title">Авторизация</string>
+    <string name="login_subtitle">Войдите в систему управления складом</string>
+    <string name="email_hint">Email или имя пользователя</string>
+    <string name="password_hint">Пароль</string>
+    <string name="login_button">Войти</string>
+    <string name="logging_in">Вход...</string>
+    
+    <!-- Inventory Screen -->
+    <string name="inventory_title">Inventory</string>
+    <string name="welcome_message">Добро пожаловать!</string>
+    <string name="user_info_label">Имя:</string>
+    <string name="email_label">Email:</string>
+    <string name="inventory_info_title">Система управления складом</string>
+    <string name="inventory_info_description">Здесь будет отображаться информация об инвентаре, запчастях и заказах.</string>
+    <string name="inventory_info_status">Функционал находится в разработке.</string>
+    <string name="logout_button">Выйти</string>
+    
+    <!-- Menu -->
+    <string name="menu_logout">Выйти</string>
+    
+    <!-- Errors -->
+    <string name="error_empty_email">Введите email или имя пользователя</string>
+    <string name="error_empty_password">Введите пароль</string>
+    <string name="error_login_failed">Ошибка авторизации</string>
+    <string name="error_invalid_credentials">Неверный email или пароль</string>
+    <string name="error_connection">Ошибка соединения</string>
+</resources>

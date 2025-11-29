@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Minimalist Color Palette - Clean & Modern -->
+    
+    <!-- Neutrals - Foundation -->
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
+    
+    <!-- Background - Soft Whites/Grays -->
+    <color name="background">#FFFFFF</color>
+    <color name="background_secondary">#F8F9FA</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_variant">#F5F5F5</color>
+    
+    <!-- Primary - Elegant Blue -->
+    <color name="primary">#2563EB</color>
+    <color name="primary_light">#3B82F6</color>
+    <color name="primary_dark">#1D4ED8</color>
+    <color name="on_primary">#FFFFFF</color>
+    
+    <!-- Accent - Subtle Purple -->
+    <color name="accent">#8B5CF6</color>
+    <color name="on_accent">#FFFFFF</color>
+    
+    <!-- Text - High Contrast -->
+    <color name="text_primary">#0F172A</color>
+    <color name="text_secondary">#64748B</color>
+    <color name="text_tertiary">#94A3B8</color>
+    <color name="text_hint">#CBD5E1</color>
+    <color name="text_on_primary">#FFFFFF</color>
+    
+    <!-- Borders & Dividers - Subtle Lines -->
+    <color name="border">#E2E8F0</color>
+    <color name="border_light">#F1F5F9</color>
+    <color name="divider">#E2E8F0</color>
+    
+    <!-- Interactive States -->
+    <color name="hover">#F8FAFC</color>
+    <color name="pressed">#F1F5F9</color>
+    <color name="ripple">#2563EB1A</color>
+    
+    <!-- Status Colors -->
+    <color name="success">#10B981</color>
+    <color name="error">#EF4444</color>
+    <color name="warning">#F59E0B</color>
+    <color name="info">#3B82F6</color>
+    
+    <!-- Overlay -->
+    <color name="overlay">#00000050</color>
+    <color name="overlay_light">#0000000A</color>
+    
+    <!-- Cards -->
+    <color name="card_background">#FFFFFF</color>
+    <color name="card_background_elevated">#FFFFFF</color>
+    
+    <!-- Shadows -->
+    <color name="shadow_light">#00000008</color>
+    <color name="shadow_medium">#00000010</color>
+    <color name="shadow_dark">#00000020</color>
+</resources>
