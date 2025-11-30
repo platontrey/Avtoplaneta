@@ -250,11 +250,13 @@ func deletePart(c *gin.Context) {
 	fmt.Printf("deletePart called for part ID: %s\n", id)
 
 	// Преобразовать id в uint для правильного запроса GORM
-	partID, err := strconv.ParseUint(id, 10, 32)
+	partID64, err := strconv.ParseUint(id, 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный ID части"})
 		return
 	}
+	partID := uint(partID64)
+	fmt.Printf("DEBUG: partID type: %T, value: %v\n", partID, partID)
 
 	// Сначала проверить, существует ли запчасть
 	var part Part
@@ -831,16 +833,65 @@ func exportXMLPriceList(c *gin.Context) {
 		return
 	}
 
-	// Установить заголовки для скачивания файла
-	filename := fmt.Sprintf("price-list-%s.xml", time.Now().Format("2006-01-02"))
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
-	c.Header("Content-Type", "application/xml; charset=utf-8")
-	c.Header("Content-Length", fmt.Sprintf("%d", len(xmlData)))
+	// Сохранить XML файл на сервере
+	filename := "pricelist.xml"
+	filepath := "./uploads/" + filename
 
-	// Отправить XML данные
-	c.Data(http.StatusOK, "application/xml; charset=utf-8", xmlData)
+	// Создать директорию uploads, если она не существует
+	if err := os.MkdirAll("./uploads", 0755); err != nil {
+		fmt.Printf("Ошибка создания директории uploads: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось создать директорию uploads"})
+		return
+	}
 
-	fmt.Printf("Успешно экспортирован XML прайс-лист с %d предложениями\n", len(parts))
+	// Записать файл
+	if err := os.WriteFile(filepath, xmlData, 0644); err != nil {
+		fmt.Printf("Ошибка сохранения XML файла: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось сохранить XML файл"})
+		return
+	}
+
+	// Ссылка на файл
+	fileURL := "/uploads/" + filename
+
+	fmt.Printf("Успешно сгенерирован и сохранен XML прайс-лист с %d предложениями по пути: %s\n", len(parts), filepath)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":     "Прайс-лист успешно сгенерирован",
+		"file_url":    fileURL,
+		"parts_count": len(parts),
+	})
+}
+
+// sendPriceListToDrom отправляет прайс-лист на API Drom.ru
+func sendPriceListToDrom(c *gin.Context) {
+	// Получить все доступные части для экспорта
+	parts, err := GetPartsForXML()
+	if err != nil {
+		fmt.Printf("Ошибка получения частей для отправки на Drom: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось получить данные для отправки"})
+		return
+	}
+
+	// Генерировать XML
+	xmlData, err := GenerateXMLPriceList(parts)
+	if err != nil {
+		fmt.Printf("Ошибка генерации XML для Drom: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось сгенерировать XML"})
+		return
+	}
+
+	// Отправить на API Drom
+	if err := sendToDromAPI(xmlData); err != nil {
+		fmt.Printf("Ошибка отправки на Drom API: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось отправить прайс-лист на Drom"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":     "Прайс-лист успешно отправлен на Drom",
+		"parts_count": len(parts),
+	})
 }
 
 // Характеристики теперь хранятся в основной таблице Part, поэтому эти обработчики больше не нужны
@@ -1237,6 +1288,7 @@ func logUserActivity(c *gin.Context, action, resourceType, details string, resou
 		fmt.Printf("Warning: Invalid user ID in headers: %s\n", userIDStr)
 		return
 	}
+	fmt.Printf("DEBUG: userID type: %T, value: %v, used: %v\n", userID, userID, false)
 
 	logData := map[string]interface{}{
 		"action":        action,

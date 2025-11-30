@@ -1,7 +1,3 @@
-/*
-* Copyright (c) 2025 Avtoplaneta. All rights reserved.
-*/
-
 import { cn } from "@/lib/utils"
 
 function Skeleton({ className, ...props }: React.ComponentProps<"div">) {

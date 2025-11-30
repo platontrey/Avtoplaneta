@@ -51,6 +51,7 @@ interface SpeechRecognitionAlternative {
   confidence: number;
 }
 
+// eslint-disable-next-line no-var
 declare var SpeechRecognition: {
   prototype: SpeechRecognition;
   new(): SpeechRecognition;
@@ -63,8 +64,10 @@ import { Card, CardContent } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Button } from './ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
+import { SearchableSelect } from './ui/searchable-select';
+import type { SelectOption } from './ui/searchable-select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface PartsSearchProps {
@@ -105,6 +108,94 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
     const MIN_SEARCH_LENGTH = 2;
     const SEARCH_DEBOUNCE_DELAY = 500;
     const FILTER_DEBOUNCE_DELAY = 300;
+    
+    // Опции для выпадающих списков
+    const categoryOptions: SelectOption[] = [
+      { value: "Тормоза", label: "Тормоза" },
+      { value: "Двигатель", label: "Двигатель" },
+      { value: "Подвеска", label: "Подвеска" },
+      { value: "Электрика", label: "Электрика" },
+      { value: "Кузов", label: "Кузов" },
+      { value: "Интерьер", label: "Интерьер" },
+      { value: "Трансмиссия", label: "Трансмиссия" },
+      { value: "Система охлаждения и отопления", label: "Система охлаждения и отопления" },
+      { value: "Система выхлопа (Глушитель)", label: "Система выхлопа (Глушитель)" },
+      { value: "Система рулевого управления", label: "Система рулевого управления" },
+      { value: "Система фильтрации (Фильтры)", label: "Система фильтрации (Фильтры)" },
+      { value: "Шины и диски", label: "Шины и диски" },
+      { value: "Автохимия и масла", label: "Автохимия и масла" },
+      { value: "Аксессуары и тюннинг", label: "Аксессуары и тюннинг" },
+      { value: "Другое", label: "Другое" },
+    ];
+    
+    const brandOptions: SelectOption[] = [
+        { value: "Acura", label: "Acura" },
+        { value: "Aston Martin", label: "Aston Martin" },
+        { value: "Audi", label: "Audi" },
+        { value: "Bentley", label: "Bentley" },
+        { value: "BMW", label: "BMW" },
+        { value: "Buick", label: "Buick" },
+        { value: "Cadillac", label: "Cadillac" },
+        { value: "Chevrolet", label: "Chevrolet" },
+        { value: "Chrysler", label: "Chrysler" },
+        { value: "Citroen", label: "Citroën" },
+        { value: "DAF", label: "DAF" },
+        { value: "Daihatsu", label: "Daihatsu" },
+        { value: "Dodge", label: "Dodge" },
+        { value: "Ferrari", label: "Ferrari" },
+        { value: "Fiat", label: "Fiat" },
+        { value: "Ford", label: "Ford" },
+        { value: "GMC", label: "GMC" },
+        { value: "Hino", label: "Hino" },
+        { value: "Honda", label: "Honda" },
+        { value: "Hyundai", label: "Hyundai" },
+        { value: "Infiniti", label: "Infiniti" },
+        { value: "Isuzu", label: "Isuzu" },
+        { value: "Iveco", label: "Iveco" },
+        { value: "Jaguar", label: "Jaguar" },
+        { value: "Jeep", label: "Jeep" },
+        { value: "Kenworth", label: "Kenworth" },
+        { value: "Kia", label: "Kia" },
+        { value: "Lamborghini", label: "Lamborghini" },
+        { value: "Land Rover", label: "Land Rover" },
+        { value: "Lexus", label: "Lexus" },
+        { value: "Lincoln", label: "Lincoln" },
+        { value: "Mack", label: "Mack" },
+        { value: "MAN", label: "MAN" },
+        { value: "Mazda", label: "Mazda" },
+        { value: "Mercedes", label: "Mercedes-Benz" },
+        { value: "Mercedes-Benz Trucks", label: "Mercedes-Benz Trucks" },
+        { value: "Mitsubishi", label: "Mitsubishi" },
+        { value: "Nissan", label: "Nissan" },
+        { value: "Opel", label: "Opel" },
+        { value: "Peterbilt", label: "Peterbilt" },
+        { value: "Peugeot", label: "Peugeot" },
+        { value: "Porsche", label: "Porsche" },
+        { value: "Ram", label: "Ram" },
+        { value: "Renault", label: "Renault" },
+        { value: "Rolls-Royce", label: "Rolls-Royce" },
+        { value: "Scania", label: "Scania" },
+        { value: "Subaru", label: "Subaru" },
+        { value: "Suzuki", label: "Suzuki" },
+        { value: "Tesla", label: "Tesla" },
+        { value: "Toyota", label: "Toyota" },
+        { value: "UD Trucks", label: "UD Trucks" },
+        { value: "Volkswagen", label: "Volkswagen" },
+        { value: "Volvo", label: "Volvo" },
+        { value: "Volvo Trucks", label: "Volvo Trucks" },
+        { value: "Western Star", label: "Western Star" }
+    ];
+    
+    const statusOptions: SelectOption[] = [
+      { value: "true", label: "Доступно" },
+      { value: "false", label: "Недоступно" },
+    ];
+    
+    const photoOptions: SelectOption[] = [
+      { value: "with", label: "С фото" },
+      { value: "without", label: "Без фото" },
+      { value: "all", label: "Все" },
+    ];
 
     // Функция применения фильтров
     const applyFilters = useCallback(() => {
@@ -324,14 +415,15 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         hasPhoto && hasPhoto !== 'with' ? hasPhoto : ''
     ].filter(Boolean).length;
 
-    const handleDisplayLimitChange = (limit: number) => {
+    const handleDisplayLimitChange = (value: string) => {
+        const limit = parseInt(value) || 0;
         if (onDisplayLimitChange) {
             onDisplayLimitChange(limit === 0 ? undefined : limit);
         }
     };
 
     return (
-        <Card className="mt-6 bg-transparent border border-gray-300">
+        <Card className="mt-6 bg-white dark:bg-card border border-gray-300 shadow-none">
             <CardContent className="px-4 py-2">
                 <div className="space-y-4">
                     {/* Поисковая строка и кнопка фильтров */}
@@ -352,7 +444,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                                 onChange={handleInputChange}
                                 onFocus={() => results.length > 0 && setIsResultsVisible(true)}
                                 placeholder="Поиск по названию или описанию..."
-                                className="pl-10 pr-20 bg-transparent border border-gray-300"
+                                className="pl-10 pr-20 bg-white border-input-border"
                             />
                             {/* Кнопка голосового поиска */}
                             {isSpeechRecognitionSupported() && (
@@ -437,45 +529,47 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                             </AnimatePresence>
                         </div>
 
-                        {/* Кнопка фильтров */}
-                        <Button
-                            variant={isFiltersOpen ? "default" : "outline"}
-                            onClick={() => setIsFiltersOpen(!isFiltersOpen)}
-                            className="gap-2 shrink-0"
-                        >
-                            <Filter className="h-4 w-4" />
-                            Фильтры
-                            {activeFiltersCount > 0 && (
-                                <Badge variant="secondary" className="ml-1 bg-transparent border border-gray-300">
-                                    {activeFiltersCount}
-                                </Badge>
-                            )}
-                            {isFiltersOpen ? (
-                                <ChevronUp className="h-4 w-4" />
-                            ) : (
-                                <ChevronDown className="h-4 w-4" />
-                            )}
-                        </Button>
-
-                        {/* Выбор количества отображаемых элементов */}
-                        <div className="flex items-center gap-2 ml-4">
-                            <Label htmlFor="display-limit" className="text-sm font-medium">Показать:</Label>
-                            <Select
-                                value={currentDisplayLimit ? currentDisplayLimit.toString() : "0"}
-                                onValueChange={(value) => handleDisplayLimitChange(parseInt(value) || 0)}
+                        {/* Кнопка фильтров и селектор количества */}
+                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                            <Button
+                                variant={isFiltersOpen ? "default" : "outline"}
+                                onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+                                className="gap-2 shrink-0 border-input"
                             >
-                                <SelectTrigger id="display-limit" className="w-24 h-8">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="20">20</SelectItem>
-                                    <SelectItem value="40">40</SelectItem>
-                                    <SelectItem value="60">60</SelectItem>
-                                    <SelectItem value="80">80</SelectItem>
-                                    <SelectItem value="100">100</SelectItem>
-                                    <SelectItem value="0">все</SelectItem>
-                                </SelectContent>
-                            </Select>
+                                <Filter className="h-4 w-4" />
+                                Фильтры
+                                {activeFiltersCount > 0 && (
+                                    <Badge variant="secondary" className="ml-1 bg-transparent border border-gray-300">
+                                        {activeFiltersCount}
+                                    </Badge>
+                                )}
+                                {isFiltersOpen ? (
+                                    <ChevronUp className="h-4 w-4" />
+                                ) : (
+                                    <ChevronDown className="h-4 w-4" />
+                                )}
+                            </Button>
+
+                            {/* Выбор количества отображаемых элементов */}
+                            <div className="flex items-center gap-2">
+                                <Label htmlFor="display-limit" className="text-sm font-medium">Показать:</Label>
+                                <Select
+                                    value={currentDisplayLimit ? currentDisplayLimit.toString() : "0"}
+                                    onValueChange={handleDisplayLimitChange}
+                                >
+                                    <SelectTrigger id="display-limit" className="w-24 h-8">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="20">20</SelectItem>
+                                        <SelectItem value="40">40</SelectItem>
+                                        <SelectItem value="60">60</SelectItem>
+                                        <SelectItem value="80">80</SelectItem>
+                                        <SelectItem value="100">100</SelectItem>
+                                        <SelectItem value="0">все</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                     </div>
 
@@ -495,47 +589,33 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                                             {/* Категория */}
                                             <div>
                                                 <Label htmlFor="category-filter">Категория</Label>
-                                                <Select value={category || undefined} onValueChange={(value) => setCategory(value || '')}>
-                                                    <SelectTrigger id="category-filter" className="mt-1.5 bg-transparent border border-gray-300">
-                                                        <SelectValue placeholder="Все категории" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="Тормоза">Тормоза</SelectItem>
-                                                        <SelectItem value="Двигатель">Двигатель</SelectItem>
-                                                        <SelectItem value="Подвеска">Подвеска</SelectItem>
-                                                        <SelectItem value="Электрика">Электрика</SelectItem>
-                                                        <SelectItem value="Кузов">Кузов</SelectItem>
-                                                        <SelectItem value="Интерьер">Интерьер</SelectItem>
-                                                        <SelectItem value="Трансмиссия">Трансмиссия</SelectItem>
-                                                        <SelectItem value="Система охлаждения и отопления">Система охлаждения и отопления</SelectItem>
-                                                        <SelectItem value="Система выхлопа (Глушитель)">Система выхлопа (Глушитель)</SelectItem>
-                                                        <SelectItem value="Система рулевого управления">Система рулевого управления</SelectItem>
-                                                        <SelectItem value="Система фильтрации (Фильтры)">Система фильтрации (Фильтры)</SelectItem>
-                                                        <SelectItem value="Шины и диски">Шины и диски</SelectItem>
-                                                        <SelectItem value="Автохимия и масла">Автохимия и масла</SelectItem>
-                                                        <SelectItem value="Аксессуары и тюннинг">Аксессуары и тюннинг</SelectItem>
-                                                        <SelectItem value="Другое">Другое</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
+                                                <div className="mt-1.5">
+                                                    <SearchableSelect
+                                                        value={category}
+                                                        onValueChange={(value) => setCategory(value)}
+                                                        options={categoryOptions}
+                                                        placeholder="Все категории"
+                                                        searchPlaceholder="Поиск категории..."
+                                                        emptyMessage="Категория не найдена"
+                                                        className="bg-transparent border border-gray-300"
+                                                    />
+                                                </div>
                                             </div>
 
                                             {/* Бренд */}
                                             <div>
                                                 <Label htmlFor="brand-filter">Бренд</Label>
-                                                <Select value={brand || undefined} onValueChange={(value) => setBrand(value || '')}>
-                                                    <SelectTrigger id="brand-filter" className="mt-1.5 bg-transparent border border-gray-300">
-                                                        <SelectValue placeholder="Все бренды" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="BMW">BMW</SelectItem>
-                                                        <SelectItem value="Audi">Audi</SelectItem>
-                                                        <SelectItem value="Mercedes">Mercedes</SelectItem>
-                                                        <SelectItem value="Toyota">Toyota</SelectItem>
-                                                        <SelectItem value="Volkswagen">Volkswagen</SelectItem>
-                                                        <SelectItem value="Honda">Honda</SelectItem>
-                                                        <SelectItem value="Ford">Ford</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
+                                                <div className="mt-1.5">
+                                                    <SearchableSelect
+                                                        value={brand}
+                                                        onValueChange={(value) => setBrand(value)}
+                                                        options={brandOptions}
+                                                        placeholder="Все бренды"
+                                                        searchPlaceholder="Поиск бренда..."
+                                                        emptyMessage="Бренд не найден"
+                                                        className="bg-transparent border border-gray-300"
+                                                    />
+                                                </div>
                                             </div>
 
                                             {/* Модель */}
@@ -568,30 +648,33 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                                             {/* Статус */}
                                             <div>
                                                 <Label htmlFor="status-filter">Статус</Label>
-                                                <Select value={status || undefined} onValueChange={(value) => setStatus(value || '')}>
-                                                    <SelectTrigger id="status-filter" className="mt-1.5 bg-transparent border border-gray-300">
-                                                        <SelectValue placeholder="Все статусы" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="true">Доступно</SelectItem>
-                                                        <SelectItem value="false">Недоступно</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
+                                                <div className="mt-1.5">
+                                                    <SearchableSelect
+                                                        value={status}
+                                                        onValueChange={(value) => setStatus(value)}
+                                                        options={statusOptions}
+                                                        placeholder="Все статусы"
+                                                        searchPlaceholder="Поиск статуса..."
+                                                        emptyMessage="Статус не найден"
+                                                        className="bg-transparent border border-gray-300"
+                                                    />
+                                                </div>
                                             </div>
 
                                             {/* Фото */}
                                             <div>
                                                 <Label htmlFor="photo-filter">Фото</Label>
-                                                <Select value={hasPhoto || undefined} onValueChange={(value) => setHasPhoto(value || '')}>
-                                                    <SelectTrigger id="photo-filter" className="mt-1.5 bg-transparent border border-gray-300">
-                                                        <SelectValue placeholder="Все" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="with">С фото</SelectItem>
-                                                        <SelectItem value="without">Без фото</SelectItem>
-                                                        <SelectItem value="all">Все</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
+                                                <div className="mt-1.5">
+                                                    <SearchableSelect
+                                                        value={hasPhoto}
+                                                        onValueChange={(value) => setHasPhoto(value)}
+                                                        options={photoOptions}
+                                                        placeholder="Все"
+                                                        searchPlaceholder="Поиск по фото..."
+                                                        emptyMessage="Опция не найдена"
+                                                        className="bg-transparent border border-gray-300"
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
 

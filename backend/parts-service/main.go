@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/postgres"
@@ -50,6 +51,57 @@ func reindexAllParts() error {
 	return nil
 }
 
+// startXMLGenerationScheduler запускает планировщик автоматической генерации XML прайс-листа каждые 14 дней
+func startXMLGenerationScheduler() {
+	ticker := time.NewTicker(14 * 24 * time.Hour) // 14 дней
+	defer ticker.Stop()
+
+	// Генерируем XML сразу при запуске
+	fmt.Println("Запуск начальной генерации XML прайс-листа...")
+	generateXMLPriceList()
+
+	for {
+		select {
+		case <-ticker.C:
+			fmt.Println("Автоматическая генерация XML прайс-листа каждые 14 дней...")
+			generateXMLPriceList()
+		}
+	}
+}
+
+// generateXMLPriceList генерирует и сохраняет XML прайс-лист
+func generateXMLPriceList() {
+	parts, err := GetPartsForXML()
+	if err != nil {
+		fmt.Printf("Ошибка получения частей для автоматической генерации XML: %v\n", err)
+		return
+	}
+
+	xmlData, err := GenerateXMLPriceList(parts)
+	if err != nil {
+		fmt.Printf("Ошибка генерации XML для автоматической генерации: %v\n", err)
+		return
+	}
+
+	// Сохранить XML файл на сервере
+	filename := "pricelist.xml"
+	filepath := "./uploads/" + filename
+
+	// Создать директорию uploads, если она не существует
+	if err := os.MkdirAll("./uploads", 0755); err != nil {
+		fmt.Printf("Ошибка создания директории uploads для автоматической генерации: %v\n", err)
+		return
+	}
+
+	// Записать файл
+	if err := os.WriteFile(filepath, xmlData, 0644); err != nil {
+		fmt.Printf("Ошибка сохранения XML файла для автоматической генерации: %v\n", err)
+		return
+	}
+
+	fmt.Printf("Успешно автоматически сгенерирован и сохранен XML прайс-лист с %d предложениями\n", len(parts))
+}
+
 func main() {
 	initDB()
 
@@ -69,12 +121,15 @@ func main() {
 		}
 	}
 
+	// Запуск планировщика автоматической генерации XML
+	go startXMLGenerationScheduler()
+
 	r := gin.Default()
 
 	// CORS middleware для кросс-доменных запросов
 	r.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
-		c.Header("Access-Control-Allow-Credentials", "true")
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Credentials", "false")
 		c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 
@@ -96,6 +151,7 @@ func main() {
 	r.POST("/api/markpartfordeletion/:id", markPartForDeletion)
 	r.GET("/api/statistics", getStatistics)
 	r.GET("/api/export/xml", exportXMLPriceList)
+	r.POST("/api/export/drom", sendPriceListToDrom)
 
 	// Маршруты для характеристик запчастей больше не нужны - характеристики хранятся в основной таблице Part
 

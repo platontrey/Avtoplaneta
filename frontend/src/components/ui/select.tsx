@@ -1,7 +1,3 @@
-/*
-* Copyright (c) 2025 Avtoplaneta. All rights reserved.
-*/
-
 import * as React from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"

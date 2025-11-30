@@ -23,7 +23,7 @@ const Orders = lazy(() => import('./components/Orders'));
 // Компонент загрузки для lazy loading
 const LoadingSpinner = () => (
   <div className="min-h-screen flex items-center justify-center">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-foreground"></div>
   </div>
 );
 
@@ -33,7 +33,7 @@ function App() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-foreground"></div>
       </div>
     );
   }
@@ -49,7 +49,7 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-zinc-50 pb-4">
+      <div className="min-h-screen bg-background pb-4">
         <Header user={user} onLogout={logout} />
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>

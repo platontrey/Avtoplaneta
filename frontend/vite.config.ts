@@ -30,6 +30,22 @@ export default defineConfig({
             sizes: '512x512',
             type: 'image/png'
           }
+        ],
+        shortcuts: [
+          {
+            name: 'Добавить запчасть',
+            short_name: 'Добавить',
+            description: 'Быстро добавить новую запчасть',
+            url: '/add-part',
+            icons: [{ src: 'pwa-192x192.png', sizes: '192x192' }]
+          },
+          {
+            name: 'Инвентарь',
+            short_name: 'Инвентарь',
+            description: 'Просмотр всех запчастей',
+            url: '/inventory',
+            icons: [{ src: 'pwa-192x192.png', sizes: '192x192' }]
+          }
         ]
       },
       workbox: {

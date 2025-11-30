@@ -96,12 +96,17 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
     return (
       <div className="space-y-4">
         {Array.from({ length: 6 }).map((_, index) => (
-          <div key={index} className="border rounded-lg mb-2 p-4 relative group hover:bg-accent hover:border-accent-foreground/20 transition-colors">
-            <div className="flex items-center space-x-3 flex-1">
-              <Skeleton className="w-10 h-10 sm:w-12 sm:h-12 rounded" />
+          <div key={index} className="border rounded-lg mb-4 p-4 relative group hover:shadow-md transition-shadow bg-card">
+            <div className="flex items-center space-x-2 sm:space-x-3 flex-1">
+              <Skeleton className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg" />
               <div className="flex flex-col min-w-0 flex-1">
                 <Skeleton className="h-4 w-32 sm:w-48 mb-1" />
-                <Skeleton className="h-3 w-20 sm:w-32" />
+                <Skeleton className="h-3 w-20 sm:w-32 mb-2" />
+                <div className="flex gap-2 mt-1">
+                  <Skeleton className="h-5 w-16 rounded-md" />
+                  <Skeleton className="h-5 w-12 rounded-md" />
+                  <Skeleton className="h-5 w-20 rounded-md" />
+                </div>
               </div>
               <div className="flex space-x-1 shrink-0">
                 <Skeleton className="h-8 w-8 rounded" />
@@ -127,10 +132,10 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
     <div className="space-y-4">
       {/* Панель действий для режима выбора */}
       {isSelectionMode && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <span className="font-medium text-blue-900">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <span className="font-medium text-blue-900 text-sm sm:text-base">
                 Выбрано: {selectedParts.size} из {parts.length}
               </span>
               <div className="flex gap-2">
@@ -138,6 +143,7 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
                   variant="outline"
                   size="sm"
                   onClick={selectedParts.size === parts.length ? deselectAll : selectAll}
+                  className="text-xs sm:text-sm"
                 >
                   {selectedParts.size === parts.length ? 'Снять все' : 'Выбрать все'}
                 </Button>
@@ -147,22 +153,22 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
               variant="ghost"
               size="sm"
               onClick={exitSelectionMode}
-              className="text-blue-600 hover:text-blue-800"
+              className="text-blue-600 hover:text-blue-800 self-start sm:self-auto"
             >
               <X className="h-4 w-4 mr-1" />
               Отмена
             </Button>
           </div>
           {selectedParts.size > 0 && (
-            <div className="mt-3 flex gap-2 flex-wrap">
-              <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+            <div className="mt-3 flex flex-col sm:flex-row gap-2 flex-wrap">
+              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto text-xs sm:text-sm">
                 <Check className="h-4 w-4 mr-1" />
                 Заказать выбранные ({selectedParts.size})
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                className="border-orange-300 text-orange-700 hover:bg-orange-50 w-full sm:w-auto text-xs sm:text-sm"
                 onClick={() => setIsBulkEditOpen(true)}
               >
                 <Edit className="h-4 w-4 mr-1" />
@@ -171,7 +177,7 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
               <Button
                 size="sm"
                 variant="outline"
-                className="border-red-300 text-red-700 hover:bg-red-50"
+                className="border-red-300 text-red-700 hover:bg-red-50 w-full sm:w-auto text-xs sm:text-sm"
                 onClick={() => setIsBulkDeleteOpen(true)}
               >
                 <Trash2 className="h-4 w-4 mr-1" />

@@ -10,11 +10,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Trash2, UserPlus, Users, Server, FileText, Edit, Activity, Package } from "lucide-react";
+import { Trash2, UserPlus, Users, Server, FileText, Edit, Activity, Package, Bell } from "lucide-react";
 import { getAuthHeaders } from "@/lib/csrf";
 import { useAuth } from "@/hooks/useAuth";
 import { getUserActivityLogs } from "@/features/admin/api/adminApi";
 import type { UserActivityLog, UserActivityAction, UserActivityResourceType } from "@/lib/types";
+import PushNotifications from "./PushNotifications";
 
 interface User {
   id: number;
@@ -453,11 +454,11 @@ export default function AdminPanel() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-4">
-      <div className="flex items-center justify-between mb-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Панель администратора</h1>
-          <p className="text-gray-600">Управление пользователями и настройками системы</p>
+          <h1 className="text-xl sm:text-2xl font-bold">Панель администратора</h1>
+          <p className="text-gray-600 text-sm sm:text-base">Управление пользователями и настройками системы</p>
         </div>
         {user?.role === 'admin' && (
           <Dialog open={showAddUser} onOpenChange={setShowAddUser}>
@@ -954,6 +955,22 @@ export default function AdminPanel() {
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Push Notifications Card */}
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Bell className="w-5 h-5 mr-2" />
+            Push Notifications
+          </CardTitle>
+          <CardDescription>
+            Управление push-уведомлениями для PWA
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PushNotifications />
         </CardContent>
       </Card>
     </div>

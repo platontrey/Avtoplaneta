@@ -1,7 +1,3 @@
-/*
-* Copyright (c) 2025 Avtoplaneta. All rights reserved.
-*/
-
 import * as React from "react"
 import * as LabelPrimitive from "@radix-ui/react-label"
 

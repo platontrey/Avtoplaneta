@@ -320,7 +320,7 @@ export default function PartBlock({
 
     return (
         <motion.div
-            className="bg-transparent border border-gray-300 rounded-lg mb-4 relative group hover:shadow-md transition-shadow p-4"
+            className="bg-card border border-border rounded-lg mb-4 relative group hover:shadow-md transition-shadow p-4"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
@@ -340,9 +340,9 @@ export default function PartBlock({
         >
             {/* Чекбокс для режима выбора */}
             {isSelectionMode && (
-                <div className="absolute top-11 left-[-3rem] z-10" onClick={(e) => e.stopPropagation()}>
+                <div className="absolute top-2 left-2 sm:top-11 sm:left-[-3rem] z-10" onClick={(e) => e.stopPropagation()}>
                     <Checkbox
-                        className="scale-150"
+                        className="scale-125 sm:scale-150"
                         checked={isSelected}
                         onCheckedChange={(checked) => {
                             if (onSelect) {
@@ -418,10 +418,10 @@ export default function PartBlock({
                             )}
                             <div className="flex gap-2 mt-1">
                                 {part.category && (
-                                    <span className="text-sm bg-zinc-50 border border-gray-300 px-3 py-1 rounded-md font-medium">{part.category}</span>
+                                    <span className="text-sm bg-white border border-border px-3 py-1 rounded-md font-medium">{part.category}</span>
                                 )}
-                                <span className="text-sm bg-zinc-50 border border-gray-300 px-3 py-1 rounded-md font-medium">Кол: {part.quantity ?? 0}</span>
-                                <span className="text-sm bg-black text-white px-3 py-1 rounded-md font-medium">Цена: {part.price ? `₽${part.price}` : 'TBD'}</span>
+                                <span className="text-sm bg-white border border-border px-3 py-1 rounded-md font-medium">Кол: {part.quantity ?? 0}</span>
+                                <span className="text-sm bg-primary text-primary-foreground px-3 py-1 rounded-md font-medium">Цена: {part.price ? `₽${part.price}` : 'TBD'}</span>
                             </div>
                         </div>
                     </div>
@@ -552,7 +552,7 @@ export default function PartBlock({
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.3, ease: "easeInOut" }}
                 >
-                    <AccordionContent className="hover:bg-accent/50 border-t border-gray-200 pt-3 px-4">
+                    <AccordionContent className="hover:bg-accent/50 border-t border-border pt-3 px-4">
                         <motion.div
                             className="space-y-1"
                             initial={{ opacity: 0, y: 10 }}
@@ -605,7 +605,7 @@ export default function PartBlock({
                             </AnimatePresence>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-3">
-                                    <h4 className="font-semibold text-sm text-gray-700 mb-3">Основная информация:</h4>
+                                    <h4 className="font-semibold text-sm text-foreground mb-3">Основная информация:</h4>
                                     <div className="grid grid-cols-1 gap-3">
                                         {part.brand && (
                                             <motion.div
@@ -614,7 +614,7 @@ export default function PartBlock({
                                                 transition={{ delay: 0.15, duration: 0.3 }}
                                                 className="text-sm"
                                             >
-                                                <div className="font-medium text-gray-600">Бренд</div>
+                                                <div className="font-medium text-muted-foreground">Бренд</div>
                                                 <div>{part.brand}</div>
                                             </motion.div>
                                         )}

@@ -18,11 +18,70 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Save, ArrowLeft, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getAuthHeaders } from "@/lib/csrf";
 import { sanitizeHtml } from "@/lib/security";
 import ImageCropper from "./ImageCropper";
+
+const brandOptions = [
+        { value: "Acura", label: "Acura" },
+        { value: "Aston Martin", label: "Aston Martin" },
+        { value: "Audi", label: "Audi" },
+        { value: "Bentley", label: "Bentley" },
+        { value: "BMW", label: "BMW" },
+        { value: "Buick", label: "Buick" },
+        { value: "Cadillac", label: "Cadillac" },
+        { value: "Chevrolet", label: "Chevrolet" },
+        { value: "Chrysler", label: "Chrysler" },
+        { value: "Citroen", label: "Citroën" },
+        { value: "DAF", label: "DAF" },
+        { value: "Daihatsu", label: "Daihatsu" },
+        { value: "Dodge", label: "Dodge" },
+        { value: "Ferrari", label: "Ferrari" },
+        { value: "Fiat", label: "Fiat" },
+        { value: "Ford", label: "Ford" },
+        { value: "GMC", label: "GMC" },
+        { value: "Hino", label: "Hino" },
+        { value: "Honda", label: "Honda" },
+        { value: "Hyundai", label: "Hyundai" },
+        { value: "Infiniti", label: "Infiniti" },
+        { value: "Isuzu", label: "Isuzu" },
+        { value: "Iveco", label: "Iveco" },
+        { value: "Jaguar", label: "Jaguar" },
+        { value: "Jeep", label: "Jeep" },
+        { value: "Kenworth", label: "Kenworth" },
+        { value: "Kia", label: "Kia" },
+        { value: "Lamborghini", label: "Lamborghini" },
+        { value: "Land Rover", label: "Land Rover" },
+        { value: "Lexus", label: "Lexus" },
+        { value: "Lincoln", label: "Lincoln" },
+        { value: "Mack", label: "Mack" },
+        { value: "MAN", label: "MAN" },
+        { value: "Mazda", label: "Mazda" },
+        { value: "Mercedes", label: "Mercedes-Benz" },
+        { value: "Mercedes-Benz Trucks", label: "Mercedes-Benz Trucks" },
+        { value: "Mitsubishi", label: "Mitsubishi" },
+        { value: "Nissan", label: "Nissan" },
+        { value: "Opel", label: "Opel" },
+        { value: "Peterbilt", label: "Peterbilt" },
+        { value: "Peugeot", label: "Peugeot" },
+        { value: "Porsche", label: "Porsche" },
+        { value: "Ram", label: "Ram" },
+        { value: "Renault", label: "Renault" },
+        { value: "Rolls-Royce", label: "Rolls-Royce" },
+        { value: "Scania", label: "Scania" },
+        { value: "Subaru", label: "Subaru" },
+        { value: "Suzuki", label: "Suzuki" },
+        { value: "Tesla", label: "Tesla" },
+        { value: "Toyota", label: "Toyota" },
+        { value: "UD Trucks", label: "UD Trucks" },
+        { value: "Volkswagen", label: "Volkswagen" },
+        { value: "Volvo", label: "Volvo" },
+        { value: "Volvo Trucks", label: "Volvo Trucks" },
+        { value: "Western Star", label: "Western Star" }
+];
 
 const partSchema = z.object({
     brand: z.string().min(1, "Выберите бренд"),
@@ -401,7 +460,7 @@ export default function AddPart() {
                 Заполните форму для добавления новой запчасти в инвентарь.
             </p>
 
-            <div className="bg-white rounded-lg border p-4 sm:p-8 shadow-lg w-full max-w-4xl h-auto min-h-[800px] sm:w-[750px] sm:h-[880px]">
+            <div className="bg-white rounded-lg border p-4 sm:p-8 shadow-lg w-full max-w-4xl h-auto min-h-[600px] sm:min-h-[800px]">
                 <Tabs defaultValue="basic" className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="basic">Основная информация</TabsTrigger>
@@ -414,22 +473,17 @@ export default function AddPart() {
                                 {/* Левая колонка */}
                                 <div className="space-y-4 sm:space-y-6">
                                     <div>
-                                        <Label htmlFor="brand-select" className="min-w-[120px]">Бренд *</Label>
+                                        <Label htmlFor="brand-select" className="min-w-[120px] mb-1">Бренд</Label>
                                         <div className="relative">
-                                            <Select value={brand || ""} onValueChange={(value) => setValue("brand", value)}>
-                                                <SelectTrigger id="brand-select" className="h-10 w-full">
-                                                    <SelectValue placeholder="Выберите бренд" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="BMW">BMW</SelectItem>
-                                                    <SelectItem value="Audi">Audi</SelectItem>
-                                                    <SelectItem value="Mercedes">Mercedes</SelectItem>
-                                                    <SelectItem value="Toyota">Toyota</SelectItem>
-                                                    <SelectItem value="Volkswagen">Volkswagen</SelectItem>
-                                                    <SelectItem value="Honda">Honda</SelectItem>
-                                                    <SelectItem value="Ford">Ford</SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                            <SearchableSelect
+                                                value={brand || ""}
+                                                onValueChange={(value) => setValue("brand", value)}
+                                                options={brandOptions}
+                                                placeholder="Выберите бренд"
+                                                searchPlaceholder="Поиск бренда..."
+                                                emptyMessage="Бренд не найден"
+                                                className="h-10"
+                                            />
                                             {brand && (
                                                 <button
                                                     type="button"
@@ -452,7 +506,7 @@ export default function AddPart() {
                                     </div>
 
                                     <div>
-                                        <Label htmlFor="name" className="min-w-[120px]">Название запчасти *</Label>
+                                        <Label htmlFor="name" className="min-w-[120px] mb-1">Название запчасти</Label>
                                         <Input
                                             id="name"
                                             {...register("name")}
@@ -465,7 +519,7 @@ export default function AddPart() {
                                     </div>
 
                                     <div>
-                                        <Label htmlFor="category-select" className="min-w-[120px]">Категория</Label>
+                                        <Label htmlFor="category-select" className="min-w-[120px] mb-1">Категория</Label>
                                         <div className="relative">
                                             <Select value={category || ""} onValueChange={(value) => setValue("category", value)}>
                                                 <SelectTrigger id="category-select" className="h-10 w-full">
@@ -515,7 +569,7 @@ export default function AddPart() {
                                     </div>
 
                                     <div>
-                                        <Label htmlFor="quantity" className="min-w-[120px]">Количество *</Label>
+                                        <Label htmlFor="quantity" className="min-w-[120px] mb-1">Количество</Label>
                                         <Input
                                             id="quantity"
                                             {...register("quantity", { valueAsNumber: true })}
@@ -527,7 +581,7 @@ export default function AddPart() {
                                     </div>
 
                                     <div>
-                                        <Label htmlFor="vin" className="min-w-[120px]">VIN</Label>
+                                        <Label htmlFor="vin" className="min-w-[120px] mb-1">VIN</Label>
                                         <Input
                                             id="vin"
                                             {...register("vin")}
@@ -542,7 +596,7 @@ export default function AddPart() {
                                 {/* Правая колонка */}
                                 <div className="space-y-4 sm:space-y-6">
                                     <div>
-                                        <Label htmlFor="model" className="min-w-[120px]">Модель *</Label>
+                                        <Label htmlFor="model" className="min-w-[120px] mb-1">Модель</Label>
                                         <Input
                                             id="model"
                                             {...register("model")}
@@ -555,7 +609,7 @@ export default function AddPart() {
                                     </div>
 
                                     <div>
-                                        <Label htmlFor="location" className="min-w-[120px]">Местоположение</Label>
+                                        <Label htmlFor="location" className="min-w-[120px] mb-1">Местоположение</Label>
                                         <Input
                                             id="location"
                                             {...register("location")}
@@ -567,7 +621,7 @@ export default function AddPart() {
                                     </div>
 
                                     <div>
-                                        <Label htmlFor="price" className="min-w-[120px]">Цена (₽)</Label>
+                                        <Label htmlFor="price" className="min-w-[120px] mb-1">Цена (₽)</Label>
                                         <Input
                                             id="price"
                                             {...register("price")}
@@ -579,7 +633,7 @@ export default function AddPart() {
                                     </div>
 
                                     <div>
-                                        <Label htmlFor="seller-select" className="min-w-[120px]">Продавец *</Label>
+                                        <Label htmlFor="seller-select" className="min-w-[120px] mb-1">Продавец</Label>
                                         <div className="relative">
                                             <Select
                                                 value={sellerId?.toString() || ""}
@@ -620,7 +674,7 @@ export default function AddPart() {
                                     </div>
 
                                     <div>
-                                        <Label htmlFor="condition" className="min-w-[120px]">Состояние</Label>
+                                        <Label htmlFor="condition" className="min-w-[120px] mb-1">Состояние</Label>
                                         <Input
                                             id="condition"
                                             {...register("condition")}
@@ -635,7 +689,7 @@ export default function AddPart() {
 
                             {/* Секция загрузки фото */}
                             <div className="mt-6 sm:mt-8">
-                                <Label htmlFor="photo">Фото запчасти</Label>
+                                <Label htmlFor="photo" className="mb-1">Фото запчасти</Label>
                                 <div className="mt-3">
                                     <input
                                         type="file"
@@ -687,7 +741,7 @@ export default function AddPart() {
 
                             {/* Раздел заметок во всю ширину */}
                             <div className="mt-6 sm:mt-8">
-                                <Label htmlFor="description">Заметки</Label>
+                                <Label htmlFor="description" className="mb-1">Заметки</Label>
                                 <Textarea
                                     id="description"
                                     {...register("description")}
@@ -720,7 +774,7 @@ export default function AddPart() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {visibleFields.includes("body_brand") && (
                                         <div>
-                                            <Label htmlFor="body_brand">Марка кузова</Label>
+                                            <Label htmlFor="body_brand" className="mb-1">Марка кузова</Label>
                                             <Input
                                                 id="body_brand"
                                                 {...register("body_brand")}
@@ -733,7 +787,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("engine_brand") && (
                                         <div>
-                                            <Label htmlFor="engine_brand">Марка двигателя</Label>
+                                            <Label htmlFor="engine_brand" className="mb-1">Марка двигателя</Label>
                                             <Input
                                                 id="engine_brand"
                                                 {...register("engine_brand")}
@@ -746,7 +800,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("car_release_date") && (
                                         <div>
-                                            <Label htmlFor="car_release_date">Дата выпуска автомобиля</Label>
+                                            <Label htmlFor="car_release_date" className="mb-1">Дата выпуска автомобиля</Label>
                                             <Input
                                                 id="car_release_date"
                                                 {...register("car_release_date")}
@@ -759,7 +813,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("front_rear") && (
                                         <div>
-                                            <Label htmlFor="front_rear-select">Перед/зад</Label>
+                                            <Label htmlFor="front_rear-select" className="mb-1">Перед/зад</Label>
                                             <div className="relative">
                                                 <Select value={watch("front_rear") || ""} onValueChange={(value) => setValue("front_rear", value)}>
                                                     <SelectTrigger id="front_rear-select" className="h-10 w-full">
@@ -793,7 +847,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("left_right") && (
                                         <div>
-                                            <Label htmlFor="left_right-select">Право/лево</Label>
+                                            <Label htmlFor="left_right-select" className="mb-1">Право/лево</Label>
                                             <div className="relative">
                                                 <Select value={watch("left_right") || ""} onValueChange={(value) => setValue("left_right", value)}>
                                                     <SelectTrigger id="left_right-select" className="h-10 w-full">
@@ -827,7 +881,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("top_bottom") && (
                                         <div>
-                                            <Label htmlFor="top_bottom-select">Верх/низ</Label>
+                                            <Label htmlFor="top_bottom-select" className="mb-1">Верх/низ</Label>
                                             <div className="relative">
                                                 <Select value={watch("top_bottom") || ""} onValueChange={(value) => setValue("top_bottom", value)}>
                                                     <SelectTrigger id="top_bottom-select" className="h-10 w-full">
@@ -862,7 +916,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("number") && (
                                         <div>
-                                            <Label htmlFor="number">Номер</Label>
+                                            <Label htmlFor="number" className="mb-1">Номер</Label>
                                             <Input
                                                 id="number"
                                                 {...register("number")}
@@ -875,7 +929,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("manufacturer") && (
                                         <div>
-                                            <Label htmlFor="manufacturer">Производитель</Label>
+                                            <Label htmlFor="manufacturer" className="mb-1">Производитель</Label>
                                             <Input
                                                 id="manufacturer"
                                                 {...register("manufacturer")}
@@ -888,7 +942,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("manufacturer_code") && (
                                         <div>
-                                            <Label htmlFor="manufacturer_code">Код производителя</Label>
+                                            <Label htmlFor="manufacturer_code" className="mb-1">Код производителя</Label>
                                             <Input
                                                 id="manufacturer_code"
                                                 {...register("manufacturer_code")}
@@ -901,7 +955,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("oem_code") && (
                                         <div>
-                                            <Label htmlFor="oem_code">OEM код</Label>
+                                            <Label htmlFor="oem_code" className="mb-1">OEM код</Label>
                                             <Input
                                                 id="oem_code"
                                                 {...register("oem_code")}
@@ -914,7 +968,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("color") && (
                                         <div>
-                                            <Label htmlFor="color">Цвет</Label>
+                                            <Label htmlFor="color" className="mb-1">Цвет</Label>
                                             <Input
                                                 id="color"
                                                 {...register("color")}
@@ -928,7 +982,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("supplier_code") && (
                                         <div>
-                                            <Label htmlFor="supplier_code">Код поставки</Label>
+                                            <Label htmlFor="supplier_code" className="mb-1">Код поставки</Label>
                                             <Input
                                                 id="supplier_code"
                                                 {...register("supplier_code")}
@@ -941,7 +995,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("defect") && (
                                         <div>
-                                            <Label htmlFor="defect">Дефект</Label>
+                                            <Label htmlFor="defect" className="mb-1">Дефект</Label>
                                             <Input
                                                 id="defect"
                                                 {...register("defect")}
@@ -954,7 +1008,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("transmission") && (
                                         <div>
-                                            <Label htmlFor="transmission-select">Трансмиссия</Label>
+                                            <Label htmlFor="transmission-select" className="mb-1">Трансмиссия</Label>
                                             <div className="relative">
                                                 <Select value={watch("transmission") || ""} onValueChange={(value) => setValue("transmission", value)}>
                                                     <SelectTrigger id="transmission-select" className="h-10 w-full">
@@ -990,7 +1044,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("drive") && (
                                         <div>
-                                            <Label htmlFor="drive">Привод</Label>
+                                            <Label htmlFor="drive" className="mb-1">Привод</Label>
                                             <Input
                                                 id="drive"
                                                 {...register("drive")}
@@ -1003,7 +1057,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("wear_percentage") && (
                                         <div>
-                                            <Label htmlFor="wear_percentage">Процент износа (%)</Label>
+                                            <Label htmlFor="wear_percentage" className="mb-1">Процент износа (%)</Label>
                                             <Input
                                                 id="wear_percentage"
                                                 {...register("wear_percentage")}
@@ -1016,7 +1070,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("season") && (
                                         <div>
-                                            <Label htmlFor="season">Сезон</Label>
+                                            <Label htmlFor="season" className="mb-1">Сезон</Label>
                                             <Input
                                                 id="season"
                                                 {...register("season")}
@@ -1029,7 +1083,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("diameter") && (
                                         <div>
-                                            <Label htmlFor="diameter">Диаметр</Label>
+                                            <Label htmlFor="diameter" className="mb-1">Диаметр</Label>
                                             <Input
                                                 id="diameter"
                                                 {...register("diameter")}
@@ -1042,7 +1096,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("width") && (
                                         <div>
-                                            <Label htmlFor="width">Ширина</Label>
+                                            <Label htmlFor="width" className="mb-1">Ширина</Label>
                                             <Input
                                                 id="width"
                                                 {...register("width")}
@@ -1055,7 +1109,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("profile") && (
                                         <div>
-                                            <Label htmlFor="profile">Профиль</Label>
+                                            <Label htmlFor="profile" className="mb-1">Профиль</Label>
                                             <Input
                                                 id="profile"
                                                 {...register("profile")}
@@ -1068,7 +1122,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("tire_quantity") && (
                                         <div>
-                                            <Label htmlFor="tire_quantity">Количество</Label>
+                                            <Label htmlFor="tire_quantity" className="mb-1">Количество</Label>
                                             <Input
                                                 id="tire_quantity"
                                                 {...register("tire_quantity")}
@@ -1081,7 +1135,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("drilling") && (
                                         <div>
-                                            <Label htmlFor="drilling">Сверловка</Label>
+                                            <Label htmlFor="drilling" className="mb-1">Сверловка</Label>
                                             <Input
                                                 id="drilling"
                                                 {...register("drilling")}
@@ -1094,7 +1148,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("offset") && (
                                         <div>
-                                            <Label htmlFor="offset">Вылет</Label>
+                                            <Label htmlFor="offset" className="mb-1">Вылет</Label>
                                             <Input
                                                 id="offset"
                                                 {...register("offset")}
@@ -1107,7 +1161,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("center_hole_diameter") && (
                                         <div>
-                                            <Label htmlFor="center_hole_diameter">Диаметр ЦО</Label>
+                                            <Label htmlFor="center_hole_diameter" className="mb-1">Диаметр ЦО</Label>
                                             <Input
                                                 id="center_hole_diameter"
                                                 {...register("center_hole_diameter")}
@@ -1120,7 +1174,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("tire_model") && (
                                         <div>
-                                            <Label htmlFor="tire_model">Модель шины</Label>
+                                            <Label htmlFor="tire_model" className="mb-1">Модель шины</Label>
                                             <Input
                                                 id="tire_model"
                                                 {...register("tire_model")}

@@ -141,9 +141,19 @@ const NavButton = styled(Link)<{ $isActive: boolean }>`
     color: #fff;
     box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
 
+    .dark & {
+      background-color: #222222;
+      color: #fff;
+    }
+
     &:hover {
       background-color: #000;
       color: #fff;
+
+      .dark & {
+        background-color: #222222;
+        color: #fff;
+      }
     }
   ` : `
     background-color: transparent;
@@ -152,6 +162,11 @@ const NavButton = styled(Link)<{ $isActive: boolean }>`
     &:hover {
       background-color: #000;
       color: #fff;
+
+      .dark & {
+        background-color: #222222;
+        color: #fff;
+      }
     }
   `}
 `;
@@ -253,6 +268,7 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
             </DropdownMenu>
           </MobileNavigation>
         </HeaderLeft>
+
 
         {/* User profile dropdown */}
         {user && (

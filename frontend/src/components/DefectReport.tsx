@@ -20,6 +20,35 @@ import {
 import { Save, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getAuthHeaders } from "@/lib/csrf";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+
+const availableColors = [
+  "Черный",
+  "Белый",
+  "Серебристый",
+  "Серый",
+  "Темно-серый",
+  "Светло-серый",
+  "Синий",
+  "Темно-синий",
+  "Светло-синий",
+  "Красный",
+  "Темно-красный",
+  "Бордовый",
+  "Зеленый",
+  "Темно-зеленый",
+  "Светло-зеленый",
+  "Желтый",
+  "Оранжевый",
+  "Фиолетовый",
+  "Коричневый",
+  "Бежевый",
+  "Золотой",
+  "Бронзовый",
+  "Перламутровый",
+  "Металлик",
+  "Матовый",
+];
 
 const defectReportSchema = z.object({
   brand: z.string().min(1, "Выберите бренд"),
@@ -28,6 +57,10 @@ const defectReportSchema = z.object({
   vin: z.string().optional(),
   mileage: z.number().min(0, "Пробег должен быть положительным числом"),
   transmission: z.string().optional(),
+  engine_brand: z.string().optional(),
+  body_brand: z.string().optional(),
+  interior_color: z.string().optional(),
+  body_color: z.string().optional(),
   description: z.string().max(1000, "Описание слишком длинное (макс 1000 символов)").optional(),
 });
 
@@ -100,10 +133,10 @@ export default function DefectReport() {
        { name: "Аутлет", category: "Двигатель", quantity: 0, price: 1000 },
        { name: "Башмак натяжителя", category: "Двигатель", quantity: 0, price: 1000 },
        { name: "Башмак успокоителя", category: "Двигатель", quantity: 0, price: 1000 },
-       { name: "Блок цилиндров", category: "Двигатель", quantity: 0, price: 1000 },
-       { name: "Болт головки блока цилиндров", category: "Двигатель", quantity: 0, price: 1000 },
-       { name: "Болт маховика", category: "Двигатель", quantity: 0, price: 1000 },
-       { name: "Болт шкива коленвала", category: "Двигатель", quantity: 0, price: 1000 },
+       { name: "Блок цилиндров", category: "Двигатель", quantity: 0, price: 50000 },
+       { name: "Болт головки блока цилиндров", category: "Двигатель", quantity: 0, price: 100 },
+       { name: "Болт маховика", category: "Двигатель", quantity: 0, price: 100 },
+       { name: "Болт шкива коленвала", category: "Двигатель", quantity: 0, price: 100 },
        { name: "Вакуумный ресивер", category: "Двигатель", quantity: 0, price: 1000 },
        { name: "Вакуумный насос", category: "Двигатель", quantity: 0, price: 1000 },
        { name: "Головка блока цилиндров", category: "Двигатель", quantity: 0, price: 1000, front_rear: "F" },
@@ -114,7 +147,7 @@ export default function DefectReport() {
        { name: "Датчик давления масла двигателя", category: "Двигатель", quantity: 0, price: 1000 },
        { name: "Датчик давления топлива", category: "Двигатель", quantity: 0, price: 1000 },
        { name: "Даун-пайп", category: "Двигатель", quantity: 0, price: 1000 },
-       { name: "Двигатель ", category: "Двигатель", quantity: 0, price: 1000 },
+       { name: "Двигатель ", category: "Двигатель", quantity: 0, price: 100000 },
        { name: "Декоративная крышка двигателя", category: "Двигатель", quantity: 0, price: 1000, front_rear: "F" },
        { name: "Декоративная крышка двигателя", category: "Двигатель", quantity: 0, price: 1000, front_rear: "R" },
        { name: "Декоративная крышка двигателя", category: "Двигатель", quantity: 0, price: 1000, left_right: "R" },
@@ -260,7 +293,7 @@ export default function DefectReport() {
        { name: "Трубка форсунки тнвд", category: "Двигатель", quantity: 0, price: 1000 },
        { name: "Трубка форсунки тнвд", category: "Двигатель", quantity: 0, price: 1000 },
        { name: "Трубка форсунки тнвд", category: "Двигатель", quantity: 0, price: 1000 },
-       { name: "Турбина", category: "Двигатель", quantity: 0, price: 1000 },
+       { name: "Турбина", category: "Двигатель", quantity: 0, price: 30000 },
        { name: "Форсунка топливная", category: "Двигатель", quantity: 0, price: 1000 },
        { name: "Форсунка холодного пуска", category: "Двигатель", quantity: 0, price: 1000 },
        { name: "Цепь грм", category: "Двигатель", quantity: 0, price: 1000, top_bottom: "Верх" },
@@ -353,7 +386,7 @@ export default function DefectReport() {
        { name: "Трубка патрубка печки", category: "Система охлаждения и отопления", quantity: 0, price: 1000, top_bottom: "Низ" },
        { name: "Трубка патрубка печки", category: "Система охлаждения и отопления", quantity: 0, price: 1000, top_bottom: "Верх" },
        { name: "Шкив помпы", category: "Система охлаждения и отопления", quantity: 0, price: 1000 },
-       { name: "Акпп", category: "Трансмиссия", quantity: 0, price: 1000 },
+       { name: "Акпп", category: "Трансмиссия", quantity: 0, price: 50000 },
        { name: "Бачок  сцепления", category: "Трансмиссия", quantity: 0, price: 1000 },
        { name: "Вал вторичный акпп", category: "Трансмиссия", quantity: 0, price: 1000 },
        { name: "Вал первичный акпп", category: "Трансмиссия", quantity: 0, price: 1000 },
@@ -385,7 +418,7 @@ export default function DefectReport() {
        { name: "Кулиса кпп", category: "Трансмиссия", quantity: 0, price: 1000 },
        { name: "Лента тормозная акпп", category: "Трансмиссия", quantity: 0, price: 1000 },
        { name: "Масляный насос акпп", category: "Трансмиссия", quantity: 0, price: 1000 },
-       { name: "Мкпп", category: "Трансмиссия", quantity: 0, price: 1000 },
+       { name: "Мкпп", category: "Трансмиссия", quantity: 0, price: 30000 },
        { name: "Мост", category: "Трансмиссия", quantity: 0, price: 1000, front_rear: "F" },
        { name: "Мост", category: "Трансмиссия", quantity: 0, price: 1000, front_rear: "R" },
        { name: "Муфта карданного вала", category: "Трансмиссия", quantity: 0, price: 1000 },
@@ -430,8 +463,8 @@ export default function DefectReport() {
        { name: "Щуп акпп", category: "Трансмиссия", quantity: 0, price: 1000 },
        { name: "Амортизатор ", category: "Подвеска передних колес", quantity: 0, price: 1000, front_rear: "F", left_right: "R" },
        { name: "Амортизатор ", category: "Подвеска передних колес", quantity: 0, price: 1000, front_rear: "F", left_right: "L" },
-       { name: "Болт развальный", category: "Подвеска передних колес", quantity: 0, price: 1000, front_rear: "F", left_right: "L" },
-       { name: "Болт развальный", category: "Подвеска передних колес", quantity: 0, price: 1000, front_rear: "F", left_right: "R" },
+       { name: "Болт развальный", category: "Подвеска передних колес", quantity: 0, price: 100, front_rear: "F", left_right: "L" },
+       { name: "Болт развальный", category: "Подвеска передних колес", quantity: 0, price: 100, front_rear: "F", left_right: "R" },
        { name: "Бушинг", category: "Подвеска передних колес", quantity: 0, price: 1000, front_rear: "F", left_right: "R" },
        { name: "Бушинг", category: "Подвеска передних колес", quantity: 0, price: 1000, front_rear: "F", left_right: "L" },
        { name: "Вилка амортизатора", category: "Подвеска передних колес", quantity: 0, price: 1000, front_rear: "F", left_right: "R" },
@@ -487,8 +520,8 @@ export default function DefectReport() {
        { name: "Амортизатор ", category: "Подвеска задних колес", quantity: 0, price: 1000, front_rear: "R", left_right: "R" },
        { name: "Амортизатор ", category: "Подвеска задних колес", quantity: 0, price: 1000, front_rear: "R", left_right: "L" },
        { name: "Балка  задняя", category: "Подвеска задних колес", quantity: 0, price: 1000 },
-       { name: "Болт развальный", category: "Подвеска задних колес", quantity: 0, price: 1000, front_rear: "R", left_right: "R" },
-       { name: "Болт развальный", category: "Подвеска задних колес", quantity: 0, price: 1000, front_rear: "R", left_right: "L" },
+       { name: "Болт развальный", category: "Подвеска задних колес", quantity: 0, price: 100, front_rear: "R", left_right: "R" },
+       { name: "Болт развальный", category: "Подвеска задних колес", quantity: 0, price: 100, front_rear: "R", left_right: "L" },
        { name: "Бушинг", category: "Подвеска задних колес", quantity: 0, price: 1000, front_rear: "R", left_right: "R" },
        { name: "Бушинг", category: "Подвеска задних колес", quantity: 0, price: 1000, front_rear: "R", left_right: "L" },
        { name: "Вилка амортизатора", category: "Подвеска задних колес", quantity: 0, price: 1000, front_rear: "R", left_right: "R" },
@@ -1487,9 +1520,9 @@ export default function DefectReport() {
        { name: "Электромагнитный клапан", category: "Электрооснащение", quantity: 0, price: 1000 },
        { name: "Электроподогреватель", category: "Электрооснащение", quantity: 0, price: 1000 },
        // Запчасти, относящиеся к дискам и шинам автомобиля, включая колеса, шины и крепежные элементы
-       { name: "Болт колесный", category: "Диски и шины", quantity: 0, price: 1000 },
-       { name: "Болт секретный", category: "Диски и шины", quantity: 0, price: 1000 },
-       { name: "Болт крепления запасного колеса", category: "Диски и шины", quantity: 0, price: 1000 },
+       { name: "Болт колесный", category: "Диски и шины", quantity: 0, price: 100 },
+       { name: "Болт секретный", category: "Диски и шины", quantity: 0, price: 100 },
+       { name: "Болт крепления запасного колеса", category: "Диски и шины", quantity: 0, price: 100 },
        { name: "Гайка на колесо", category: "Диски и шины", quantity: 0, price: 1000 },
        { name: "Гайка секретная", category: "Диски и шины", quantity: 0, price: 1000 },
        { name: "Диск литой", category: "Диски и шины", quantity: 0, price: 1000 },
@@ -1553,44 +1586,54 @@ export default function DefectReport() {
         year: data.year,
         vin: data.vin,
         mileage: data.mileage,
+        engine_brand: data.engine_brand,
+        body_brand: data.body_brand,
+        interior_color: data.interior_color,
+        body_color: data.body_color,
         description: data.description,
-        selectedParts: commonParts.map(part => ({
-          name: part.name,
-          category: part.category,
-          description: "",
-          quantity: part.quantity,
-          price: part.price,
-          brand: data.brand,
-          model: data.model,
-          // Характеристики запчасти
-          body_brand: part.body_brand,
-          engine_brand: part.engine_brand,
-          car_release_date: data.year.toString(), // Год выпуска автомобиля
-          front_rear: part.front_rear,
-          left_right: part.left_right,
-          top_bottom: part.top_bottom,
-          number: part.number,
-          manufacturer: part.manufacturer,
-          manufacturer_code: part.manufacturer_code,
-          oem_code: part.oem_code,
-          color: part.color,
-          condition: part.condition,
-          supplier_code: Date.now().toString(), // Автоматически выставляем код поставки как ID
-          defect: part.defect,
-          transmission: part.category === "Трансмиссия" ? data.transmission : part.transmission,
-          drive: part.drive,
-          wear_percentage: part.wear_percentage,
-          season: part.season,
-          diameter: part.diameter,
-          width: part.width,
-          profile: part.profile,
-          tire_quantity: part.tire_quantity,
-          drilling: part.drilling,
-          offset: part.offset,
-          center_hole_diameter: part.center_hole_diameter,
-          tire_model: part.tire_model,
-          vin: data.vin, // VIN автомобиля
-        })),
+        selectedParts: commonParts.map(part => {
+          // Определяем цвет на основе категории
+          const isInteriorCategory = ['Электрооснащение', 'Система кондиционирования', 'Сопутствующие товары'].includes(part.category);
+          const partColor = isInteriorCategory ? data.interior_color : data.body_color || part.color;
+
+          return {
+            name: part.name,
+            category: part.category,
+            description: "",
+            quantity: part.quantity,
+            price: part.price,
+            brand: data.brand,
+            model: data.model,
+            // Характеристики запчасти
+            body_brand: data.body_brand,
+            engine_brand: data.engine_brand,
+            car_release_date: data.year.toString(), // Год выпуска автомобиля
+            front_rear: part.front_rear,
+            left_right: part.left_right,
+            top_bottom: part.top_bottom,
+            number: part.number,
+            manufacturer: part.manufacturer,
+            manufacturer_code: part.manufacturer_code,
+            oem_code: part.oem_code,
+            color: partColor,
+            condition: part.condition,
+            supplier_code: Date.now().toString(), // Автоматически выставляем код поставки как ID
+            defect: part.defect,
+            transmission: part.category === "Трансмиссия" ? data.transmission : part.transmission,
+            drive: part.drive,
+            wear_percentage: part.wear_percentage,
+            season: part.season,
+            diameter: part.diameter,
+            width: part.width,
+            profile: part.profile,
+            tire_quantity: part.tire_quantity,
+            drilling: part.drilling,
+            offset: part.offset,
+            center_hole_diameter: part.center_hole_diameter,
+            tire_model: part.tire_model,
+            vin: data.vin, // VIN автомобиля
+          };
+        }),
       };
 
       const response = await fetch("http://localhost:8081/api/defect-reports", {
@@ -1733,6 +1776,64 @@ export default function DefectReport() {
                 <input
                   type="hidden"
                   {...register("transmission")}
+                  autoComplete="off"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="engine-brand">Марка двигателя</Label>
+                <Input
+                  id="engine-brand"
+                  {...register("engine_brand")}
+                  type="text"
+                  placeholder="Например: Toyota 1NZ-FE"
+                  className="h-10"
+                  autoComplete="off"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="body-brand">Марка кузова</Label>
+                <Input
+                  id="body-brand"
+                  {...register("body_brand")}
+                  type="text"
+                  placeholder="Например: Toyota Corolla"
+                  className="h-10"
+                  autoComplete="off"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="interior-color-select">Цвет салона</Label>
+                <SearchableSelect
+                  value={watch("interior_color") || ""}
+                  onValueChange={(value) => setValue("interior_color", value)}
+                  options={availableColors.map((color) => ({ value: color, label: color }))}
+                  placeholder="Выберите цвет салона"
+                  searchPlaceholder="Поиск цвета..."
+                  className="h-10 w-full"
+                />
+                <input
+                  type="hidden"
+                  {...register("interior_color")}
+                  autoComplete="off"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="body-color-select">Цвет кузовных деталей</Label>
+                <SearchableSelect
+                  value={watch("body_color") || ""}
+                  onValueChange={(value) => setValue("body_color", value)}
+                  options={availableColors.map((color) => ({ value: color, label: color }))}
+                  placeholder="Выберите цвет кузовных деталей"
+                  searchPlaceholder="Поиск цвета..."
+                  className="h-10 w-full"
+                />
+                <input
+                  type="hidden"
+                  {...register("body_color")}
                   autoComplete="off"
                 />
               </div>
