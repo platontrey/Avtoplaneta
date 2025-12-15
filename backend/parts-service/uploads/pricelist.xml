@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<offers>
+  <offer>
+    <name>Даун-пайп</name>
+    <available>true</available>
+    <price>1000</price>
+    <currencyId>RUR</currencyId>
+    <picture>https://avtoplaneta70.ru/uploads/5791_1765380082.jpg</picture>
+    <store>Admin</store>
+    <quantity>1</quantity>
+    <ordercode>1764746525071</ordercode>
+    <condition>Б/у</condition>
+    <brandcars>Mercedes</brandcars>
+    <modelcars>1112</modelcars>
+    <bodycars>123</bodycars>
+    <engine>123</engine>
+    <year>1999</year>
+    <color>Золотой</color>
+    <supplier>Admin</supplier>
+    <supplier_art>1764746525071</supplier_art>
+  </offer>
+</offers>

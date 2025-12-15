@@ -2,8 +2,6 @@ package main
 
 import (
 	"time"
-
-	"gorm.io/gorm"
 )
 
 type User struct {
@@ -31,4 +29,3 @@ type UserActivityLog struct {
 	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
 }
 
-var db *gorm.DB

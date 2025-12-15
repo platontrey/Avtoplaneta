@@ -23,7 +23,7 @@ import { Save, ArrowLeft, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getAuthHeaders } from "@/lib/csrf";
 import { sanitizeHtml } from "@/lib/security";
-import ImageCropper from "./ImageCropper";
+import ImageEditor from "./ImageEditor";
 
 const brandOptions = [
         { value: "Acura", label: "Acura" },
@@ -180,7 +180,7 @@ export default function AddPart() {
     const [users, setUsers] = useState<User[]>([]);
     const [loadingUsers, setLoadingUsers] = useState<boolean>(true);
     const [showCropper, setShowCropper] = useState<boolean>(false);
-    const [tempImageSrc, setTempImageSrc] = useState<string>("");
+    const [tempImageSrc, setTempImageSrc] = useState<string | File>("");
     const [originalFile, setOriginalFile] = useState<File | null>(null);
 
     const {
@@ -303,13 +303,14 @@ export default function AddPart() {
     };
 
     const handleCropComplete = (croppedImageBlob: Blob) => {
-        console.log('handleCropComplete called with blob size:', croppedImageBlob.size, 'type:', croppedImageBlob.type);
+        console.log('AddPart handleCropComplete: called with blob size:', croppedImageBlob.size, 'type:', croppedImageBlob.type);
         if (croppedImageBlob.size === 0) {
+            console.log('AddPart handleCropComplete: Error - cropped image is empty');
             alert('Ошибка: обрезанное изображение пустое');
             return;
         }
         const croppedFile = new File([croppedImageBlob], 'cropped-image.jpg', { type: 'image/jpeg' });
-        console.log('Created file:', croppedFile.name, 'size:', croppedFile.size, 'type:', croppedFile.type);
+        console.log('AddPart handleCropComplete: Created file:', croppedFile.name, 'size:', croppedFile.size, 'type:', croppedFile.type);
         setPhotoFile(croppedFile);
         setOriginalFile(croppedFile); // Update originalFile to cropped version
         setPhotoPreview(URL.createObjectURL(croppedFile));
@@ -395,39 +396,54 @@ export default function AddPart() {
 
 
             // Если фото выбрано, загрузить
-            if (photoFile) {
-                console.log('Uploading photo for new part, photoFile:', photoFile, 'part ID:', result.id);
-                const photoFormData = new FormData();
-                photoFormData.append("photo", photoFile);
+             if (photoFile) {
+                 console.log('AddPart onSubmit: Uploading photo for new part, photoFile:', photoFile, 'part ID:', result.id, 'size:', photoFile.size, 'type:', photoFile.type);
+                 const photoFormData = new FormData();
+                 photoFormData.append("photo", photoFile);
 
-                // Краткая задержка для обеспечения полного создания запчасти
-                await new Promise(resolve => setTimeout(resolve, 100));
+                 console.log('AddPart onSubmit: FormData contents:');
+                 for (const [key, value] of photoFormData.entries()) {
+                     console.log(`AddPart onSubmit: ${key}:`, value, 'Type:', value instanceof File ? 'File' : typeof value);
+                     if (value instanceof File) {
+                         console.log('AddPart onSubmit: File details:', { name: value.name, size: value.size, type: value.type, lastModified: value.lastModified });
+                     }
+                 }
 
-                try {
-                    console.log('Making photo upload request to:', `http://localhost:8081/api/uploadpartphoto/${result.id}`);
-                    const photoResponse = await fetch(`http://localhost:8081/api/uploadpartphoto/${result.id}`, {
-                        method: "POST",
-                        headers: {
-                            'X-CSRF-Token': getAuthHeaders()['X-CSRF-Token'] || '',
-                        },
-                        credentials: 'include',
-                        body: photoFormData,
-                    });
+                 // Краткая задержка для обеспечения полного создания запчасти
+                 await new Promise(resolve => setTimeout(resolve, 100));
 
-                    console.log('Photo upload response status:', photoResponse.status);
-                    if (photoResponse.ok) {
-                        const photoResult = await photoResponse.json();
-                        console.log('Photo upload successful:', photoResult);
-                    } else {
-                        const errorText = await photoResponse.text();
-                        console.error("Failed to upload photo:", errorText);
-                        alert('Запчасть создана, но загрузка фото не удалась. Вы можете загрузить фото позже, отредактировав запчасть.');
-                    }
-                } catch (error) {
-                    console.error('Error during photo upload:', error);
-                    alert('Запчасть создана, но загрузка фото не удалась. Вы можете загрузить фото позже, отредактировав запчасть.');
-                }
-            }
+                 try {
+                     const uploadUrl = `http://localhost:8081/api/uploadpartphoto/${result.id}`;
+                     console.log('AddPart onSubmit: Making photo upload request to:', uploadUrl);
+                     console.log('AddPart onSubmit: CSRF Token:', getAuthHeaders()['X-CSRF-Token'] || 'none');
+
+                     const photoResponse = await fetch(uploadUrl, {
+                         method: "POST",
+                         headers: {
+                             'X-CSRF-Token': getAuthHeaders()['X-CSRF-Token'] || '',
+                         },
+                         credentials: 'include',
+                         body: photoFormData,
+                     });
+
+                     console.log('AddPart onSubmit: Photo upload response status:', photoResponse.status, 'OK:', photoResponse.ok);
+                     console.log('AddPart onSubmit: Response headers:', Object.fromEntries(photoResponse.headers.entries()));
+
+                     if (photoResponse.ok) {
+                         const photoResult = await photoResponse.json();
+                         console.log('AddPart onSubmit: Photo upload successful:', photoResult);
+                     } else {
+                         const errorText = await photoResponse.text();
+                         console.error("AddPart onSubmit: Failed to upload photo:", errorText);
+                         alert('Запчасть создана, но загрузка фото не удалась. Вы можете загрузить фото позже, отредактировав запчасть.');
+                     }
+                 } catch (error) {
+                     console.error('AddPart onSubmit: Error during photo upload:', error);
+                     alert('Запчасть создана, но загрузка фото не удалась. Вы можете загрузить фото позже, отредактировав запчасть.');
+                 }
+             } else {
+                 console.log('AddPart onSubmit: No photo file selected for upload');
+             }
 
             if (photoFile) {
                 alert("Запчасть и фото успешно добавлены!");
@@ -722,17 +738,13 @@ export default function AddPart() {
                                             <Button
                                                 type="button"
                                                 onClick={() => {
-                                                    const reader = new FileReader();
-                                                    reader.onload = (e) => {
-                                                        setTempImageSrc(e.target?.result as string);
-                                                        setShowCropper(true);
-                                                    };
-                                                    reader.readAsDataURL(originalFile);
+                                                    setTempImageSrc(originalFile);
+                                                    setShowCropper(true);
                                                 }}
                                                 variant="outline"
                                                 size="sm"
                                             >
-                                                Обрезать фото
+                                                Изменить фото
                                             </Button>
                                         </div>
                                     )}
@@ -1192,9 +1204,9 @@ export default function AddPart() {
             </div>
 
             {showCropper && (
-                <ImageCropper
+                <ImageEditor
                     src={tempImageSrc}
-                    onCropComplete={handleCropComplete}
+                    onEditComplete={handleCropComplete}
                     onCancel={handleCropCancel}
                     aspect={null} // Free aspect ratio for parts photos
                 />

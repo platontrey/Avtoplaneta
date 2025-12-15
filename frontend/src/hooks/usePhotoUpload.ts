@@ -43,9 +43,11 @@ export function usePhotoUpload(options: UsePhotoUploadOptions = {}): UsePhotoUpl
 
   // Update currentPhoto and photoPreview when initialPhoto changes
   useEffect(() => {
-    console.log('usePhotoUpload: initialPhoto changed to:', initialPhoto);
+    console.log('usePhotoUpload: initialPhoto changed to:', initialPhoto, 'API_BASE_URL:', API_BASE_URL);
     setCurrentPhoto(initialPhoto);
-    setPhotoPreview(initialPhoto ? `${API_BASE_URL}${initialPhoto}?t=${Date.now()}` : null);
+    const preview = initialPhoto ? `${API_BASE_URL}${initialPhoto}?t=${Date.now()}` : null;
+    console.log('usePhotoUpload: setting photoPreview to:', preview);
+    setPhotoPreview(preview);
   }, [initialPhoto]);
 
   // Cleanup object URL on unmount to prevent memory leaks

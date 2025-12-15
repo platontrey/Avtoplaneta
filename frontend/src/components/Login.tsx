@@ -12,24 +12,19 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, EyeOff } from 'lucide-react';
 
-import type { User } from '../features/auth/types';
-import { getAuthHeaders } from '../lib/csrf';
+import { useAuth } from '../features/auth/hooks/useAuth';
 
 const loginSchema = z.object({
-  email: z.string().min(1, { message: "Email is required" }).email({ message: "Invalid email format" }),
+  email: z.string().min(1, { message: "Email or username is required" }),
   password: z.string().min(1, { message: "Password is required" }),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
-interface LoginProps {
-  onLogin: (user: User) => void;
-}
-
-export default function Login({ onLogin }: LoginProps) {
-  const [loading, setLoading] = useState(false);
+export default function Login() {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const { login, isLoading } = useAuth();
 
   const {
     register,
@@ -44,39 +39,17 @@ export default function Login({ onLogin }: LoginProps) {
   };
 
   const onSubmit = async (data: LoginFormData) => {
-    setLoading(true);
     setError('');
 
     console.log('Login attempt:', { email: data.email, password: '[HIDDEN]' });
 
     try {
-      const response = await fetch('/auth/login', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        credentials: 'include', // Include cookies in the request
-        body: JSON.stringify(data),
-      });
-
-      console.log('Login response status:', response.status);
-      console.log('Login response headers:', Object.fromEntries(response.headers.entries()));
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Login failed:', errorData);
-        setError(errorData.error || 'Login failed');
-        return;
-      }
-
-      const result = await response.json();
-      console.log('Login successful:', result);
-      onLogin(result.user);
+      await login(data);
       // Redirect to inventory after successful login
       window.location.href = '/';
     } catch (err) {
       console.error('Login error:', err);
       setError(err instanceof Error ? err.message : 'Login failed');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -156,9 +129,9 @@ export default function Login({ onLogin }: LoginProps) {
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={loading}
+                  disabled={isLoading}
                 >
-                  {loading ? 'Signing in...' : 'Sign in'}
+                  {isLoading ? 'Signing in...' : 'Sign in'}
                 </Button>
               </form>
             </CardContent>

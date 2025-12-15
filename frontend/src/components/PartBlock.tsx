@@ -5,7 +5,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Trash2, Edit, ShoppingCart } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
@@ -32,7 +31,7 @@ import { usePartEdit } from "@/hooks/usePartEdit";
 import { useDeletePart, partsKeys } from "@/hooks/useParts";
 import { useAuth } from "@/hooks/useAuth";
 import PartOrderDialog from "./PartOrderDialog";
-import ImageCropper from "./ImageCropper";
+import ImageEditor from "./ImageEditor";
 import EditPartDialog from "./EditPartDialog";
 import type { Part } from "@/features/parts/types";
 import { API_BASE_URL } from "@/lib/api";
@@ -48,30 +47,23 @@ interface PartBlockProps {
     onSelect?: (isSelected: boolean) => void;
 }
 
-
-export default function PartBlock({
-    part,
-    isLoading = false,
-    isSelectionMode = false,
-    isSelected = false,
-    onLongPress,
-    onSelect
-}: PartBlockProps) {
+function PartBlock({
+                       part,
+                       isLoading = false,
+                       isSelectionMode = false,
+                       isSelected = false,
+                       onLongPress,
+                       onSelect
+                   }: PartBlockProps) {
     const { user } = useAuth();
     const accordionRef = useRef<HTMLDivElement>(null);
     const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
     const [, setIsPressed] = useState(false);
 
     const [isDeleting, setIsDeleting] = useState(false);
-
-    // Состояние диалога заказа
-
     const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
-
-    // Состояние обрезки изображения
-
     const [showCropper, setShowCropper] = useState(false);
-    const [tempImageSrc, setTempImageSrc] = useState("");
+    const [tempImageSrc, setTempImageSrc] = useState<string | File>("");
     const [originalFile, setOriginalFile] = useState<File | null>(null);
     const queryClient = useQueryClient();
 
@@ -128,8 +120,6 @@ export default function PartBlock({
         }
     };
 
-    // Альтернативный подход - использование контекстного меню
-
     // Очистка таймера при размонтировании
     useEffect(() => {
         return () => {
@@ -139,7 +129,7 @@ export default function PartBlock({
         };
     }, []);
 
-// Закрываем диалог заказа при изменении детали (редактирование/удаление)
+    // Закрываем диалог заказа при изменении детали (редактирование/удаление)
     useEffect(() => {
         console.log('PartBlock: part.id changed to', part.id, 'closing order dialog');
         setIsOrderDialogOpen(false);
@@ -178,7 +168,6 @@ export default function PartBlock({
         }
         console.log('PartBlock handlePhotoChange: END');
     };
-
 
     const handleCropComplete = async (croppedImageBlob: Blob) => {
         console.log('PartBlock handleCropComplete called with blob size:', croppedImageBlob.size, 'type:', croppedImageBlob.type);
@@ -233,44 +222,11 @@ export default function PartBlock({
         console.log('PartBlock handleDelete: END');
     };
 
-
     // Проверка безопасности - валидация данных детали для предотвращения ошибок выполнения
     if (!part) {
         console.error('PartBlock: Invalid part data', part);
         return null;
     }
-
-    // Отладочное логирование
-    console.log(`PartBlock rendering part ${part.id}:`, {
-        name: part.name,
-        photo: part.photo,
-        brand: part.brand,
-        model: part.model
-    });
-
-    // Логи для отладки фото
-    console.log('PartBlock photo debug:', {
-        partId: part.id,
-        partPhoto: part.photo,
-        photoUploadCurrentPhoto: photoUpload.currentPhoto,
-        photoUploadPhotoPreview: photoUpload.photoPreview,
-        API_BASE_URL: API_BASE_URL,
-        fullImageUrl: photoUpload.currentPhoto ? `${API_BASE_URL}${photoUpload.currentPhoto}?t=${photoUpload.uploadTimestamp}` : 'no photo',
-        uploadTimestamp: photoUpload.uploadTimestamp,
-        forceRefresh: photoUpload.forceRefresh
-    });
-
-    // Логи для отладки фото
-    console.log('PartBlock photo debug:', {
-        partId: part.id,
-        partPhoto: part.photo,
-        photoUploadCurrentPhoto: photoUpload.currentPhoto,
-        photoUploadPhotoPreview: photoUpload.photoPreview,
-        API_BASE_URL: API_BASE_URL,
-        fullImageUrl: photoUpload.currentPhoto ? `${API_BASE_URL}${photoUpload.currentPhoto}?t=${photoUpload.uploadTimestamp}` : 'no photo',
-        uploadTimestamp: photoUpload.uploadTimestamp,
-        forceRefresh: photoUpload.forceRefresh
-    });
 
     if (isLoading) {
         return (
@@ -317,7 +273,6 @@ export default function PartBlock({
         );
     }
 
-
     return (
         <motion.div
             className="bg-card border border-border rounded-lg mb-4 relative group hover:shadow-md transition-shadow p-4"
@@ -352,12 +307,13 @@ export default function PartBlock({
                     />
                 </div>
             )}
+
             {/* Элемент аккордеона для деталей детали */}
             <AccordionItem
                 value={`part-${part.id}`}
                 data-testid="part-accordion"
                 ref={accordionRef}
-                className="border-b last:border-b-0 pointer-events-none"
+                className="border-b last:border-b-0"
             >
                 <AccordionTrigger
                     className="flex items-center justify-between w-full hover:bg-accent hover:text-accent-foreground pr-4 pointer-events-auto"
@@ -458,68 +414,19 @@ export default function PartBlock({
                                 <Edit className="h-4 w-4 cursor-pointer" />
                             </motion.div>
                         )}
-                        {/* Диалог редактирования */}
-                        <EditPartDialog
-                            partEdit={partEdit}
-                            part={part}
-                            onPhotoChange={handlePhotoChange}
-                            onCrop={() => {
-                                if (originalFile) {
-                                    const reader = new FileReader();
-                                    reader.onload = (e) => {
-                                        setTempImageSrc(e.target?.result as string);
-                                        setShowCropper(true);
-                                    };
-                                    reader.readAsDataURL(originalFile);
-                                }
-                            }}
-                            onDeletePhoto={async () => {
-                                console.log('Удаление фото начато для детали:', part.id);
-                                try {
-                                    const response = await fetch(`http://localhost:8081/api/deletepartphoto/${part.id}`, {
-                                        method: 'DELETE',
-                                        headers: getAuthHeaders(),
-                                        credentials: 'include',
-                                    });
 
-                                    if (!response.ok) {
-                                        const errorText = await response.text();
-                                        throw new Error(`HTTP ${response.status}: ${errorText}`);
-                                    }
-
-                                    const result = await response.json();
-                                    console.log('Фото успешно удалено:', result);
-
-                                    // Обновить локальное состояние
-                                    partEdit.updateFormField('photo', '');
-                                    // Invalidate queries to refresh the UI
-                                    void queryClient.invalidateQueries({ queryKey: partsKeys.lists() });
-                                } catch (error) {
-                                    console.error('Ошибка при удалении фото:', error);
-                                    alert('Не удалось удалить фото. Попробуйте еще раз.');
-                                    throw error;
-                                }
-                            }}
-                            originalFile={originalFile}
-                        />
                         {/* Диалог подтверждения удаления */}
                         {user?.role === 'admin' && (
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <motion.div
-                                        className="w-8 h-8 flex items-center justify-center rounded hover:bg-accent pointer-events-auto"
+                                        className="w-8 h-8 flex items-center justify-center rounded hover:bg-accent pointer-events-auto cursor-pointer"
                                         whileHover={{ scale: 1.1, rotate: 10 }}
                                         whileTap={{ scale: 0.9 }}
                                         transition={{ duration: 0.1 }}
+                                        style={{ pointerEvents: isDeleting ? 'none' : 'auto' }}
                                     >
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-8 w-8 p-0"
-                                            disabled={isDeleting}
-                                        >
-                                            <Trash2 className={`h-4 w-4 ${isDeleting ? 'text-muted' : 'text-destructive hover:text-destructive/90'}`} />
-                                        </Button>
+                                        <Trash2 className={`h-4 w-4 ${isDeleting ? 'text-muted' : 'text-destructive hover:text-destructive/90'}`} />
                                     </motion.div>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
@@ -545,14 +452,16 @@ export default function PartBlock({
                     </div>
 
                 </AccordionTrigger>
+
                 {/* Развёрнутый контент с деталями детали */}
-                <motion.div
-                    initial={false}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3, ease: "easeInOut" }}
-                >
-                    <AccordionContent className="hover:bg-accent/50 border-t border-border pt-3 px-4">
+                <AccordionContent>
+                    <motion.div
+                        className="hover:bg-accent/50 border-t border-border pt-3 px-4"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                    >
                         <motion.div
                             className="space-y-1"
                             initial={{ opacity: 0, y: 10 }}
@@ -1019,9 +928,50 @@ export default function PartBlock({
                                 </div>
                             </div>
                         </motion.div>
-                    </AccordionContent>
-                </motion.div>
+                    </motion.div>
+                </AccordionContent>
             </AccordionItem>
+
+            {/* Диалог редактирования */}
+            <EditPartDialog
+                partEdit={partEdit}
+                part={part}
+                onPhotoChange={handlePhotoChange}
+                onCrop={(src) => {
+                    if (src) {
+                        setTempImageSrc(src);
+                        setShowCropper(true);
+                    }
+                }}
+                onDeletePhoto={async () => {
+                    console.log('Удаление фото начато для детали:', part.id);
+                    try {
+                        const response = await fetch(`http://localhost:8081/api/deletepartphoto/${part.id}`, {
+                            method: 'DELETE',
+                            headers: getAuthHeaders(),
+                            credentials: 'include',
+                        });
+
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            throw new Error(`HTTP ${response.status}: ${errorText}`);
+                        }
+
+                        const result = await response.json();
+                        console.log('Фото успешно удалено:', result);
+
+                        // Обновить локальное состояние
+                        partEdit.updateFormField('photo', '');
+                        // Invalidate queries to refresh the UI
+                        void queryClient.invalidateQueries({ queryKey: partsKeys.lists() });
+                    } catch (error) {
+                        console.error('Ошибка при удалении фото:', error);
+                        alert('Не удалось удалить фото. Попробуйте еще раз.');
+                        throw error;
+                    }
+                }}
+                originalFile={originalFile}
+            />
 
             {/* Диалог заказа */}
             <PartOrderDialog
@@ -1031,9 +981,9 @@ export default function PartBlock({
             />
 
             {showCropper && (
-                <ImageCropper
+                <ImageEditor
                     src={tempImageSrc}
-                    onCropComplete={handleCropComplete}
+                    onEditComplete={handleCropComplete}
                     onCancel={handleCropCancel}
                     aspect={null} // Free aspect ratio for parts photos
                 />
@@ -1041,3 +991,5 @@ export default function PartBlock({
         </motion.div>
     );
 }
+
+export default React.memo(PartBlock);

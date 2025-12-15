@@ -90,7 +90,7 @@ export const partsApi = {
   },
 
   // Update part
-  update: async (id: number, partData: Partial<Part>): Promise<void> => {
+  update: async (id: number, partData: Partial<Part>): Promise<Part> => {
     const response = await fetch(`${API_BASE_URL}/api/updatepart/${id}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
@@ -118,6 +118,8 @@ export const partsApi = {
       resource_id: id,
       details: `Обновлена запчасть ID: ${id}`,
     }).catch(console.warn);
+
+    return result;
   },
 
   // Delete part

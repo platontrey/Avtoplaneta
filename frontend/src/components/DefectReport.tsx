@@ -104,7 +104,7 @@ interface CommonPart {
 
 export default function DefectReport() {
   const [loading, setLoading] = useState<boolean>(false);
-  const [displayLimit, setDisplayLimit] = useState<number>(20);
+  const [displayLimit, setDisplayLimit] = useState<number>(10);
 
   const {
     register,
@@ -1574,6 +1574,11 @@ export default function DefectReport() {
        { name: "Шторка багажника", category: "Сопутствующие товары", quantity: 0, price: 1000 },
   ];
 
+  // Добавляем цвет по умолчанию для каждой категории
+  const commonPartsWithColor = commonParts.map(part => ({
+    ...part,
+    color: ['Электрооснащение', 'Система кондиционирования', 'Сопутствующие товары'].includes(part.category) ? 'Черный' : 'Белый'
+  }));
 
   const onSubmit = async (data: DefectReportFormData) => {
     setLoading(true);
@@ -1591,7 +1596,7 @@ export default function DefectReport() {
         interior_color: data.interior_color,
         body_color: data.body_color,
         description: data.description,
-        selectedParts: commonParts.map(part => {
+        selectedParts: commonPartsWithColor.map(part => {
           // Определяем цвет на основе категории
           const isInteriorCategory = ['Электрооснащение', 'Система кондиционирования', 'Сопутствующие товары'].includes(part.category);
           const partColor = isInteriorCategory ? data.interior_color : data.body_color || part.color;
@@ -1858,9 +1863,18 @@ export default function DefectReport() {
             <Label className="text-lg font-medium mb-4 block">Создаваемые запчасти</Label>
             <div className="flex items-center gap-4 mb-4">
               <p className="text-gray-500">
-                Будет создано {commonParts.length} распространённых запчастей для автомобиля {brand} {watch("model")}:
+                Будет создано {commonPartsWithColor.length} распространённых запчастей для автомобиля {brand} {watch("model")}:
               </p>
               <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDisplayLimit(10)}
+                  className={displayLimit === 10 ? "bg-blue-50 border-blue-200" : ""}
+                >
+                  10
+                </Button>
                 <Button
                   type="button"
                   variant="outline"
@@ -1874,28 +1888,19 @@ export default function DefectReport() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setDisplayLimit(40)}
-                  className={displayLimit === 40 ? "bg-blue-50 border-blue-200" : ""}
+                  onClick={() => setDisplayLimit(30)}
+                  className={displayLimit === 30 ? "bg-blue-50 border-blue-200" : ""}
                 >
-                  40
+                  30
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setDisplayLimit(60)}
-                  className={displayLimit === 60 ? "bg-blue-50 border-blue-200" : ""}
+                  onClick={() => setDisplayLimit(50)}
+                  className={displayLimit === 50 ? "bg-blue-50 border-blue-200" : ""}
                 >
-                  60
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDisplayLimit(80)}
-                  className={displayLimit === 80 ? "bg-blue-50 border-blue-200" : ""}
-                >
-                  80
+                  50
                 </Button>
                 <Button
                   type="button"
@@ -1910,8 +1915,8 @@ export default function DefectReport() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setDisplayLimit(commonParts.length)}
-                  className={displayLimit === commonParts.length ? "bg-blue-50 border-blue-200" : ""}
+                  onClick={() => setDisplayLimit(commonPartsWithColor.length)}
+                  className={displayLimit === commonPartsWithColor.length ? "bg-blue-50 border-blue-200" : ""}
                 >
                   Все
                 </Button>
@@ -1919,22 +1924,44 @@ export default function DefectReport() {
             </div>
             <div className="max-h-96 overflow-y-auto border rounded-lg p-4 bg-gray-50">
               <div className="grid grid-cols-1 gap-2">
-                {commonParts.slice(0, displayLimit).map((part, index) => (
-                  <div key={index} className="flex items-start space-x-3 p-2 border-b border-gray-100 last:border-b-0">
+                {commonPartsWithColor.slice(0, displayLimit).map((part, index) => (
+                  <div key={index} className="p-2 border-b border-gray-100 last:border-b-0">
                     <div className="flex-1">
                       <Label className="font-medium text-sm">
                         {part.name}
                       </Label>
-                      <div className="flex justify-between items-center mt-1">
-                        <span className="text-xs text-blue-600">{part.category}</span>
-                        <span className="text-xs text-green-600">Кол-во: {part.quantity}, Цена: {part.price}₽</span>
+                      <div className="mt-1 text-xs text-gray-600">
+                        <div>Категория: {part.category}</div>
+                        <div>Цвет: {part.color}</div>
+                        {part.front_rear && <div>Перед/зад: {part.front_rear}</div>}
+                        {part.left_right && <div>Лево/право: {part.left_right}</div>}
+                        {part.top_bottom && <div>Верх/низ: {part.top_bottom}</div>}
+                        {part.number && <div>Номер: {part.number}</div>}
+                        {part.manufacturer && <div>Производитель: {part.manufacturer}</div>}
+                        {part.manufacturer_code && <div>Код производителя: {part.manufacturer_code}</div>}
+                        {part.oem_code && <div>OEM код: {part.oem_code}</div>}
+                        {part.condition && <div>Состояние: {part.condition}</div>}
+                        {part.defect && <div>Дефект: {part.defect}</div>}
+                        {part.transmission && <div>Трансмиссия: {part.transmission}</div>}
+                        {part.drive && <div>Привод: {part.drive}</div>}
+                        {part.wear_percentage && <div>Процент износа: {part.wear_percentage}</div>}
+                        {part.season && <div>Сезон: {part.season}</div>}
+                        {part.diameter && <div>Диаметр: {part.diameter}</div>}
+                        {part.width && <div>Ширина: {part.width}</div>}
+                        {part.profile && <div>Профиль: {part.profile}</div>}
+                        {part.tire_quantity && <div>Количество шин: {part.tire_quantity}</div>}
+                        {part.drilling && <div>Сверловка: {part.drilling}</div>}
+                        {part.offset && <div>Вылет: {part.offset}</div>}
+                        {part.center_hole_diameter && <div>Диаметр ЦО: {part.center_hole_diameter}</div>}
+                        {part.tire_model && <div>Модель шины: {part.tire_model}</div>}
+                        <div className="text-green-600">Кол-во: {part.quantity}, Цена: {part.price}₽</div>
                       </div>
                     </div>
                   </div>
                 ))}
-                {commonParts.length > displayLimit && (
+                {commonPartsWithColor.length > displayLimit && (
                   <div className="text-center text-sm text-gray-500 mt-2">
-                    ... и ещё {commonParts.length - displayLimit} запчастей
+                    ... и ещё {commonPartsWithColor.length - displayLimit} запчастей
                   </div>
                 )}
               </div>

@@ -14,18 +14,20 @@ import { motion } from "framer-motion";
 import { Upload } from "lucide-react";
 import type { UsePartEditReturn } from "@/hooks/usePartEdit";
 import type { Part } from "@/features/parts/types";
+import { API_BASE_URL } from "@/lib/api";
 
 interface EditPartDialogProps {
     partEdit: UsePartEditReturn;
     part: Part;
     onPhotoChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    onCrop: () => void;
+    onCrop: (src: string | File | undefined) => void;
     onDeletePhoto: () => void;
     originalFile: File | null;
 }
 
 
-export default function EditPartDialog({ partEdit, onPhotoChange, onCrop, onDeletePhoto, originalFile }: EditPartDialogProps) {
+export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, onDeletePhoto, originalFile }: EditPartDialogProps) {
+    console.log('EditPartDialog render, part.photo:', part.photo, 'photoPreview:', partEdit.photoUpload.photoPreview);
 
     return (
         <Dialog open={partEdit.isEditing} onOpenChange={(open) => { console.log('Edit dialog open state:', open); partEdit.setIsEditing(open); }}>
@@ -326,6 +328,10 @@ export default function EditPartDialog({ partEdit, onPhotoChange, onCrop, onDele
                                                     src={partEdit.photoUpload.photoPreview}
                                                     alt={`Preview of ${partEdit.editForm.name}`}
                                                     className="max-h-16 max-w-full object-contain"
+                                                    onError={(e) => {
+                                                        console.error('Image failed to load:', partEdit.photoUpload.photoPreview);
+                                                        e.currentTarget.style.display = 'none';
+                                                    }}
                                                 />
                                             ) : (
                                                 <div className="text-center">
@@ -347,12 +353,12 @@ export default function EditPartDialog({ partEdit, onPhotoChange, onCrop, onDele
                                             <div className="flex space-x-2">
                                                 <Button
                                                     type="button"
-                                                    onClick={onCrop}
+                                                    onClick={() => onCrop(originalFile || (part.photo ? `${API_BASE_URL}${part.photo}` : undefined))}
                                                     variant="outline"
                                                     size="sm"
-                                                    disabled={!originalFile}
+                                                    disabled={!originalFile && !part.photo}
                                                 >
-                                                    Обрезать фото
+                                                    Изменить фото
                                                 </Button>
                                                 <Button
                                                     type="button"

@@ -12,36 +12,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
-
-// Обработчик для ИИ агента
-func handleAIAgentChat(c *gin.Context) {
-	var req struct {
-		Message string                 `json:"message"`
-		Context map[string]interface{} `json:"context"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Логирование для безопасности (анонимизировано для приватности)
-	log.Printf("ИИ агент: запрос '%s' с IP %s", req.Message, c.ClientIP())
-
-	// Простая логика обработки команд (можно заменить на ИИ)
-	response, action := processAICommand(req.Message, req.Context)
-
-	c.JSON(200, gin.H{
-		"response": response,
-		"action":   action,
-	})
-}
 
 // Вызов OpenRouter API
 func callOpenRouter(message string, context map[string]interface{}) (string, error) {
+	log.Printf("callOpenRouter: Начинаем вызов OpenRouter API для сообщения: %s", message)
 	systemPrompt := `Ты ИИ-помощник системы управления автозапчастями Avtoplaneta.
 Твоя задача - помогать пользователям с управлением инвентарем, заказами и другими функциями системы.
 
@@ -119,7 +94,14 @@ func callOpenRouter(message string, context map[string]interface{}) (string, err
 - Если пользователь сказал "левый", ищи "L" в названиях
 - Если пользователь сказал "правый", ищи "R" в названиях
 - Будь точным в поиске и операциях
-- Отвечай на русском языке. Будь полезным и дружелюбным.`
+- Отвечай на русском языке. Будь полезным и дружелюбным.
+
+ФОРМАТ ОТВЕТА:
+- Твой ответ ДОЛЖЕН быть в формате JSON
+- Структура: {"response": "твой текстовый ответ пользователю", "action": {"type": "тип действия", ...}}
+- Если действия нет, используй "action": null
+- Примеры действий: {"type": "navigate", "path": "/add-part"}, {"type": "search", "query": "запрос"}
+- Всегда возвращай валидный JSON, без дополнительного текста вне JSON`
 
 	// Добавляем контекст базы данных
 	dbContext := getDatabaseContext()
@@ -127,10 +109,12 @@ func callOpenRouter(message string, context map[string]interface{}) (string, err
 
 	// OpenRouter API endpoint
 	apiKey := os.Getenv("OPENROUTER_API_KEY")
+	log.Printf("callOpenRouter: OPENROUTER_API_KEY установлен: %t", apiKey != "")
 	if apiKey == "" {
 		log.Printf("OPENROUTER_API_KEY не установлен, использую fallback логику")
 		response, _ := fallbackAICommand(message, context) // Игнорируем action, так как возвращаем только текст
-		return response, nil                               // Возвращаем nil как ошибку, поскольку fallback всегда работает
+		log.Printf("callOpenRouter: Fallback вернул: %s", response)
+		return response, nil // Возвращаем nil как ошибку, поскольку fallback всегда работает
 	}
 
 	openRouterURL := "https://openrouter.ai/api/v1/chat/completions"
@@ -153,11 +137,14 @@ func callOpenRouter(message string, context map[string]interface{}) (string, err
 
 	jsonData, err := json.Marshal(reqPayload)
 	if err != nil {
+		log.Printf("callOpenRouter: Ошибка маршалинга запроса: %v", err)
 		return "", fmt.Errorf("ошибка маршалинга: %v", err)
 	}
+	log.Printf("callOpenRouter: Отправляемый JSON: %s", string(jsonData))
 
 	req, err := http.NewRequest("POST", openRouterURL, bytes.NewBuffer(jsonData))
 	if err != nil {
+		log.Printf("callOpenRouter: Ошибка создания запроса: %v", err)
 		return "", fmt.Errorf("ошибка создания запроса: %v", err)
 	}
 
@@ -166,19 +153,33 @@ func callOpenRouter(message string, context map[string]interface{}) (string, err
 	req.Header.Set("HTTP-Referer", "https://avtoplaneta.local") // Для статистики OpenRouter
 	req.Header.Set("X-Title", "Avtoplaneta AI Assistant")
 
+	log.Printf("callOpenRouter: Отправка запроса к %s", openRouterURL)
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("Ошибка вызова OpenRouter API: %v", err)
+		log.Printf("callOpenRouter: Ошибка вызова OpenRouter API: %v", err)
 		return "", fmt.Errorf("ошибка сети: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
+	log.Printf("callOpenRouter: Получен ответ со статусом: %d", resp.StatusCode)
 
 	if resp.StatusCode != 200 {
 		body, _ := io.ReadAll(resp.Body)
-		log.Printf("OpenRouter API вернул статус %d: %s", resp.StatusCode, string(body))
+		log.Printf("callOpenRouter: OpenRouter API вернул статус %d: %s", resp.StatusCode, string(body))
 		return "", fmt.Errorf("API вернул статус %d: %s", resp.StatusCode, string(body))
 	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("callOpenRouter: Ошибка чтения тела ответа: %v", err)
+		return "", fmt.Errorf("ошибка чтения ответа: %v", err)
+	}
+	log.Printf("callOpenRouter: Получено тело ответа длиной %d байт: %s", len(body), string(body))
 
 	var openRouterResp struct {
 		Choices []struct {
@@ -188,17 +189,19 @@ func callOpenRouter(message string, context map[string]interface{}) (string, err
 		} `json:"choices"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&openRouterResp); err != nil {
-		log.Printf("Ошибка декодирования ответа OpenRouter: %v", err)
+	if err := json.Unmarshal(body, &openRouterResp); err != nil {
+		log.Printf("callOpenRouter: Ошибка декодирования ответа OpenRouter: %v", err)
 		return "", fmt.Errorf("ошибка декодирования ответа: %v", err)
 	}
 
 	if len(openRouterResp.Choices) == 0 {
-		log.Printf("OpenRouter вернул пустой ответ")
+		log.Printf("callOpenRouter: OpenRouter вернул пустой choices")
 		return "", fmt.Errorf("пустой ответ от API")
 	}
 
-	return openRouterResp.Choices[0].Message.Content, nil
+	content := openRouterResp.Choices[0].Message.Content
+	log.Printf("callOpenRouter: Извлеченный content: '%s'", content)
+	return content, nil
 }
 
 // Fallback функция с rule-based логикой
@@ -776,12 +779,30 @@ func searchPartsInDatabase(query string) []map[string]interface{} {
 
 // Парсинг ответа ИИ и извлечение действия
 func parseAIResponse(aiResponse string) (string, map[string]interface{}) {
+	log.Printf("parseAIResponse: Входной ответ ИИ: '%s'", aiResponse)
+
+	// Логируем длину ответа и проверяем на наличие фигурных скобок
+	log.Printf("parseAIResponse: Длина ответа: %d символов", len(aiResponse))
+	hasOpeningBrace := strings.Contains(aiResponse, "{")
+	hasClosingBrace := strings.Contains(aiResponse, "}")
+	log.Printf("parseAIResponse: Содержит открывающую скобку '{': %t, закрывающую '}': %t", hasOpeningBrace, hasClosingBrace)
+
 	// Пытаемся найти JSON в ответе
 	start := strings.Index(aiResponse, "{")
 	end := strings.LastIndex(aiResponse, "}")
 
+	log.Printf("parseAIResponse: Найден JSON с start=%d, end=%d", start, end)
 	if start != -1 && end != -1 && end > start {
 		jsonPart := aiResponse[start : end+1]
+		log.Printf("parseAIResponse: Извлеченный JSON: '%s'", jsonPart)
+		log.Printf("parseAIResponse: Длина JSON части: %d символов", len(jsonPart))
+
+		// Проверяем, является ли JSON валидным
+		if !json.Valid([]byte(jsonPart)) {
+			log.Printf("parseAIResponse: JSON часть не является валидным JSON")
+		} else {
+			log.Printf("parseAIResponse: JSON часть является валидным JSON")
+		}
 
 		// Сначала пробуем парсить как объект с response и action
 		var result struct {
@@ -790,24 +811,44 @@ func parseAIResponse(aiResponse string) (string, map[string]interface{}) {
 		}
 
 		if err := json.Unmarshal([]byte(jsonPart), &result); err == nil {
+			log.Printf("parseAIResponse: Успешно распарсено как result: response='%s', action=%+v", result.Response, result.Action)
 			if result.Response != "" {
 				return result.Response, result.Action
 			}
+		} else {
+			log.Printf("parseAIResponse: Ошибка парсинга как result: %v", err)
 		}
 
 		// Если не получилось, пробуем парсить как прямое действие (новый формат ИИ)
 		var directAction map[string]interface{}
 		if err := json.Unmarshal([]byte(jsonPart), &directAction); err == nil {
+			log.Printf("parseAIResponse: Успешно распарсено как directAction: %+v", directAction)
 			// Проверяем, есть ли тип действия
 			if actionType, exists := directAction["type"]; exists && actionType != nil {
 				// Это прямое действие, возвращаем текст до JSON как response
 				responseText := strings.TrimSpace(aiResponse[:start])
+				log.Printf("parseAIResponse: Возвращаем responseText='%s', directAction=%+v", responseText, directAction)
 				return responseText, directAction
+			} else {
+				log.Printf("parseAIResponse: directAction не содержит поле 'type' или оно nil")
+			}
+		} else {
+			log.Printf("parseAIResponse: Ошибка парсинга как directAction: %v", err)
+		}
+	} else {
+		log.Printf("parseAIResponse: JSON не найден в ответе")
+		// Дополнительные логи для анализа ответа
+		log.Printf("parseAIResponse: Проверяем на ключевые слова действий...")
+		actionKeywords := []string{"navigate", "search", "add_part", "update_part", "delete_part"}
+		for _, keyword := range actionKeywords {
+			if strings.Contains(strings.ToLower(aiResponse), keyword) {
+				log.Printf("parseAIResponse: Найдено ключевое слово действия: '%s'", keyword)
 			}
 		}
 	}
 
 	// Если JSON не найден или не распарсился, возвращаем весь ответ как текст
+	log.Printf("parseAIResponse: Возвращаем весь ответ как текст: '%s'", aiResponse)
 	return aiResponse, nil
 }
 
@@ -861,7 +902,12 @@ func getPartsFromDatabase() []map[string]interface{} {
 		log.Printf("Ошибка запроса к parts-service: %v", err)
 		return []map[string]interface{}{}
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 
 	if resp.StatusCode != 200 {
 		log.Printf("Ошибка ответа от parts-service: статус %d", resp.StatusCode)
@@ -910,19 +956,22 @@ func getPartsFromDatabase() []map[string]interface{} {
 
 // Основная функция обработки команд ИИ агента
 func processAICommand(message string, context map[string]interface{}) (string, map[string]interface{}) {
+	log.Printf("processAICommand: Начинаем обработку сообщения: '%s'", message)
 	// Сначала пытаемся вызвать OpenRouter
 	aiResponse, err := callOpenRouter(message, context)
 	if err != nil {
-		log.Printf("Ошибка ИИ: %v, использую fallback", err)
+		log.Printf("processAICommand: Ошибка ИИ: %v, использую fallback", err)
 		// Используем fallback логику
 		fallbackResponse, fallbackAction := fallbackAICommand(message, context)
-		log.Printf("Fallback ответил: response='%s', action=%+v", fallbackResponse, fallbackAction)
+		log.Printf("processAICommand: Fallback ответил: response='%s', action=%+v", fallbackResponse, fallbackAction)
 		return fallbackResponse, fallbackAction
 	}
 
 	// Логируем ответ ИИ для отладки
-	log.Printf("ИИ ответил: %s", aiResponse)
+	log.Printf("processAICommand: ИИ ответил: '%s'", aiResponse)
 
 	// Парсим ответ ИИ
-	return parseAIResponse(aiResponse)
+	response, action := parseAIResponse(aiResponse)
+	log.Printf("processAICommand: После парсинга: response='%s', action=%+v", response, action)
+	return response, action
 }

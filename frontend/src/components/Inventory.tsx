@@ -47,12 +47,22 @@ function Inventory() {
                  setAllParts(partsData);
                  setHasMore(false); // Все данные загружены сразу
              } else {
-                 // Если пагинация, добавляем к существующим
-                 if (currentPage === 1) {
-                     setAllParts(partsData);
-                 } else {
-                     setAllParts(prev => [...prev, ...partsData]);
-                 }
+                 // Если пагинация, добавляем к существующим (оптимизированная конкатенация)
+                 setAllParts(prev => {
+                     if (currentPage === 1) {
+                         return partsData;
+                     } else {
+                         // Используем более эффективную конкатенацию для больших массивов
+                         const newArray = new Array(prev.length + partsData.length);
+                         for (let i = 0; i < prev.length; i++) {
+                             newArray[i] = prev[i];
+                         }
+                         for (let i = 0; i < partsData.length; i++) {
+                             newArray[prev.length + i] = partsData[i];
+                         }
+                         return newArray;
+                     }
+                 });
                  setHasMore(partsData.length === 20);
              }
              setIsLoadingMore(false);

@@ -57,7 +57,7 @@ declare var SpeechRecognition: {
   new(): SpeechRecognition;
 };
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Search, Loader2, X, Filter, ChevronDown, ChevronUp, Mic, MicOff } from 'lucide-react';
 import type { Part } from '../lib/types';
 import { Card, CardContent } from './ui/card';
@@ -108,7 +108,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
     const MIN_SEARCH_LENGTH = 2;
     const SEARCH_DEBOUNCE_DELAY = 500;
     const FILTER_DEBOUNCE_DELAY = 300;
-    
+
     // Опции для выпадающих списков
     const categoryOptions: SelectOption[] = [
       { value: "Тормоза", label: "Тормоза" },
@@ -127,7 +127,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
       { value: "Аксессуары и тюннинг", label: "Аксессуары и тюннинг" },
       { value: "Другое", label: "Другое" },
     ];
-    
+
     const brandOptions: SelectOption[] = [
         { value: "Acura", label: "Acura" },
         { value: "Aston Martin", label: "Aston Martin" },
@@ -185,12 +185,12 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         { value: "Volvo Trucks", label: "Volvo Trucks" },
         { value: "Western Star", label: "Western Star" }
     ];
-    
+
     const statusOptions: SelectOption[] = [
       { value: "true", label: "Доступно" },
       { value: "false", label: "Недоступно" },
     ];
-    
+
     const photoOptions: SelectOption[] = [
       { value: "with", label: "С фото" },
       { value: "without", label: "Без фото" },
@@ -244,8 +244,9 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
             const data = await response.json();
             const parts = data.parts || [];
 
-            // Проверяем, изменились ли результаты
-            const resultsChanged = JSON.stringify(parts) !== JSON.stringify(prevResultsRef.current);
+            // Проверяем, изменились ли результаты (оптимизированная проверка)
+            const resultsChanged = parts.length !== prevResultsRef.current.length ||
+                parts.some((part: Part, index: number) => part.id !== prevResultsRef.current[index]?.id);
 
             if (resultsChanged) {
                 setResults(parts);
@@ -352,10 +353,10 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         setIsListening(false);
     }, []);
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         setSearchQuery(value);
-    };
+    }, []);
 
     const handleResultClick = (result: Part) => {
         setSearchQuery(result.name);
@@ -405,15 +406,15 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         };
     }, []);
 
-    // Подсчет активных фильтров (не считая поиск и фото по умолчанию)
-    const activeFiltersCount = [
+    // Подсчет активных фильтров (не считая поиск и фото по умолчанию) - оптимизировано с useMemo
+    const activeFiltersCount = useMemo(() => [
         category,
         brand,
         model,
         location,
         status,
         hasPhoto && hasPhoto !== 'with' ? hasPhoto : ''
-    ].filter(Boolean).length;
+    ].filter(Boolean).length, [category, brand, model, location, status, hasPhoto]);
 
     const handleDisplayLimitChange = (value: string) => {
         const limit = parseInt(value) || 0;

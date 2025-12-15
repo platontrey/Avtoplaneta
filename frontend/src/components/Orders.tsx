@@ -28,7 +28,7 @@ const Orders = () => {
         mutationFn: ({ orderId, status }: { orderId: number; status: string }) =>
             updateOrderStatus(orderId, status),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['orders'] });
+            queryClient.invalidateQueries({queryKey: ['orders']});
         },
     });
 
@@ -199,14 +199,12 @@ const Orders = () => {
                                                 <Select
                                                     value={order.status}
                                                     onValueChange={(value) => {
-                                                        console.log('Order status select changed:', value, 'for order:', order.id);
                                                         updateStatusMutation.mutate({
                                                             orderId: order.id,
                                                             status: value
                                                         });
                                                     }}
                                                     disabled={updateStatusMutation.isPending}
-                                                    onOpenChange={(open) => console.log('Order status select open state:', open, 'for order:', order.id)}
                                                 >
                                                     <SelectTrigger className="w-48">
                                                         <SelectValue />

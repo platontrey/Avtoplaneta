@@ -119,6 +119,7 @@ export type UserActivityAction =
     | 'delete_part'
     | 'bulk_update_parts'
     | 'bulk_delete_parts'
+    | 'delete_zero_quantity_parts'
     | 'create_order'
     | 'update_order'
     | 'delete_order'
@@ -129,9 +130,16 @@ export type UserActivityAction =
     | 'delete_photo'
     | 'search_parts'
     | 'view_part'
+    | 'view_users'
+    | 'view_activity_logs'
+    | 'access_admin_panel'
     | 'export_data'
     | 'change_password'
-    | 'update_profile';
+    | 'update_profile'
+    | 'create_defect_report'
+    | 'update_defect_report'
+    | 'delete_defect_report'
+    | 'mark_part_for_deletion';
 
 export type UserActivityResourceType =
     | 'part'
@@ -139,4 +147,5 @@ export type UserActivityResourceType =
     | 'user'
     | 'photo'
     | 'system';
+
 

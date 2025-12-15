@@ -121,8 +121,8 @@ func GenerateXMLPriceList(parts []Part) ([]byte, error) {
 func GetPartsForXML() ([]Part, error) {
 	var parts []Part
 
-	// Получаем все запчасти, которые не помечены для удаления и имеют quantity >= 0
-	err := db.Where("to_delete_at IS NULL AND quantity >= 0").Find(&parts).Error
+	// Получаем все запчасти, которые не помечены для удаления и имеют quantity > 0
+	err := db.Where("to_delete_at IS NULL AND quantity > 0").Find(&parts).Error
 	if err != nil {
 		return nil, fmt.Errorf("ошибка получения частей из базы данных: %v", err)
 	}

@@ -1,8 +1,8 @@
 import { getAuthHeaders } from '@/lib/csrf';
 import type { UserActivityLog, UserActivityAction, UserActivityResourceType } from '@/lib/types';
 
-// Admin service работает на отдельном порту
-const ADMIN_API_URL = 'http://localhost:8083';
+// Admin service работает через gateway
+const ADMIN_API_URL = 'http://localhost:8080';
 
 export const getUserActivityLogs = async (params?: {
   user_id?: number;

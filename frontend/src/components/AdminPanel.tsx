@@ -10,11 +10,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Trash2, UserPlus, Users, Server, FileText, Edit, Activity, Package, Bell } from "lucide-react";
+import { Trash2, UserPlus, Users, Server, FileText, Edit, Activity, Package, Bell, Image } from "lucide-react";
+import ImageEditor from "./ImageEditor";
 import { getAuthHeaders } from "@/lib/csrf";
 import { useAuth } from "@/hooks/useAuth";
-import { getUserActivityLogs } from "@/features/admin/api/adminApi";
-import type { UserActivityLog, UserActivityAction, UserActivityResourceType } from "@/lib/types";
+import { getUserActivityLogs, logUserActivity } from "@/features/admin/api/adminApi";
+import type { UserActivityLog, UserActivityAction } from "@/lib/types";
+
+type UserActivityResourceType =
+    | 'part'
+    | 'order'
+    | 'user'
+    | 'photo'
+    | 'system';
 import PushNotifications from "./PushNotifications";
 
 interface User {
@@ -78,6 +86,7 @@ export default function AdminPanel() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editForm, setEditForm] = useState({
     name: '',
+    email: '',
     initials: '',
     inn: '',
     role: '',
@@ -92,21 +101,36 @@ export default function AdminPanel() {
   const [endDate, setEndDate] = useState<string>('');
   const [supplierCodes, setSupplierCodes] = useState<string[]>([]);
   const [selectedSupplierCode, setSelectedSupplierCode] = useState<string>('');
+  const [showImageEditorTest, setShowImageEditorTest] = useState(false);
+  const [testImageSrc, setTestImageSrc] = useState<string>('');
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('http://localhost:8083/admin/users', {
+      console.log('Fetching users...');
+      const response = await fetch('http://localhost:8080/admin/users', {
         credentials: 'include',
       });
 
       if (!response.ok) {
+        console.error('Failed to fetch users, status:', response.status);
         setError('Failed to fetch users');
         return;
       }
 
       const data = await response.json();
+      console.log('Received users data:', data);
+      console.log('Users array:', data.users);
       setUsers(data.users || []);
+
+      // Log user activity - viewing users list
+      await logUserActivity({
+        action: 'view_users',
+        resource_type: 'user',
+        resource_id: undefined,
+        details: 'Просмотр списка пользователей в админ панели',
+      });
     } catch (err) {
+      console.error('Failed to fetch users:', err);
       setError(err instanceof Error ? err.message : 'Failed to load users');
     } finally {
       setLoading(false);
@@ -132,17 +156,29 @@ export default function AdminPanel() {
   };
 
   useEffect(() => {
-    fetchUsers();
-    fetchServerStatus();
-    fetchServerLogs();
-    fetchActivityLogs();
-    fetchSupplierCodes();
+    const initializePanel = async () => {
+      fetchUsers();
+      fetchServerStatus();
+      fetchServerLogs();
+      fetchActivityLogs();
+      fetchSupplierCodes();
+
+      // Log user activity - accessing admin panel
+      await logUserActivity({
+        action: 'access_admin_panel',
+        resource_type: 'system',
+        resource_id: undefined,
+        details: 'Доступ к панели администратора',
+      });
+    };
+
+    initializePanel();
   }, []);
 
   const fetchServerStatus = async () => {
     try {
       setStatusLoading(true);
-      const response = await fetch('http://localhost:8083/admin/status', {
+      const response = await fetch('http://localhost:8080/admin/status', {
         credentials: 'include',
       });
 
@@ -163,7 +199,8 @@ export default function AdminPanel() {
   const fetchServerLogs = async () => {
     try {
       setLogsLoading(true);
-      const response = await fetch('http://localhost:8083/admin/logs', {
+      console.log('Fetching server logs...');
+      const response = await fetch('http://localhost:8080/admin/logs', {
         credentials: 'include',
       });
 
@@ -173,6 +210,12 @@ export default function AdminPanel() {
       }
 
       const data = await response.json();
+      console.log('Received server logs data:', data);
+      console.log('Logs array:', data.logs);
+      if (data.logs && data.logs.length > 0) {
+        console.log('First log item:', data.logs[0]);
+        console.log('First log timestamp:', data.logs[0]?.timestamp);
+      }
       setLogs(data.logs || []);
     } catch (err) {
       console.error('Failed to fetch server logs:', err);
@@ -196,7 +239,7 @@ export default function AdminPanel() {
     }
   };
 
-  const applyActivityFilters = () => {
+  const applyActivityFilters = async () => {
     const filters: ActivityFilters = {};
     if (selectedUser && selectedUser !== 'all') filters.user_id = parseInt(selectedUser);
     if (selectedAction && selectedAction !== 'all') filters.action = selectedAction as UserActivityAction;
@@ -206,6 +249,14 @@ export default function AdminPanel() {
 
     setActivityFilters(filters);
     fetchActivityLogs();
+
+    // Log user activity - applying filters
+    await logUserActivity({
+      action: 'view_activity_logs',
+      resource_type: 'system',
+      resource_id: undefined,
+      details: 'Применение фильтров для просмотра логов активности пользователей',
+    });
   };
 
   const clearActivityFilters = () => {
@@ -223,7 +274,7 @@ export default function AdminPanel() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8083/admin/users', {
+      const response = await fetch('http://localhost:8080/admin/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -242,6 +293,14 @@ export default function AdminPanel() {
       setShowAddUser(false);
       setNewUser({ email: '', name: '', initials: '', inn: '', password: '', role: 'operator' });
       fetchUsers(); // Refresh the list
+
+      // Log user activity
+      await logUserActivity({
+        action: 'create_user',
+        resource_type: 'user',
+        resource_id: undefined, // New user, no ID yet
+        details: `Создан новый пользователь: ${newUser.email}`,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add user');
     } finally {
@@ -253,6 +312,7 @@ export default function AdminPanel() {
     setEditingUser(user);
     setEditForm({
       name: user.name,
+      email: user.email,
       initials: user.initials || '',
       inn: user.inn || '',
       role: user.role,
@@ -264,7 +324,7 @@ export default function AdminPanel() {
     if (!editingUser) return;
 
     try {
-      const response = await fetch(`http://localhost:8083/admin/users/${editingUser.id}`, {
+      const response = await fetch(`http://localhost:8080/admin/users/${editingUser.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -282,6 +342,14 @@ export default function AdminPanel() {
 
       setEditingUser(null);
       fetchUsers(); // Refresh the list
+
+      // Log user activity
+      await logUserActivity({
+        action: 'update_user',
+        resource_type: 'user',
+        resource_id: editingUser.id,
+        details: `Обновлен пользователь: ${editingUser.email}`,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update user');
     }
@@ -293,7 +361,7 @@ export default function AdminPanel() {
     }
 
     try {
-      const response = await fetch(`http://localhost:8083/admin/users/${userId}`, {
+      const response = await fetch(`http://localhost:8080/admin/users/${userId}`, {
         method: 'DELETE',
         headers: {
           'X-CSRF-Token': getAuthHeaders()['X-CSRF-Token'] || '',
@@ -307,8 +375,31 @@ export default function AdminPanel() {
       }
 
       fetchUsers(); // Refresh the list
+
+      // Log user activity
+      await logUserActivity({
+        action: 'delete_user',
+        resource_type: 'user',
+        resource_id: userId,
+        details: `Удален пользователь с ID: ${userId}`,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete user');
+    }
+  };
+
+  const handleTestImageEditComplete = (blob: Blob) => {
+    console.log('Test image edit completed, blob size:', blob.size);
+    alert(`Тестовое изображение обработано! Размер: ${blob.size} байт`);
+    setShowImageEditorTest(false);
+  };
+
+  const handleTestImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setTestImageSrc(url);
+      setShowImageEditorTest(true);
     }
   };
 
@@ -340,6 +431,15 @@ export default function AdminPanel() {
       alert(`Удалено ${result.deleted_count} запчастей для кода поставки "${selectedSupplierCode}"`);
       setSelectedSupplierCode(''); // Reset selection
       fetchServerStatus(); // Refresh status to show updated counts
+      fetchSupplierCodes(); // Refresh supplier codes list
+
+      // Log user activity
+      await logUserActivity({
+        action: 'delete_zero_quantity_parts',
+        resource_type: 'system',
+        resource_id: undefined,
+        details: `Удалено ${result.deleted_count} запчастей с quantity=0 для кода поставки "${selectedSupplierCode}"`,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete zero quantity parts');
     } finally {
@@ -574,22 +674,22 @@ export default function AdminPanel() {
                 <div>
                   <h4 className="font-medium mb-2">Сервер</h4>
                   <div className="space-y-1 text-sm">
-                    <p><span className="font-medium">Status:</span> <span className="text-green-600">{serverStatus.server.status}</span></p>
-                    <p><span className="font-medium">Go Version:</span> {serverStatus.server.go_version}</p>
-                    <p><span className="font-medium">OS:</span> {serverStatus.server.os}</p>
-                    <p><span className="font-medium">Architecture:</span> {serverStatus.server.arch}</p>
+                    <p><span className="font-medium">Status:</span> <span className="text-green-600">{serverStatus.server?.status || 'Unknown'}</span></p>
+                    <p><span className="font-medium">Go Version:</span> {serverStatus.server?.go_version || 'Unknown'}</p>
+                    <p><span className="font-medium">OS:</span> {serverStatus.server?.os || 'Unknown'}</p>
+                    <p><span className="font-medium">Architecture:</span> {serverStatus.server?.arch || 'Unknown'}</p>
                   </div>
                 </div>
                 <div>
                   <h4 className="font-medium mb-2">База данных</h4>
                   <div className="space-y-1 text-sm">
-                    <p><span className="font-medium">Status:</span> <span className="text-green-600">{serverStatus.database.status}</span></p>
-                    <p><span className="font-medium">Total Parts:</span> {serverStatus.database.total_parts}</p>
-                    <p><span className="font-medium">Total Users:</span> {serverStatus.database.total_users}</p>
+                    <p><span className="font-medium">Status:</span> <span className="text-green-600">{serverStatus.database?.status || 'Unknown'}</span></p>
+                    <p><span className="font-medium">Total Parts:</span> {serverStatus.database?.total_parts || 0}</p>
+                    <p><span className="font-medium">Total Users:</span> {serverStatus.database?.total_users || 0}</p>
                   </div>
                 </div>
                 <div className="text-xs text-gray-500">
-                  Last updated: {new Date(serverStatus.timestamp).toLocaleString()}
+                  Last updated: {serverStatus.timestamp ? new Date(serverStatus.timestamp).toLocaleString() : 'Unknown'}
                 </div>
               </div>
             ) : (
@@ -690,6 +790,11 @@ export default function AdminPanel() {
                     <SelectItem value="delete_user">Удаление пользователя</SelectItem>
                     <SelectItem value="upload_photo">Загрузка фото</SelectItem>
                     <SelectItem value="delete_photo">Удаление фото</SelectItem>
+                    <SelectItem value="delete_zero_quantity_parts">Удаление запчастей с quantity=0</SelectItem>
+                    <SelectItem value="mark_part_for_deletion">Отметка для удаления</SelectItem>
+                    <SelectItem value="create_defect_report">Создание дефектной ведомости</SelectItem>
+                    <SelectItem value="update_defect_report">Обновление дефектной ведомости</SelectItem>
+                    <SelectItem value="delete_defect_report">Удаление дефектной ведомости</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -796,6 +901,16 @@ export default function AdminPanel() {
                 id="edit-name"
                 value={editForm.name}
                 onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={editForm.email}
+                onChange={(e) => setEditForm({...editForm, email: e.target.value})}
                 required
               />
             </div>
@@ -958,6 +1073,36 @@ export default function AdminPanel() {
         </CardContent>
       </Card>
 
+      {/* Image Editor Test Card */}
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Image className="w-5 h-5 mr-2" />
+            Тест ImageEditor (Pintura)
+          </CardTitle>
+          <CardDescription>
+            Тестирование компонента редактирования изображений
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="test-image">Выберите тестовое изображение</Label>
+              <Input
+                id="test-image"
+                type="file"
+                accept="image/*"
+                onChange={handleTestImageSelect}
+                className="mt-2"
+              />
+            </div>
+            <p className="text-sm text-gray-600">
+              Выберите изображение, чтобы протестировать работу ImageEditor с Pintura.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Push Notifications Card */}
       <Card className="mt-8">
         <CardHeader>
@@ -973,6 +1118,16 @@ export default function AdminPanel() {
           <PushNotifications />
         </CardContent>
       </Card>
+
+      {/* Test Image Editor Dialog */}
+      {showImageEditorTest && testImageSrc && (
+        <ImageEditor
+          src={testImageSrc}
+          onEditComplete={handleTestImageEditComplete}
+          onCancel={() => setShowImageEditorTest(false)}
+          aspect={null}
+        />
+      )}
     </div>
   );
 }

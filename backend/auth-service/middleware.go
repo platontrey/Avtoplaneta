@@ -4,10 +4,55 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
+
+var csrfTokens = make(map[string]csrfToken)
+var csrfMutex sync.RWMutex
+
+type csrfToken struct {
+	token     string
+	expiresAt time.Time
+}
+
+// CORSMiddleware добавляет CORS заголовки для кросс-доменных запросов
+func CORSMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		allowedOrigins := []string{"http://localhost:5173", "http://192.168.1.63:5173", "http://192.168.56.1:5173", "http://192.168.51.2:5173"}
+		origin := c.GetHeader("Origin")
+		for _, o := range allowedOrigins {
+			if o == origin {
+				c.Header("Access-Control-Allow-Origin", origin)
+				break
+			}
+		}
+		c.Header("Access-Control-Allow-Credentials", "true")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+
+		if c.Request.Method == "OPTIONS" {
+			log.Printf("CORS: Обработка предварительного OPTIONS запроса к %s", c.Request.URL.Path)
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// generateCsrfToken генерирует криптографически безопасный токен CSRF
+func generateCsrfToken() string {
+	token, err := generateSecureCsrfToken()
+	if err != nil {
+		// Fallback to less secure method if crypto fails
+		return strconv.FormatInt(time.Now().UnixNano(), 36) + strconv.FormatInt(time.Now().Unix(), 36)
+	}
+	return token
+}
 
 // authMiddleware проверяет аутентификацию пользователя
 func authMiddleware(c *gin.Context) {
@@ -61,6 +106,20 @@ func authMiddleware(c *gin.Context) {
 	c.Next()
 }
 
+// internalOnlyMiddleware проверяет, что запрос приходит только от внутренних IP
+func internalOnlyMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		clientIP := c.ClientIP()
+		if clientIP != "127.0.0.1" && clientIP != "::1" && clientIP != "[::1]" {
+			log.Printf("БЕЗОПАСНОСТЬ: Попытка доступа к внутреннему endpoint с внешнего IP %s", clientIP)
+			c.JSON(http.StatusForbidden, gin.H{"error": "Доступ запрещен"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
 // csrfMiddleware проверяет токены CSRF для защиты от атак
 func csrfMiddleware(c *gin.Context) {
 	log.Printf("ОТЛАДКА CSRF: Начало проверки CSRF для %s %s от %s", c.Request.Method, c.Request.URL.Path, c.ClientIP())
@@ -80,6 +139,20 @@ func csrfMiddleware(c *gin.Context) {
 		return
 	}
 
+	// Пропустить проверку CSRF для внутренних endpoints
+	if strings.HasPrefix(c.Request.URL.Path, "/internal/") {
+		log.Printf("ОТЛАДКА CSRF: Пропуск CSRF для внутреннего endpoint: %s", c.Request.URL.Path)
+		c.Next()
+		return
+	}
+
+	// Пропустить проверку CSRF для внутренних запросов к логированию активности
+	if c.Request.URL.Path == "/admin/user-activity-logs" && (c.ClientIP() == "127.0.0.1" || c.ClientIP() == "::1" || c.ClientIP() == "[::1]") {
+		log.Printf("ОТЛАДКА CSRF: Пропуск CSRF для внутреннего логирования активности от %s", c.ClientIP())
+		c.Next()
+		return
+	}
+
 	// Проверить токен CSRF
 	token := c.GetHeader("X-CSRF-Token")
 	if token == "" {
@@ -92,6 +165,9 @@ func csrfMiddleware(c *gin.Context) {
 	if token == "" {
 		log.Printf("БЕЗОПАСНОСТЬ: Отсутствующий токен CSRF для %s %s от %s",
 			c.Request.Method, c.Request.URL.Path, c.ClientIP())
+		if c.ClientIP() == "127.0.0.1" || c.ClientIP() == "::1" {
+			log.Printf("ОТЛАДКА: Внутренний запрос от %s без токена CSRF - возможно, внутренний сервис", c.ClientIP())
+		}
 		c.JSON(http.StatusForbidden, gin.H{"error": "Требуется токен CSRF"})
 		c.Abort()
 		return

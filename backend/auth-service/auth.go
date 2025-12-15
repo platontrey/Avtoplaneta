@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"net/http"
-	"sync"
 	"time"
 
 	"os"
@@ -16,23 +15,9 @@ import (
 
 var store *sessions.CookieStore
 
-// Хранилище токенов CSRF с ограниченным сроком действия (в рабочей среде используйте Redis или аналог)
-type csrfToken struct {
-	token     string
-	expiresAt time.Time
-}
-
-var csrfTokens = make(map[string]csrfToken)
-var csrfMutex sync.RWMutex
-
-func initAuth() {
+func InitAuth(config *Config) {
 	// Инициализация хранилища сессий с безопасным случайным ключом
-	sessionKey := os.Getenv("SESSION_SECRET")
-	if sessionKey == "" {
-		// Генерация безопасного случайного ключа, если не предоставлен (минимум 32 байта)
-		log.Println("ПРЕДУПРЕЖДЕНИЕ: SESSION_SECRET не установлен, используем ключ по умолчанию. УСТАНОВИТЕ ЭТО В ПРОДАКШЕНЕ!")
-		sessionKey = "CHANGE_THIS_IN_PRODUCTION_TO_A_SECURE_RANDOM_KEY_32_CHARS_MIN"
-	}
+	sessionKey := config.SessionSecret
 
 	// Проверка длины ключа сессии
 	if len(sessionKey) < 32 {
@@ -42,7 +27,7 @@ func initAuth() {
 	store = sessions.NewCookieStore([]byte(sessionKey))
 
 	// Параметры безопасного использования cookies
-	isProduction := os.Getenv("NODE_ENV") == "production"
+	isProduction := config.NodeEnv == "production"
 	store.Options = &sessions.Options{
 		Path:     "/",
 		Domain:   "",           // Пустой domain для local development

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"regexp"
 	"strings"
 
 	"github.com/elastic/go-elasticsearch/v8"
@@ -14,6 +13,14 @@ import (
 )
 
 var esClient *elasticsearch.Client
+
+// elasticsearchAdapter адаптер для Elasticsearch, реализующий ElasticsearchClient
+type elasticsearchAdapter struct{}
+
+// NewElasticsearchAdapter создает новый адаптер для Elasticsearch
+func NewElasticsearchAdapter() ElasticsearchClient {
+	return &elasticsearchAdapter{}
+}
 
 type ElasticsearchPart struct {
 	ID          uint    `json:"id"`
@@ -309,274 +316,18 @@ func SearchParts(query map[string]interface{}, from, size int) ([]ElasticsearchP
 }
 
 // ParseSearchQuery parses a search query and returns filters for different fields
-func ParseSearchQuery(query string) map[string]string {
-	filters := make(map[string]string)
 
-	if query == "" {
-		return filters
-	}
-
-	// Split by comma first, then by space if no commas
-	var tokens []string
-	if strings.Contains(query, ",") {
-		// Split by comma and clean
-		parts := strings.Split(query, ",")
-		for _, part := range parts {
-			token := strings.TrimSpace(part)
-			if token != "" {
-				tokens = append(tokens, token)
-			}
-		}
-	} else {
-		// Split by space
-		tokens = strings.Fields(query)
-	}
-
-	// Known brands
-	brands := map[string]bool{
-		"bmw": true, "mercedes": true, "audi": true, "volkswagen": true, "vw": true,
-		"toyota": true, "nissan": true, "honda": true, "mazda": true, "mitsubishi": true,
-		"ford": true, "chevrolet": true, "opel": true, "renault": true, "peugeot": true,
-		"citroen": true, "fiat": true, "alfa": true, "lancia": true, "ferrari": true,
-		"lamborghini": true, "maserati": true, "bentley": true, "rolls": true, "royce": true,
-		"aston": true, "martin": true, "jaguar": true, "land": true, "rover": true,
-		"volvo": true, "saab": true, "skoda": true, "seat": true, "porsche": true,
-		"lada": true, "vaz": true, "gaz": true, "uaz": true, "kamaz": true,
-		"zil": true, "moskvich": true, "izh": true,
-	}
-
-	// Known model patterns
-	modelPatterns := []*regexp.Regexp{
-		regexp.MustCompile(`^[A-Z]\d+$`),       // E90, A4, X5
-		regexp.MustCompile(`^[A-Z]\d+[A-Z]?$`), // E90, A4, X5, C180
-		regexp.MustCompile(`^\d+[A-Z]+$`),      // 316i, 528i
-		regexp.MustCompile(`^[A-Z]-[A-Z]`),     // C-Class, E-Class
-	}
-
-	// Characteristics (positions, sides)
-	characteristics := map[string]bool{
-		"левый": true, "левая": true, "лев": true, "l": true, "left": true,
-		"правый": true, "правая": true, "прав": true, "r": true, "right": true,
-		"передний": true, "передняя": true, "перед": true, "front": true, "f": true,
-		"задний": true, "задняя": true, "зад": true, "rear": true, "back": true,
-		"верхний": true, "верхняя": true, "верх": true, "top": true, "up": true,
-		"нижний": true, "нижняя": true, "низ": true, "bottom": true, "down": true,
-		"тормоз": true, "тормозной": true, "тормозные": true, "brake": true,
-		"амортизатор": true, "аморт": true, "стойка": true, "shock": true,
-		"фильтр": true, "фильт": true, "filter": true,
-		"масло": true, "масляный": true, "масляного": true, "oil": true,
-		"воздух": true, "воздушный": true, "воздушного": true, "air": true,
-	}
-
-	var generalSearch []string
-
-	for _, token := range tokens {
-		tokenLower := strings.ToLower(token)
-
-		// Check if it's a brand
-		if brands[tokenLower] {
-			if filters["brand"] == "" {
-				filters["brand"] = token
-			} else {
-				generalSearch = append(generalSearch, token)
-			}
-			continue
-		}
-
-		// Check if it's a model
-		isModel := false
-		for _, pattern := range modelPatterns {
-			if pattern.MatchString(token) {
-				if filters["model"] == "" {
-					filters["model"] = token
-				} else {
-					generalSearch = append(generalSearch, token)
-				}
-				isModel = true
-				break
-			}
-		}
-		if isModel {
-			continue
-		}
-
-		// Check if it's a characteristic
-		if characteristics[tokenLower] {
-			generalSearch = append(generalSearch, token)
-			continue
-		}
-
-		// Everything else goes to general search
-		generalSearch = append(generalSearch, token)
-	}
-
-	// Combine general search terms
-	if len(generalSearch) > 0 {
-		filters["general"] = strings.Join(generalSearch, " ")
-	}
-
-	return filters
+// IndexPart индексирует запчасть в Elasticsearch
+func (e *elasticsearchAdapter) IndexPart(part *Part) error {
+	return IndexPart(part)
 }
 
-// BuildSearchQuery builds an Elasticsearch query from search parameters
-func BuildSearchQuery(search, category, brand, model, location, salesman, status, hasPhoto string) map[string]interface{} {
-	var must []map[string]interface{}
+// DeletePartFromIndex удаляет запчасть из индекса Elasticsearch
+func (e *elasticsearchAdapter) DeletePartFromIndex(partID uint) error {
+	return DeletePartFromIndex(partID)
+}
 
-	// Parse search query to extract filters
-	parsedFilters := ParseSearchQuery(search)
-
-	// Add general search query (searches in all text fields)
-	if generalSearch := parsedFilters["general"]; generalSearch != "" {
-		must = append(must, map[string]interface{}{
-			"bool": map[string]interface{}{
-				"should": []map[string]interface{}{
-					// Exact match with higher boost on name
-					{
-						"multi_match": map[string]interface{}{
-							"query":  generalSearch,
-							"fields": []string{"name^4", "description^3", "category^2", "brand^2", "model^2", "salesman", "location"},
-							"type":   "best_fields",
-						},
-					},
-					// Prefix match for partial words
-					{
-						"multi_match": map[string]interface{}{
-							"query":  generalSearch,
-							"fields": []string{"name", "description", "category", "brand", "model", "salesman", "location"},
-							"type":   "phrase_prefix",
-							"boost":  2.0,
-						},
-					},
-					// Fuzzy match for typos
-					{
-						"multi_match": map[string]interface{}{
-							"query":     generalSearch,
-							"fields":    []string{"name", "description", "category", "brand", "model", "salesman", "location"},
-							"fuzziness": "AUTO",
-							"boost":     0.5,
-						},
-					},
-				},
-				"minimum_should_match": 1,
-			},
-		})
-	}
-
-	// Add term filters
-	if category != "" {
-		must = append(must, map[string]interface{}{
-			"term": map[string]interface{}{
-				"category": category,
-			},
-		})
-	}
-
-	// Use explicit brand parameter or parsed from search
-	searchBrand := brand
-	if searchBrand == "" && parsedFilters["brand"] != "" {
-		searchBrand = parsedFilters["brand"]
-	}
-	if searchBrand != "" {
-		must = append(must, map[string]interface{}{
-			"term": map[string]interface{}{
-				"brand": searchBrand,
-			},
-		})
-	}
-
-	// Use explicit model parameter or parsed from search
-	searchModel := model
-	if searchModel == "" && parsedFilters["model"] != "" {
-		searchModel = parsedFilters["model"]
-	}
-	if searchModel != "" {
-		must = append(must, map[string]interface{}{
-			"term": map[string]interface{}{
-				"model": searchModel,
-			},
-		})
-	}
-
-	if location != "" {
-		must = append(must, map[string]interface{}{
-			"term": map[string]interface{}{
-				"location": location,
-			},
-		})
-	}
-
-	if salesman != "" {
-		must = append(must, map[string]interface{}{
-			"term": map[string]interface{}{
-				"salesman": salesman,
-			},
-		})
-	}
-
-	if status != "" {
-		statusBool := status == "true"
-		must = append(must, map[string]interface{}{
-			"term": map[string]interface{}{
-				"status": statusBool,
-			},
-		})
-	}
-
-	if hasPhoto != "" {
-		if hasPhoto == "with" {
-			must = append(must, map[string]interface{}{
-				"exists": map[string]interface{}{
-					"field": "photo",
-				},
-			})
-			must = append(must, map[string]interface{}{
-				"bool": map[string]interface{}{
-					"must_not": []map[string]interface{}{
-						{
-							"term": map[string]interface{}{
-								"photo": "",
-							},
-						},
-					},
-				},
-			})
-		} else if hasPhoto == "without" {
-			must = append(must, map[string]interface{}{
-				"bool": map[string]interface{}{
-					"should": []map[string]interface{}{
-						{
-							"bool": map[string]interface{}{
-								"must_not": []map[string]interface{}{
-									{
-										"exists": map[string]interface{}{
-											"field": "photo",
-										},
-									},
-								},
-							},
-						},
-						{
-							"term": map[string]interface{}{
-								"photo": "",
-							},
-						},
-					},
-					"minimum_should_match": 1,
-				},
-			})
-		}
-		// "all" - не добавляем фильтр, показываем все
-	}
-
-	if len(must) == 0 {
-		return map[string]interface{}{
-			"match_all": map[string]interface{}{},
-		}
-	}
-
-	return map[string]interface{}{
-		"bool": map[string]interface{}{
-			"must": must,
-		},
-	}
+// SearchParts выполняет поиск в Elasticsearch
+func (e *elasticsearchAdapter) SearchParts(query map[string]interface{}, from, size int) ([]ElasticsearchPart, int64, error) {
+	return SearchParts(query, from, size)
 }

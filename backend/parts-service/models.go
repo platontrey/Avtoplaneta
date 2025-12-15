@@ -2,11 +2,10 @@ package main
 
 import (
 	"time"
-
-	"gorm.io/gorm"
 )
 
-type Part struct {
+// PartCore содержит основные поля запчасти
+type PartCore struct {
 	ID          uint       `json:"id" gorm:"primaryKey"`
 	Name        string     `json:"name" gorm:"not null"`
 	Quantity    int        `json:"quantity" gorm:"not null"`
@@ -22,7 +21,10 @@ type Part struct {
 	SellerID    uint       `json:"seller_id,omitempty"` // ID продавца из auth-service
 	ToDeleteAt  *time.Time `json:"to_delete_at,omitempty" gorm:"default:null"`
 	VIN         string     `json:"vin,omitempty"` // VIN автомобиля
-	// Характеристики запчасти
+}
+
+// PartSpecifications содержит технические характеристики запчасти
+type PartSpecifications struct {
 	BodyBrand          string `json:"body_brand,omitempty"`           // Марка кузова
 	EngineBrand        string `json:"engine_brand,omitempty"`         // Марка двигателя
 	CarReleaseDate     string `json:"car_release_date,omitempty"`     // Дата выпуска автомобиля
@@ -40,6 +42,10 @@ type Part struct {
 	Transmission       string `json:"transmission,omitempty"`         // Трансмиссия
 	Drive              string `json:"drive,omitempty"`                // Привод
 	WearPercentage     string `json:"wear_percentage,omitempty"`      // Процент износа (%)
+}
+
+// PartTireSpecifications содержит характеристики шин
+type PartTireSpecifications struct {
 	Season             string `json:"season,omitempty"`               // Сезон
 	Diameter           string `json:"diameter,omitempty"`             // Диаметр
 	Width              string `json:"width,omitempty"`                // Ширина
@@ -49,9 +55,187 @@ type Part struct {
 	Offset             string `json:"offset,omitempty"`               // Вылет
 	CenterHoleDiameter string `json:"center_hole_diameter,omitempty"` // Диаметр ЦО
 	TireModel          string `json:"tire_model,omitempty"`           // Модель шины
-	// Форматированные поля для фронтенда (не сохраняются в БД)
+}
+
+// PartDisplay содержит поля для отображения на фронтенде
+type PartDisplay struct {
 	ToDeleteAtFormatted string `json:"to_delete_at_formatted,omitempty"` // Форматированная дата удаления
 	TimeUntilDeletion   string `json:"time_until_deletion,omitempty"`    // Время до удаления (например, "через 3 дня")
+}
+
+// Part объединяет все части модели запчасти
+type Part struct {
+	PartCore                   `gorm:"embedded"`
+	PartSpecifications         `gorm:"embedded"`
+	PartTireSpecifications     `gorm:"embedded"`
+	PartDisplay                `gorm:"-"` // Не сохраняется в БД
+}
+
+// NewPart создает новую запчасть с базовыми полями
+func NewPart(name string, quantity int) *Part {
+	return &Part{
+		PartCore: PartCore{
+			Name:     name,
+			Quantity: quantity,
+		},
+	}
+}
+
+// IsTire проверяет, является ли запчасть шиной
+func (p *Part) IsTire() bool {
+	return p.Category == "Шины" || p.Category == "Tires"
+}
+
+// GetFullSpecifications возвращает все характеристики в виде карты
+func (p *Part) GetFullSpecifications() map[string]interface{} {
+	specs := make(map[string]interface{})
+
+	// Основные характеристики
+	if p.BodyBrand != "" {
+		specs["body_brand"] = p.BodyBrand
+	}
+	if p.EngineBrand != "" {
+		specs["engine_brand"] = p.EngineBrand
+	}
+	if p.CarReleaseDate != "" {
+		specs["car_release_date"] = p.CarReleaseDate
+	}
+	if p.FrontRear != "" {
+		specs["front_rear"] = p.FrontRear
+	}
+	if p.LeftRight != "" {
+		specs["left_right"] = p.LeftRight
+	}
+	if p.TopBottom != "" {
+		specs["top_bottom"] = p.TopBottom
+	}
+	if p.Number != "" {
+		specs["number"] = p.Number
+	}
+	if p.Manufacturer != "" {
+		specs["manufacturer"] = p.Manufacturer
+	}
+	if p.ManufacturerCode != "" {
+		specs["manufacturer_code"] = p.ManufacturerCode
+	}
+	if p.OEMCode != "" {
+		specs["oem_code"] = p.OEMCode
+	}
+	if p.Color != "" {
+		specs["color"] = p.Color
+	}
+	if p.Condition != "" {
+		specs["condition"] = p.Condition
+	}
+	if p.SupplierCode != "" {
+		specs["supplier_code"] = p.SupplierCode
+	}
+	if p.Defect != "" {
+		specs["defect"] = p.Defect
+	}
+	if p.Transmission != "" {
+		specs["transmission"] = p.Transmission
+	}
+	if p.Drive != "" {
+		specs["drive"] = p.Drive
+	}
+	if p.WearPercentage != "" {
+		specs["wear_percentage"] = p.WearPercentage
+	}
+
+	// Характеристики шин (если применимо)
+	if p.IsTire() {
+		if p.Season != "" {
+			specs["season"] = p.Season
+		}
+		if p.Diameter != "" {
+			specs["diameter"] = p.Diameter
+		}
+		if p.Width != "" {
+			specs["width"] = p.Width
+		}
+		if p.Profile != "" {
+			specs["profile"] = p.Profile
+		}
+		if p.TireQuantity != "" {
+			specs["tire_quantity"] = p.TireQuantity
+		}
+		if p.Drilling != "" {
+			specs["drilling"] = p.Drilling
+		}
+		if p.Offset != "" {
+			specs["offset"] = p.Offset
+		}
+		if p.CenterHoleDiameter != "" {
+			specs["center_hole_diameter"] = p.CenterHoleDiameter
+		}
+		if p.TireModel != "" {
+			specs["tire_model"] = p.TireModel
+		}
+	}
+
+	return specs
+}
+
+// SetSpecifications устанавливает характеристики из карты
+func (p *Part) SetSpecifications(specs map[string]interface{}) {
+	for key, value := range specs {
+		strValue := value.(string)
+		switch key {
+		case "body_brand":
+			p.BodyBrand = strValue
+		case "engine_brand":
+			p.EngineBrand = strValue
+		case "car_release_date":
+			p.CarReleaseDate = strValue
+		case "front_rear":
+			p.FrontRear = strValue
+		case "left_right":
+			p.LeftRight = strValue
+		case "top_bottom":
+			p.TopBottom = strValue
+		case "number":
+			p.Number = strValue
+		case "manufacturer":
+			p.Manufacturer = strValue
+		case "manufacturer_code":
+			p.ManufacturerCode = strValue
+		case "oem_code":
+			p.OEMCode = strValue
+		case "color":
+			p.Color = strValue
+		case "condition":
+			p.Condition = strValue
+		case "supplier_code":
+			p.SupplierCode = strValue
+		case "defect":
+			p.Defect = strValue
+		case "transmission":
+			p.Transmission = strValue
+		case "drive":
+			p.Drive = strValue
+		case "wear_percentage":
+			p.WearPercentage = strValue
+		case "season":
+			p.Season = strValue
+		case "diameter":
+			p.Diameter = strValue
+		case "width":
+			p.Width = strValue
+		case "profile":
+			p.Profile = strValue
+		case "tire_quantity":
+			p.TireQuantity = strValue
+		case "drilling":
+			p.Drilling = strValue
+		case "offset":
+			p.Offset = strValue
+		case "center_hole_diameter":
+			p.CenterHoleDiameter = strValue
+		case "tire_model":
+			p.TireModel = strValue
+		}
+	}
 }
 
 type StatisticsResponse struct {
@@ -73,5 +257,3 @@ type MonthlySales struct {
 }
 
 // Модели PartSpecification и SpecificationTemplate больше не нужны - характеристики хранятся в основной таблице Part
-
-var db *gorm.DB

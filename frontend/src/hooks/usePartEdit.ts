@@ -287,6 +287,12 @@ export function usePartEdit(options: UsePartEditOptions): UsePartEditReturn {
 
       console.log('DEBUG: updatePartMutation completed successfully');
 
+      // Update photo preview if photo was changed
+      if (photoPath && photoPath !== initialPart.photo) {
+        console.log('DEBUG: Updating photo preview to:', photoPath);
+        photoUpload.updateCurrentPhoto(photoPath);
+      }
+
       // Log user activity for part update
       try {
         await logUserActivity({

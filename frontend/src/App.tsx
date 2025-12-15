@@ -38,13 +38,8 @@ function App() {
     );
   }
 
-  const handleLogin = () => {
-    // Redirect to inventory after login
-    window.location.href = '/';
-  };
-
   if (!user) {
-    return <Login onLogin={handleLogin} />;
+    return <Login />;
   }
 
   return (
@@ -61,7 +56,7 @@ function App() {
             <Route path="/add-part" element={<AddPart />} />
             <Route path="/admin" element={<AdminPanel />} />
             <Route path="/readme" element={<Readme user={user} />} />
-            <Route path="/login" element={<Login onLogin={handleLogin} />} />
+            <Route path="/login" element={<Login />} />
             <Route path="/orders" element={<Orders />} />
           </Routes>
         </Suspense>
