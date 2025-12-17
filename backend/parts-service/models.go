@@ -1,8 +1,45 @@
 package main
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"time"
+
+	"gorm.io/gorm"
 )
+
+// StringArray - кастомный тип для работы с JSONB массивами строк в PostgreSQL
+type StringArray []string
+
+// Scan реализует sql.Scanner интерфейс для чтения из БД
+func (a *StringArray) Scan(value interface{}) error {
+	if value == nil {
+		*a = StringArray{}
+		return nil
+	}
+
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("failed to scan StringArray: value is not []byte")
+	}
+
+	var arr []string
+	if err := json.Unmarshal(bytes, &arr); err != nil {
+		return err
+	}
+
+	*a = StringArray(arr)
+	return nil
+}
+
+// Value реализует driver.Valuer интерфейс для записи в БД
+func (a StringArray) Value() (driver.Value, error) {
+	if len(a) == 0 {
+		return json.Marshal([]string{})
+	}
+	return json.Marshal([]string(a))
+}
 
 // PartCore содержит основные поля запчасти
 type PartCore struct {
@@ -17,7 +54,8 @@ type PartCore struct {
 	Status      bool       `json:"status,omitempty"`
 	Brand       string     `json:"brand,omitempty"`
 	Model       string     `json:"model,omitempty"`
-	Photo       string     `json:"photo,omitempty"`
+	Photos      StringArray `json:"photos,omitempty" gorm:"type:jsonb"`
+	Photo       string     `json:"photo,omitempty" gorm:"-"` // Для обратной совместимости
 	SellerID    uint       `json:"seller_id,omitempty"` // ID продавца из auth-service
 	ToDeleteAt  *time.Time `json:"to_delete_at,omitempty" gorm:"default:null"`
 	VIN         string     `json:"vin,omitempty"` // VIN автомобиля
@@ -84,6 +122,24 @@ func NewPart(name string, quantity int) *Part {
 // IsTire проверяет, является ли запчасть шиной
 func (p *Part) IsTire() bool {
 	return p.Category == "Шины" || p.Category == "Tires"
+}
+
+// AfterFind синхронизирует поле Photo с первым элементом массива Photos для обратной совместимости
+func (p *Part) AfterFind(tx *gorm.DB) error {
+	if len(p.Photos) > 0 {
+		p.Photo = string(p.Photos[0])
+	}
+	return nil
+}
+
+// BeforeSave синхронизирует массив Photos с полем Photo для обратной совместимости
+func (p *Part) BeforeSave(tx *gorm.DB) error {
+	if p.Photo != "" && len(p.Photos) == 0 {
+		p.Photos = StringArray{p.Photo}
+	} else if len(p.Photos) > 0 {
+		p.Photo = string(p.Photos[0])
+	}
+	return nil
 }
 
 // GetFullSpecifications возвращает все характеристики в виде карты

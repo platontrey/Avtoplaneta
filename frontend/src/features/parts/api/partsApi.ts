@@ -140,8 +140,8 @@ export const partsApi = {
     console.log(`partsApi.delete: Successfully deleted part ${id}`);
   },
 
-  // Upload part photo
-  uploadPhoto: async (id: number, photoFile: File): Promise<string> => {
+  // Upload part photo (добавляет в массив фото)
+  uploadPhoto: async (id: number, photoFile: File): Promise<string[]> => {
     const formData = new FormData();
     formData.append('photo', photoFile);
 
@@ -171,6 +171,17 @@ export const partsApi = {
       details: `Загружено фото для запчасти ID: ${id}`,
     }).catch(console.warn);
 
-    return result.photo;
+    // Возвращаем массив всех фото запчасти (после добавления)
+    return result.photos || [result.photo];
+  },
+
+  // Upload multiple photos
+  uploadPhotos: async (id: number, photoFiles: File[]): Promise<string[]> => {
+    const allPhotos: string[] = [];
+    for (const file of photoFiles) {
+      const photos = await partsApi.uploadPhoto(id, file);
+      allPhotos.push(...photos);
+    }
+    return allPhotos;
   },
 };

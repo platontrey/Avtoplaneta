@@ -4,9 +4,10 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Trash2, Edit, ShoppingCart } from "lucide-react";
+import { Trash2, Edit, ShoppingCart, Plus, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Dialog,
@@ -26,10 +27,10 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { usePhotoUpload } from "@/hooks/usePhotoUpload";
 import { usePartEdit } from "@/hooks/usePartEdit";
 import { useDeletePart, partsKeys } from "@/hooks/useParts";
 import { useAuth } from "@/hooks/useAuth";
+import { partsApi } from "@/features/parts/api/partsApi";
 import PartOrderDialog from "./PartOrderDialog";
 import ImageEditor from "./ImageEditor";
 import EditPartDialog from "./EditPartDialog";
@@ -67,21 +68,8 @@ function PartBlock({
     const [originalFile, setOriginalFile] = useState<File | null>(null);
     const queryClient = useQueryClient();
 
-    // Используем кастомные хуки для логики фото и редактирования
-    const photoUpload = usePhotoUpload({
-        initialPhoto: part.photo,
-        onPhotoUpload: (photoPath: string) => {
-            console.log('Photo upload completed for part:', part.id, 'New photo path:', photoPath);
-            // Update the main photo display immediately
-            photoUpload.updateCurrentPhoto(photoPath);
-            // Also invalidate to ensure consistency
-            void queryClient.invalidateQueries({ queryKey: partsKeys.lists() });
-        },
-        onUploadComplete: () => {
-            // Invalidate parts list cache when photo upload completes
-            void queryClient.invalidateQueries({ queryKey: partsKeys.lists() });
-        },
-    });
+    // Для множественных фото используем partsApi напрямую
+    const [photoUploadTimestamp, setPhotoUploadTimestamp] = useState<number>(Date.now());
 
     const partEdit = usePartEdit({
         initialPart: part,
@@ -178,10 +166,15 @@ function PartBlock({
         const croppedFile = new File([croppedImageBlob], 'cropped-image.jpg', { type: 'image/jpeg' });
         console.log('PartBlock created file:', croppedFile.name, 'size:', croppedFile.size, 'type:', croppedFile.type);
 
-        // Set the cropped file for upload on save
-        partEdit.photoUpload.handlePhotoChange({
-            target: { files: [croppedFile] }
-        } as unknown as React.ChangeEvent<HTMLInputElement>);
+        // Upload cropped photo directly
+        try {
+            await partsApi.uploadPhoto(part.id, croppedFile);
+            setPhotoUploadTimestamp(Date.now());
+            void queryClient.invalidateQueries({ queryKey: partsKeys.lists() });
+        } catch (error) {
+            console.error('PartBlock handleCropComplete: upload failed:', error);
+            alert('Failed to upload cropped photo. Please try again.');
+        }
 
         setShowCropper(false);
         setTempImageSrc("");
@@ -195,7 +188,78 @@ function PartBlock({
         if (input) input.value = '';
     };
 
+    const handleAddPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        console.log('PartBlock handleAddPhoto: START - event target files:', e.target.files);
+        const file = e.target.files?.[0];
+        console.log('PartBlock handleAddPhoto: file selected:', file?.name, 'size:', file?.size, 'type:', file?.type);
+        if (file) {
+            console.log('PartBlock handleAddPhoto: file validation passed');
+            // Validate file type - only allow images
+            if (!file.type.startsWith('image/')) {
+                console.error('PartBlock handleAddPhoto: invalid file type:', file.type);
+                alert('Please select a valid image file.');
+                return;
+            }
+
+            // Validate file size (max 5MB to prevent memory issues)
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            if (file.size > maxSize) {
+                console.error('PartBlock handleAddPhoto: file too large:', file.size, 'max:', maxSize);
+                alert('File size must be less than 5MB.');
+                return;
+            }
+
+            console.log('PartBlock handleAddPhoto: uploading photo directly');
+            try {
+                await partsApi.uploadPhoto(part.id, file);
+                setPhotoUploadTimestamp(Date.now());
+                void queryClient.invalidateQueries({ queryKey: partsKeys.lists() });
+                console.log('PartBlock handleAddPhoto: photo uploaded successfully');
+            } catch (error) {
+                console.error('PartBlock handleAddPhoto: upload failed:', error);
+                alert('Failed to upload photo. Please try again.');
+            }
+        } else {
+            console.warn('PartBlock handleAddPhoto: no file selected');
+        }
+        console.log('PartBlock handleAddPhoto: END');
+        // Reset the input
+        e.target.value = '';
+    };
+
+    const handleDeletePhoto = async (photoPath: string) => {
+        if (!confirm('Вы уверены, что хотите удалить это фото?')) {
+            return;
+        }
+
+        console.log('PartBlock handleDeletePhoto: START - photoPath:', photoPath);
+        try {
+            const response = await fetch(`http://localhost:8081/api/deletepartphoto/${part.id}?photo=${encodeURIComponent(photoPath)}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders(),
+                credentials: 'include',
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
+            }
+
+            const result = await response.json();
+            console.log('Фото успешно удалено:', result);
+
+            // Обновить локальное состояние
+            setPhotoUploadTimestamp(Date.now());
+            void queryClient.invalidateQueries({ queryKey: partsKeys.lists() });
+        } catch (error) {
+            console.error('Ошибка при удалении фото:', error);
+            alert('Не удалось удалить фото. Попробуйте еще раз.');
+        }
+        console.log('PartBlock handleDeletePhoto: END');
+    };
+
     const handleDelete = async () => {
+        console.time('PartBlock.handleDelete');
         console.log('PartBlock handleDelete: START - part.id:', part.id, 'isDeleting:', isDeleting);
 
         if (isDeleting) {
@@ -220,6 +284,7 @@ function PartBlock({
             throw error;
         }
         console.log('PartBlock handleDelete: END');
+        console.timeEnd('PartBlock.handleDelete');
     };
 
     // Проверка безопасности - валидация данных детали для предотвращения ошибок выполнения
@@ -283,10 +348,6 @@ function PartBlock({
                 ease: [0.25, 0.46, 0.45, 0.94],
                 delay: 0.1
             }}
-            whileHover={{
-                scale: 1.005,
-                transition: { duration: 0.05 }
-            }}
             layout
             onClick={(e) => e.stopPropagation()}
             onPointerDown={handlePointerDown}
@@ -330,8 +391,8 @@ function PartBlock({
                                 <Dialog>
                                     <DialogTrigger asChild>
                                         <motion.img
-                                            key={photoUpload.forceRefresh}
-                                            src={`${photoUpload.currentPhoto ? `${API_BASE_URL}${photoUpload.currentPhoto}?t=${photoUpload.uploadTimestamp}` : '/placeholder-part.svg'}`}
+                                            key={photoUploadTimestamp}
+                                            src={(part.photos && part.photos.length > 0) ? `${API_BASE_URL}${part.photos[0]}?t=${photoUploadTimestamp}` : '/placeholder-part.svg'}
                                             alt={part.name || 'Изображение детали'}
                                             onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
                                                 e.currentTarget.onerror = null;
@@ -347,20 +408,36 @@ function PartBlock({
                                     </DialogTrigger>
                                     <DialogContent className="max-w-4xl" onClick={(e) => e.stopPropagation()}>
                                         <DialogTitle>{part.name}</DialogTitle>
-                                        <DialogDescription>Изображение детали</DialogDescription>
-                                        <motion.img
-                                            key={photoUpload.forceRefresh}
-                                            src={photoUpload.currentPhoto ? `${API_BASE_URL}${photoUpload.currentPhoto}?t=${photoUpload.uploadTimestamp}` : '/placeholder-part.svg'}
-                                            alt={part.name}
-                                            className="w-full h-auto max-h-[80vh] object-contain"
-                                            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                                                e.currentTarget.onerror = null;
-                                                e.currentTarget.src = '/placeholder-part.svg';
-                                            }}
-                                            initial={{ opacity: 0, scale: 0.9 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            transition={{ duration: 0.3 }}
-                                        />
+                                        <DialogDescription>Изображения детали</DialogDescription>
+                                        {(part.photos && part.photos.length > 0) ? (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                                {part.photos.map((photoPath, index) => (
+                                                    <motion.img
+                                                        key={index}
+                                                        src={`${API_BASE_URL}${photoPath}?t=${partEdit.photoUpload.uploadTimestamp}`}
+                                                        alt={`${part.name} - фото ${index + 1}`}
+                                                        className="w-full h-auto max-h-48 object-contain rounded-lg border"
+                                                        onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                                                            e.currentTarget.onerror = null;
+                                                            e.currentTarget.src = '/placeholder-part.svg';
+                                                        }}
+                                                        initial={{ opacity: 0, scale: 0.9 }}
+                                                        animate={{ opacity: 1, scale: 1 }}
+                                                        transition={{ duration: 0.3, delay: index * 0.1 }}
+                                                    />
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <motion.img
+                                                key={partEdit.photoUpload.forceRefresh}
+                                                src="/placeholder-part.svg"
+                                                alt={part.name}
+                                                className="w-full h-auto max-h-[80vh] object-contain"
+                                                initial={{ opacity: 0, scale: 0.9 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                transition={{ duration: 0.3 }}
+                                            />
+                                        )}
                                     </DialogContent>
                                 </Dialog>
                             </motion.div>
@@ -390,8 +467,6 @@ function PartBlock({
                                 e.stopPropagation();
                                 setIsOrderDialogOpen(true);
                             }}
-                            whileHover={{ scale: 1.1, rotate: 10 }}
-                            whileTap={{ scale: 0.9 }}
                             transition={{ duration: 0.2 }}
                         >
                             <ShoppingCart className="h-4 w-4 cursor-pointer" />
@@ -421,8 +496,6 @@ function PartBlock({
                                 <AlertDialogTrigger asChild>
                                     <motion.div
                                         className="w-8 h-8 flex items-center justify-center rounded hover:bg-accent pointer-events-auto cursor-pointer"
-                                        whileHover={{ scale: 1.1, rotate: 10 }}
-                                        whileTap={{ scale: 0.9 }}
                                         transition={{ duration: 0.1 }}
                                         style={{ pointerEvents: isDeleting ? 'none' : 'auto' }}
                                     >
@@ -469,49 +542,101 @@ function PartBlock({
                             transition={{ delay: 0.1, duration: 0.3 }}
                         >
                             {/* Отображение фото в развёрнутом виде */}
-                            <AnimatePresence>
-                                <motion.div
-                                    className="mb-3"
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -20 }}
-                                    transition={{ duration: 1.0, delay: 0.1 }}
-                                >
-                                    <Dialog>
-                                        <DialogTrigger asChild>
-                                            <button onClick={(e) => e.stopPropagation()} className="bg-transparent border-none p-0 pointer-events-auto">
-                                                <motion.img
-                                                    key={photoUpload.forceRefresh}
-                                                    src={photoUpload.currentPhoto ? `${API_BASE_URL}${photoUpload.currentPhoto}?t=${photoUpload.uploadTimestamp}` : '/placeholder-part.svg'}
-                                                    alt={part.name}
-                                                    className="max-w-full h-auto max-h-48 object-contain rounded-lg border cursor-pointer"
-                                                    whileHover={{ scale: 1.05 }}
-                                                    whileTap={{ scale: 0.95 }}
-                                                    transition={{ duration: 0.2 }}
-                                                />
-                                            </button>
-                                        </DialogTrigger>
-                                        <DialogContent className="max-w-4xl" onClick={(e) => e.stopPropagation()}>
-                                            <DialogTitle>{part.name}</DialogTitle>
-                                            <DialogDescription>Изображение детали</DialogDescription>
-                                            <motion.img
-                                                src={photoUpload.currentPhoto ? `${API_BASE_URL}${photoUpload.currentPhoto}?t=${photoUpload.uploadTimestamp}` : '/placeholder-part.svg'}
-                                                alt={part.name || 'Изображение детали'}
-                                                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                                                    e.currentTarget.onerror = null;
-                                                    e.currentTarget.src = '/placeholder-part.svg';
-                                                }}
-                                                className="w-full h-auto max-h-[80vh] object-contain"
-                                                style={{ minHeight: '300px' }}
-                                                initial={{ opacity: 0, scale: 0.9 }}
-                                                animate={{ opacity: 1, scale: 1 }}
-                                                transition={{ duration: 1.0, delay: 0.1 }}
-                                                onClick={(e) => e.stopPropagation()}
-                                            />
-                                        </DialogContent>
-                                    </Dialog>
-                                </motion.div>
-                            </AnimatePresence>
+                            {(part.photos && part.photos.length > 0) && (
+                                <AnimatePresence>
+                                    <motion.div
+                                        className="mb-3"
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -20 }}
+                                        transition={{ duration: 1.0, delay: 0.1 }}
+                                    >
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                            {part.photos.map((photoPath, index) => (
+                                                <div key={index} className="relative group">
+                                                    <Dialog>
+                                                        <DialogTrigger asChild>
+                                                            <button onClick={(e) => e.stopPropagation()} className="bg-transparent border-none p-0 pointer-events-auto w-full">
+                                                                <motion.img
+                                                                    src={`${API_BASE_URL}${photoPath}?t=${partEdit.photoUpload.uploadTimestamp}`}
+                                                                    alt={`${part.name} - фото ${index + 1}`}
+                                                                    className="w-full h-24 object-cover rounded-lg border cursor-pointer"
+                                                                    transition={{ duration: 0.2 }}
+                                                                    onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                                                                        e.currentTarget.onerror = null;
+                                                                        e.currentTarget.src = '/placeholder-part.svg';
+                                                                    }}
+                                                                />
+                                                            </button>
+                                                        </DialogTrigger>
+                                                        <DialogContent className="max-w-4xl" onClick={(e) => e.stopPropagation()}>
+                                                            <DialogTitle>{part.name} - Фото {index + 1}</DialogTitle>
+                                                            <DialogDescription>Изображение детали</DialogDescription>
+                                                            <motion.img
+                                                                src={`${API_BASE_URL}${photoPath}?t=${partEdit.photoUpload.uploadTimestamp}`}
+                                                                alt={`${part.name} - фото ${index + 1}`}
+                                                                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                                                                    e.currentTarget.onerror = null;
+                                                                    e.currentTarget.src = '/placeholder-part.svg';
+                                                                }}
+                                                                className="w-full h-auto max-h-[80vh] object-contain"
+                                                                style={{ minHeight: '300px' }}
+                                                                initial={{ opacity: 0, scale: 0.9 }}
+                                                                animate={{ opacity: 1, scale: 1 }}
+                                                                transition={{ duration: 1.0, delay: 0.1 }}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            />
+                                                        </DialogContent>
+                                                    </Dialog>
+                                                    {/* Кнопка удаления фото */}
+                                                    {user?.role === 'admin' && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDeletePhoto(photoPath);
+                                                            }}
+                                                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                                                            title="Удалить фото"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Кнопка добавления фото */}
+                                        {user?.role === 'admin' && (
+                                            <motion.div
+                                                className="mt-3"
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ duration: 0.3, delay: 0.2 }}
+                                            >
+                                                <label className="inline-block">
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={handleAddPhoto}
+                                                        className="hidden"
+                                                    />
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="cursor-pointer"
+                                                        asChild
+                                                    >
+                                                        <span>
+                                                            <Plus className="w-4 h-4 mr-2" />
+                                                            Добавить фото
+                                                        </span>
+                                                    </Button>
+                                                </label>
+                                            </motion.div>
+                                        )}
+                                    </motion.div>
+                                </AnimatePresence>
+                            )}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-3">
                                     <h4 className="font-semibold text-sm text-foreground mb-3">Основная информация:</h4>
@@ -945,23 +1070,52 @@ function PartBlock({
                 }}
                 onDeletePhoto={async () => {
                     console.log('Удаление фото начато для детали:', part.id);
+                    console.log('Текущее состояние part.photos:', part.photos);
+                    console.log('Текущее photoPreview:', partEdit.photoUpload.photoPreview);
+                    console.log('Есть ли новое фото (photoFile):', !!partEdit.photoUpload.photoFile);
+
+                    // Если есть новое загруженное фото (не сохраненное), просто сбросить его
+                    if (partEdit.photoUpload.photoFile) {
+                        console.log('Сброс нового загруженного фото');
+                        partEdit.photoUpload.resetPhoto();
+                        partEdit.updateFormField('photo', '');
+                        return;
+                    }
+
+                    // Иначе удаляем фото из базы данных
+                    const photoToDelete = (part.photos && part.photos.length > 0) ? part.photos[0] : '';
+
+                    console.log('photoToDelete (первое фото из массива):', photoToDelete);
+
+                    if (!photoToDelete) {
+                        alert('Нет фото для удаления');
+                        return;
+                    }
+
                     try {
-                        const response = await fetch(`http://localhost:8081/api/deletepartphoto/${part.id}`, {
+                        const deleteUrl = `http://localhost:8081/api/deletepartphoto/${part.id}?photo=${encodeURIComponent(photoToDelete)}`;
+                        console.log('Отправка запроса на удаление:', deleteUrl);
+
+                        const response = await fetch(deleteUrl, {
                             method: 'DELETE',
                             headers: getAuthHeaders(),
                             credentials: 'include',
                         });
 
+                        console.log('Ответ от сервера status:', response.status, 'ok:', response.ok);
+
                         if (!response.ok) {
                             const errorText = await response.text();
+                            console.error('Ошибка ответа сервера:', errorText);
                             throw new Error(`HTTP ${response.status}: ${errorText}`);
                         }
 
                         const result = await response.json();
-                        console.log('Фото успешно удалено:', result);
+                        console.log('Фото успешно удалено, результат:', result);
 
                         // Обновить локальное состояние
                         partEdit.updateFormField('photo', '');
+                        setPhotoUploadTimestamp(Date.now());
                         // Invalidate queries to refresh the UI
                         void queryClient.invalidateQueries({ queryKey: partsKeys.lists() });
                     } catch (error) {

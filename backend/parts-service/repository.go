@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -24,11 +25,11 @@ type PartRepository interface {
 	FindWithFilters(filters map[string]interface{}) ([]Part, error) // Находит с фильтрами
 
 	// MarkForDeletion Специфические операции
-	MarkForDeletion(id uint, deleteAt time.Time) error // Отмечает для удаления
-	DeleteExpiredParts(before time.Time) error         // Удаляет просроченные
-	GetStatistics() (StatisticsResponse, error)        // Получает статистику
-	BulkDelete(ids []uint) error                       // Массовое удаление
-	BulkUpdate(updates []map[string]interface{}) error // Массовое обновление
+	MarkForDeletion(id uint, deleteAt time.Time) error        // Отмечает для удаления
+	DeleteExpiredParts(before time.Time) error                // Удаляет просроченные
+	GetStatistics() (StatisticsResponse, error)               // Получает статистику
+	BulkDelete(ids []uint) error                              // Массовое удаление
+	BulkUpdate(updates []map[string]interface{}) (int, error) // Массовое обновление
 
 	// DeleteZeroQuantityPartsBySupplier Supplier operations
 	DeleteZeroQuantityPartsBySupplier(supplierCode string) (int64, error) // Удаляет запчасти с нулевым количеством по поставщику
@@ -106,9 +107,9 @@ func (r *partRepository) FindWithFilters(filters map[string]interface{}) ([]Part
 			query = query.Where("status = ?", value)
 		case "has_photo":
 			if value.(bool) {
-				query = query.Where("photo IS NOT NULL AND photo != ''")
+				query = query.Where("photos IS NOT NULL AND jsonb_array_length(photos) > 0")
 			} else {
-				query = query.Where("(photo IS NULL OR photo = '')")
+				query = query.Where("(photos IS NULL OR jsonb_array_length(photos) = 0)")
 			}
 		case "search":
 			searchTerm := "%" + value.(string) + "%"
@@ -151,20 +152,74 @@ func (r *partRepository) GetStatistics() (StatisticsResponse, error) {
 
 // BulkDelete удаляет несколько запчастей
 func (r *partRepository) BulkDelete(ids []uint) error {
-	return r.db.Where("id IN ?", ids).Delete(&Part{}).Error
+	logrus.WithFields(logrus.Fields{
+		"ids":   ids,
+		"count": len(ids),
+	}).Info("PartRepository.BulkDelete: Starting bulk delete")
+
+	err := r.db.Where("id IN ?", ids).Delete(&Part{}).Error
+	if err != nil {
+		logrus.WithError(err).Error("PartRepository.BulkDelete: Failed to execute delete query")
+		return err
+	}
+
+	logrus.Info("PartRepository.BulkDelete: Successfully completed bulk delete")
+	return nil
 }
 
 // BulkUpdate обновляет несколько запчастей
-func (r *partRepository) BulkUpdate(updates []map[string]interface{}) error {
-	for _, update := range updates {
-		if id, ok := update["id"].(uint); ok {
-			delete(update, "id")
-			if err := r.Update(id, update); err != nil {
-				return err
+func (r *partRepository) BulkUpdate(updates []map[string]interface{}) (int, error) {
+	logrus.WithFields(logrus.Fields{
+		"updates": updates,
+		"count":   len(updates),
+	}).Info("PartRepository.BulkUpdate: Starting bulk update")
+
+	updatedCount := 0
+	for i, update := range updates {
+		var id uint
+		if idVal, exists := update["id"]; exists {
+			switch v := idVal.(type) {
+			case float64:
+				id = uint(v)
+			case int:
+				id = uint(v)
+			case uint:
+				id = v
+			default:
+				logrus.WithFields(logrus.Fields{
+					"index": i,
+					"idVal": idVal,
+					"type": fmt.Sprintf("%T", idVal),
+				}).Error("PartRepository.BulkUpdate: Invalid id type")
+				return updatedCount, fmt.Errorf("update at index %d has invalid id type", i)
 			}
+		} else {
+			logrus.WithFields(logrus.Fields{
+				"index": i,
+				"update": update,
+			}).Error("PartRepository.BulkUpdate: Update missing 'id' field")
+			return updatedCount, fmt.Errorf("update at index %d missing 'id' field", i)
 		}
+
+		delete(update, "id")
+		logrus.WithFields(logrus.Fields{
+			"index": i,
+			"id": id,
+			"update": update,
+		}).Debug("PartRepository.BulkUpdate: Processing update")
+
+		if err := r.Update(id, update); err != nil {
+			logrus.WithError(err).WithFields(logrus.Fields{
+				"index": i,
+				"id": id,
+			}).Error("PartRepository.BulkUpdate: Failed to update part")
+			return updatedCount, err
+		}
+		updatedCount++
 	}
-	return nil
+
+	logrus.Info("PartRepository.BulkUpdate: Successfully completed bulk update")
+	return updatedCount, nil
 }
 
 // DeleteZeroQuantityPartsBySupplier удаляет запчасти с нулевым количеством по коду поставщика

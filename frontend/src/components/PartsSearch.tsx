@@ -65,6 +65,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { Checkbox } from './ui/checkbox';
 import { SearchableSelect } from './ui/searchable-select';
 import type { SelectOption } from './ui/searchable-select';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -424,18 +425,37 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
     };
 
     return (
-        <Card className="mt-6 bg-white dark:bg-card border border-gray-300 shadow-none">
-            <CardContent className="px-4 py-2">
+        <motion.div layout>
+            <Card className="mt-6 bg-white dark:bg-card border border-gray-300 shadow-none">
+                <CardContent className="px-4 py-2">
                 <div className="space-y-4">
                     {/* Поисковая строка и кнопка фильтров */}
                     <div className="flex flex-col sm:flex-row gap-2">
                         <div className="relative flex-1">
                             <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none">
-                                {isSearching ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                    <Search className="w-4 h-4" />
-                                )}
+                                <AnimatePresence mode="wait">
+                                    {isSearching ? (
+                                        <motion.div
+                                            key="loader"
+                                            initial={{ opacity: 0, rotate: -180 }}
+                                            animate={{ opacity: 1, rotate: 0 }}
+                                            exit={{ opacity: 0, rotate: 180 }}
+                                            transition={{ duration: 0.3 }}
+                                        >
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        </motion.div>
+                                    ) : (
+                                        <motion.div
+                                            key="search"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.3 }}
+                                        >
+                                            <Search className="w-4 h-4" />
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
                             <Input
                                 ref={searchInputRef}
@@ -449,58 +469,119 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                             />
                             {/* Кнопка голосового поиска */}
                             {isSpeechRecognitionSupported() && (
-                                <Button
-                                    onClick={isListening ? stopVoiceSearch : startVoiceSearch}
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className={`absolute right-8 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0 ${
-                                        isListening ? 'text-red-500 bg-red-50' : ''
-                                    }`}
-                                    aria-label={isListening ? 'Остановить голосовой поиск' : 'Голосовой поиск'}
-                                    title={isListening ? 'Остановить голосовой поиск' : 'Голосовой поиск'}
-                                >
-                                    {isListening ? (
-                                        <MicOff className="h-4 w-4" />
-                                    ) : (
-                                        <Mic className="h-4 w-4" />
-                                    )}
-                                </Button>
+                                <AnimatePresence>
+                                    <motion.div
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.8 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="absolute right-8 top-1/2 transform -translate-y-1/2"
+                                    >
+                                        <Button
+                                            onClick={isListening ? stopVoiceSearch : startVoiceSearch}
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className={`h-7 w-7 p-0 ${
+                                                isListening ? 'text-red-500 bg-red-50' : ''
+                                            }`}
+                                            aria-label={isListening ? 'Остановить голосовой поиск' : 'Голосовой поиск'}
+                                            title={isListening ? 'Остановить голосовой поиск' : 'Голосовой поиск'}
+                                        >
+                                            <AnimatePresence mode="wait">
+                                                {isListening ? (
+                                                    <motion.div
+                                                        key="micoff"
+                                                        initial={{ opacity: 0, rotate: -90 }}
+                                                        animate={{ opacity: 1, rotate: 0 }}
+                                                        exit={{ opacity: 0, rotate: 90 }}
+                                                        transition={{ duration: 0.2 }}
+                                                    >
+                                                        <MicOff className="h-4 w-4" />
+                                                    </motion.div>
+                                                ) : (
+                                                    <motion.div
+                                                        key="mic"
+                                                        initial={{ opacity: 0, scale: 0.8 }}
+                                                        animate={{ opacity: 1, scale: 1 }}
+                                                        exit={{ opacity: 0, scale: 0.8 }}
+                                                        transition={{ duration: 0.2 }}
+                                                    >
+                                                        <Mic className="h-4 w-4" />
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </Button>
+                                    </motion.div>
+                                </AnimatePresence>
                             )}
-                            {searchQuery && (
-                                <Button
-                                    onClick={clearSearchQuery}
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0"
-                                    aria-label="Очистить поиск"
-                                >
-                                    <X className="h-4 w-4" />
-                                </Button>
-                            )}
+                            <AnimatePresence>
+                                {searchQuery && (
+                                    <motion.div
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.8 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="absolute right-1 top-1/2 transform -translate-y-1/2"
+                                    >
+                                        <Button
+                                            onClick={clearSearchQuery}
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 w-7 p-0"
+                                            aria-label="Очистить поиск"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
 
                             {/* Сообщения под поисковой строкой */}
-                            {(searchQuery.length > 0 && searchQuery.length < MIN_SEARCH_LENGTH) && (
-                                <p className="text-amber-600 text-xs mt-1.5 flex items-center gap-1 absolute left-0 top-full">
-                                    <span>⚠️</span>
-                                    Минимум {MIN_SEARCH_LENGTH} символа для автодополнения
-                                </p>
-                            )}
+                            <AnimatePresence mode="wait">
+                                {(searchQuery.length > 0 && searchQuery.length < MIN_SEARCH_LENGTH) && (
+                                    <motion.p
+                                        key="min-length"
+                                        initial={{ opacity: 0, y: -5 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -5 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="text-amber-600 text-xs mt-1.5 flex items-center gap-1 absolute left-0 top-full"
+                                    >
+                                        <span>⚠️</span>
+                                         Минимум {MIN_SEARCH_LENGTH} символа для автодополнения
+                                    </motion.p>
+                                )}
 
-                            {isListening && (
-                                <p className="text-red-600 text-xs mt-1.5 flex items-center gap-1 absolute left-0 top-full">
-                                    <span>🎤</span>
-                                    Говорите... (слушаю)
-                                </p>
-                            )}
+                                {isListening && (
+                                    <motion.p
+                                        key="listening"
+                                        initial={{ opacity: 0, y: -5 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -5 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="text-red-600 text-xs mt-1.5 flex items-center gap-1 absolute left-0 top-full"
+                                    >
+                                        <span>🎤</span>
+                                         Говорите... (слушаю)
+                                    </motion.p>
+                                )}
 
-                            {voiceSearchError && (
-                                <p className="text-red-600 text-xs mt-1.5 flex items-center gap-1 absolute left-0 top-full">
-                                    <span>❌</span>
-                                    {voiceSearchError}
-                                </p>
-                            )}
+                                {voiceSearchError && (
+                                    <motion.p
+                                        key="error"
+                                        initial={{ opacity: 0, y: -5 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -5 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="text-red-600 text-xs mt-1.5 flex items-center gap-1 absolute left-0 top-full"
+                                    >
+                                        <span>❌</span>
+                                         {voiceSearchError}
+                                    </motion.p>
+                                )}
+                            </AnimatePresence>
 
                             {/* Результаты автодополнения */}
                             <AnimatePresence>
@@ -530,26 +611,62 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                             </AnimatePresence>
                         </div>
 
-                        {/* Кнопка фильтров и селектор количества */}
+                        {/* Кнопка фильтров, сброса и селектор количества */}
                         <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-                            <Button
-                                variant={isFiltersOpen ? "default" : "outline"}
-                                onClick={() => setIsFiltersOpen(!isFiltersOpen)}
-                                className="gap-2 shrink-0 border-input"
-                            >
-                                <Filter className="h-4 w-4" />
-                                Фильтры
-                                {activeFiltersCount > 0 && (
-                                    <Badge variant="secondary" className="ml-1 bg-transparent border border-gray-300">
-                                        {activeFiltersCount}
-                                    </Badge>
-                                )}
-                                {isFiltersOpen ? (
-                                    <ChevronUp className="h-4 w-4" />
-                                ) : (
-                                    <ChevronDown className="h-4 w-4" />
-                                )}
-                            </Button>
+                            <div className="flex gap-2">
+                                <motion.div layout>
+                                    <Button
+                                        variant={isFiltersOpen ? "default" : "outline"}
+                                        onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+                                        className="gap-2 shrink-0 border-input"
+                                    >
+                                    <Filter className="h-4 w-4" />
+                                    Фильтры
+                                    <AnimatePresence>
+                                        {activeFiltersCount > 0 && (
+                                            <motion.div
+                                                initial={{ opacity: 0, scale: 0.8 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                exit={{ opacity: 0, scale: 0.8 }}
+                                                transition={{ duration: 0.2 }}
+                                            >
+                                                <Badge variant="secondary" className="ml-1 bg-transparent border border-gray-300">
+                                                    {activeFiltersCount}
+                                                </Badge>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                    {isFiltersOpen ? (
+                                        <ChevronUp className="h-4 w-4" />
+                                    ) : (
+                                        <ChevronDown className="h-4 w-4" />
+                                    )}
+                                </Button>
+                                </motion.div>
+
+                                {/* Кнопка сброса всех фильтров */}
+                                <AnimatePresence>
+                                    {activeFiltersCount > 0 && (
+                                        <motion.div
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Button
+                                                onClick={clearFilters}
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="gap-2 shrink-0 border-input"
+                                            >
+                                                <X className="h-4 w-4" />
+                                                Сбросить фильтры
+                                            </Button>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
 
                             {/* Выбор количества отображаемых элементов */}
                             <div className="flex items-center gap-2">
@@ -699,97 +816,178 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                     </AnimatePresence>
 
                     {/* Активные фильтры */}
-                    {(activeFiltersCount > 0 || searchQuery) && (
-                        <div className="flex flex-wrap gap-2">
-                            {searchQuery && (
-                                <Badge variant="secondary" className="gap-1 bg-transparent border border-gray-300">
-                                    <span className="pointer-events-none">Поиск: {searchQuery}</span>
-                                    <X
-                                        className="h-3 w-3 cursor-pointer hover:text-destructive"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            clearSearchQuery();
-                                        }}
-                                    />
-                                </Badge>
-                            )}
-                            {category && (
-                                <Badge variant="secondary" className="gap-1 bg-transparent border border-gray-300">
-                                    <span className="pointer-events-none">Категория: {category}</span>
-                                    <X
-                                        className="h-3 w-3 cursor-pointer hover:text-destructive"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setCategory('');
-                                        }}
-                                    />
-                                </Badge>
-                            )}
-                            {brand && (
-                                <Badge variant="secondary" className="gap-1 bg-transparent border border-gray-300">
-                                    <span className="pointer-events-none">Бренд: {brand}</span>
-                                    <X
-                                        className="h-3 w-3 cursor-pointer hover:text-destructive"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setBrand('');
-                                        }}
-                                    />
-                                </Badge>
-                            )}
-                            {model && (
-                                <Badge variant="secondary" className="gap-1 bg-transparent border border-gray-300">
-                                    <span className="pointer-events-none">Модель: {model}</span>
-                                    <X
-                                        className="h-3 w-3 cursor-pointer hover:text-destructive"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setModel('');
-                                        }}
-                                    />
-                                </Badge>
-                            )}
-                            {location && (
-                                <Badge variant="secondary" className="gap-1 bg-transparent border border-gray-300">
-                                    <span className="pointer-events-none">Местоположение: {location}</span>
-                                    <X
-                                        className="h-3 w-3 cursor-pointer hover:text-destructive"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setLocation('');
-                                        }}
-                                    />
-                                </Badge>
-                            )}
-                            {status && (
-                                <Badge variant="secondary" className="gap-1 bg-transparent border border-gray-300">
-                                    <span className="pointer-events-none">Статус: {status === 'true' ? 'Доступно' : 'Недоступно'}</span>
-                                    <X
-                                        className="h-3 w-3 cursor-pointer hover:text-destructive"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setStatus('');
-                                        }}
-                                    />
-                                </Badge>
-                            )}
-                            {hasPhoto && hasPhoto !== 'with' && (
-                                <Badge variant="secondary" className="gap-1 bg-transparent border border-gray-300">
-                                    <span className="pointer-events-none">Фото: {hasPhoto === 'without' ? 'Без фото' : 'Все'}</span>
-                                    <X
-                                        className="h-3 w-3 cursor-pointer hover:text-destructive"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setHasPhoto('with');
-                                        }}
-                                    />
-                                </Badge>
-                            )}
-                        </div>
-                    )}
+                    <AnimatePresence mode="wait">
+                        {(activeFiltersCount > 0 || searchQuery) && (
+                            <motion.div
+                                key="active-filters"
+                                layout
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.3, ease: 'easeOut' }}
+                                className="flex flex-wrap gap-2"
+                            >
+                                <AnimatePresence>
+                                    {searchQuery && (
+                                        <motion.div
+                                            key="search"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) clearSearchQuery();
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Поиск: {searchQuery}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {category && (
+                                        <motion.div
+                                            key="category"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setCategory('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Категория: {category}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {brand && (
+                                        <motion.div
+                                            key="brand"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setBrand('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Бренд: {brand}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {model && (
+                                        <motion.div
+                                            key="model"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setModel('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Модель: {model}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {location && (
+                                        <motion.div
+                                            key="location"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setLocation('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Местоположение: {location}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {status && (
+                                        <motion.div
+                                            key="status"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setStatus('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Статус: {status === 'true' ? 'Доступно' : 'Недоступно'}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {hasPhoto && hasPhoto !== 'with' && (
+                                        <motion.div
+                                            key="hasPhoto"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setHasPhoto('with');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Фото: {hasPhoto === 'without' ? 'Без фото' : 'Все'}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
             </CardContent>
         </Card>
+        </motion.div>
     );
 }
 

@@ -95,6 +95,12 @@ export default function BulkEditDialog({ isOpen, onClose, selectedPartIds, onSuc
         return;
       }
 
+      // Формируем массив обновлений для каждого ID
+      const bulkUpdates = selectedPartIds.map(partId => ({
+        id: partId,
+        ...updates,
+      }));
+
       // Отправляем запрос на массовое обновление
       const response = await fetch('http://localhost:8081/api/admin/bulk-update-parts', {
         method: 'PUT',
@@ -103,10 +109,7 @@ export default function BulkEditDialog({ isOpen, onClose, selectedPartIds, onSuc
           'X-CSRF-Token': getAuthHeaders()['X-CSRF-Token'] || '',
         },
         credentials: 'include',
-        body: JSON.stringify({
-          partIds: selectedPartIds,
-          updates: updates,
-        }),
+        body: JSON.stringify(bulkUpdates),
       });
 
       if (!response.ok) {

@@ -60,21 +60,46 @@ func ProcessPartUpdates(updates map[string]interface{}, part *Part) (map[string]
 				processedUpdates[key] = value
 			}
 		case "photo":
+			// ВАЖНО: Поле photo больше не существует в БД после миграции
+			// Преобразуем его в массив photos для обратной совместимости
 			if photoStr, ok := value.(string); ok {
 				if photoStr == "" {
-					// Удалить файл, если он существует
-					if part != nil && part.Photo != "" {
-						photoPath := strings.TrimPrefix(part.Photo, "/")
-						if err := os.Remove(photoPath); err != nil && !os.IsNotExist(err) {
-							fmt.Printf("Warning: Failed to remove photo file %s: %v\n", photoPath, err)
-						} else if err == nil {
-							fmt.Printf("Successfully removed photo file: %s\n", photoPath)
+					// Удалить все фото
+					if part != nil && len(part.Photos) > 0 {
+						// Удалить файлы
+						for _, p := range part.Photos {
+							photoPath := strings.TrimPrefix(p, "/")
+							if err := os.Remove(photoPath); err != nil && !os.IsNotExist(err) {
+								fmt.Printf("Warning: Failed to remove photo file %s: %v\n", photoPath, err)
+							}
 						}
 					}
-					processedUpdates[key] = nil // Установить NULL
+					processedUpdates["photos"] = StringArray{}
 				} else {
-					processedUpdates[key] = photoStr
+					// Преобразовать одиночное фото в массив (если это первое фото)
+					// или добавить в существующий массив
+					if part != nil && len(part.Photos) > 0 {
+						// Заменить первый элемент массива (совместимость с legacy behavior)
+						newPhotos := make(StringArray, len(part.Photos))
+						copy(newPhotos, part.Photos)
+						newPhotos[0] = photoStr
+						processedUpdates["photos"] = newPhotos
+					} else {
+						// Создать новый массив с одним элементом
+						processedUpdates["photos"] = StringArray{photoStr}
+					}
 				}
+			}
+			// НЕ добавляем "photo" в processedUpdates - этого поля нет в БД
+		case "photos":
+			if photosArray, ok := value.([]interface{}); ok {
+				photos := make(StringArray, len(photosArray))
+				for i, v := range photosArray {
+					if str, ok := v.(string); ok {
+						photos[i] = str
+					}
+				}
+				processedUpdates[key] = photos
 			} else {
 				processedUpdates[key] = value
 			}
@@ -95,18 +120,7 @@ func HandlePhotoUpload(c *gin.Context, partID uint) (string, error) {
 		fmt.Printf("DEBUG HandlePhotoUpload: Part not found for ID %d: %v\n", partID, err)
 		return "", fmt.Errorf("часть не найдена")
 	}
-	fmt.Printf("DEBUG HandlePhotoUpload: Part found: ID=%d, current photo='%s'\n", part.ID, part.Photo)
-
-	// Удалить старый файл фото, если он существует
-	if part.Photo != "" {
-		oldPhotoPath := strings.TrimPrefix(part.Photo, "/")
-		fmt.Printf("DEBUG HandlePhotoUpload: Removing old photo file: %s\n", oldPhotoPath)
-		if err := os.Remove(oldPhotoPath); err != nil && !os.IsNotExist(err) {
-			fmt.Printf("Предупреждение: Не удалось удалить старый файл фото %s: %v\n", oldPhotoPath, err)
-		} else if err == nil {
-			fmt.Printf("Успешно удален старый файл фото: %s\n", oldPhotoPath)
-		}
-	}
+	fmt.Printf("DEBUG HandlePhotoUpload: Part found: ID=%d, current photos=%v\n", part.ID, part.Photos)
 
 	// Получить загруженный файл
 	file, err := c.FormFile("photo")
@@ -152,10 +166,45 @@ func HandlePhotoUpload(c *gin.Context, partID uint) (string, error) {
 	}
 	fmt.Printf("DEBUG HandlePhotoUpload: File saved successfully\n")
 
-	// Обновить часть с путем к фото
+	// Обновить часть с путем к фото (добавить в массив photos)
 	photoPath := "/uploads/" + filename
-	fmt.Printf("DEBUG HandlePhotoUpload: Updating database with photo path: %s\n", photoPath)
-	if err := db.Model(&Part{}).Where("id = ?", partID).Update("photo", photoPath).Error; err != nil {
+	fmt.Printf("DEBUG HandlePhotoUpload: Adding photo path to array: %s\n", photoPath)
+
+	// Получить текущий массив фото
+	currentPhotos := make(StringArray, len(part.Photos))
+	copy(currentPhotos, part.Photos)
+
+	// Для обратной совместимости, если есть старое поле photo и его нет в массиве
+	if part.Photo != "" {
+		found := false
+		for _, photo := range currentPhotos {
+			if photo == part.Photo {
+				found = true
+				break
+			}
+		}
+		if !found {
+			currentPhotos = append(currentPhotos, part.Photo)
+		}
+	}
+
+	// Добавить новое фото, если его еще нет в массиве
+	photoExists := false
+	for _, existingPhoto := range currentPhotos {
+		if existingPhoto == photoPath {
+			photoExists = true
+			break
+		}
+	}
+	if !photoExists {
+		currentPhotos = append(currentPhotos, photoPath)
+		fmt.Printf("DEBUG HandlePhotoUpload: Photo added to array\n")
+	} else {
+		fmt.Printf("DEBUG HandlePhotoUpload: Photo already exists in array, not adding duplicate\n")
+	}
+
+	// Обновить используя GORM - StringArray автоматически сериализуется
+	if err := db.Model(&Part{}).Where("id = ?", partID).Update("photos", currentPhotos).Error; err != nil {
 		fmt.Printf("DEBUG HandlePhotoUpload: Failed to update database: %v\n", err)
 		// Попытаться очистить загруженный файл, если обновление базы данных не удалось
 		if err := os.Remove(filePath); err != nil {
@@ -168,28 +217,86 @@ func HandlePhotoUpload(c *gin.Context, partID uint) (string, error) {
 	return photoPath, nil
 }
 
-// DeletePhoto удаляет фото запчасти
-func DeletePhoto(partID uint) error {
+// DeletePhoto удаляет конкретное фото или все фото запчасти
+// Если photoPath пустой, удаляет все фото
+func DeletePhoto(partID uint, photoPath string) error {
+	fmt.Printf("DeletePhoto: Starting deletion for partID=%d, photoPath='%s'\n", partID, photoPath)
+
 	// Проверить, существует ли часть
 	var part Part
 	if err := db.First(&part, partID).Error; err != nil {
+		fmt.Printf("DeletePhoto: Part not found: %v\n", err)
 		return fmt.Errorf("часть не найдена")
 	}
 
-	// Удалить файл фото, если он существует
-	if part.Photo != "" {
-		photoPath := strings.TrimPrefix(part.Photo, "/")
-		if err := os.Remove(photoPath); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("не удалось удалить файл фото")
-		}
-	}
+	fmt.Printf("DeletePhoto: Part found, current photos: %v\n", part.Photos)
 
-	// Обновить часть, установив photo в NULL
-	if err := db.Model(&Part{}).Where("id = ?", partID).Update("photo", nil).Error; err != nil {
-		return fmt.Errorf("не удалось обновить часть")
+	if photoPath == "" {
+		fmt.Printf("DeletePhoto: Deleting all photos\n")
+		// Удалить все фото
+		for _, p := range part.Photos {
+			if p != "" {
+				filePath := strings.TrimPrefix(p, "/")
+				fmt.Printf("DeletePhoto: Removing file: %s\n", filePath)
+				if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
+					fmt.Printf("Warning: Failed to remove photo file %s: %v\n", filePath, err)
+				}
+			}
+		}
+
+		// Обновить часть, установив photos в пустой массив
+		if err := db.Model(&Part{}).Where("id = ?", partID).Update("photos", StringArray{}).Error; err != nil {
+			fmt.Printf("DeletePhoto: Failed to update database: %v\n", err)
+			return fmt.Errorf("не удалось обновить часть")
+		}
+		fmt.Printf("DeletePhoto: All photos deleted successfully\n")
+	} else {
+		fmt.Printf("DeletePhoto: Deleting specific photo: %s\n", photoPath)
+		// Удалить только первое вхождение конкретного фото из массива
+		newPhotos := make(StringArray, 0)
+		photoDeleted := false
+
+		for _, p := range part.Photos {
+			if p == photoPath && !photoDeleted {
+				// Удалить файл только для первого вхождения
+				filePath := strings.TrimPrefix(p, "/")
+				fmt.Printf("DeletePhoto: Removing file: %s\n", filePath)
+				if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
+					fmt.Printf("Warning: Failed to remove photo file %s: %v\n", filePath, err)
+				}
+				photoDeleted = true
+				fmt.Printf("DeletePhoto: Photo found and file removed\n")
+				// Не добавлять это фото в newPhotos
+			} else {
+				newPhotos = append(newPhotos, p)
+			}
+		}
+
+		if !photoDeleted {
+			fmt.Printf("DeletePhoto: Photo not found in array\n")
+			return fmt.Errorf("фото не найдено в массиве")
+		}
+
+		fmt.Printf("DeletePhoto: New photos array: %v\n", newPhotos)
+		// Обновить массив фото
+		if err := db.Model(&Part{}).Where("id = ?", partID).Update("photos", newPhotos).Error; err != nil {
+			fmt.Printf("DeletePhoto: Failed to update database: %v\n", err)
+			return fmt.Errorf("не удалось обновить часть")
+		}
+		fmt.Printf("DeletePhoto: Specific photo deleted successfully\n")
 	}
 
 	return nil
+}
+
+// contains проверяет, содержит ли слайс строку
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
 }
 
 // DeletePhotoFile удаляет файл фото

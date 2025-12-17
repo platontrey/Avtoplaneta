@@ -35,7 +35,7 @@ export default function BulkDeleteDialog({ isOpen, onClose, selectedPartIds, onS
         },
         credentials: 'include',
         body: JSON.stringify({
-          partIds: selectedPartIds,
+          ids: selectedPartIds,
         }),
       });
 

@@ -61,10 +61,10 @@ func GenerateXMLPriceList(parts []Part) ([]byte, error) {
 			continue
 		}
 
-		// Формируем полный URL для фотографии
+		// Формируем полный URL для фотографии (используем первое фото из массива)
 		pictureURL := ""
-		if part.Photo != "" {
-			pictureURL = "https://avtoplaneta70.ru" + part.Photo
+		if len(part.Photos) > 0 && part.Photos[0] != "" {
+			pictureURL = "https://avtoplaneta70.ru" + part.Photos[0]
 		}
 
 		// Устанавливаем condition по умолчанию "Б/у" если не указано

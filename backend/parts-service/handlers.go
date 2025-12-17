@@ -281,9 +281,18 @@ func (h *Handler) UploadPartPhotoHandler(c *gin.Context) {
 	// Получить файл для размера и типа
 	file, _ := c.FormFile("photo")
 
+	// Получить обновленную часть для возврата всех фото
+	var updatedPart Part
+	if err := db.First(&updatedPart, partID).Error; err != nil {
+		fmt.Printf("DEBUG UploadPartPhotoHandler: Failed to fetch updated part: %v\n", err)
+	} else {
+		fmt.Printf("DEBUG UploadPartPhotoHandler: Updated part photos: %v\n", updatedPart.Photos)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"message":  "Фото загружено успешно",
 		"photo":    photoPath,
+		"photos":   updatedPart.Photos,
 		"filename": file.Filename,
 		"size":     file.Size,
 		"type":     file.Header.Get("Content-Type"),
@@ -299,14 +308,24 @@ func (h *Handler) DeletePartPhotoHandler(c *gin.Context) {
 		return
 	}
 
-	if err := h.inventoryService.DeletePartPhoto(uint(partID)); err != nil {
+	// Получить путь к конкретному фото из query параметров (опционально)
+	photoPath := c.Query("photo")
+	fmt.Printf("DeletePartPhotoHandler: partID=%d, photoPath='%s'\n", partID, photoPath)
+
+	if err := h.inventoryService.DeletePartPhoto(uint(partID), photoPath); err != nil {
+		fmt.Printf("DeletePartPhotoHandler: Error deleting photo: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Логируем удаление фото
 	partIDUint := uint(partID)
-	h.logUserActivity(c, "delete_photo", "part", fmt.Sprintf("Deleted photo for part ID: %d", partID), &partIDUint)
+	photoInfo := "all photos"
+	if photoPath != "" {
+		photoInfo = photoPath
+	}
+	fmt.Printf("DeletePartPhotoHandler: Successfully deleted %s for part ID %d\n", photoInfo, partID)
+	h.logUserActivity(c, "delete_photo", "part", fmt.Sprintf("Deleted photo %s for part ID: %d", photoInfo, partID), &partIDUint)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Фото удалено успешно"})
 }
@@ -318,11 +337,18 @@ func (h *Handler) BulkDeletePartsHandler(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&requestData); err != nil {
+		logrus.WithError(err).Error("BulkDeletePartsHandler: Failed to bind JSON")
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный формат данных"})
 		return
 	}
 
+	logrus.WithFields(logrus.Fields{
+		"ids": requestData.IDs,
+		"count": len(requestData.IDs),
+	}).Info("BulkDeletePartsHandler: Received request")
+
 	if err := h.inventoryService.BulkDeleteParts(requestData.IDs); err != nil {
+		logrus.WithError(err).Error("BulkDeletePartsHandler: Failed to bulk delete parts")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось удалить запчасти"})
 		return
 	}
@@ -330,6 +356,7 @@ func (h *Handler) BulkDeletePartsHandler(c *gin.Context) {
 	// Логируем массовое удаление
 	h.logUserActivity(c, "bulk_delete_parts", "part", fmt.Sprintf("Bulk deleted %d parts", len(requestData.IDs)), nil)
 
+	logrus.Info("BulkDeletePartsHandler: Successfully deleted parts")
 	c.JSON(http.StatusOK, gin.H{"message": "Запчасти удалены успешно"})
 }
 
@@ -337,19 +364,31 @@ func (h *Handler) BulkDeletePartsHandler(c *gin.Context) {
 func (h *Handler) BulkUpdatePartsHandler(c *gin.Context) {
 	var updates []map[string]interface{}
 	if err := c.ShouldBindJSON(&updates); err != nil {
+		logrus.WithError(err).Error("BulkUpdatePartsHandler: Failed to bind JSON")
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный формат данных"})
 		return
 	}
 
-	if err := h.inventoryService.BulkUpdateParts(updates); err != nil {
+	logrus.WithFields(logrus.Fields{
+		"updates": updates,
+		"count": len(updates),
+	}).Info("BulkUpdatePartsHandler: Received request")
+
+	updatedCount, err := h.inventoryService.BulkUpdateParts(updates)
+	if err != nil {
+		logrus.WithError(err).Error("BulkUpdatePartsHandler: Failed to bulk update parts")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось обновить запчасти"})
 		return
 	}
 
 	// Логируем массовое обновление
-	h.logUserActivity(c, "bulk_update_parts", "part", fmt.Sprintf("Bulk updated %d parts", len(updates)), nil)
+	h.logUserActivity(c, "bulk_update_parts", "part", fmt.Sprintf("Bulk updated %d parts", updatedCount), nil)
 
-	c.JSON(http.StatusOK, gin.H{"message": "Запчасти обновлены успешно"})
+	logrus.Info("BulkUpdatePartsHandler: Successfully updated parts")
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Запчасти обновлены успешно",
+		"updated_count": updatedCount,
+	})
 }
 
 // DeleteZeroQuantityPartsBySupplierHandler удаляет запчасти с нулевым количеством по поставщику

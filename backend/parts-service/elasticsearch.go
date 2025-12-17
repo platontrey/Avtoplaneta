@@ -23,18 +23,18 @@ func NewElasticsearchAdapter() ElasticsearchClient {
 }
 
 type ElasticsearchPart struct {
-	ID          uint    `json:"id"`
-	Name        string  `json:"name"`
-	Quantity    int     `json:"quantity"`
-	Description string  `json:"description"`
-	Category    string  `json:"category"`
-	Price       float64 `json:"price"`
-	Salesman    string  `json:"salesman"`
-	Location    string  `json:"location"`
-	Status      bool    `json:"status"`
-	Brand       string  `json:"brand"`
-	Model       string  `json:"model"`
-	Photo       string  `json:"photo"`
+	ID          uint     `json:"id"`
+	Name        string   `json:"name"`
+	Quantity    int      `json:"quantity"`
+	Description string   `json:"description"`
+	Category    string   `json:"category"`
+	Price       float64  `json:"price"`
+	Salesman    string   `json:"salesman"`
+	Location    string   `json:"location"`
+	Status      bool     `json:"status"`
+	Brand       string   `json:"brand"`
+	Model       string   `json:"model"`
+	Photos      []string `json:"photos"`
 }
 
 // InitElasticsearch initializes the Elasticsearch client
@@ -145,7 +145,7 @@ func CreatePartsIndex() error {
 						}
 					}
 				},
-				"photo": {
+				"photos": {
 					"type": "keyword"
 				},
 				"inn": {
@@ -198,7 +198,7 @@ func IndexPart(part *Part) error {
 		Status:      part.Status,
 		Brand:       part.Brand,
 		Model:       part.Model,
-		Photo:       part.Photo,
+		Photos:      part.Photos,
 	}
 
 	body, err := json.Marshal(esPart)

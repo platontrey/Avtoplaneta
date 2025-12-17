@@ -175,13 +175,12 @@ interface User {
 
 export default function AddPart() {
     const [loading, setLoading] = useState<boolean>(false);
-    const [photoFile, setPhotoFile] = useState<File | null>(null);
-    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+    const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+    const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
     const [users, setUsers] = useState<User[]>([]);
     const [loadingUsers, setLoadingUsers] = useState<boolean>(true);
     const [showCropper, setShowCropper] = useState<boolean>(false);
     const [tempImageSrc, setTempImageSrc] = useState<string | File>("");
-    const [originalFile, setOriginalFile] = useState<File | null>(null);
 
     const {
         register,
@@ -271,34 +270,38 @@ export default function AddPart() {
 
 
     const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        console.log('AddPart handlePhotoChange: file selected:', file?.name, 'size:', file?.size, 'type:', file?.type);
-        if (file) {
+        const files = Array.from(e.target.files || []);
+        console.log('AddPart handlePhotoChange: files selected:', files.map(f => f.name));
+
+        const validFiles: File[] = [];
+        const validPreviews: string[] = [];
+
+        for (const file of files) {
             // Validate file type - only allow images
             if (!file.type.startsWith('image/')) {
-                alert('Please select a valid image file.');
-                return;
+                alert(`Файл ${file.name} не является изображением.`);
+                continue;
             }
 
             // Validate file size (max 5MB to prevent memory issues)
             const maxSize = 5 * 1024 * 1024; // 5MB
             if (file.size > maxSize) {
-                alert('File size must be less than 5MB.');
-                return;
+                alert(`Размер файла ${file.name} должен быть менее 5МБ.`);
+                continue;
             }
 
-            console.log('AddPart handlePhotoChange: current name value:', watch('name'));
-            const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
-            console.log('AddPart handlePhotoChange: file name without extension:', fileNameWithoutExt);
+            validFiles.push(file);
+            validPreviews.push(URL.createObjectURL(file));
+        }
 
-            // Copy the file name (without extension) to the name field
-            console.log('AddPart handlePhotoChange: setting name to file name');
+        if (validFiles.length > 0) {
+            // Copy the first file name (without extension) to the name field
+            const firstFile = validFiles[0];
+            const fileNameWithoutExt = firstFile.name.replace(/\.[^/.]+$/, "");
             setValue('name', fileNameWithoutExt);
 
-            setOriginalFile(file);
-            setPhotoFile(file);
-
-            setPhotoPreview(URL.createObjectURL(file));
+            setPhotoFiles(prev => [...prev, ...validFiles]);
+            setPhotoPreviews(prev => [...prev, ...validPreviews]);
         }
     };
 
@@ -311,9 +314,30 @@ export default function AddPart() {
         }
         const croppedFile = new File([croppedImageBlob], 'cropped-image.jpg', { type: 'image/jpeg' });
         console.log('AddPart handleCropComplete: Created file:', croppedFile.name, 'size:', croppedFile.size, 'type:', croppedFile.type);
-        setPhotoFile(croppedFile);
-        setOriginalFile(croppedFile); // Update originalFile to cropped version
-        setPhotoPreview(URL.createObjectURL(croppedFile));
+
+        // Replace the first photo with cropped version
+        setPhotoFiles(prev => {
+            const newFiles = [...prev];
+            if (newFiles.length > 0) {
+                newFiles[0] = croppedFile;
+            } else {
+                newFiles.push(croppedFile);
+            }
+            return newFiles;
+        });
+
+        setPhotoPreviews(prev => {
+            const newPreviews = [...prev];
+            if (newPreviews.length > 0) {
+                // Revoke old URL to prevent memory leaks
+                URL.revokeObjectURL(newPreviews[0]);
+                newPreviews[0] = URL.createObjectURL(croppedFile);
+            } else {
+                newPreviews.push(URL.createObjectURL(croppedFile));
+            }
+            return newPreviews;
+        });
+
         setShowCropper(false);
         setTempImageSrc("");
     };
@@ -395,61 +419,61 @@ export default function AddPart() {
             const result = await response.json().catch(() => ({ message: "OK" }));
 
 
-            // Если фото выбрано, загрузить
-             if (photoFile) {
-                 console.log('AddPart onSubmit: Uploading photo for new part, photoFile:', photoFile, 'part ID:', result.id, 'size:', photoFile.size, 'type:', photoFile.type);
-                 const photoFormData = new FormData();
-                 photoFormData.append("photo", photoFile);
+            // Если фото выбраны, загрузить их параллельно для улучшения производительности
+             if (photoFiles.length > 0) {
+                  console.log('AddPart onSubmit: Uploading photos for new part, photoFiles:', photoFiles.length, 'part ID:', result.id);
 
-                 console.log('AddPart onSubmit: FormData contents:');
-                 for (const [key, value] of photoFormData.entries()) {
-                     console.log(`AddPart onSubmit: ${key}:`, value, 'Type:', value instanceof File ? 'File' : typeof value);
-                     if (value instanceof File) {
-                         console.log('AddPart onSubmit: File details:', { name: value.name, size: value.size, type: value.type, lastModified: value.lastModified });
-                     }
-                 }
+                  // Краткая задержка для обеспечения полного создания запчасти
+                  await new Promise(resolve => setTimeout(resolve, 100));
 
-                 // Краткая задержка для обеспечения полного создания запчасти
-                 await new Promise(resolve => setTimeout(resolve, 100));
+                  try {
+                      // Загружаем все фото параллельно для оптимизации INP
+                      const uploadPromises = photoFiles.map(async (photoFile, i) => {
+                          console.log(`AddPart onSubmit: Uploading photo ${i + 1}/${photoFiles.length}:`, photoFile.name, 'size:', photoFile.size, 'type:', photoFile.type);
 
-                 try {
-                     const uploadUrl = `http://localhost:8081/api/uploadpartphoto/${result.id}`;
-                     console.log('AddPart onSubmit: Making photo upload request to:', uploadUrl);
-                     console.log('AddPart onSubmit: CSRF Token:', getAuthHeaders()['X-CSRF-Token'] || 'none');
+                          const photoFormData = new FormData();
+                          photoFormData.append("photo", photoFile);
 
-                     const photoResponse = await fetch(uploadUrl, {
-                         method: "POST",
-                         headers: {
-                             'X-CSRF-Token': getAuthHeaders()['X-CSRF-Token'] || '',
-                         },
-                         credentials: 'include',
-                         body: photoFormData,
-                     });
+                          const uploadUrl = `http://localhost:8081/api/uploadpartphoto/${result.id}`;
+                          console.log('AddPart onSubmit: Making photo upload request to:', uploadUrl);
 
-                     console.log('AddPart onSubmit: Photo upload response status:', photoResponse.status, 'OK:', photoResponse.ok);
-                     console.log('AddPart onSubmit: Response headers:', Object.fromEntries(photoResponse.headers.entries()));
+                          const photoResponse = await fetch(uploadUrl, {
+                              method: "POST",
+                              headers: {
+                                  'X-CSRF-Token': getAuthHeaders()['X-CSRF-Token'] || '',
+                              },
+                              credentials: 'include',
+                              body: photoFormData,
+                          });
 
-                     if (photoResponse.ok) {
-                         const photoResult = await photoResponse.json();
-                         console.log('AddPart onSubmit: Photo upload successful:', photoResult);
-                     } else {
-                         const errorText = await photoResponse.text();
-                         console.error("AddPart onSubmit: Failed to upload photo:", errorText);
-                         alert('Запчасть создана, но загрузка фото не удалась. Вы можете загрузить фото позже, отредактировав запчасть.');
-                     }
-                 } catch (error) {
-                     console.error('AddPart onSubmit: Error during photo upload:', error);
-                     alert('Запчасть создана, но загрузка фото не удалась. Вы можете загрузить фото позже, отредактировав запчасть.');
-                 }
+                          console.log(`AddPart onSubmit: Photo ${i + 1} upload response status:`, photoResponse.status);
+
+                          if (!photoResponse.ok) {
+                              const errorText = await photoResponse.text();
+                              console.error(`AddPart onSubmit: Failed to upload photo ${i + 1}:`, errorText);
+                              throw new Error(`Failed to upload photo ${i + 1}`);
+                          } else {
+                              const photoResult = await photoResponse.json();
+                              console.log(`AddPart onSubmit: Photo ${i + 1} upload successful:`, photoResult);
+                              return photoResult;
+                          }
+                      });
+
+                      // Ждем завершения всех загрузок параллельно
+                      await Promise.allSettled(uploadPromises);
+                  } catch (error) {
+                      console.error('AddPart onSubmit: Error during photo uploads:', error);
+                      alert('Запчасть создана, но загрузка некоторых фото не удалась.');
+                  }
+              } else {
+                  console.log('AddPart onSubmit: No photo files selected for upload');
+              }
+
+            if (photoFiles.length > 0) {
+                 alert(`Запчасть и ${photoFiles.length} фото успешно добавлены!`);
              } else {
-                 console.log('AddPart onSubmit: No photo file selected for upload');
+                 alert(result.message || "Запчасть успешно добавлена!");
              }
-
-            if (photoFile) {
-                alert("Запчасть и фото успешно добавлены!");
-            } else {
-                alert(result.message || "Запчасть успешно добавлена!");
-            }
 
             // Перейти к инвентарю и обновить для отображения новой запчасти
             window.location.href = '/inventory';
@@ -458,6 +482,7 @@ export default function AddPart() {
             alert("Ошибка сети при добавлении запчасти");
         } finally {
             setLoading(false);
+            console.timeEnd('AddPart.onSubmit');
         }
     };
 
@@ -712,6 +737,7 @@ export default function AddPart() {
                                         id="photo"
                                         name="photo"
                                         accept="image/*"
+                                        multiple
                                         onChange={handlePhotoChange}
                                         className="hidden"
                                         autoComplete="off"
@@ -720,31 +746,55 @@ export default function AddPart() {
                                         htmlFor="photo"
                                         className="flex items-center justify-center w-full h-24 sm:h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition-colors"
                                     >
-                                        {photoPreview ? (
-                                            <img
-                                                src={photoPreview}
-                                                alt="Preview"
-                                                className="max-h-20 sm:max-h-28 max-w-full object-contain"
-                                            />
+                                        {photoPreviews.length > 0 ? (
+                                            <div className="flex flex-wrap gap-2 justify-center">
+                                                {photoPreviews.slice(0, 3).map((preview, index) => (
+                                                    <img
+                                                        key={index}
+                                                        src={preview}
+                                                        alt={`Preview ${index + 1}`}
+                                                        className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded"
+                                                    />
+                                                ))}
+                                                {photoPreviews.length > 3 && (
+                                                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-200 rounded flex items-center justify-center text-sm text-gray-600">
+                                                        +{photoPreviews.length - 3}
+                                                    </div>
+                                                )}
+                                            </div>
                                         ) : (
                                             <div className="text-center">
                                                 <Upload className="mx-auto h-6 w-6 sm:h-8 sm:w-8 text-gray-400" />
-                                                <p className="mt-2 text-xs sm:text-sm text-gray-500">Нажмите для выбора фото</p>
+                                                <p className="mt-2 text-xs sm:text-sm text-gray-500">Нажмите для выбора фото (несколько)</p>
                                             </div>
                                         )}
                                     </label>
-                                    {originalFile && (
-                                        <div className="mt-2 flex justify-center">
+                                    {photoFiles.length > 0 && (
+                                        <div className="mt-2 flex justify-center gap-2">
                                             <Button
                                                 type="button"
                                                 onClick={() => {
-                                                    setTempImageSrc(originalFile);
+                                                    setTempImageSrc(photoFiles[0]);
                                                     setShowCropper(true);
                                                 }}
                                                 variant="outline"
                                                 size="sm"
                                             >
-                                                Изменить фото
+                                                Изменить первое фото
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                onClick={() => {
+                                                    setPhotoFiles([]);
+                                                    setPhotoPreviews(prev => {
+                                                        prev.forEach(URL.revokeObjectURL);
+                                                        return [];
+                                                    });
+                                                }}
+                                                variant="outline"
+                                                size="sm"
+                                            >
+                                                Очистить
                                             </Button>
                                         </div>
                                     )}

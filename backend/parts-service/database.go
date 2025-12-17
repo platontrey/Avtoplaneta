@@ -23,6 +23,9 @@ func InitDB(config *Config) {
 	if err := db.AutoMigrate(&Part{}); err != nil {
 		log.Fatal("Не удалось выполнить миграцию:", err)
 	}
+
+	// Выполнение кастомных миграций
+	RunMigrations(db)
 }
 
 // ReindexAllParts переиндексирует все существующие запчасти в Elasticsearch

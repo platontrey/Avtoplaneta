@@ -27,14 +27,14 @@ type InventoryService interface {
 	GetStatistics() (StatisticsResponse, error)               // Получает статистику по инвентарю
 
 	// BulkDeleteParts Админ операции
-	BulkDeleteParts(ids []uint) error                            // Массовое удаление запчастей
-	BulkUpdateParts(updates []map[string]interface{}) error      // Массовое обновление запчастей
+	BulkDeleteParts(ids []uint) error                                       // Массовое удаление запчастей
+	BulkUpdateParts(updates []map[string]interface{}) (int, error)         // Массовое обновление запчастей
 	DeleteZeroQuantityPartsBySupplier(supplierCode string) (int64, error) // Удаление по поставщику
 	GetSupplierCodes() ([]string, error)                         // Получение кодов поставщиков
 
 	// UploadPartPhoto Фото операции
 	UploadPartPhoto(id uint, c *gin.Context) (string, error) // Загрузка фото запчасти
-	DeletePartPhoto(id uint) error                           // Удаление фото запчасти
+	DeletePartPhoto(id uint, photoPath string) error         // Удаление фото запчасти (если photoPath пустой - удаляет все)
 
 	// GetPartByID Получение запчасти по ID
 	GetPartByID(id uint) (*Part, error)
@@ -179,7 +179,7 @@ func (s *inventoryService) getInventoryFromElasticsearch(params InventoryQueryPa
 					Status:      esPart.Status,
 					Brand:       esPart.Brand,
 					Model:       esPart.Model,
-					Photo:       esPart.Photo,
+					Photos:      esPart.Photos,
 				},
 			}
 			parts = append(parts, part)
@@ -250,9 +250,9 @@ func (s *inventoryService) getInventoryFromDatabase(params InventoryQueryParams)
 			}
 		case "hasPhoto":
 			if value == "with" {
-				query = query.Where("photo IS NOT NULL AND photo != ''")
+				query = query.Where("photos IS NOT NULL AND jsonb_array_length(photos) > 0")
 			} else if value == "without" {
-				query = query.Where("(photo IS NULL OR photo = '')")
+				query = query.Where("(photos IS NULL OR jsonb_array_length(photos) = 0)")
 			}
 		}
 	}
@@ -364,10 +364,12 @@ func (s *inventoryService) DeletePart(id uint) error {
 		return err
 	}
 
-	// Удаляем фото если есть
-	if part.Photo != "" {
-		if err := DeletePhotoFile(part.Photo); err != nil {
-			fmt.Printf("Warning: Failed to delete photo file: %v\n", err)
+	// Удаляем все фото если есть
+	for _, photoPath := range part.Photos {
+		if photoPath != "" {
+			if err := DeletePhotoFile(photoPath); err != nil {
+				fmt.Printf("Warning: Failed to delete photo file: %v\n", err)
+			}
 		}
 	}
 
@@ -409,12 +411,64 @@ func (s *inventoryService) GetStatistics() (StatisticsResponse, error) {
 
 // BulkDeleteParts удаляет несколько запчастей
 func (s *inventoryService) BulkDeleteParts(ids []uint) error {
-	return s.repo.BulkDelete(ids)
+	logrus.WithFields(logrus.Fields{
+		"ids": ids,
+		"count": len(ids),
+	}).Info("InventoryService.BulkDeleteParts: Starting bulk delete")
+
+	// Сначала получить все части для удаления фото
+	for _, id := range ids {
+		part, err := s.repo.FindByID(id)
+		if err != nil {
+			logrus.WithError(err).WithField("id", id).Warn("InventoryService.BulkDeleteParts: Failed to find part for photo deletion")
+			continue
+		}
+
+		// Удаляем все фото если есть
+		for _, photoPath := range part.Photos {
+			if photoPath != "" {
+				if err := DeletePhotoFile(photoPath); err != nil {
+					logrus.WithError(err).WithFields(logrus.Fields{
+						"id": id,
+						"photoPath": photoPath,
+					}).Warn("InventoryService.BulkDeleteParts: Failed to delete photo file")
+				}
+			}
+		}
+
+		// Удаляем из Elasticsearch
+		if s.es != nil {
+			if err := DeletePartFromIndex(id); err != nil {
+				logrus.WithError(err).WithField("id", id).Warn("InventoryService.BulkDeleteParts: Failed to remove part from Elasticsearch index")
+			}
+		}
+	}
+
+	err := s.repo.BulkDelete(ids)
+	if err != nil {
+		logrus.WithError(err).Error("InventoryService.BulkDeleteParts: Failed to bulk delete")
+		return err
+	}
+
+	logrus.Info("InventoryService.BulkDeleteParts: Successfully completed bulk delete")
+	return nil
 }
 
 // BulkUpdateParts обновляет несколько запчастей
-func (s *inventoryService) BulkUpdateParts(updates []map[string]interface{}) error {
-	return s.repo.BulkUpdate(updates)
+func (s *inventoryService) BulkUpdateParts(updates []map[string]interface{}) (int, error) {
+	logrus.WithFields(logrus.Fields{
+		"updates": updates,
+		"count": len(updates),
+	}).Info("InventoryService.BulkUpdateParts: Starting bulk update")
+
+	updatedCount, err := s.repo.BulkUpdate(updates)
+	if err != nil {
+		logrus.WithError(err).Error("InventoryService.BulkUpdateParts: Failed to bulk update")
+		return 0, err
+	}
+
+	logrus.Info("InventoryService.BulkUpdateParts: Successfully completed bulk update")
+	return updatedCount, nil
 }
 
 // DeleteZeroQuantityPartsBySupplier удаляет запчасти с нулевым количеством по поставщику
@@ -448,8 +502,8 @@ func (s *inventoryService) UploadPartPhoto(id uint, c *gin.Context) (string, err
 }
 
 // DeletePartPhoto удаляет фото
-func (s *inventoryService) DeletePartPhoto(id uint) error {
-	return DeletePhoto(id)
+func (s *inventoryService) DeletePartPhoto(id uint, photoPath string) error {
+	return DeletePhoto(id, photoPath)
 }
 
 // GetPartByID получает запчасть по ID
