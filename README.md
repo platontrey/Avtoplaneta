@@ -302,4 +302,5 @@ Copyright (c) 2025 Avtoplaneta. Все права защищены.
 - [Frontend](frontend/README.md)
 - [Mobile App](AvtoplanetaApp/README.md)
 
-https://camo.githubusercontent.com/1b82c3e3917503370e227d5fca9c5c75c77093aae9a0bf269f2bbd24b911d737/68747470733a2f2f666f6e74732e677374617469632e636f6d2f732f652f6e6f746f656d6f6a692f6c61746573742f31663666382f3531322e676966
+<p align="center">
+<img src="https://fonts.gstatic.com/s/e/notoemoji/latest/1f6f8/512.gif" alt="🛸" width="132" height="132">
