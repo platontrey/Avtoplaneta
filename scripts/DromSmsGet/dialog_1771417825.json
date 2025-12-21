@@ -1,0 +1,31 @@
+{
+    "dialog_id": "1771417825",
+    "interlocutor": "AVKMotors777",
+    "messages_count": 3,
+    "messages": [
+        {
+            "id": "1771417825",
+            "author": "Я",
+            "direction": "outgoing",
+            "time": "01:27",
+            "text": "Можете отправить деловыми линиями?",
+            "is_read": true
+        },
+        {
+            "id": "1771418487",
+            "author": "AVKMotors777",
+            "direction": "incoming",
+            "time": "01:31",
+            "text": "Здравствуйте",
+            "is_read": false
+        },
+        {
+            "id": "1771418498",
+            "author": "AVKMotors777",
+            "direction": "incoming",
+            "time": "01:31",
+            "text": "Да",
+            "is_read": false
+        }
+    ]
+}

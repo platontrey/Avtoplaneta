@@ -1,4 +1,4 @@
-import type { Conversation, Message, User, UserStatus, Notification, Reaction } from '../types';
+import type { Conversation, Message, User, UserStatus, Notification, Reaction, DromDialog, DromMessage } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
@@ -139,6 +139,41 @@ class MessagingApi {
     if (!response.ok) throw new Error('Failed to fetch users');
     const data = await response.json();
     return data.users;
+  }
+
+  // === DROM METHODS ===
+
+  async getDromDialogs(): Promise<DromDialog[]> {
+    const response = await fetch(`${API_BASE_URL}/api/messaging/drom/dialogs`, {
+      headers: this.getHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to fetch Drom dialogs');
+    const data = await response.json();
+    return data.dialogs;
+  }
+
+  async getDromMessages(dialogId: string): Promise<DromMessage[]> {
+    const response = await fetch(`${API_BASE_URL}/api/messaging/drom/messages?dialog_id=${encodeURIComponent(dialogId)}`, {
+      headers: this.getHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to fetch Drom messages');
+    const data = await response.json();
+    return data.messages;
+  }
+
+  async sendDromMessage(dialogId: string, content: string): Promise<DromMessage> {
+    const response = await fetch(`${API_BASE_URL}/api/messaging/drom/messages`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ dialog_id: dialogId, content }),
+    });
+    if (!response.ok) throw new Error('Failed to send Drom message');
+    return response.json();
+  }
+
+  async fetchDromMessages(): Promise<DromDialog[]> {
+    // Assuming this refreshes dialogs
+    return this.getDromDialogs();
   }
 
 }

@@ -310,6 +310,22 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
+              {user.role === 'operator' && (
+                <DropdownMenuItem asChild>
+                  <Link to="/operator-instructions" className="flex items-center">
+                    <BookOpen className="w-4 h-4 mr-2" />
+                    Инструкция оператора
+                  </Link>
+                </DropdownMenuItem>
+              )}
+              {user.role === 'manager' && (
+                <DropdownMenuItem asChild>
+                  <Link to="/manager-instructions" className="flex items-center">
+                    <BookOpen className="w-4 h-4 mr-2" />
+                    Инструкция менеджера
+                  </Link>
+                </DropdownMenuItem>
+              )}
               {user.role === 'admin' && (
                 <>
                   <DropdownMenuItem asChild>
@@ -327,6 +343,7 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
                   <DropdownMenuSeparator />
                 </>
               )}
+              {(user.role === 'operator' || user.role === 'manager') && <DropdownMenuSeparator />}
               <DropdownMenuItem onClick={onLogout} className="text-red-600">
                 <LogOut className="w-4 h-4 mr-2" />
                 Выйти

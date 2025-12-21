@@ -30,6 +30,7 @@ export function useAuth(): AuthState & {
 
   const login = useCallback(async (credentials: LoginCredentials) => {
     const userData = await authApi.login(credentials);
+    console.log('userData from login:', userData);
     const userWithInitials = {
       ...userData,
       initials: userData.name ? userData.name.split(' ').map(n => n[0]).join('').toUpperCase() : '',

@@ -71,7 +71,7 @@ func (h *Handler) GoogleAuthCallbackHandler(c *gin.Context) {
 		"ip":    c.ClientIP(),
 	}).Info("Google login successful")
 
-	c.JSON(http.StatusOK, gin.H{"message": "Login successful", "user": createdUser})
+	c.JSON(http.StatusOK, createdUser)
 }
 
 // UserLoginHandler обрабатывает вход пользователя с email и паролем
@@ -104,7 +104,7 @@ func (h *Handler) UserLoginHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Вход выполнен успешно", "user": user})
+	c.JSON(http.StatusOK, user)
 }
 
 // LogoutHandler обрабатывает выход пользователя

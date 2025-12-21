@@ -2,12 +2,17 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"net/url"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/gin-gonic/gin"
 )
 
@@ -43,6 +48,11 @@ func setupRoutes(r *gin.Engine) {
 
 		// Search
 		api.GET("/search", searchMessages)
+
+		// Drom
+		api.GET("/drom/dialogs", getDromDialogs)
+		api.GET("/drom/messages", getDromMessages)
+		api.POST("/drom/messages", sendDromMessage)
 	}
 }
 
@@ -285,6 +295,308 @@ func getMessages(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"messages": messages})
+}
+
+// === DROM HANDLERS ===
+
+// Drom structures
+type DromDialog struct {
+	ID          int    `json:"id"`
+	DialogID    string `json:"dialog_id"`
+	Interlocutor string `json:"interlocutor"`
+	CreatedAt   string `json:"created_at"`
+	LastMessageAt string `json:"last_message_at"`
+	LastMessage *string `json:"last_message,omitempty"`
+}
+
+type DromMessage struct {
+	ID        int    `json:"id"`
+	DialogID  string `json:"dialog_id"`
+	MessageID string `json:"message_id"`
+	Author    string `json:"author"`
+	Direction string `json:"direction"`
+	Time      string `json:"time"`
+	Text      string `json:"text"`
+	IsRead    bool   `json:"is_read"`
+	CreatedAt string `json:"created_at"`
+}
+
+type InboxBrief struct {
+	DialogID     int    `json:"dialogId"`
+	Interlocutor string `json:"interlocutor"`
+}
+
+type InboxListResponse struct {
+	Briefs []InboxBrief `json:"briefs"`
+}
+
+type DromApiResponse struct {
+	Interlocutor string `json:"interlocutor"`
+	DialogHTML   string `json:"dialog"`
+}
+
+type SessionCookie struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+type SessionData struct {
+	Cookies []SessionCookie `json:"cookies"`
+}
+
+const (
+	DromSessionFile = "drom_session.json"
+	DromListURL     = "https://my.drom.ru/personal/messaging/inbox-list?ajax=1&fromIndex=0&count=50&list=personal"
+	DromViewURL     = "https://my.drom.ru/personal/messaging/view?dialogId=%s&json=true&flat-layout=false&ajax=1"
+	DromPostURL     = "https://my.drom.ru/personal/messaging/view"
+	DromUserAgent   = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+)
+
+func getDromDialogs(c *gin.Context) {
+	briefs, err := fetchDromBriefs()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	var dialogs []DromDialog
+	for _, brief := range briefs {
+		dialog := DromDialog{
+			ID:            brief.DialogID,
+			DialogID:      strconv.Itoa(brief.DialogID),
+			Interlocutor: brief.Interlocutor,
+			CreatedAt:    time.Now().Format("2006-01-02T15:04:05Z"),
+			LastMessageAt: time.Now().Format("2006-01-02T15:04:05Z"),
+		}
+		// Try to get last message from dialog
+		if msgs, err := fetchDromMessages(strconv.Itoa(brief.DialogID)); err == nil && len(msgs) > 0 {
+			lastMsg := msgs[len(msgs)-1]
+			dialog.LastMessage = &lastMsg.Text
+			if t, err := time.Parse("2006-01-02 15:04:05", lastMsg.Time); err == nil {
+				dialog.LastMessageAt = t.Format("2006-01-02T15:04:05Z")
+			}
+		}
+		dialogs = append(dialogs, dialog)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"dialogs": dialogs})
+}
+
+func getDromMessages(c *gin.Context) {
+	dialogID := c.Query("dialog_id")
+	if dialogID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "dialog_id required"})
+		return
+	}
+
+	messages, err := fetchDromMessages(dialogID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"messages": messages})
+}
+
+func sendDromMessage(c *gin.Context) {
+	var req struct {
+		DialogID string `json:"dialog_id"`
+		Content  string `json:"content"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	if req.DialogID == "" || req.Content == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "dialog_id and content required"})
+		return
+	}
+
+	err := sendDromMessageToAPI(req.DialogID, req.Content)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Return a dummy message for now
+	message := DromMessage{
+		ID:        int(time.Now().Unix()),
+		DialogID:  req.DialogID,
+		MessageID: strconv.Itoa(int(time.Now().Unix())),
+		Author:    "Я",
+		Direction: "outgoing",
+		Time:      time.Now().Format("2006-01-02 15:04:05"),
+		Text:      req.Content,
+		IsRead:    true,
+		CreatedAt: time.Now().Format("2006-01-02T15:04:05Z"),
+	}
+
+	c.JSON(http.StatusCreated, message)
+}
+
+// Helper functions
+func fetchDromBriefs() ([]InboxBrief, error) {
+	body, err := makeDromRequest(DromListURL)
+	if err != nil {
+		return nil, err
+	}
+
+	var response InboxListResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse briefs: %v", err)
+	}
+
+	return response.Briefs, nil
+}
+
+func fetchDromMessages(dialogID string) ([]DromMessage, error) {
+	url := fmt.Sprintf(DromViewURL, dialogID)
+	body, err := makeDromRequest(url)
+	if err != nil {
+		return nil, err
+	}
+
+	var apiResp DromApiResponse
+	if err := json.Unmarshal(body, &apiResp); err != nil {
+		// If not JSON, assume HTML
+		apiResp.DialogHTML = string(body)
+	}
+
+	messages := extractDromMessagesFromHTML(apiResp.DialogHTML, apiResp.Interlocutor)
+	for i := range messages {
+		messages[i].DialogID = dialogID
+	}
+	return messages, nil
+}
+
+func sendDromMessageToAPI(dialogID, text string) error {
+	formData := url.Values{}
+	formData.Set("message", text)
+	formData.Set("post", "Отправить")
+
+	reqUrl, _ := url.Parse(DromPostURL)
+	q := reqUrl.Query()
+	q.Add("dialogId", dialogID)
+	q.Add("json", "true")
+	q.Add("ajax", "1")
+	q.Add("flat-layout", "false")
+	reqUrl.RawQuery = q.Encode()
+
+	req, err := http.NewRequest("POST", reqUrl.String(), strings.NewReader(formData.Encode()))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("User-Agent", DromUserAgent)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+	req.Header.Set("Origin", "https://my.drom.ru")
+	req.Header.Set("Referer", fmt.Sprintf("https://my.drom.ru/personal/messaging-modal/dialog-%s", dialogID))
+
+	// Load cookies
+	data, err := os.ReadFile(DromSessionFile)
+	if err != nil {
+		return fmt.Errorf("failed to read session file: %v", err)
+	}
+	var session SessionData
+	json.Unmarshal(data, &session)
+	for _, c := range session.Cookies {
+		req.AddCookie(&http.Cookie{Name: c.Name, Value: c.Value})
+	}
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
+func makeDromRequest(url string) ([]byte, error) {
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Set("User-Agent", DromUserAgent)
+	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+
+	data, err := os.ReadFile(DromSessionFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read session file: %v", err)
+	}
+	var session SessionData
+	json.Unmarshal(data, &session)
+	for _, c := range session.Cookies {
+		req.AddCookie(&http.Cookie{Name: c.Name, Value: c.Value})
+	}
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	return io.ReadAll(resp.Body)
+}
+
+func extractDromMessagesFromHTML(htmlContent, interlocutorName string) []DromMessage {
+	var msgs []DromMessage
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
+	if err != nil {
+		return msgs
+	}
+
+	doc.Find(".bzr-dialog__msg-container").Each(func(i int, s *goquery.Selection) {
+		id, _ := s.Attr("data-message-id")
+
+		block := s.Find(".bzr-dialog__message")
+		if block.Length() == 0 {
+			return
+		}
+
+		text := strings.TrimSpace(block.Find(".bzr-dialog__text").Text())
+		if text == "" {
+			text = "[Вложение]"
+		}
+
+		timeVal := strings.TrimSpace(block.Find(".bzr-dialog__message-dt").Text())
+
+		author := interlocutorName
+		direction := "incoming"
+
+		if block.HasClass("bzr-dialog__message_out") {
+			author = "Я"
+			direction = "outgoing"
+		}
+
+		isRead := false
+		if val, ok := block.Find(".bzr-dialog__message-check").Attr("data-state"); ok && val == "read" {
+			isRead = true
+		}
+
+		msgs = append(msgs, DromMessage{
+			ID:        i + 1,
+			DialogID:  "", // Will be set by caller
+			MessageID: id,
+			Author:    author,
+			Direction: direction,
+			Time:      timeVal,
+			Text:      text,
+			IsRead:    isRead,
+			CreatedAt: time.Now().Format("2006-01-02T15:04:05Z"),
+		})
+	})
+	return msgs
 }
 
 // User Users
@@ -785,3 +1097,4 @@ func searchMessages(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"messages": messages})
 }
+

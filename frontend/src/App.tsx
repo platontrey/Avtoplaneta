@@ -17,6 +17,8 @@ const AddCar = lazy(() => import('./components/AddCar'));
 const DefectReport = lazy(() => import('./components/DefectReport'));
 const AdminPanel = lazy(() => import('./components/AdminPanel'));
 const Readme = lazy(() => import('./components/Readme'));
+const OperatorInstructions = lazy(() => import('./components/OperatorInstructions'));
+const ManagerInstructions = lazy(() => import('./components/ManagerInstructions'));
 const Login = lazy(() => import('./components/Login'));
 const Orders = lazy(() => import('./components/Orders'));
 const MessagesPage = lazy(() => import('./components/MessagesPage'));
@@ -49,18 +51,20 @@ function App() {
         <Header user={user} onLogout={logout} />
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>
-            <Route path="/" element={<Inventory />} />
-            <Route path="/inventory" element={<Inventory />} />
-            <Route path="/statistics" element={<Statistics />} />
-            <Route path="/messages" element={<MessagesPage />} />
-            <Route path="/add-car" element={<AddCar />} />
-            <Route path="/defect-report" element={<DefectReport />} />
-            <Route path="/add-part" element={<AddPart />} />
-            <Route path="/admin" element={<AdminPanel />} />
-            <Route path="/readme" element={<Readme user={user} />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/orders" element={<Orders />} />
-          </Routes>
+             <Route path="/" element={<Inventory />} />
+             <Route path="/inventory" element={<Inventory />} />
+             <Route path="/statistics" element={<Statistics />} />
+             <Route path="/messages" element={<MessagesPage />} />
+             <Route path="/add-car" element={<AddCar />} />
+             <Route path="/defect-report" element={<DefectReport />} />
+             <Route path="/add-part" element={<AddPart />} />
+             <Route path="/admin" element={<AdminPanel />} />
+             <Route path="/readme" element={<Readme user={user} />} />
+             <Route path="/operator-instructions" element={<OperatorInstructions />} />
+             <Route path="/manager-instructions" element={<ManagerInstructions />} />
+             <Route path="/login" element={<Login />} />
+             <Route path="/orders" element={<Orders />} />
+           </Routes>
         </Suspense>
 
         {/* ИИ-помощник */}

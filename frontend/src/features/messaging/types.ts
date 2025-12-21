@@ -58,3 +58,26 @@ export interface User {
   role: string;
   initials?: string;
 }
+
+// Drom types
+
+export interface DromDialog {
+  id: number;
+  dialog_id: string;
+  interlocutor: string;
+  created_at: string;
+  last_message_at: string;
+  last_message?: string;
+}
+
+export interface DromMessage {
+  id: number;
+  dialog_id: string;
+  message_id: string;
+  author: string;
+  direction: string;
+  time: string;
+  text: string;
+  is_read: boolean;
+  created_at: string;
+}
