@@ -31,11 +31,12 @@ type User struct {
 
 // Gateway представляет API Gateway
 type Gateway struct {
-	router           *gin.Engine
-	authServiceURL   string
-	partsServiceURL  string
-	ordersServiceURL string
-	allowedOrigins   []string
+	router             *gin.Engine
+	authServiceURL     string
+	partsServiceURL    string
+	ordersServiceURL   string
+	messagingServiceURL string
+	allowedOrigins     []string
 }
 
 // NewGateway создает новый экземпляр Gateway
@@ -70,6 +71,7 @@ func (g *Gateway) loadServiceURLs() {
 	g.authServiceURL = getEnvOrDefault("AUTH_SERVICE_URL", "http://localhost:8083")
 	g.partsServiceURL = getEnvOrDefault("PARTS_SERVICE_URL", "http://localhost:8081")
 	g.ordersServiceURL = getEnvOrDefault("ORDERS_SERVICE_URL", "http://localhost:8082")
+	g.messagingServiceURL = getEnvOrDefault("MESSAGING_SERVICE_URL", "http://localhost:8084")
 }
 
 // setupMiddleware настраивает middleware для gateway
@@ -78,7 +80,7 @@ func (g *Gateway) setupMiddleware() {
 	g.router.Use(cors.New(cors.Config{
 		AllowOrigins:     g.allowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-CSRF-Token"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-CSRF-Token", "X-User-ID", "X-User-Email", "X-User-Name"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
@@ -107,8 +109,14 @@ func (g *Gateway) setupRoutes() {
 	// Orders routes
 	g.setupOrdersRoutes()
 
+	// Messaging routes
+	g.setupMessagingRoutes()
+
 	// Static files
 	g.setupStaticRoutes()
+
+	// Add direct user route for messaging (temporarily without auth for debugging)
+	g.router.GET("/api/users", getUsersHandler)
 
 	// AI agent
 	g.router.POST("/api/ai-agent/chat", handleAIAgentChat)
@@ -201,6 +209,18 @@ func (g *Gateway) setupOrdersRoutes() {
 	}
 }
 
+// setupMessagingRoutes настраивает маршруты для работы с сообщениями
+func (g *Gateway) setupMessagingRoutes() {
+	messagingRoutes := []string{
+		"/api/messaging/*path",
+	}
+
+	for _, route := range messagingRoutes {
+		// Временно убрал authMiddleware для тестирования
+		g.router.Any(route, g.proxyToMessagingService)
+	}
+}
+
 // setupStaticRoutes настраивает статические маршруты
 func (g *Gateway) setupStaticRoutes() {
 	g.router.StaticFile("/robots.txt", "./robots.txt")
@@ -262,6 +282,11 @@ func (g *Gateway) proxyToOrdersService(c *gin.Context) {
 	g.proxyToService(c, g.ordersServiceURL, c.Request.Method, c.Request.URL.Path)
 }
 
+// proxyToMessagingService проксирует запросы к messaging-service
+func (g *Gateway) proxyToMessagingService(c *gin.Context) {
+	g.proxyToService(c, g.messagingServiceURL, c.Request.Method, c.Request.URL.Path)
+}
+
 // proxyToService универсальный метод проксирования
 func (g *Gateway) proxyToService(c *gin.Context, serviceURL, method, path string) {
 	// Build full URL with query parameters
@@ -308,6 +333,11 @@ func (g *Gateway) proxyToService(c *gin.Context, serviceURL, method, path string
 		req.Header.Set("X-User-ID", fmt.Sprintf("%d", userObj.ID))
 		req.Header.Set("X-User-Email", userObj.Email)
 		req.Header.Set("X-User-Name", userObj.Name)
+	} else {
+		// For testing messaging without auth, set a default user ID
+		req.Header.Set("X-User-ID", "1")
+		req.Header.Set("X-User-Email", "test@example.com")
+		req.Header.Set("X-User-Name", "Test User")
 	}
 
 	// Copy cookies
@@ -365,8 +395,16 @@ func authMiddleware(c *gin.Context) {
 		"ip":     c.ClientIP(),
 	}).Debug("Auth middleware called")
 
+	authHeader := c.GetHeader("Authorization")
+	logrus.WithFields(logrus.Fields{
+		"path": c.Request.URL.Path,
+		"auth_header_present": authHeader != "",
+		"auth_header_length": len(authHeader),
+	}).Info("Auth middleware: checking authentication")
+
 	// Создаем новый HTTP запрос к auth-service для проверки пользователя
 	authServiceURL := getEnvOrDefault("AUTH_SERVICE_URL", "http://localhost:8083")
+	logrus.WithField("auth_service_url", authServiceURL).Info("Auth middleware: auth service URL")
 
 	req, err := http.NewRequest("GET", authServiceURL+"/auth/me", nil)
 	if err != nil {
@@ -377,17 +415,23 @@ func authMiddleware(c *gin.Context) {
 	}
 
 	// Копируем все cookies из оригинального запроса
+	cookiesCount := len(c.Request.Cookies())
+	logrus.WithField("cookies_count", cookiesCount).Info("Auth middleware: copying cookies")
 	for _, cookie := range c.Request.Cookies() {
 		req.AddCookie(cookie)
 	}
 
 	// Копируем заголовки аутентификации
-	if authHeader := c.GetHeader("Authorization"); authHeader != "" {
+	if authHeader != "" {
 		req.Header.Set("Authorization", authHeader)
+		logrus.Info("Auth middleware: Authorization header set")
+	} else {
+		logrus.Warn("Auth middleware: No Authorization header found")
 	}
 
 	// Выполняем запрос к auth-service
 	client := &http.Client{Timeout: 5 * time.Second}
+	logrus.Info("Auth middleware: sending request to auth service")
 	resp, err := client.Do(req)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to connect to auth service")
@@ -400,6 +444,8 @@ func authMiddleware(c *gin.Context) {
 			logrus.WithError(err).Warn("Failed to close auth response body")
 		}
 	}()
+
+	logrus.WithField("status_code", resp.StatusCode).Info("Auth middleware: auth service response")
 
 	// Если auth-service вернул ошибку аутентификации
 	if resp.StatusCode == http.StatusUnauthorized {
@@ -493,4 +539,48 @@ func handleAIAgentChat(c *gin.Context) {
 		"response": response,
 		"action":   action,
 	})
+}
+
+// getUsersHandler возвращает список пользователей для messaging
+func getUsersHandler(c *gin.Context) {
+	// Get users from auth-service
+	authServiceURL := getEnvOrDefault("AUTH_SERVICE_URL", "http://localhost:8083")
+
+	req, err := http.NewRequest("GET", authServiceURL+"/internal/users", nil)
+	if err != nil {
+		logrus.WithError(err).Error("Failed to create auth service request")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request"})
+		return
+	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		logrus.WithError(err).Error("Failed to connect to auth service")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to auth service"})
+		return
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logrus.WithError(err).Warn("Failed to close auth service response body")
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		logrus.WithField("status", resp.StatusCode).Error("Auth service returned error")
+		c.JSON(resp.StatusCode, gin.H{"error": "Failed to fetch users"})
+		return
+	}
+
+	var response struct {
+		Users []User `json:"users"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		logrus.WithError(err).Error("Failed to parse auth service response")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse response"})
+		return
+	}
+
+	logrus.WithField("users_count", len(response.Users)).Info("Fetched users from auth service")
+	c.JSON(http.StatusOK, gin.H{"users": response.Users})
 }

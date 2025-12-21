@@ -4,7 +4,7 @@
 
 import React from 'react';
 import styled from 'styled-components';
-import { Package, BarChart3, Plus, LogOut, User as UserIcon, Settings, ChevronDown, BookOpen } from 'lucide-react';
+import { Package, BarChart3, Plus, LogOut, User as UserIcon, Settings, ChevronDown, BookOpen, MessageCircle } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import {
@@ -222,6 +222,10 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
               <BarChart3 />
               Статистика
             </NavButton>
+            <NavButton to="/messages" $isActive={isActivePath('/messages')}>
+              <MessageCircle />
+              Сообщения
+            </NavButton>
             <NavButton to="/add-car" $isActive={isActivePath('/add-car')} style={{ paddingLeft: '3rem', paddingRight: '3rem' }}>
               <Plus />
               Добавить
@@ -250,6 +254,12 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
                   <Link to="/statistics" className="flex items-center">
                     <BarChart3 className="w-4 h-4 mr-2" />
                     Статистика
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/messages" className="flex items-center">
+                    <MessageCircle className="w-4 h-4 mr-2" />
+                    Сообщения
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
@@ -293,6 +303,13 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
                 )}
               </div>
               <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to="/messages" className="flex items-center">
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Сообщения
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               {user.role === 'admin' && (
                 <>
                   <DropdownMenuItem asChild>
@@ -317,6 +334,7 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+
       </HeaderContent>
     </HeaderContainer>
   );

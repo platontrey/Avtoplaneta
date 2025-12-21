@@ -19,6 +19,7 @@ const AdminPanel = lazy(() => import('./components/AdminPanel'));
 const Readme = lazy(() => import('./components/Readme'));
 const Login = lazy(() => import('./components/Login'));
 const Orders = lazy(() => import('./components/Orders'));
+const MessagesPage = lazy(() => import('./components/MessagesPage'));
 
 // Компонент загрузки для lazy loading
 const LoadingSpinner = () => (
@@ -51,6 +52,7 @@ function App() {
             <Route path="/" element={<Inventory />} />
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/statistics" element={<Statistics />} />
+            <Route path="/messages" element={<MessagesPage />} />
             <Route path="/add-car" element={<AddCar />} />
             <Route path="/defect-report" element={<DefectReport />} />
             <Route path="/add-part" element={<AddPart />} />

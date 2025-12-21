@@ -32,5 +32,8 @@ func SetupRoutes(r *gin.Engine, handler *Handler) {
 
 		// Внутренний endpoint для логирования активности без аутентификации (только для внутренних сервисов)
 		r.POST("/internal/log-activity", handler.InternalLogUserActivityHandler)
+
+		// Внутренний endpoint для получения пользователей без аутентификации (только для внутренних сервисов)
+		r.GET("/internal/users", handler.InternalGetUsersHandler)
 	}
 }

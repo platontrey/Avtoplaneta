@@ -8,6 +8,7 @@ export interface User {
   name: string;
   provider: string;
   role: string;
+  initials?: string;
 }
 
 export interface LoginCredentials {

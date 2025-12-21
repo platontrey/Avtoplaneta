@@ -17,7 +17,10 @@ export function useAuth(): AuthState & {
   const checkAuthStatus = useCallback(async () => {
     try {
       const userData = await authApi.getCurrentUser();
-      setUser(userData);
+      setUser({
+        ...userData,
+        initials: userData.name ? userData.name.split(' ').map(n => n[0]).join('').toUpperCase() : '',
+      });
     } catch {
       setUser(null);
     } finally {
@@ -27,7 +30,12 @@ export function useAuth(): AuthState & {
 
   const login = useCallback(async (credentials: LoginCredentials) => {
     const userData = await authApi.login(credentials);
-    setUser(userData);
+    const userWithInitials = {
+      ...userData,
+      initials: userData.name ? userData.name.split(' ').map(n => n[0]).join('').toUpperCase() : '',
+    };
+    setUser(userWithInitials);
+    localStorage.setItem('userId', userData.id.toString());
   }, []);
 
   const logout = useCallback(async () => {
@@ -35,6 +43,7 @@ export function useAuth(): AuthState & {
       await authApi.logout();
     } finally {
       setUser(null);
+      localStorage.removeItem('userId');
       // Force page reload to clear all client-side state
       // The CSRF token is managed in the API layer, no need to clear it here
       window.location.href = '/login';

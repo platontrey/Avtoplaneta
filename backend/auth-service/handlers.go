@@ -422,6 +422,19 @@ func (h *Handler) LogUserActivityHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Активность залогирована"})
 }
 
+// InternalGetUsersHandler получает список пользователей для внутренних сервисов (без аутентификации)
+func (h *Handler) InternalGetUsersHandler(c *gin.Context) {
+	users, err := h.authService.GetUsers()
+	if err != nil {
+		logrus.WithError(err).Error("Failed to get users for internal request")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось получить пользователей"})
+		return
+	}
+
+	logrus.WithField("users_count", len(users)).Info("Returning users list for internal request")
+	c.JSON(http.StatusOK, gin.H{"users": users})
+}
+
 // InternalLogUserActivityHandler логирует активность пользователя для внутренних сервисов (без аутентификации)
 func (h *Handler) InternalLogUserActivityHandler(c *gin.Context) {
 	var req struct {
