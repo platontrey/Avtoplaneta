@@ -1,0 +1,220 @@
+[
+    {
+        "domain": "www.ilcats.ru",
+        "expiry": 1766428250,
+        "httpOnly": false,
+        "name": "caramel_sapeRrbFpUids",
+        "path": "/",
+        "sameSite": "Lax",
+        "secure": false,
+        "value": "%5B%7B%22source%22%3A%22acint.net%22%2C%22id%22%3A%220300007FF33949694A214ABC02252252%22%7D%2C%7B%22source%22%3A%22sape.ru%22%2C%22id%22%3A%22c62e1b8e5753b4c31fb0625c21ca4f99%22%7D%2C%7B%22source%22%3A%22sape2y.ru%22%2C%22id%22%3A%221766406644956993946%22%7D%2C%7B%22source%22%3A%22a.mts.ru%22%2C%22id%22%3A%221de85e95a6725b4d2505b5bf29f752f2%22%7D%2C%7B%22source%22%3A%22aidata.me%22%2C%22id%22%3A%22X6lkm8tGYP8R0PWLfcVqZw%22%7D%5D"
+    },
+    {
+        "domain": "www.ilcats.ru",
+        "expiry": 1797942644,
+        "httpOnly": false,
+        "name": "ma_id_api",
+        "path": "/",
+        "sameSite": "Lax",
+        "secure": false,
+        "value": "Pildvvnry3wPtTQm3X6oU+xR983rxJ2AXYSKuZEYPr1j+LymBJNW7Nq5/3B74kbhKzZqIOA2UKDbg9ilMWSpR7bBl2AbDKYHTRGdSAMGn9cAd0e33nlnf0g/aLXYhR0D8/TPkW6Lj2nAfQFDg1jZaiO0lYpQYljTMGl8U4Ijp0rOCC2lAXqazXuRewmLqGC5vxWzm1R569GH2z8deIYv1EK9qCKFE20LvtHhxSBERc77/ppXyD+Jx0jYIFtKhTfzw29XPb7k8WnI1rjVSm5V6PYq1C9PE+Qx6zQDWl/Floldtw4dxLlJo7E9Dem0ZzkcEI7q5gwafFqy05s0ayxc6Q=="
+    },
+    {
+        "domain": ".www.ilcats.ru",
+        "expiry": 1767011444,
+        "httpOnly": false,
+        "name": "_buzz_aidata",
+        "path": "/",
+        "sameSite": "Lax",
+        "secure": false,
+        "value": "JTdCJTIydWZwJTIyJTNBJTIyWDZsa204dEdZUDhSMFBXTGZjVnFadyUyMiUyQyUyMmJyb3dzZXJWZXJzaW9uJTIyJTNBJTIyMTQzLjAlMjIlMkMlMjJ0c0NyZWF0ZWQlMjIlM0ExNzY2NDA2NjQ0MDc2JTdE"
+    },
+    {
+        "domain": "www.ilcats.ru",
+        "expiry": 1797942644,
+        "httpOnly": false,
+        "name": "ma_id",
+        "path": "/",
+        "sameSite": "None",
+        "secure": true,
+        "value": "2970753741766406643895"
+    },
+    {
+        "domain": ".ilcats.ru",
+        "expiry": 1797942644,
+        "httpOnly": false,
+        "name": "ma_id",
+        "path": "/",
+        "sameSite": "None",
+        "secure": true,
+        "value": "2970753741766406643895"
+    },
+    {
+        "domain": ".ilcats.ru",
+        "expiry": 1766478643,
+        "httpOnly": false,
+        "name": "_ym_isad",
+        "path": "/",
+        "sameSite": "None",
+        "secure": true,
+        "value": "2"
+    },
+    {
+        "domain": "www.ilcats.ru",
+        "expiry": 1800966643,
+        "httpOnly": false,
+        "name": "_ac_oid",
+        "path": "/",
+        "sameSite": "Lax",
+        "secure": false,
+        "value": "c62e1b8e5753b4c31fb0625c21ca4f99%3A1766410243843"
+    },
+    {
+        "domain": ".ilcats.ru",
+        "expiry": 1766408450,
+        "httpOnly": false,
+        "name": "_ym_visorc",
+        "path": "/",
+        "sameSite": "None",
+        "secure": true,
+        "value": "w"
+    },
+    {
+        "domain": ".ilcats.ru",
+        "expiry": 1800966644,
+        "httpOnly": false,
+        "name": "__upin",
+        "path": "/",
+        "sameSite": "Lax",
+        "secure": false,
+        "value": "X6lkm8tGYP8R0PWLfcVqZw"
+    },
+    {
+        "domain": ".ilcats.ru",
+        "expiry": 1797942643,
+        "httpOnly": false,
+        "name": "__ai_fp_uuid",
+        "path": "/",
+        "sameSite": "None",
+        "secure": true,
+        "value": "0cffd2705ed46132%3A1"
+    },
+    {
+        "domain": ".ilcats.ru",
+        "expiry": 1797942643,
+        "httpOnly": false,
+        "name": "_ym_d",
+        "path": "/",
+        "sameSite": "None",
+        "secure": true,
+        "value": "1766406644"
+    },
+    {
+        "domain": ".ilcats.ru",
+        "expiry": 1766406703,
+        "httpOnly": false,
+        "name": "_gat",
+        "path": "/",
+        "sameSite": "Lax",
+        "secure": false,
+        "value": "1"
+    },
+    {
+        "domain": ".ilcats.ru",
+        "expiry": 1797942643,
+        "httpOnly": false,
+        "name": "_ym_uid",
+        "path": "/",
+        "sameSite": "None",
+        "secure": true,
+        "value": "1766406644956993946"
+    },
+    {
+        "domain": "www.ilcats.ru",
+        "expiry": 1800966643,
+        "httpOnly": false,
+        "name": "fid",
+        "path": "/",
+        "sameSite": "Lax",
+        "secure": false,
+        "value": "6fdda53c-ba77-43f1-9bc9-a45c59798771"
+    },
+    {
+        "domain": ".ilcats.ru",
+        "expiry": 1797942644,
+        "httpOnly": false,
+        "name": "ma_id_api",
+        "path": "/",
+        "sameSite": "Lax",
+        "secure": false,
+        "value": "1es5SlIrXULq31GUWbnEogQ6fGAhD91oJH6fhTretrZDeTArVlePhtrHo71OviFJtpaCDGI3TdzAhoXGS+fmsHrtqY0OCukqZWI/Vcdc1e0BvsjtbU1KP0NLrSO7OaXPIOIaE4yhB4sOEGvbmBWENnLdeLREULJVM0q9olxNtCttFvXVFIxPaWkRSwMYvulIvVg/OneYuCOuoOI9/wBNKRb/7BTDDyZzZ0S6K8TZooRkvNfrPi08+sWy5H7RtgWcGrSxBQBbfYTa3/ntGpFHHN8I9BBby9y00G/S5v+1VaF4COykcowuHpPmWvfbRHkM1HUpJadLWwaQVLDVuwufXQ=="
+    },
+    {
+        "domain": "www.ilcats.ru",
+        "httpOnly": false,
+        "name": "_ac_cid",
+        "path": "/",
+        "sameSite": "Lax",
+        "secure": false,
+        "value": "0300007FF33949694A214ABC02252252"
+    },
+    {
+        "domain": ".ilcats.ru",
+        "expiry": 1800966650,
+        "httpOnly": false,
+        "name": "_ga_1K2VDCX35T",
+        "path": "/",
+        "sameSite": "Lax",
+        "secure": false,
+        "value": "GS2.2.s1766406644$o1$g1$t1766406650$j54$l0$h0"
+    },
+    {
+        "domain": ".ilcats.ru",
+        "expiry": 1800966650,
+        "httpOnly": false,
+        "name": "_ga",
+        "path": "/",
+        "sameSite": "Lax",
+        "secure": false,
+        "value": "GA1.2.1222031208.1766406643"
+    },
+    {
+        "domain": ".ilcats.ru",
+        "expiry": 1766493050,
+        "httpOnly": false,
+        "name": "_gid",
+        "path": "/",
+        "sameSite": "Lax",
+        "secure": false,
+        "value": "GA1.2.1415132878.1766406643"
+    },
+    {
+        "domain": "www.ilcats.ru",
+        "expiry": 1766449842,
+        "httpOnly": false,
+        "name": "smartCaptchaPassed",
+        "path": "/",
+        "sameSite": "Lax",
+        "secure": false,
+        "value": "HXtr8qZthqgDvheO0Hfi7ymxcOuGDGLv5NF4oenkGZN5uyrt1fHob3Yom%2Ftcu2s7%2BW9X0caOhCaX5BL5NJo4y1vPI8alfSwq9hWh5A5covV3%2FSy1wp8lNIPGezIiTMbslfHBWJFgHMnvxX4%2FDg%3D%3D"
+    },
+    {
+        "domain": ".www.ilcats.ru",
+        "expiry": 1767011444,
+        "httpOnly": false,
+        "name": "_buzz_mtsa",
+        "path": "/",
+        "sameSite": "Lax",
+        "secure": false,
+        "value": "JTdCJTIydWZwJTIyJTNBJTIyMWRlODVlOTVhNjcyNWI0ZDI1MDViNWJmMjlmNzUyZjIlMjIlMkMlMjJicm93c2VyVmVyc2lvbiUyMiUzQSUyMjE0My4wJTIyJTJDJTIydHNDcmVhdGVkJTIyJTNBMTc2NjQwNjY0NDMxMCU3RA=="
+    },
+    {
+        "domain": "www.ilcats.ru",
+        "httpOnly": false,
+        "name": "PHPSESSID",
+        "path": "/",
+        "sameSite": "Lax",
+        "secure": false,
+        "value": "4414b05eee8cdccfbafe5058251ed505"
+    }
+]
