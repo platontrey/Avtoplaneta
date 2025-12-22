@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -31,12 +33,12 @@ type User struct {
 
 // Gateway представляет API Gateway
 type Gateway struct {
-	router             *gin.Engine
-	authServiceURL     string
-	partsServiceURL    string
-	ordersServiceURL   string
+	router              *gin.Engine
+	authServiceURL      string
+	partsServiceURL     string
+	ordersServiceURL    string
 	messagingServiceURL string
-	allowedOrigins     []string
+	allowedOrigins      []string
 }
 
 // NewGateway создает новый экземпляр Gateway
@@ -373,10 +375,40 @@ func (g *Gateway) proxyToService(c *gin.Context, serviceURL, method, path string
 	}
 }
 
-// Run запускает gateway
-func (g *Gateway) Run(port string) error {
+// Run запускает gateway с поддержкой graceful shutdown
+func (g *Gateway) Run(ctx context.Context, port string) error {
 	logrus.WithField("port", port).Info("API Gateway starting")
-	return g.router.Run(port)
+
+	srv := &http.Server{
+		Addr:    port,
+		Handler: g.router,
+	}
+
+	// Канал для ошибок сервера
+	errChan := make(chan error, 1)
+
+	// Запуск сервера в goroutine
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errChan <- err
+		}
+	}()
+
+	// Ожидание сигнала отмены или ошибки
+	select {
+	case <-ctx.Done():
+		logrus.Info("Shutting down API Gateway gracefully...")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			logrus.WithError(err).Error("Server forced to shutdown")
+			return err
+		}
+		logrus.Info("API Gateway stopped")
+		return nil
+	case err := <-errChan:
+		return err
+	}
 }
 
 // getEnvOrDefault возвращает значение переменной окружения или значение по умолчанию
@@ -397,9 +429,9 @@ func authMiddleware(c *gin.Context) {
 
 	authHeader := c.GetHeader("Authorization")
 	logrus.WithFields(logrus.Fields{
-		"path": c.Request.URL.Path,
+		"path":                c.Request.URL.Path,
 		"auth_header_present": authHeader != "",
-		"auth_header_length": len(authHeader),
+		"auth_header_length":  len(authHeader),
 	}).Info("Auth middleware: checking authentication")
 
 	// Создаем новый HTTP запрос к auth-service для проверки пользователя

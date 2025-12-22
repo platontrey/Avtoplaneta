@@ -1,7 +1,11 @@
 package main
 
 import (
+	"context"
 	"os"
+	"os/signal"
+	"runtime"
+	"syscall"
 
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
@@ -30,6 +34,9 @@ import (
 // @externalDocs.url https://swagger.io/resources/open-api/
 
 func main() {
+	// Установка количества OS-тредов
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
 	// Загрузка переменных окружения из .env файла
 	err := godotenv.Load()
 	if err != nil {
@@ -43,11 +50,24 @@ func main() {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
+	// Создание контекста с отменой для graceful shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Обработка сигналов для graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		logrus.Info("Получен сигнал завершения, начинаем graceful shutdown...")
+		cancel()
+	}()
+
 	// Создание и запуск API Gateway
 	gateway := NewGateway()
 
 	logrus.Info("API Gateway запущен на порту :8080")
-	if err := gateway.Run(":8080"); err != nil {
+	if err := gateway.Run(ctx, ":8080"); err != nil {
 		logrus.WithError(err).Fatal("Не удалось запустить API Gateway")
 	}
 }

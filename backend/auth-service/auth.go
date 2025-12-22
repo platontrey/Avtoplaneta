@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"time"
@@ -15,7 +16,7 @@ import (
 
 var store *sessions.CookieStore
 
-func InitAuth(config *Config) {
+func InitAuth(ctx context.Context, config *Config) {
 	// Инициализация хранилища сессий с безопасным случайным ключом
 	sessionKey := config.SessionSecret
 
@@ -61,31 +62,37 @@ func InitAuth(config *Config) {
 	}
 
 	// Запуск горутины для очистки просроченных токенов CSRF
-	go cleanupExpiredTokens()
+	go cleanupExpiredTokens(ctx)
 }
 
 // Очистка просроченных токенов CSRF каждые 30 минут
-func cleanupExpiredTokens() {
+func cleanupExpiredTokens(ctx context.Context) {
 	ticker := time.NewTicker(30 * time.Minute)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		now := time.Now()
-		csrfMutex.Lock()
-		for key, token := range csrfTokens {
-			if now.After(token.expiresAt) {
-				delete(csrfTokens, key)
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("Остановка очистки просроченных токенов CSRF")
+			return
+		case <-ticker.C:
+			now := time.Now()
+			csrfMutex.Lock()
+			for key, token := range csrfTokens {
+				if now.After(token.expiresAt) {
+					delete(csrfTokens, key)
+				}
 			}
-		}
-		csrfMutex.Unlock()
+			csrfMutex.Unlock()
 
-		// Очистка ограничений скорости
-		rateLimitMutex.Lock()
-		for key, entry := range rateLimits {
-			if now.After(entry.resetTime) {
-				delete(rateLimits, key)
+			// Очистка ограничений скорости
+			rateLimitMutex.Lock()
+			for key, entry := range rateLimits {
+				if now.After(entry.resetTime) {
+					delete(rateLimits, key)
+				}
 			}
+			rateLimitMutex.Unlock()
 		}
-		rateLimitMutex.Unlock()
 	}
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -75,6 +76,14 @@ var (
 		},
 		[]string{"operation", "service", "status"},
 	)
+
+	// Gauge для количества активных goroutines
+	activeGoroutines = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "avtoplaneta_active_goroutines",
+			Help: "Number of active goroutines",
+		},
+	)
 )
 
 // InitMetrics инициализирует Prometheus метрики
@@ -87,6 +96,7 @@ func InitMetrics() {
 		esErrorsTotal,
 		responseSizeBytes,
 		businessOperationsTotal,
+		activeGoroutines,
 	)
 }
 
@@ -95,6 +105,7 @@ func MetricsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		activeConnections.Inc()
+		UpdateGoroutinesMetric() // Обновляем метрику goroutines
 
 		// Определяем endpoint (убираем параметры пути)
 		endpoint := c.Request.URL.Path
@@ -129,20 +140,6 @@ func MetricsMiddleware() gin.HandlerFunc {
 	}
 }
 
-// RecordDBError записывает ошибку базы данных
-func RecordDBError(operation, service string) {
-	dbErrorsTotal.WithLabelValues(operation, service).Inc()
-}
-
-// RecordESError записывает ошибку Elasticsearch
-func RecordESError() {
-	esErrorsTotal.Inc()
-}
-
-// RecordBusinessOperation записывает бизнес-операцию
-func RecordBusinessOperation(operation, service, status string) {
-	businessOperationsTotal.WithLabelValues(operation, service, status).Inc()
-}
 
 // MetricsHandler возвращает HTTP handler для Prometheus метрик
 func MetricsHandler() gin.HandlerFunc {
@@ -177,4 +174,24 @@ func ReadinessHandler(c *gin.Context) {
 	}
 
 	c.JSON(200, readiness)
+}
+
+// RecordDBError записывает ошибку базы данных
+func RecordDBError(operation, service string) {
+	dbErrorsTotal.WithLabelValues(operation, service).Inc()
+}
+
+// RecordESError записывает ошибку Elasticsearch
+func RecordESError() {
+	esErrorsTotal.Inc()
+}
+
+// RecordBusinessOperation записывает бизнес-операцию
+func RecordBusinessOperation(operation, service, status string) {
+	businessOperationsTotal.WithLabelValues(operation, service, status).Inc()
+}
+
+// UpdateGoroutinesMetric обновляет метрику количества активных goroutines
+func UpdateGoroutinesMetric() {
+	activeGoroutines.Set(float64(runtime.NumGoroutine()))
 }

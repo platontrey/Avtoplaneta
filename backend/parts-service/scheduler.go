@@ -1,25 +1,41 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"os"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 // StartXMLGenerationScheduler запускает планировщик автоматической генерации XML прайс-листа каждые 14 дней
-func StartXMLGenerationScheduler() {
+func StartXMLGenerationScheduler(ctx context.Context) {
 	ticker := time.NewTicker(14 * 24 * time.Hour) // 14 дней
 	defer ticker.Stop()
 
+	// Канал для worker pool (ограничение concurrency до 1 для простоты)
+	jobs := make(chan func(), 1)
+
+	// Worker goroutine
+	go func() {
+		for job := range jobs {
+			job()
+		}
+	}()
+
 	// Генерируем XML сразу при запуске
-	fmt.Println("Запуск начальной генерации XML прайс-листа...")
-	generateXMLPriceList()
+	logrus.Info("Запуск начальной генерации XML прайс-листа...")
+	jobs <- generateXMLPriceList
 
 	for {
 		select {
+		case <-ctx.Done():
+			close(jobs)
+			logrus.Info("Остановка планировщика генерации XML")
+			return
 		case <-ticker.C:
-			fmt.Println("Автоматическая генерация XML прайс-листа каждые 14 дней...")
-			generateXMLPriceList()
+			logrus.Info("Автоматическая генерация XML прайс-листа каждые 14 дней...")
+			jobs <- generateXMLPriceList
 		}
 	}
 }
@@ -28,13 +44,13 @@ func StartXMLGenerationScheduler() {
 func generateXMLPriceList() {
 	parts, err := GetPartsForXML()
 	if err != nil {
-		fmt.Printf("Ошибка получения частей для автоматической генерации XML: %v\n", err)
+		logrus.WithError(err).Error("Ошибка получения частей для автоматической генерации XML")
 		return
 	}
 
 	xmlData, err := GenerateXMLPriceList(parts)
 	if err != nil {
-		fmt.Printf("Ошибка генерации XML для автоматической генерации: %v\n", err)
+		logrus.WithError(err).Error("Ошибка генерации XML для автоматической генерации")
 		return
 	}
 
@@ -44,15 +60,15 @@ func generateXMLPriceList() {
 
 	// Создать директорию uploads, если она не существует
 	if err := os.MkdirAll("./uploads", 0755); err != nil {
-		fmt.Printf("Ошибка создания директории uploads для автоматической генерации: %v\n", err)
+		logrus.WithError(err).Error("Ошибка создания директории uploads для автоматической генерации")
 		return
 	}
 
 	// Записать файл
 	if err := os.WriteFile(filepath, xmlData, 0644); err != nil {
-		fmt.Printf("Ошибка сохранения XML файла для автоматической генерации: %v\n", err)
+		logrus.WithError(err).Error("Ошибка сохранения XML файла для автоматической генерации")
 		return
 	}
 
-	fmt.Printf("Успешно автоматически сгенерирован и сохранен XML прайс-лист с %d предложениями\n", len(parts))
+	logrus.WithField("parts_count", len(parts)).Info("Успешно автоматически сгенерирован и сохранен XML прайс-лист")
 }
