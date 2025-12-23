@@ -140,18 +140,30 @@ func (r *partRepository) DeleteExpiredParts(before time.Time) error {
 func (r *partRepository) GetStatistics() (StatisticsResponse, error) {
 	var stats StatisticsResponse
 
-	// Общее количество запчастей
-	var totalParts int64
-	r.db.Model(&Part{}).Where("to_delete_at IS NULL AND quantity >= 1").Count(&totalParts)
-	stats.TotalParts = int(totalParts)
+	// Один запрос для всех статистик
+	query := `
+		SELECT
+			COUNT(*) as total_parts,
+			COALESCE(SUM(price * quantity), 0) as total_value,
+			JSON_AGG(JSON_BUILD_OBJECT('name', category, 'count', count)) FILTER (WHERE category != '') as categories
+		FROM (
+			SELECT category, COUNT(*) as count
+			FROM parts
+			WHERE to_delete_at IS NULL AND quantity >= 1
+			GROUP BY category
+		) cat_stats
+		CROSS JOIN (
+			SELECT COUNT(*) as total_parts, COALESCE(SUM(price * quantity), 0) as total_value
+			FROM parts
+			WHERE to_delete_at IS NULL AND quantity >= 1
+		) totals
+	`
+	err := r.db.Raw(query).Scan(&stats).Error
+	if err != nil {
+		return StatisticsResponse{}, err
+	}
 
-	// Общая стоимость
-	r.db.Model(&Part{}).Where("to_delete_at IS NULL AND quantity >= 1").Select("COALESCE(SUM(price * quantity), 0)").Scan(&stats.TotalValue)
-
-	// Категории
-	r.db.Model(&Part{}).Select("category as name, COUNT(*) as count").Where("category != '' AND to_delete_at IS NULL AND quantity >= 1").Group("category").Scan(&stats.Categories)
-
-	return stats, r.db.Error
+	return stats, nil
 }
 
 // BulkDelete удаляет несколько запчастей
@@ -161,9 +173,23 @@ func (r *partRepository) BulkDelete(ids []uint) error {
 		"count": len(ids),
 	}).Info("PartRepository.BulkDelete: Starting bulk delete")
 
-	err := r.db.Where("id IN ?", ids).Delete(&Part{}).Error
+	// Используем транзакцию для атомарности
+	tx := r.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	err := tx.Where("id IN ?", ids).Delete(&Part{}).Error
 	if err != nil {
 		logrus.WithError(err).Error("PartRepository.BulkDelete: Failed to execute delete query")
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		logrus.WithError(err).Error("PartRepository.BulkDelete: Failed to commit transaction")
 		return err
 	}
 

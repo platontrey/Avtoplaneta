@@ -99,18 +99,20 @@ func getConversations(c *gin.Context) {
 	}
 
 	var conversations []Conversation
-	query := DB.Where("participants @> ARRAY[?]::integer[]", userIDInt).Order("last_message_at DESC")
-
-	if err := query.Find(&conversations).Error; err != nil {
+	if err := DB.Raw(`
+		SELECT c.*, COALESCE(u.unread_count, 0) as unread_count
+		FROM conversations c
+		LEFT JOIN (
+			SELECT conversation_id, COUNT(*) as unread_count
+			FROM messages
+			WHERE sender_id != ? AND NOT (read_by @> ARRAY[?]::integer[])
+			GROUP BY conversation_id
+		) u ON c.id = u.conversation_id
+		WHERE c.participants @> ARRAY[?]::integer[]
+		ORDER BY c.last_message_at DESC
+	`, userIDInt, userIDInt, userIDInt).Scan(&conversations).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch conversations"})
 		return
-	}
-
-	// Calculate unread count for each conversation
-	for i := range conversations {
-		var unreadCount int64
-		DB.Model(&Message{}).Where("conversation_id = ? AND sender_id != ? AND NOT (read_by @> ARRAY[?]::integer[])", conversations[i].ID, userIDInt, userIDInt).Count(&unreadCount)
-		conversations[i].UnreadCount = int(unreadCount)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"conversations": conversations})
@@ -1125,7 +1127,7 @@ func searchMessages(c *gin.Context) {
 	// Search in conversations where user is participant
 	var messages []Message
 	if err := DB.Joins("JOIN conversations c ON messages.conversation_id = c.id").
-		Where("c.participants @> ARRAY[?]::integer[] AND messages.content ILIKE ?", userIDUint, "%"+query+"%").
+		Where("c.participants @> ARRAY[?]::integer[] AND messages.search_vector @@ plainto_tsquery('russian', ?)", userIDUint, query).
 		Order("messages.created_at DESC").
 		Limit(50).
 		Preload("Reactions").

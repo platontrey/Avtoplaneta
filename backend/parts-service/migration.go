@@ -63,11 +63,7 @@ func createIndexes(db *gorm.DB) {
 		name string
 		sql  string
 	}{
-		// GIN индексы для полнотекстового поиска (ILIKE)
-		{"idx_parts_name_gin", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_name_gin ON parts USING gin (name gin_trgm_ops)"},
-		{"idx_parts_description_gin", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_description_gin ON parts USING gin (description gin_trgm_ops)"},
-
-		// B-tree индексы для фильтров
+		// B-tree индексы для фильтров (поиск через Elasticsearch, так что триграммные не нужны)
 		{"idx_parts_category", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_category ON parts (category)"},
 		{"idx_parts_brand", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_brand ON parts (brand)"},
 		{"idx_parts_model", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_model ON parts (model)"},
@@ -75,12 +71,15 @@ func createIndexes(db *gorm.DB) {
 		{"idx_parts_salesman", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_salesman ON parts (salesman)"},
 		{"idx_parts_status", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_status ON parts (status)"},
 		{"idx_parts_supplier_code", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_supplier_code ON parts (supplier_code)"},
-		{"idx_parts_to_delete_at", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_to_delete_at ON parts (to_delete_at)"},
+		{"idx_parts_to_delete_at", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_to_delete_at ON parts (to_delete_at) WHERE to_delete_at IS NULL"},
 		{"idx_parts_quantity", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_quantity ON parts (quantity)"},
+		{"idx_parts_created_at", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_created_at ON parts (created_at DESC)"},
 
-		// Составной индекс для часто используемых фильтров
-		{"idx_parts_status_quantity", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_status_quantity ON parts (status, quantity)"},
-		{"idx_parts_category_brand", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_category_brand ON parts (category, brand)"},
+		// Индекс на id для bulk-операций
+		{"idx_parts_id", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_id ON parts (id)"},
+
+		// Индекс для earnings
+		{"idx_earnings_id", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_earnings_id ON earnings (id)"},
 	}
 
 	for _, idx := range indexes {

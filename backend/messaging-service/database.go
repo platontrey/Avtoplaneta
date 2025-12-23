@@ -36,5 +36,8 @@ func InitDatabase() {
 		log.Fatal("Failed to migrate database:", err)
 	}
 
+	// Выполнение кастомных миграций
+	RunMigrations(DB)
+
 	fmt.Println("Database connected and migrated successfully")
 }
