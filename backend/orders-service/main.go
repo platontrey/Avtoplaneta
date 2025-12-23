@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	// Установка количества OS-тредов
+	// Установка количества OS-тредов для оптимизации под доступное количество ядер
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	config := LoadConfig()

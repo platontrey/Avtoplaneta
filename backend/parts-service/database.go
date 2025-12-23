@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -19,8 +20,21 @@ func InitDB(config *Config) {
 		log.Fatal("Не удалось подключиться к базе данных:", err)
 	}
 
-	// Автоматическая миграция схемы запчастей
-	if err := db.AutoMigrate(&Part{}); err != nil {
+	// Настройка connection pooling для оптимизации производительности
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatal("Не удалось получить SQL DB:", err)
+	}
+
+	// Настройки пула соединений
+	sqlDB.SetMaxIdleConns(10)                 // Максимальное количество idle соединений
+	sqlDB.SetMaxOpenConns(100)                // Максимальное количество открытых соединений
+	sqlDB.SetConnMaxLifetime(30 * time.Minute) // Максимальное время жизни соединения
+
+	log.Println("Connection pooling настроен: MaxIdleConns=10, MaxOpenConns=100, ConnMaxLifetime=30m")
+
+	// Автоматическая миграция схемы запчастей и earnings
+	if err := db.AutoMigrate(&Part{}, &Earnings{}); err != nil {
 		log.Fatal("Не удалось выполнить миграцию:", err)
 	}
 

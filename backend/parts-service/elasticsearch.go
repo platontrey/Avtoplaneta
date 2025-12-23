@@ -10,7 +10,24 @@ import (
 
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
+	"github.com/prometheus/client_golang/prometheus"
 )
+
+var (
+	esErrorsTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "avtoplaneta_elasticsearch_errors_total",
+			Help: "Total number of Elasticsearch errors",
+		},
+	)
+)
+
+func RecordESError() {
+	esErrorsTotal.Inc()
+}
+func init() {
+	prometheus.MustRegister(esErrorsTotal)
+}
 
 var esClient *elasticsearch.Client
 
@@ -224,6 +241,7 @@ func IndexPart(part *Part) error {
 	}()
 
 	if res.IsError() {
+		RecordESError()
 		return fmt.Errorf("error response: %s", res.String())
 	}
 

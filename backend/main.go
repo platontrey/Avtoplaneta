@@ -34,7 +34,7 @@ import (
 // @externalDocs.url https://swagger.io/resources/open-api/
 
 func main() {
-	// Установка количества OS-тредов
+	// Установка количества OS-тредов для оптимизации под доступное количество ядер
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	// Загрузка переменных окружения из .env файла

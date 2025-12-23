@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -13,15 +14,18 @@ func StartXMLGenerationScheduler(ctx context.Context) {
 	ticker := time.NewTicker(14 * 24 * time.Hour) // 14 дней
 	defer ticker.Stop()
 
-	// Канал для worker pool (ограничение concurrency до 1 для простоты)
-	jobs := make(chan func(), 1)
+	// Канал для worker pool (ограничение concurrency до 4 для использования многопроцессорности)
+	jobs := make(chan func(), 10)
 
-	// Worker goroutine
-	go func() {
-		for job := range jobs {
-			job()
-		}
-	}()
+	// Worker goroutines (используем количество ядер для оптимальной производительности)
+	numWorkers := runtime.NumCPU()
+	for i := 0; i < numWorkers; i++ {
+		go func() {
+			for job := range jobs {
+				job()
+			}
+		}()
+	}
 
 	// Генерируем XML сразу при запуске
 	logrus.Info("Запуск начальной генерации XML прайс-листа...")

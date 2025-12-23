@@ -34,6 +34,10 @@ type PartRepository interface {
 	// DeleteZeroQuantityPartsBySupplier Supplier operations
 	DeleteZeroQuantityPartsBySupplier(supplierCode string) (int64, error) // Удаляет запчасти с нулевым количеством по поставщику
 	GetSupplierCodes() ([]string, error)                                  // Получает уникальные коды поставщиков
+
+	// Earnings operations
+	GetTotalEarnings() (float64, error)     // Получает общий заработок
+	UpdateTotalEarnings(amount float64) error // Обновляет общий заработок
 }
 
 // partRepository реализует PartRepository
@@ -257,4 +261,39 @@ func (r *partRepository) GetSupplierCodes() ([]string, error) {
 	}
 	fmt.Printf("Repository: GetSupplierCodes found %d supplier codes with zero quantity parts\n", len(codes))
 	return codes, nil
+}
+
+// GetTotalEarnings получает общий заработок из базы данных
+func (r *partRepository) GetTotalEarnings() (float64, error) {
+	var earnings Earnings
+	err := r.db.First(&earnings).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// Если записи нет, создаем новую с нулевым значением
+			newEarnings := Earnings{TotalAmount: 0}
+			if createErr := r.db.Create(&newEarnings).Error; createErr != nil {
+				return 0, createErr
+			}
+			return 0, nil
+		}
+		return 0, err
+	}
+	return earnings.TotalAmount, nil
+}
+
+// UpdateTotalEarnings обновляет общий заработок в базе данных
+func (r *partRepository) UpdateTotalEarnings(amount float64) error {
+	var earnings Earnings
+	err := r.db.First(&earnings).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// Создаем новую запись
+			newEarnings := Earnings{TotalAmount: amount}
+			return r.db.Create(&newEarnings).Error
+		}
+		return err
+	}
+
+	// Обновляем существующую запись
+	return r.db.Model(&earnings).Update("total_amount", amount).Error
 }

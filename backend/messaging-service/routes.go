@@ -14,7 +14,35 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
 )
+
+var (
+	dbErrorsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "avtoplaneta_db_errors_total",
+			Help: "Total number of database errors",
+		},
+		[]string{"operation", "service"},
+	)
+	businessOperationsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "avtoplaneta_business_operations_total",
+			Help: "Total number of business operations",
+		},
+		[]string{"operation", "service", "status"},
+	)
+)
+
+func RecordDBError(operation, service string) {
+	dbErrorsTotal.WithLabelValues(operation, service).Inc()
+}
+func RecordBusinessOperation(operation, service, status string) {
+	businessOperationsTotal.WithLabelValues(operation, service, status).Inc()
+}
+func init() {
+	prometheus.MustRegister(dbErrorsTotal, businessOperationsTotal)
+}
 
 func setupRoutes(r *gin.Engine) {
 	api := r.Group("/api/messaging")
@@ -142,9 +170,13 @@ func createConversation(c *gin.Context) {
 
 	log.Printf("Creating conversation with participants: %v", conversation.Participants)
 	if err := DB.Debug().Create(&conversation).Error; err != nil {
+		RecordDBError("create", "messaging-service")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create conversation"})
 		return
 	}
+
+	RecordBusinessOperation(
+		"create_conversation", "messaging-service", "success")
 
 	c.JSON(http.StatusCreated, conversation)
 }
@@ -301,12 +333,12 @@ func getMessages(c *gin.Context) {
 
 // Drom structures
 type DromDialog struct {
-	ID          int    `json:"id"`
-	DialogID    string `json:"dialog_id"`
-	Interlocutor string `json:"interlocutor"`
-	CreatedAt   string `json:"created_at"`
-	LastMessageAt string `json:"last_message_at"`
-	LastMessage *string `json:"last_message,omitempty"`
+	ID            int     `json:"id"`
+	DialogID      string  `json:"dialog_id"`
+	Interlocutor  string  `json:"interlocutor"`
+	CreatedAt     string  `json:"created_at"`
+	LastMessageAt string  `json:"last_message_at"`
+	LastMessage   *string `json:"last_message,omitempty"`
 }
 
 type DromMessage struct {
@@ -364,8 +396,8 @@ func getDromDialogs(c *gin.Context) {
 		dialog := DromDialog{
 			ID:            brief.DialogID,
 			DialogID:      strconv.Itoa(brief.DialogID),
-			Interlocutor: brief.Interlocutor,
-			CreatedAt:    time.Now().Format("2006-01-02T15:04:05Z"),
+			Interlocutor:  brief.Interlocutor,
+			CreatedAt:     time.Now().Format("2006-01-02T15:04:05Z"),
 			LastMessageAt: time.Now().Format("2006-01-02T15:04:05Z"),
 		}
 		// Try to get last message from dialog
@@ -730,6 +762,7 @@ func sendMessage(c *gin.Context) {
 	}
 
 	if err := DB.Create(&message).Error; err != nil {
+		RecordDBError("create", "messaging-service")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send message"})
 		return
 	}
@@ -737,7 +770,14 @@ func sendMessage(c *gin.Context) {
 	// Update conversation's last message info
 	conversation.LastMessageAt = message.CreatedAt
 	conversation.LastMessage = message.Content
+	if err := DB.Save(&conversation).Error; err != nil {
+		RecordDBError("update", "messaging-service")
+		// Continue anyway
+	}
 	DB.Save(&conversation)
+
+	RecordBusinessOperation(
+		"send_message", "messaging-service", "success")
 
 	c.JSON(http.StatusCreated, message)
 }
@@ -1097,4 +1137,3 @@ func searchMessages(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"messages": messages})
 }
-

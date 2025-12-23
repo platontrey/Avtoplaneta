@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"runtime"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -27,10 +29,10 @@ type InventoryService interface {
 	GetStatistics() (StatisticsResponse, error)               // Получает статистику по инвентарю
 
 	// BulkDeleteParts Админ операции
-	BulkDeleteParts(ids []uint) error                                       // Массовое удаление запчастей
-	BulkUpdateParts(updates []map[string]interface{}) (int, error)         // Массовое обновление запчастей
+	BulkDeleteParts(ids []uint) error                                     // Массовое удаление запчастей
+	BulkUpdateParts(updates []map[string]interface{}) (int, error)        // Массовое обновление запчастей
 	DeleteZeroQuantityPartsBySupplier(supplierCode string) (int64, error) // Удаление по поставщику
-	GetSupplierCodes() ([]string, error)                         // Получение кодов поставщиков
+	GetSupplierCodes() ([]string, error)                                  // Получение кодов поставщиков
 
 	// UploadPartPhoto Фото операции
 	UploadPartPhoto(id uint, c *gin.Context) (string, error) // Загрузка фото запчасти
@@ -62,14 +64,30 @@ type inventoryService struct {
 	repo          PartRepository
 	es            ElasticsearchClient
 	totalEarnings float64
+	queryPool     sync.Pool // Pool для повторного использования map для Elasticsearch queries
 }
 
 // NewInventoryService создает новый сервис инвентаря
 func NewInventoryService(repo PartRepository, es ElasticsearchClient) InventoryService {
-	return &inventoryService{
+	service := &inventoryService{
 		repo: repo,
 		es:   es,
+		queryPool: sync.Pool{
+			New: func() interface{} {
+				return make(map[string]interface{})
+			},
+		},
 	}
+
+	// Инициализируем totalEarnings из базы данных
+	if earnings, err := repo.GetTotalEarnings(); err == nil {
+		service.totalEarnings = earnings
+	} else {
+		logrus.WithError(err).Warn("Failed to load total earnings from database, starting with 0")
+		service.totalEarnings = 0
+	}
+
+	return service
 }
 
 // GetInventory получает инвентарь запчастей с учетом фильтров и пагинации
@@ -409,40 +427,60 @@ func (s *inventoryService) GetStatistics() (StatisticsResponse, error) {
 	return stats, nil
 }
 
-// BulkDeleteParts удаляет несколько запчастей
+// BulkDeleteParts удаляет несколько запчастей с использованием worker pool для параллельной обработки
 func (s *inventoryService) BulkDeleteParts(ids []uint) error {
 	logrus.WithFields(logrus.Fields{
-		"ids": ids,
+		"ids":   ids,
 		"count": len(ids),
 	}).Info("InventoryService.BulkDeleteParts: Starting bulk delete")
 
-	// Сначала получить все части для удаления фото
-	for _, id := range ids {
-		part, err := s.repo.FindByID(id)
-		if err != nil {
-			logrus.WithError(err).WithField("id", id).Warn("InventoryService.BulkDeleteParts: Failed to find part for photo deletion")
-			continue
-		}
+	// Worker pool для параллельной обработки удаления фото и ES индекса
+	numWorkers := runtime.NumCPU() // Используем все доступные ядра
+	jobs := make(chan uint, len(ids))
+	var wg sync.WaitGroup
 
-		// Удаляем все фото если есть
-		for _, photoPath := range part.Photos {
-			if photoPath != "" {
-				if err := DeletePhotoFile(photoPath); err != nil {
-					logrus.WithError(err).WithFields(logrus.Fields{
-						"id": id,
-						"photoPath": photoPath,
-					}).Warn("InventoryService.BulkDeleteParts: Failed to delete photo file")
+	// Запуск воркеров
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for id := range jobs {
+				part, err := s.repo.FindByID(id)
+				if err != nil {
+					logrus.WithError(err).WithField("id", id).Warn("InventoryService.BulkDeleteParts: Failed to find part for photo deletion")
+					continue
+				}
+
+				// Удаляем все фото если есть
+				for _, photoPath := range part.Photos {
+					if photoPath != "" {
+						if err := DeletePhotoFile(photoPath); err != nil {
+							logrus.WithError(err).WithFields(logrus.Fields{
+								"id":        id,
+								"photoPath": photoPath,
+							}).Warn("InventoryService.BulkDeleteParts: Failed to delete photo file")
+						}
+					}
+				}
+
+				// Удаляем из Elasticsearch
+				if s.es != nil {
+					if err := DeletePartFromIndex(id); err != nil {
+						logrus.WithError(err).WithField("id", id).Warn("InventoryService.BulkDeleteParts: Failed to remove part from Elasticsearch index")
+					}
 				}
 			}
-		}
-
-		// Удаляем из Elasticsearch
-		if s.es != nil {
-			if err := DeletePartFromIndex(id); err != nil {
-				logrus.WithError(err).WithField("id", id).Warn("InventoryService.BulkDeleteParts: Failed to remove part from Elasticsearch index")
-			}
-		}
+		}()
 	}
+
+	// Отправка заданий
+	for _, id := range ids {
+		jobs <- id
+	}
+	close(jobs)
+
+	// Ожидание завершения воркеров
+	wg.Wait()
 
 	err := s.repo.BulkDelete(ids)
 	if err != nil {
@@ -458,7 +496,7 @@ func (s *inventoryService) BulkDeleteParts(ids []uint) error {
 func (s *inventoryService) BulkUpdateParts(updates []map[string]interface{}) (int, error) {
 	logrus.WithFields(logrus.Fields{
 		"updates": updates,
-		"count": len(updates),
+		"count":   len(updates),
 	}).Info("InventoryService.BulkUpdateParts: Starting bulk update")
 
 	updatedCount, err := s.repo.BulkUpdate(updates)
@@ -514,5 +552,13 @@ func (s *inventoryService) GetPartByID(id uint) (*Part, error) {
 // UpdateEarnings обновляет общий заработок
 func (s *inventoryService) UpdateEarnings(amount float64) error {
 	s.totalEarnings += amount
+
+	// Сохраняем в базу данных для персистентности
+	if err := s.repo.UpdateTotalEarnings(s.totalEarnings); err != nil {
+		logrus.WithError(err).Error("Failed to save total earnings to database")
+		return err
+	}
+
+	logrus.WithField("totalEarnings", s.totalEarnings).Info("Updated total earnings in database")
 	return nil
 }
