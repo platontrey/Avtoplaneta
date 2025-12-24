@@ -23,6 +23,8 @@ type Message struct {
 	ConversationID int            `json:"conversation_id"`
 	SenderID       int            `json:"sender_id"`
 	Content        string         `json:"content"`
+	MessageType    string         `json:"message_type" gorm:"default:'text'"` // text, voice, image, file
+	VoiceURL       string         `json:"voice_url,omitempty"`                // URL для голосового сообщения
 	CreatedAt      time.Time      `json:"created_at"`
 	ReadBy         pq.Int64Array  `json:"read_by" gorm:"type:integer[]"` // Кто прочитал
 	Attachments    []string `json:"attachments,omitempty" gorm:"type:text[]"` // Файлы

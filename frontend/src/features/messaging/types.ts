@@ -13,6 +13,8 @@ export interface Message {
   conversation_id: number;
   sender_id: number;
   content: string;
+  message_type?: string;
+  voice_url?: string;
   created_at: string;
   read_by: number[];
   attachments?: string[];

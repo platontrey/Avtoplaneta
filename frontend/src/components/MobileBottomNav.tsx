@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Package, BarChart3, MessageCircle, Plus, Settings } from 'lucide-react';
+import { Package, BarChart3, MessageCircle, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptic } from '@/lib/haptic';
 

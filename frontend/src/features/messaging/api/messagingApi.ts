@@ -44,6 +44,30 @@ class MessagingApi {
     return response.json();
   }
 
+  async sendVoiceMessage(conversationId: number, voiceBlob: Blob): Promise<Message> {
+    const formData = new FormData();
+    formData.append('voice', voiceBlob, 'voice.wav');
+
+    const response = await fetch(`${API_BASE_URL}/api/messaging/conversations/${conversationId}/messages/voice`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'X-User-ID': localStorage.getItem('userId') || '',
+      },
+      body: formData,
+    });
+    if (!response.ok) throw new Error('Failed to send voice message');
+    return response.json();
+  }
+
+  async deleteMessage(messageId: number): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/messaging/messages/${messageId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to delete message');
+  }
+
   // User status
   async getUserStatuses(): Promise<UserStatus[]> {
     const response = await fetch(`${API_BASE_URL}/api/messaging/users/status`, {

@@ -50,6 +50,16 @@ func main() {
 		c.Next()
 	})
 
+	// Static file serving for uploads
+	r.Static("/uploads", "./uploads")
+
+	// Set API_BASE_URL
+	if os.Getenv("MESSAGING_SERVICE_URL") != "" {
+		os.Setenv("API_BASE_URL", os.Getenv("MESSAGING_SERVICE_URL"))
+	} else {
+		os.Setenv("API_BASE_URL", "http://localhost:8084")
+	}
+
 	// Routes will be added here
 	setupRoutes(r)
 

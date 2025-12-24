@@ -66,5 +66,13 @@ func RunMigrations(db *gorm.DB) {
 		log.Printf("Failed to create unique index idx_reactions_unique: %v", err)
 	}
 
+	// Миграция для поддержки голосовых сообщений
+	if err := db.Exec(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS message_type VARCHAR(50) DEFAULT 'text'`).Error; err != nil {
+		log.Printf("Failed to add message_type column: %v", err)
+	}
+	if err := db.Exec(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS voice_url TEXT`).Error; err != nil {
+		log.Printf("Failed to add voice_url column: %v", err)
+	}
+
 	log.Println("Messaging service migrations completed")
 }

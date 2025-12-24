@@ -121,6 +121,11 @@ export default function MessagesPage() {
     }
   };
 
+  const handleDeleteDromMessage = async (messageId: number) => {
+    // Since Drom messages are from external service, we can only remove from local state
+    setDromMessages(prev => prev.filter(msg => msg.id !== messageId));
+  };
+
   // Polling for Drom updates
   useEffect(() => {
     if (activeTab !== 'drom') return;
@@ -311,12 +316,21 @@ export default function MessagesPage() {
                             className={`flex ${message.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}
                           >
                             <div
-                              className={`max-w-xs px-3 py-2 rounded-lg text-sm ${
+                              className={`group relative max-w-xs px-3 py-2 rounded-lg text-sm ${
                                 message.direction === 'outgoing'
                                   ? 'bg-primary text-primary-foreground'
                                   : 'bg-muted'
                               }`}
                             >
+                              {message.direction === 'outgoing' && (
+                                <button
+                                  onClick={() => handleDeleteDromMessage(message.id)}
+                                  className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                                  title="Удалить сообщение"
+                                >
+                                  ×
+                                </button>
+                              )}
                               <div>{message.text}</div>
                               <div className="text-xs opacity-70 mt-1">
                                 {message.time}

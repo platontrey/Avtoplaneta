@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 )
+
 
 var (
 	dbErrorsTotal = prometheus.NewCounterVec(
@@ -56,6 +58,8 @@ func setupRoutes(r *gin.Engine) {
 		// Messages
 		api.GET("/conversations/:id/messages", getMessages)
 		api.POST("/conversations/:id/messages", sendMessage)
+		api.POST("/conversations/:id/messages/voice", sendVoiceMessage)
+		api.DELETE("/messages/:id", deleteMessage)
 		api.PUT("/messages/:id/read", markMessageRead)
 
 		// Reactions
@@ -784,6 +788,121 @@ func sendMessage(c *gin.Context) {
 	c.JSON(http.StatusCreated, message)
 }
 
+func sendVoiceMessage(c *gin.Context) {
+	log.Printf("sendVoiceMessage: Received request for conversation %s", c.Param("id"))
+	log.Printf("sendVoiceMessage: Headers: %v", c.Request.Header)
+	log.Printf("sendVoiceMessage: Content-Type: %s", c.ContentType())
+
+	userID := c.GetHeader("X-User-ID")
+	if userID == "" {
+		log.Printf("sendVoiceMessage: Missing X-User-ID header")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
+		return
+	}
+
+	userIDInt, err := strconv.Atoi(userID)
+	if err != nil {
+		log.Printf("sendVoiceMessage: Invalid user ID: %s", userID)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	conversationID := c.Param("id")
+	conversationIDInt, err := strconv.Atoi(conversationID)
+	if err != nil {
+		log.Printf("sendVoiceMessage: Invalid conversation ID: %s", conversationID)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid conversation ID"})
+		return
+	}
+
+	// Check if user is participant
+	var conversation Conversation
+	if err := DB.First(&conversation, conversationIDInt).Error; err != nil {
+		log.Printf("sendVoiceMessage: Conversation not found: %d", conversationIDInt)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Conversation not found"})
+		return
+	}
+
+	isParticipant := false
+	for _, p := range conversation.Participants {
+		if p == int64(userIDInt) {
+			isParticipant = true
+			break
+		}
+	}
+
+	if !isParticipant {
+		log.Printf("sendVoiceMessage: User %d not participant in conversation %d", userIDInt, conversationIDInt)
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return
+	}
+
+	// Handle file upload
+	file, err := c.FormFile("voice")
+	if err != nil {
+		log.Printf("sendVoiceMessage: Failed to get voice file: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Voice file is required"})
+		return
+	}
+
+	// Create uploads directory if it doesn't exist
+	if err := os.MkdirAll("./uploads", 0755); err != nil {
+		log.Printf("sendVoiceMessage: Failed to create uploads directory: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create uploads directory"})
+		return
+	}
+
+	// Generate unique filename
+	ext := filepath.Ext(file.Filename)
+	if ext == "" {
+		ext = ".wav" // default extension
+	}
+	filename := fmt.Sprintf("voice_%d_%d%s", conversationIDInt, time.Now().Unix(), ext)
+	filePath := filepath.Join("./uploads", filename)
+
+	log.Printf("sendVoiceMessage: Saving file to: %s", filePath)
+	if err := c.SaveUploadedFile(file, filePath); err != nil {
+		log.Printf("sendVoiceMessage: Failed to save file: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save voice file"})
+		return
+	}
+
+	voiceURL := fmt.Sprintf("%s/uploads/%s", os.Getenv("API_BASE_URL"), filename)
+	log.Printf("sendVoiceMessage: Voice URL: %s", voiceURL)
+
+	readBy := []int64{int64(userIDInt)}
+
+	message := Message{
+		ConversationID: conversationIDInt,
+		SenderID:       userIDInt,
+		Content:        "Voice message",
+		MessageType:    "voice",
+		VoiceURL:       voiceURL,
+		CreatedAt:      time.Now(),
+		ReadBy:         readBy, // Sender has read it
+	}
+
+	if err := DB.Create(&message).Error; err != nil {
+		RecordDBError("create", "messaging-service")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send voice message"})
+		return
+	}
+
+	// Update conversation's last message info
+	conversation.LastMessageAt = message.CreatedAt
+	conversation.LastMessage = "Voice message"
+	if err := DB.Save(&conversation).Error; err != nil {
+		RecordDBError("update", "messaging-service")
+		// Continue anyway
+	}
+	DB.Save(&conversation)
+
+	RecordBusinessOperation(
+		"send_voice_message", "messaging-service", "success")
+
+	c.JSON(http.StatusCreated, message)
+}
+
 func markMessageRead(c *gin.Context) {
 	userID := c.GetHeader("X-User-ID")
 	if userID == "" {
@@ -848,6 +967,50 @@ func markMessageRead(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Message marked as read"})
+}
+
+func deleteMessage(c *gin.Context) {
+	userID := c.GetHeader("X-User-ID")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
+		return
+	}
+
+	userIDInt, err := strconv.Atoi(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	messageID := c.Param("id")
+	messageIDInt, err := strconv.Atoi(messageID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid message ID"})
+		return
+	}
+
+	var message Message
+	if err := DB.First(&message, messageIDInt).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Message not found"})
+		return
+	}
+
+	// Check if user is the sender of the message
+	if message.SenderID != userIDInt {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return
+	}
+
+	if err := DB.Delete(&message).Error; err != nil {
+		RecordDBError("delete", "messaging-service")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete message"})
+		return
+	}
+
+	RecordBusinessOperation(
+		"delete_message", "messaging-service", "success")
+
+	c.JSON(http.StatusOK, gin.H{"message": "Message deleted"})
 }
 
 // Reactions
