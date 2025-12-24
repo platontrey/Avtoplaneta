@@ -13,13 +13,15 @@ const PWAInstallPrompt: React.FC = () => {
                         (window.navigator as any).standalone === true;
 
     if (isStandalone) {
-      return; // Уже установлено, не показываем кнопку
+      return; // Уже установлено, не показываем баннер
     }
+
+    // Показываем баннер сразу, если не установлено
+    setIsVisible(true);
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setIsVisible(true);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -63,9 +65,13 @@ const PWAInstallPrompt: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-2 ml-4">
-          <Button onClick={handleInstallClick} variant="secondary" size="sm">
-            Установить
-          </Button>
+          {deferredPrompt ? (
+            <Button onClick={handleInstallClick} variant="secondary" size="sm">
+              Установить
+            </Button>
+          ) : (
+            <span className="text-sm">Доступно в поддерживаемых браузерах</span>
+          )}
           <Button onClick={handleDismiss} variant="ghost" size="sm" className="text-white hover:bg-blue-700">
             <X className="w-4 h-4" />
           </Button>
