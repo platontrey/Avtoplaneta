@@ -50,6 +50,9 @@ function App() {
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-background pb-20 md:pb-4">
+        {/* Предложение установки PWA сверху */}
+        <PWAInstallPrompt />
+
         <Header user={user} onLogout={logout} />
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>
@@ -66,14 +69,11 @@ function App() {
              <Route path="/manager-instructions" element={<ManagerInstructions />} />
              <Route path="/login" element={<Login />} />
              <Route path="/orders" element={<Orders />} />
-           </Routes>
+            </Routes>
         </Suspense>
 
         {/* ИИ-помощник */}
         <AIAgent />
-
-        {/* Кнопка установки PWA */}
-        <PWAInstallPrompt />
 
         {/* Мобильная нижняя навигация */}
         <MobileBottomNav />

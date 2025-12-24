@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
+import { X } from 'lucide-react';
 import { haptic } from '@/lib/haptic';
 
 const PWAInstallPrompt: React.FC = () => {
@@ -47,13 +48,29 @@ const PWAInstallPrompt: React.FC = () => {
     setIsVisible(false);
   };
 
+  const handleDismiss = () => {
+    setIsVisible(false);
+  };
+
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
-      <Button onClick={handleInstallClick} variant="default" size="touch">
-        Установить приложение
-      </Button>
+    <div className="fixed top-0 left-0 right-0 z-50 bg-blue-600 text-white p-4 shadow-lg">
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="flex-1">
+          <p className="text-sm font-medium">
+            Установите наше приложение для лучшего опыта работы!
+          </p>
+        </div>
+        <div className="flex items-center gap-2 ml-4">
+          <Button onClick={handleInstallClick} variant="secondary" size="sm">
+            Установить
+          </Button>
+          <Button onClick={handleDismiss} variant="ghost" size="sm" className="text-white hover:bg-blue-700">
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };
