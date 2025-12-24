@@ -7,6 +7,8 @@ import { lazy, Suspense } from 'react';
 import Header from './components/Header';
 import ErrorBoundary from './components/ErrorBoundary';
 import AIAgent from './components/AIAgent';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
+import MobileBottomNav from './components/MobileBottomNav';
 import { useAuth } from './features/auth/hooks/useAuth';
 
 // Lazy loading для компонентов
@@ -47,7 +49,7 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-background pb-4">
+      <div className="min-h-screen bg-background pb-20 md:pb-4">
         <Header user={user} onLogout={logout} />
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>
@@ -69,6 +71,12 @@ function App() {
 
         {/* ИИ-помощник */}
         <AIAgent />
+
+        {/* Кнопка установки PWA */}
+        <PWAInstallPrompt />
+
+        {/* Мобильная нижняя навигация */}
+        <MobileBottomNav />
       </div>
     </ErrorBoundary>
   );

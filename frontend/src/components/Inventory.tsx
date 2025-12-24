@@ -2,14 +2,20 @@
  * Copyright (c) 2025 Avtoplaneta. All rights reserved.
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import PartsSearch from './PartsSearch';
 import PartsList from './PartsList';
 import { useParts } from '@/hooks/useParts';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { useQueryClient } from '@tanstack/react-query';
+import { partsKeys } from '@/hooks/useParts';
 import type { Part } from '@/lib/types';
 
 function Inventory() {
-      const [filters, setFilters] = useState<{
+    const containerRef = useRef<HTMLDivElement>(null);
+    const queryClient = useQueryClient();
+
+    const [filters, setFilters] = useState<{
           search: string;
           category: string;
           brand: string;
@@ -31,8 +37,16 @@ function Inventory() {
       const [allParts, setAllParts] = useState<Part[]>([]);
       const [hasMore, setHasMore] = useState(true);
       const [isLoadingMore, setIsLoadingMore] = useState(false);
-
-     // Используем React Query хук для загрузки данных
+  
+      // Pull to refresh functionality
+      const { bindPullToRefresh } = usePullToRefresh({
+          onRefresh: async () => {
+              await queryClient.invalidateQueries({ queryKey: partsKeys.lists() });
+          },
+          threshold: 80
+      });
+  
+       // Используем React Query хук для загрузки данных
      const { data: partsData, isLoading, error } = useParts({
          ...filters,
          limit: displayLimit === undefined ? 10000 : (displayLimit || 20),
@@ -69,6 +83,11 @@ function Inventory() {
          }
      }, [partsData, displayLimit, currentPage]);
 
+     // Bind pull to refresh
+     useEffect(() => {
+         return bindPullToRefresh(containerRef.current);
+     }, [bindPullToRefresh]);
+
      // Обработчик применения фильтров
      const handleFiltersChange = useCallback((newFilters: {
          search: string;
@@ -103,7 +122,7 @@ function Inventory() {
 
 
    return (
-     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4" style={{ minHeight: '100vh' }}>
+     <div ref={containerRef} className="max-w-7xl mx-auto px-4 sm:px-6 py-4" style={{ minHeight: '100vh' }}>
        <div className="mb-4 sm:mb-6">
          <h1 className="text-2xl sm:text-3xl font-bold mb-2">Доступные запчасти</h1>
          <p className="text-white mb-6 sm:mb-8 text-sm sm:text-base">Список всех запасных частей</p>

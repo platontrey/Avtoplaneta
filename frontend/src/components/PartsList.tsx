@@ -11,6 +11,7 @@ import PartBlock from './PartBlock';
 import BulkEditDialog from './BulkEditDialog';
 import BulkDeleteDialog from './BulkDeleteDialog';
 import BulkOrderDialog from './BulkOrderDialog';
+import { useSwipeGesture } from '@/hooks/useSwipeGesture';
 import type { Part } from '@/lib/types';
 
 interface PartsListProps {
@@ -24,11 +25,27 @@ interface PartsListProps {
 
 function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScroll = false }: PartsListProps) {
     const loadMoreRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
     const [isSelectionMode, setIsSelectionMode] = useState(false);
     const [selectedParts, setSelectedParts] = useState<Set<number>>(new Set());
     const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
     const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
     const [isBulkOrderOpen, setIsBulkOrderOpen] = useState(false);
+
+    // Swipe gestures for mobile navigation
+    const { bindSwipeEvents } = useSwipeGesture({
+        onSwipeLeft: () => {
+            if (onLoadMore && hasMore && !isLoading) {
+                onLoadMore();
+            }
+        },
+        onSwipeRight: () => {
+            // Could implement going back to previous page if needed
+            console.log('Swipe right - could go to previous page');
+        },
+        threshold: 75,
+        preventDefault: false
+    });
 
     // Обработчик долгого нажатия для активации режима выбора
     const handleLongPress = useCallback((partId: number) => {
@@ -85,6 +102,11 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
         return () => observer.disconnect();
     }, [isInfiniteScroll, onLoadMore, hasMore, isLoading]);
 
+    // Bind swipe events to container
+    useEffect(() => {
+        return bindSwipeEvents(containerRef.current);
+    }, [bindSwipeEvents]);
+
     if (error) {
         return (
             <div className="text-center py-12">
@@ -130,7 +152,7 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
     }
 
     return (
-        <div className="space-y-4">
+        <div ref={containerRef} className="space-y-4">
             {/* Панель действий для режима выбора */}
             {isSelectionMode && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 mb-4">
