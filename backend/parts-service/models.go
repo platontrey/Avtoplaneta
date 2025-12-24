@@ -255,9 +255,9 @@ func (p *Part) SetSpecifications(specs map[string]interface{}) {
 type StatisticsResponse struct {
 	TotalParts    int             `json:"total_parts"`
 	TotalValue    float64         `json:"total_value"`
-	TotalEarnings float64         `json:"total_earnings"`
+	TotalEarnings float64         `json:"total_earnings" gorm:"-"`
 	Categories    []CategoryCount `json:"categories"`
-	MonthlySales  []MonthlySales  `json:"monthly_sales"`
+	MonthlySales  []MonthlySales  `json:"monthly_sales" gorm:"-"`
 }
 
 type CategoryCount struct {

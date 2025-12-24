@@ -1,2 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<offers></offers>
+<offers>
+  <offer>
+    <name>Головка блока цилиндров</name>
+    <available>true</available>
+    <price>1000</price>
+    <currencyId>RUR</currencyId>
+    <picture>https://avtoplaneta70.ru/uploads/10113_1766601906.jpg</picture>
+    <store>Admin</store>
+    <quantity>52</quantity>
+    <ordercode>1765975840781</ordercode>
+    <condition>Б/у</condition>
+    <brandcars>BMW</brandcars>
+    <modelcars>123</modelcars>
+    <bodycars>123</bodycars>
+    <engine>123</engine>
+    <year>1999</year>
+    <lr>L</lr>
+    <color>Черный</color>
+    <supplier>Admin</supplier>
+    <supplier_art>1765975840781</supplier_art>
+  </offer>
+</offers>

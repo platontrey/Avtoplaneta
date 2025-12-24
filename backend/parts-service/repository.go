@@ -140,28 +140,56 @@ func (r *partRepository) DeleteExpiredParts(before time.Time) error {
 func (r *partRepository) GetStatistics() (StatisticsResponse, error) {
 	var stats StatisticsResponse
 
-	// Один запрос для всех статистик
-	query := `
-		SELECT
-			COUNT(*) as total_parts,
-			COALESCE(SUM(price * quantity), 0) as total_value,
-			JSON_AGG(JSON_BUILD_OBJECT('name', category, 'count', count)) FILTER (WHERE category != '') as categories
-		FROM (
-			SELECT category, COUNT(*) as count
-			FROM parts
-			WHERE to_delete_at IS NULL AND quantity >= 1
-			GROUP BY category
-		) cat_stats
-		CROSS JOIN (
-			SELECT COUNT(*) as total_parts, COALESCE(SUM(price * quantity), 0) as total_value
-			FROM parts
-			WHERE to_delete_at IS NULL AND quantity >= 1
-		) totals
-	`
-	err := r.db.Raw(query).Scan(&stats).Error
+	// Проверяем существование столбца price
+	var hasPriceColumn bool
+	checkQuery := `SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='parts' AND column_name='price')`
+	err := r.db.Raw(checkQuery).Scan(&hasPriceColumn).Error
 	if err != nil {
+		logrus.WithError(err).Error("Failed to check if price column exists")
 		return StatisticsResponse{}, err
 	}
+	logrus.WithField("has_price_column", hasPriceColumn).Info("Checked price column existence")
+
+	// Получаем totals
+	type Totals struct {
+		TotalParts int     `json:"total_parts"`
+		TotalValue float64 `json:"total_value"`
+	}
+	var totals Totals
+	totalsQuery := `
+		SELECT COUNT(*) as total_parts, COALESCE(SUM(price * quantity), 0) as total_value
+		FROM parts
+		WHERE to_delete_at IS NULL AND quantity >= 1
+	`
+	err = r.db.Raw(totalsQuery).Scan(&totals).Error
+	if err != nil {
+		logrus.WithError(err).Error("Failed to get totals")
+		return StatisticsResponse{}, err
+	}
+	stats.TotalParts = totals.TotalParts
+	stats.TotalValue = totals.TotalValue
+
+	// Получаем categories
+	categoriesQuery := `
+		SELECT category as name, COUNT(*) as count
+		FROM parts
+		WHERE to_delete_at IS NULL AND quantity >= 1 AND category != ''
+		GROUP BY category
+		ORDER BY count DESC
+	`
+	var categories []CategoryCount
+	err = r.db.Raw(categoriesQuery).Scan(&categories).Error
+	if err != nil {
+		logrus.WithError(err).Error("Failed to get categories")
+		return StatisticsResponse{}, err
+	}
+	stats.Categories = categories
+
+	logrus.WithFields(logrus.Fields{
+		"total_parts": stats.TotalParts,
+		"total_value": stats.TotalValue,
+		"categories_count": len(stats.Categories),
+	}).Info("Statistics retrieved successfully")
 
 	return stats, nil
 }
