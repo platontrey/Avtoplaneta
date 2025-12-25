@@ -415,6 +415,7 @@ export default function MessagesPage() {
         isOpen={isCreateChatOpen}
         onClose={() => setIsCreateChatOpen(false)}
         onSuccess={handleCreateChatSuccess}
+        currentUser={currentUser}
       />
     </div>
   );

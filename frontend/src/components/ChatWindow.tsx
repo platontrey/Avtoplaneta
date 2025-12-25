@@ -346,17 +346,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, currentUser, onCl
                 ))}
               </div>
             )}
-            {/* Delete button - only for own messages */}
-            {message.sender_id === currentUser.id && (
-              <div className="flex justify-end mt-1">
-                <button
-                  onClick={() => handleDeleteMessage(message.id)}
-                  className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                >
-                  Удалить
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </div>

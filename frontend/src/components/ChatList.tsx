@@ -119,6 +119,10 @@ const ChatList: React.FC<ChatListProps> = ({
     setConversations(prev => prev.map(conv =>
       conv.id === updatedConversation.id ? updatedConversation : conv
     ));
+    // Update settings conversation if it's the same chat
+    if (settingsConversation && settingsConversation.id === updatedConversation.id) {
+      setSettingsConversation(updatedConversation);
+    }
     onUpdateConversation?.(updatedConversation);
   };
 

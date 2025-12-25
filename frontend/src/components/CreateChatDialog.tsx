@@ -15,9 +15,10 @@ interface CreateChatDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (conversation: Conversation) => void;
+  currentUser: User;
 }
 
-export default function CreateChatDialog({ isOpen, onClose, onSuccess }: CreateChatDialogProps) {
+export default function CreateChatDialog({ isOpen, onClose, onSuccess, currentUser }: CreateChatDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [form, setForm] = useState({
     title: '',
@@ -83,6 +84,7 @@ export default function CreateChatDialog({ isOpen, onClose, onSuccess }: CreateC
             onSelectionChange={(users) => updateForm('participants', users)}
             placeholder="Выберите участников чата"
             multiple={true}
+            currentUser={currentUser}
           />
 
           <DialogFooter>

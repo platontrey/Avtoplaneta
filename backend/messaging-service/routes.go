@@ -55,6 +55,7 @@ func setupRoutes(r *gin.Engine) {
 		api.GET("/conversations/:id", getConversation)
 		api.PUT("/conversations/:id", updateConversation)
 		api.DELETE("/conversations/:id", deleteConversation)
+		api.DELETE("/conversations/:id/participants/:userId", removeParticipant)
 
 		// Messages
 		api.GET("/conversations/:id/messages", getMessages)
@@ -347,6 +348,92 @@ func deleteConversation(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Conversation deleted"})
+}
+
+func removeParticipant(c *gin.Context) {
+	userID := c.GetHeader("X-User-ID")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
+		return
+	}
+
+	userIDInt, err := strconv.Atoi(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	conversationID := c.Param("id")
+	conversationIDInt, err := strconv.Atoi(conversationID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid conversation ID"})
+		return
+	}
+
+	participantID := c.Param("userId")
+	participantIDInt, err := strconv.Atoi(participantID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid participant ID"})
+		return
+	}
+
+	// Get current user to check role
+	currentUser, err := getCurrentUser(userID, c.GetHeader("Authorization"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user info"})
+		return
+	}
+
+	if currentUser.Role != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Only admins can remove participants"})
+		return
+	}
+
+	var conversation Conversation
+	if err := DB.First(&conversation, conversationIDInt).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Conversation not found"})
+		return
+	}
+
+	// Check if participant is in conversation
+	isParticipant := false
+	for _, p := range conversation.Participants {
+		if p == int64(participantIDInt) {
+			isParticipant = true
+			break
+		}
+	}
+
+	if !isParticipant {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User is not a participant"})
+		return
+	}
+
+	// Cannot remove yourself
+	if participantIDInt == userIDInt {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot remove yourself"})
+		return
+	}
+
+	// Remove participant
+	newParticipants := []int64{}
+	for _, p := range conversation.Participants {
+		if p != int64(participantIDInt) {
+			newParticipants = append(newParticipants, p)
+		}
+	}
+	conversation.Participants = newParticipants
+
+	if err := DB.Save(&conversation).Error; err != nil {
+		RecordDBError("update", "messaging-service")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove participant"})
+		return
+	}
+
+	RecordBusinessOperation(
+		"remove_participant", "messaging-service", "success")
+
+	c.JSON(http.StatusOK, gin.H{"message": "Participant removed"})
 }
 
 // Messages
@@ -710,6 +797,36 @@ type User struct {
 	INN      string `json:"inn,omitempty"`
 	Provider string `json:"provider"`
 	Role     string `json:"role"`
+}
+
+func getCurrentUser(userID string, authHeader string) (*User, error) {
+	gatewayURL := "http://localhost:8080" // Assuming gateway is on 8080
+
+	req, err := http.NewRequest("GET", gatewayURL+"/api/users/me", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %v", err)
+	}
+
+	req.Header.Set("Authorization", authHeader)
+	req.Header.Set("X-User-ID", userID)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to gateway: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("gateway returned error status: %d", resp.StatusCode)
+	}
+
+	var user User
+	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %v", err)
+	}
+
+	return &user, nil
 }
 
 func getUsers(c *gin.Context) {

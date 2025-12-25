@@ -14,13 +14,15 @@ interface SelectUserDropdownProps {
   onSelectionChange: (users: User[]) => void;
   placeholder?: string;
   multiple?: boolean;
+  currentUser?: User;
 }
 
 export default function SelectUserDropdown({
   selectedUsers,
   onSelectionChange,
   placeholder = "Выберите пользователей",
-  multiple = true
+  multiple = true,
+  currentUser
 }: SelectUserDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,8 +60,9 @@ export default function SelectUserDropdown({
   }, []);
 
   const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+    (user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchQuery.toLowerCase())) &&
+    (!currentUser || user.id !== currentUser.id)
   );
 
   const handleUserToggle = (user: User) => {

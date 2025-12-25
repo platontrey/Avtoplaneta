@@ -118,6 +118,14 @@ class MessagingApi {
     if (!response.ok) throw new Error('Failed to delete conversation');
   }
 
+  async removeParticipant(conversationId: number, participantId: number): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/messaging/conversations/${conversationId}/participants/${participantId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to remove participant');
+  }
+
   // Reactions
   async addReaction(messageId: number, emoji: string): Promise<Reaction> {
     const response = await fetch(`${API_BASE_URL}/api/messaging/messages/${messageId}/reactions`, {

@@ -2,9 +2,9 @@
 * Copyright (c) 2025 Avtoplaneta. All rights reserved.
 */
 
-import { useState } from 'react';
-import { Edit, Trash2, X } from 'lucide-react';
-import type { Conversation } from '../features/messaging/types';
+import { useState, useEffect } from 'react';
+import { Edit, Trash2, X, Users, UserMinus } from 'lucide-react';
+import type { Conversation, User } from '../features/messaging/types';
 import { messagingApi } from '../features/messaging/api/messagingApi';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -48,6 +48,32 @@ export default function IndividualChatSettings({
   const [isUpdating, setIsUpdating] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [removingParticipant, setRemovingParticipant] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadUsers();
+      setNewTitle(conversation.title || '');
+    }
+  }, [isOpen, conversation.title]);
+
+  const loadUsers = async () => {
+    setIsLoadingUsers(true);
+    try {
+      const fetchedUsers = await messagingApi.getUsers();
+      setUsers(fetchedUsers);
+      const userId = parseInt(localStorage.getItem('userId') || '0');
+      const current = fetchedUsers.find(u => u.id === userId) || null;
+      setCurrentUser(current);
+    } catch (error) {
+      console.error('Failed to load users:', error);
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  };
 
   const handleRename = async () => {
     if (!newTitle.trim()) return;
@@ -80,10 +106,31 @@ export default function IndividualChatSettings({
     }
   };
 
+  const handleRemoveParticipant = async (participantId: number) => {
+    setRemovingParticipant(participantId);
+    try {
+      await messagingApi.removeParticipant(conversation.id, participantId);
+      // Update conversation participants
+      const updatedConversation = {
+        ...conversation,
+        participants: conversation.participants.filter(id => id !== participantId)
+      };
+      onUpdate(updatedConversation);
+    } catch (error) {
+      console.error('Failed to remove participant:', error);
+      alert('Не удалось удалить участника');
+    } finally {
+      setRemovingParticipant(null);
+    }
+  };
+
   const handleClose = () => {
     setIsRenaming(false);
     setNewTitle(conversation.title || '');
     setShowDeleteConfirm(false);
+    setUsers([]);
+    setCurrentUser(null);
+    setRemovingParticipant(null);
     onClose();
   };
 
@@ -143,6 +190,52 @@ export default function IndividualChatSettings({
                       <Edit className="w-4 h-4" />
                     </Button>
                   </>
+                )}
+              </div>
+            </div>
+
+            {/* Participants */}
+            <div>
+              <Label className="text-sm font-medium flex items-center gap-2 mb-2">
+                <Users className="w-4 h-4" />
+                Участники ({conversation.participants.length})
+              </Label>
+              <div className="space-y-2">
+                {isLoadingUsers ? (
+                  <div className="text-sm text-muted-foreground">Загрузка участников...</div>
+                ) : (
+                  conversation.participants.map(participantId => {
+                    const user = users.find(u => u.id === participantId);
+                    const isCurrentUser = currentUser?.id === participantId;
+                    const canRemove = currentUser?.role === 'admin' && !isCurrentUser;
+                    return (
+                      <div key={participantId} className="flex items-center justify-between p-2 border rounded">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-sm font-medium">
+                            {user?.name?.[0] || '?'}
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium">
+                              {user?.name || `Пользователь ${participantId}`}
+                              {isCurrentUser && <span className="text-muted-foreground ml-1">(вы)</span>}
+                            </div>
+                            <div className="text-xs text-muted-foreground">{user?.role}</div>
+                          </div>
+                        </div>
+                        {canRemove && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRemoveParticipant(participantId)}
+                            disabled={removingParticipant === participantId}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <UserMinus className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>
