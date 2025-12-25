@@ -3,21 +3,27 @@
 */
 
 import { useState, useEffect } from 'react';
-import { MessageCircle, RefreshCw } from 'lucide-react';
+import { MessageCircle, RefreshCw, Settings } from 'lucide-react';
 import type { Conversation, DromDialog, DromMessage } from '../features/messaging/types';
 import { useAuth } from '../features/auth/hooks/useAuth';
 import { messagingApi } from '../features/messaging/api/messagingApi';
 import ChatList from './ChatList';
 import ChatWindow from './ChatWindow';
 import CreateChatDialog from './CreateChatDialog';
+import ChatSettings, { type ChatSettingsData } from './ChatSettings';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 
 export default function MessagesPage() {
-   const { user: currentUser, isLoading } = useAuth();
-   const [activeTab, setActiveTab] = useState<'messages' | 'drom'>('messages');
-   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
-   const [isCreateChatOpen, setIsCreateChatOpen] = useState(false);
+    const { user: currentUser, isLoading } = useAuth();
+    const [activeTab, setActiveTab] = useState<'messages' | 'drom' | 'settings'>('messages');
+    const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+    const [isCreateChatOpen, setIsCreateChatOpen] = useState(false);
+    const [chatSettings, setChatSettings] = useState<ChatSettingsData>({
+      enableAutoRefresh: true,
+      refreshInterval: 30,
+      enableNotifications: true,
+    });
 
    // Drom state
    const [selectedDromDialog, setSelectedDromDialog] = useState<DromDialog | null>(null);
@@ -126,9 +132,13 @@ export default function MessagesPage() {
     setDromMessages(prev => prev.filter(msg => msg.id !== messageId));
   };
 
+  const handleSettingsChange = (settings: ChatSettingsData) => {
+    setChatSettings(settings);
+  };
+
   // Polling for Drom updates
   useEffect(() => {
-    if (activeTab !== 'drom') return;
+    if (activeTab !== 'drom' || !chatSettings.enableAutoRefresh) return;
 
     let interval: NodeJS.Timeout;
 
@@ -142,20 +152,20 @@ export default function MessagesPage() {
         }
       }, 5000);
     } else {
-      // Poll dialogs every 30 seconds when no dialog is selected
+      // Poll dialogs using settings interval when no dialog is selected
       interval = setInterval(async () => {
         try {
           await loadDromDialogs();
         } catch (error) {
           console.error('Failed to poll Drom dialogs:', error);
         }
-      }, 30000);
+      }, chatSettings.refreshInterval * 1000);
     }
 
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [activeTab, selectedDromDialog]);
+  }, [activeTab, selectedDromDialog, chatSettings.enableAutoRefresh, chatSettings.refreshInterval]);
 
   if (isLoading) {
     return (
@@ -210,6 +220,13 @@ export default function MessagesPage() {
             <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
           )}
         </button>
+        <button
+          onClick={() => setActiveTab('settings')}
+          className={`px-4 py-2 font-medium ${activeTab === 'settings' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`}
+        >
+          <Settings className="w-4 h-4 inline mr-1" />
+          Настройки
+        </button>
       </div>
 
       <div className="bg-card rounded-lg border shadow-sm h-[calc(100vh-200px)] overflow-hidden">
@@ -245,7 +262,7 @@ export default function MessagesPage() {
                 )}
               </div>
             </>
-          ) : (
+          ) : activeTab === 'drom' ? (
             <>
               {/* Drom Sidebar */}
               <div className="w-1/3 border-r border-border flex flex-col">
@@ -370,7 +387,11 @@ export default function MessagesPage() {
                 )}
               </div>
             </>
-          )}
+          ) : activeTab === 'settings' ? (
+            <div className="w-full">
+              <ChatSettings onSettingsChange={handleSettingsChange} />
+            </div>
+          ) : null}
         </div>
       </div>
 
