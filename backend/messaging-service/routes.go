@@ -53,6 +53,7 @@ func setupRoutes(r *gin.Engine) {
 		api.GET("/conversations", getConversations)
 		api.POST("/conversations", createConversation)
 		api.GET("/conversations/:id", getConversation)
+		api.PUT("/conversations/:id", updateConversation)
 		api.DELETE("/conversations/:id", deleteConversation)
 
 		// Messages
@@ -228,6 +229,69 @@ func getConversation(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"conversation": conversation})
+}
+
+func updateConversation(c *gin.Context) {
+	userID := c.GetHeader("X-User-ID")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
+		return
+	}
+
+	userIDInt, err := strconv.Atoi(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	conversationID := c.Param("id")
+	conversationIDInt, err := strconv.Atoi(conversationID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid conversation ID"})
+		return
+	}
+
+	var req struct {
+		Title string `json:"title"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	var conversation Conversation
+	if err := DB.First(&conversation, conversationIDInt).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Conversation not found"})
+		return
+	}
+
+	// Check if user is participant
+	isParticipant := false
+	for _, p := range conversation.Participants {
+		if p == int64(userIDInt) {
+			isParticipant = true
+			break
+		}
+	}
+
+	if !isParticipant {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return
+	}
+
+	// Update title
+	conversation.Title = req.Title
+	if err := DB.Save(&conversation).Error; err != nil {
+		RecordDBError("update", "messaging-service")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update conversation"})
+		return
+	}
+
+	RecordBusinessOperation(
+		"update_conversation", "messaging-service", "success")
+
+	c.JSON(http.StatusOK, conversation)
 }
 
 func deleteConversation(c *gin.Context) {

@@ -53,6 +53,20 @@ export default function MessagesPage() {
     setSelectedConversation(conversation);
   };
 
+  const handleUpdateConversation = (conversation: Conversation) => {
+    // If the updated conversation is currently selected, update it
+    if (selectedConversation?.id === conversation.id) {
+      setSelectedConversation(conversation);
+    }
+  };
+
+  const handleDeleteConversation = (conversationId: number) => {
+    // If the deleted conversation is currently selected, close it
+    if (selectedConversation?.id === conversationId) {
+      setSelectedConversation(null);
+    }
+  };
+
   // Drom functions
   useEffect(() => {
     if (activeTab === 'drom') {
@@ -240,6 +254,8 @@ export default function MessagesPage() {
                   selectedConversationId={selectedConversation?.id}
                   onCreateNewChat={handleCreateNewChat}
                   currentUser={currentUser}
+                  onUpdateConversation={handleUpdateConversation}
+                  onDeleteConversation={handleDeleteConversation}
                 />
               </div>
 

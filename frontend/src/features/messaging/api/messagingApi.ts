@@ -100,6 +100,24 @@ class MessagingApi {
     return response.json();
   }
 
+  async updateConversation(conversationId: number, title: string): Promise<Conversation> {
+    const response = await fetch(`${API_BASE_URL}/api/messaging/conversations/${conversationId}`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ title }),
+    });
+    if (!response.ok) throw new Error('Failed to update conversation');
+    return response.json();
+  }
+
+  async deleteConversation(conversationId: number): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/messaging/conversations/${conversationId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to delete conversation');
+  }
+
   // Reactions
   async addReaction(messageId: number, emoji: string): Promise<Reaction> {
     const response = await fetch(`${API_BASE_URL}/api/messaging/messages/${messageId}/reactions`, {

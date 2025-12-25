@@ -1,22 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, MoreVertical, Edit } from "lucide-react";
 import type { Conversation, UserStatus, User } from '../features/messaging/types';
 import { messagingApi } from '../features/messaging/api/messagingApi';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import IndividualChatSettings from './IndividualChatSettings';
 
 interface ChatListProps {
   onSelectConversation: (conversation: Conversation) => void;
   selectedConversationId?: number;
   onCreateNewChat?: () => void;
   currentUser: User;
+  onUpdateConversation?: (conversation: Conversation) => void;
+  onDeleteConversation?: (conversationId: number) => void;
 }
 
-const ChatList: React.FC<ChatListProps> = ({ onSelectConversation, selectedConversationId, onCreateNewChat, currentUser }) => {
+const ChatList: React.FC<ChatListProps> = ({
+  onSelectConversation,
+  selectedConversationId,
+  onCreateNewChat,
+  currentUser,
+  onUpdateConversation,
+  onDeleteConversation
+}) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [userStatuses, setUserStatuses] = useState<UserStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [settingsConversation, setSettingsConversation] = useState<Conversation | null>(null);
 
   useEffect(() => {
     loadData().catch(console.error);
@@ -98,6 +115,26 @@ const ChatList: React.FC<ChatListProps> = ({ onSelectConversation, selectedConve
     return `Чат #${conversation.id}`;
   };
 
+  const handleUpdateConversation = (updatedConversation: Conversation) => {
+    setConversations(prev => prev.map(conv =>
+      conv.id === updatedConversation.id ? updatedConversation : conv
+    ));
+    onUpdateConversation?.(updatedConversation);
+  };
+
+  const handleDeleteConversation = (conversationId: number) => {
+    setConversations(prev => prev.filter(conv => conv.id !== conversationId));
+    onDeleteConversation?.(conversationId);
+  };
+
+  const handleOpenSettings = (conversation: Conversation) => {
+    setSettingsConversation(conversation);
+  };
+
+  const handleCloseSettings = () => {
+    setSettingsConversation(null);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -150,7 +187,7 @@ const ChatList: React.FC<ChatListProps> = ({ onSelectConversation, selectedConve
             <div
               key={conversation.id}
               onClick={() => onSelectConversation(conversation)}
-              className={`p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+              className={`group p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
                 selectedConversationId === conversation.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
               }`}
             >
@@ -160,9 +197,29 @@ const ChatList: React.FC<ChatListProps> = ({ onSelectConversation, selectedConve
                     <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">
                       {getChatTitle(conversation)}
                     </h3>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {formatTime(conversation.last_message_at)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {formatTime(conversation.last_message_at)}
+                      </span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleOpenSettings(conversation)}>
+                            <Edit className="w-4 h-4 mr-2" />
+                            Настройки чата
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
 
                   {conversation.last_message && (
@@ -200,6 +257,17 @@ const ChatList: React.FC<ChatListProps> = ({ onSelectConversation, selectedConve
           ))
         )}
       </div>
+
+      {/* Individual Chat Settings */}
+      {settingsConversation && (
+        <IndividualChatSettings
+          conversation={settingsConversation}
+          isOpen={true}
+          onClose={handleCloseSettings}
+          onUpdate={handleUpdateConversation}
+          onDelete={handleDeleteConversation}
+        />
+      )}
     </div>
   );
 };
