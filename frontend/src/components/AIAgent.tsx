@@ -75,8 +75,7 @@ interface Message {
   action?: any; // Для хранения контекста действий
 }
 
-function AIAgent() {
-  const [isOpen, setIsOpen] = useState(false);
+function AIAgent({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -377,13 +376,13 @@ function AIAgent() {
     <>
       {/* Плавающая кнопка */}
       <motion.div
-        className="fixed bottom-4 right-4 z-50"
+        className="fixed bottom-4 right-4 z-50 hidden md:block"
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: 'spring', stiffness: 260, damping: 20 }}
       >
         <Button
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={onToggle}
           className="rounded-full w-14 h-14 shadow-lg hover:shadow-xl transition-shadow"
           size="lg"
         >
@@ -399,13 +398,13 @@ function AIAgent() {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            className="fixed bottom-20 right-4 z-40"
+            className="fixed md:bottom-20 md:right-4 bottom-0 right-0 z-40"
             initial={{ opacity: 0, scale: 0.8, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 20 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           >
-            <Card className="w-80 max-w-[calc(100vw-2rem)] h-96 max-h-[calc(100vh-8rem)] shadow-2xl border-2">
+            <Card className="w-screen h-screen md:w-80 md:max-w-[calc(100vw-2rem)] md:h-96 md:max-h-[calc(100vh-8rem)] shadow-2xl border-2">
               <CardHeader className="pb-3 flex-shrink-0">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Bot className="w-5 h-5 text-blue-500 flex-shrink-0" />

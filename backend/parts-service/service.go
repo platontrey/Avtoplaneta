@@ -1,13 +1,21 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"runtime"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+)
+
+const (
+	statisticsCacheKey = "parts:statistics"
+	statisticsCacheTTL = 5 * time.Minute
 )
 
 // ElasticsearchClient определяет интерфейс для работы с Elasticsearch
@@ -63,15 +71,26 @@ type InventoryQueryParams struct {
 type inventoryService struct {
 	repo          PartRepository
 	es            ElasticsearchClient
+	redis         *redis.Client
 	totalEarnings float64
 	queryPool     sync.Pool // Pool для повторного использования map для Elasticsearch queries
 }
 
 // NewInventoryService создает новый сервис инвентаря
-func NewInventoryService(repo PartRepository, es ElasticsearchClient) InventoryService {
+func NewInventoryService(repo PartRepository, es ElasticsearchClient, config *Config) InventoryService {
+	// Инициализация Redis клиента с настройками для IPv4
+	rdb := redis.NewClient(&redis.Options{
+		Addr:        config.RedisURL,
+		Network:     "tcp",  // Явно указываем TCP для IPv4
+		DialTimeout: 5 * time.Second,
+		ReadTimeout: 3 * time.Second,
+		WriteTimeout: 3 * time.Second,
+	})
+
 	service := &inventoryService{
 		repo: repo,
 		es:   es,
+		redis: rdb,
 		queryPool: sync.Pool{
 			New: func() interface{} {
 				return make(map[string]interface{})
@@ -342,6 +361,9 @@ func (s *inventoryService) AddPart(part *Part) (*Part, error) {
 		}
 	}
 
+	// Инвалидируем кэш статистики
+	s.invalidateStatisticsCache()
+
 	return createdPart, nil
 }
 
@@ -371,6 +393,9 @@ func (s *inventoryService) UpdatePart(id uint, updates map[string]interface{}) e
 			}
 		}
 	}
+
+	// Инвалидируем кэш статистики
+	s.invalidateStatisticsCache()
 
 	return nil
 }
@@ -402,6 +427,9 @@ func (s *inventoryService) DeletePart(id uint) error {
 		}
 	}
 
+	// Инвалидируем кэш статистики
+	s.invalidateStatisticsCache()
+
 	return nil
 }
 
@@ -411,8 +439,23 @@ func (s *inventoryService) MarkPartForDeletion(id uint) error {
 	return s.repo.MarkForDeletion(id, fourteenDaysFromNow)
 }
 
-// GetStatistics получает статистику
+// GetStatistics получает статистику с кэшированием
 func (s *inventoryService) GetStatistics() (StatisticsResponse, error) {
+	ctx := context.Background()
+
+	// Проверяем кэш
+	cachedData, err := s.redis.Get(ctx, statisticsCacheKey).Result()
+	if err == nil {
+		// Данные найдены в кэше
+		var stats StatisticsResponse
+		if err := json.Unmarshal([]byte(cachedData), &stats); err == nil {
+			logrus.Info("Statistics retrieved from cache")
+			return stats, nil
+		}
+		logrus.WithError(err).Warn("Failed to unmarshal cached statistics, falling back to database")
+	}
+
+	// Получаем данные из базы данных
 	stats, err := s.repo.GetStatistics()
 	if err != nil {
 		return StatisticsResponse{}, err
@@ -424,7 +467,28 @@ func (s *inventoryService) GetStatistics() (StatisticsResponse, error) {
 	// Добавляем месячные продажи (нужен доступ к orders DB, пока оставим пустым)
 	stats.MonthlySales = []MonthlySales{}
 
+	// Кэшируем результат
+	if data, err := json.Marshal(stats); err == nil {
+		if err := s.redis.Set(ctx, statisticsCacheKey, data, statisticsCacheTTL).Err(); err != nil {
+			logrus.WithError(err).Warn("Failed to cache statistics")
+		} else {
+			logrus.Info("Statistics cached successfully")
+		}
+	} else {
+		logrus.WithError(err).Warn("Failed to marshal statistics for caching")
+	}
+
 	return stats, nil
+}
+
+// invalidateStatisticsCache инвалидирует кэш статистики
+func (s *inventoryService) invalidateStatisticsCache() {
+	ctx := context.Background()
+	if err := s.redis.Del(ctx, statisticsCacheKey).Err(); err != nil {
+		logrus.WithError(err).Warn("Failed to invalidate statistics cache")
+	} else {
+		logrus.Info("Statistics cache invalidated")
+	}
 }
 
 // BulkDeleteParts удаляет несколько запчастей с использованием worker pool для параллельной обработки
@@ -488,6 +552,9 @@ func (s *inventoryService) BulkDeleteParts(ids []uint) error {
 		return err
 	}
 
+	// Инвалидируем кэш статистики
+	s.invalidateStatisticsCache()
+
 	logrus.Info("InventoryService.BulkDeleteParts: Successfully completed bulk delete")
 	return nil
 }
@@ -504,6 +571,9 @@ func (s *inventoryService) BulkUpdateParts(updates []map[string]interface{}) (in
 		logrus.WithError(err).Error("InventoryService.BulkUpdateParts: Failed to bulk update")
 		return 0, err
 	}
+
+	// Инвалидируем кэш статистики
+	s.invalidateStatisticsCache()
 
 	logrus.Info("InventoryService.BulkUpdateParts: Successfully completed bulk update")
 	return updatedCount, nil

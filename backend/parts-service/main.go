@@ -45,7 +45,7 @@ func main() {
 
 	// Создание зависимостей с dependency injection
 	repo := NewPartRepository(db)
-	service := NewInventoryService(repo, esClient)
+	service := NewInventoryService(repo, esClient, config)
 	handler := NewHandler(service)
 
 	// Создание контекста с отменой для graceful shutdown

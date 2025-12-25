@@ -3,7 +3,7 @@
 */
 
 import { Routes, Route } from 'react-router-dom';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import Header from './components/Header';
 import ErrorBoundary from './components/ErrorBoundary';
 import AIAgent from './components/AIAgent';
@@ -34,6 +34,7 @@ const LoadingSpinner = () => (
 
 function App() {
   const { user, isLoading, logout } = useAuth();
+  const [isAIOpen, setIsAIOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -73,10 +74,10 @@ function App() {
         </Suspense>
 
         {/* ИИ-помощник */}
-        <AIAgent />
+        <AIAgent isOpen={isAIOpen} onToggle={() => setIsAIOpen(!isAIOpen)} />
 
         {/* Мобильная нижняя навигация */}
-        <MobileBottomNav />
+        <MobileBottomNav onOpenAI={() => setIsAIOpen(true)} />
       </div>
     </ErrorBoundary>
   );

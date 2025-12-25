@@ -45,21 +45,33 @@ type AddOrderItemRequest struct {
 type ordersService struct {
 	orderRepo OrderRepository
 	partRepo  PartRepositoryForOrders
+	cache     CacheService
 }
 
 // NewOrdersService создает новый сервис заказов
-func NewOrdersService(orderRepo OrderRepository, partRepo PartRepositoryForOrders) OrdersService {
+func NewOrdersService(orderRepo OrderRepository, partRepo PartRepositoryForOrders, cache CacheService) OrdersService {
 	return &ordersService{
 		orderRepo: orderRepo,
 		partRepo:  partRepo,
+		cache:     cache,
 	}
 }
 
-// GetOrders получает все активные заказы
+// GetOrders получает все активные заказы с использованием кеша
 func (s *ordersService) GetOrders() ([]Order, error) {
+	// Сначала пытаемся получить из кеша
+	cachedOrders, err := s.cache.GetOrders()
+	if err != nil {
+		logrus.WithError(err).Warn("Failed to get orders from cache, falling back to database")
+	} else if cachedOrders != nil {
+		logrus.Info("Returning orders from cache")
+		return cachedOrders, nil
+	}
+
+	// Если в кеше нет данных, получаем из базы данных
 	orders, err := s.orderRepo.FindActive()
 	if err != nil {
-		logrus.WithError(err).Error("Failed to get orders")
+		logrus.WithError(err).Error("Failed to get orders from database")
 		return nil, err
 	}
 
@@ -81,6 +93,11 @@ func (s *ordersService) GetOrders() ([]Order, error) {
 		} else {
 			orders[i].Location = "Нет деталей"
 		}
+	}
+
+	// Сохраняем в кеш
+	if err := s.cache.SetOrders(orders); err != nil {
+		logrus.WithError(err).Warn("Failed to cache orders")
 	}
 
 	return orders, nil
@@ -168,6 +185,11 @@ func (s *ordersService) CreateOrder(req CreateOrderRequest) (*Order, error) {
 	completeOrder.CreatedAtFormatted = completeOrder.CreatedAt.Format("2006-01-02 15:04:05")
 	completeOrder.TimeAgo = formatTimeAgo(now.Sub(completeOrder.CreatedAt))
 
+	// Инвалидируем кеш заказов
+	if err := s.cache.InvalidateOrders(); err != nil {
+		logrus.WithError(err).Warn("Failed to invalidate orders cache after creating order")
+	}
+
 	return completeOrder, nil
 }
 
@@ -193,6 +215,11 @@ func (s *ordersService) UpdateOrderStatus(orderID uint, status string) error {
 		"order_id": orderID,
 		"status":   status,
 	}).Info("Order status updated")
+
+	// Инвалидируем кеш заказов
+	if err := s.cache.InvalidateOrders(); err != nil {
+		logrus.WithError(err).Warn("Failed to invalidate orders cache after updating status")
+	}
 
 	return nil
 }
@@ -249,6 +276,11 @@ func (s *ordersService) CompleteOrder(orderID uint) error {
 		// Не прерываем, заказ завершен
 	}
 
+	// Инвалидируем кеш заказов
+	if err := s.cache.InvalidateOrders(); err != nil {
+		logrus.WithError(err).Warn("Failed to invalidate orders cache after completing order")
+	}
+
 	logrus.WithFields(logrus.Fields{
 		"order_id": orderID,
 		"amount":   totalAmount,
@@ -293,6 +325,11 @@ func (s *ordersService) DeleteOrder(orderID uint) error {
 	if err := s.orderRepo.Delete(orderID); err != nil {
 		logrus.WithError(err).WithField("order_id", orderID).Error("Failed to delete order")
 		return err
+	}
+
+	// Инвалидируем кеш заказов
+	if err := s.cache.InvalidateOrders(); err != nil {
+		logrus.WithError(err).Warn("Failed to invalidate orders cache after deleting order")
 	}
 
 	logrus.WithField("order_id", orderID).Info("Order deleted and parts remain deducted")
@@ -348,6 +385,11 @@ func (s *ordersService) AddOrderItem(orderID uint, req AddOrderItemRequest) erro
 		"part_id":  req.PartID,
 		"quantity": req.Quantity,
 	}).Info("Added item to order")
+
+	// Инвалидируем кеш заказов
+	if err := s.cache.InvalidateOrders(); err != nil {
+		logrus.WithError(err).Warn("Failed to invalidate orders cache after adding item")
+	}
 
 	return nil
 }

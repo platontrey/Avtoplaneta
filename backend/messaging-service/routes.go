@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,7 +18,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 )
-
 
 var (
 	dbErrorsTotal = prometheus.NewCounterVec(
@@ -477,18 +477,30 @@ func getMessages(c *gin.Context) {
 		return
 	}
 
+	// Try to get from cache first
+	cacheKey := fmt.Sprintf("messages:%d", conversationIDInt)
+	cachedMessages, err := getMessagesFromCache(cacheKey)
+	if err == nil && len(cachedMessages) > 0 {
+		c.JSON(http.StatusOK, gin.H{"messages": cachedMessages})
+		return
+	}
+
+	// Get from database
 	var messages []Message
 	if err := DB.Where("conversation_id = ?", conversationIDInt).Order("created_at ASC").Preload("Reactions").Preload("Mentions").Find(&messages).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch messages"})
 		return
 	}
 
+	// Cache the messages
+	go cacheMessages(cacheKey, messages)
+
 	c.JSON(http.StatusOK, gin.H{"messages": messages})
 }
 
 // === DROM HANDLERS ===
 
-// Drom structures
+// DromDialog Drom structures
 type DromDialog struct {
 	ID            int     `json:"id"`
 	DialogID      string  `json:"dialog_id"`
@@ -585,6 +597,36 @@ func getDromMessages(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"messages": messages})
+}
+
+// Cache helper functions
+func getMessagesFromCache(key string) ([]Message, error) {
+	val, err := RedisClient.Get(context.Background(), key).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	var messages []Message
+	err = json.Unmarshal([]byte(val), &messages)
+	return messages, err
+}
+
+func cacheMessages(key string, messages []Message) {
+	data, err := json.Marshal(messages)
+	if err != nil {
+		log.Printf("Failed to marshal messages for cache: %v", err)
+		return
+	}
+
+	err = RedisClient.Set(context.Background(), key, data, 10*time.Minute).Err()
+	if err != nil {
+		log.Printf("Failed to cache messages: %v", err)
+	}
+}
+
+func invalidateMessagesCache(conversationID int) {
+	key := fmt.Sprintf("messages:%d", conversationID)
+	RedisClient.Del(context.Background(), key)
 }
 
 func sendDromMessage(c *gin.Context) {
@@ -690,7 +732,10 @@ func sendDromMessageToAPI(dialogID, text string) error {
 		return fmt.Errorf("failed to read session file: %v", err)
 	}
 	var session SessionData
-	json.Unmarshal(data, &session)
+	err = json.Unmarshal(data, &session)
+	if err != nil {
+		return err
+	}
 	for _, c := range session.Cookies {
 		req.AddCookie(&http.Cookie{Name: c.Name, Value: c.Value})
 	}
@@ -700,7 +745,12 @@ func sendDromMessageToAPI(dialogID, text string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("HTTP %d", resp.StatusCode)
@@ -719,7 +769,10 @@ func makeDromRequest(url string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to read session file: %v", err)
 	}
 	var session SessionData
-	json.Unmarshal(data, &session)
+	err = json.Unmarshal(data, &session)
+	if err != nil {
+		return nil, err
+	}
 	for _, c := range session.Cookies {
 		req.AddCookie(&http.Cookie{Name: c.Name, Value: c.Value})
 	}
@@ -729,7 +782,12 @@ func makeDromRequest(url string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
@@ -815,7 +873,12 @@ func getCurrentUser(userID string, authHeader string) (*User, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to gateway: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("gateway returned error status: %d", resp.StatusCode)
@@ -966,6 +1029,9 @@ func sendMessage(c *gin.Context) {
 	RecordBusinessOperation(
 		"send_message", "messaging-service", "success")
 
+	// Invalidate cache for this conversation
+	go invalidateMessagesCache(conversationIDInt)
+
 	c.JSON(http.StatusCreated, message)
 }
 
@@ -1080,6 +1146,9 @@ func sendVoiceMessage(c *gin.Context) {
 
 	RecordBusinessOperation(
 		"send_voice_message", "messaging-service", "success")
+
+	// Invalidate cache for this conversation
+	go invalidateMessagesCache(conversationIDInt)
 
 	c.JSON(http.StatusCreated, message)
 }

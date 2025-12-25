@@ -8,6 +8,9 @@ type Config struct {
 	SessionSecret string
 	NodeEnv       string
 	Port          string
+	RedisURL      string
+	RedisPassword string
+	RedisDB       int
 }
 
 // LoadConfig загружает конфигурацию из переменных окружения
@@ -17,6 +20,8 @@ func LoadConfig() *Config {
 		SessionSecret: os.Getenv("SESSION_SECRET"),
 		NodeEnv:       os.Getenv("NODE_ENV"),
 		Port:          os.Getenv("PORT"),
+		RedisURL:      os.Getenv("REDIS_URL"),
+		RedisPassword: os.Getenv("REDIS_PASSWORD"),
 	}
 
 	// Значения по умолчанию
@@ -29,6 +34,13 @@ func LoadConfig() *Config {
 	if config.Port == "" {
 		config.Port = "8082"
 	}
+	if config.RedisURL == "" {
+		config.RedisURL = "localhost:6379"
+	}
+	if config.RedisPassword == "" {
+		config.RedisPassword = ""
+	}
+	config.RedisDB = 0 // По умолчанию база данных 0
 
 	return config
 }

@@ -12,7 +12,11 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/redis/go-redis/v9"
+	"github.com/sirupsen/logrus"
 )
+
+var redisClient *redis.Client
 
 func main() {
 	// Установка количества OS-тредов для оптимизации под доступное количество ядер
@@ -21,6 +25,7 @@ func main() {
 	config := LoadConfig()
 	InitDB(config)
 	InitAuth(config)
+	InitRedis(config)
 
 	// Создание контекста с отменой для graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
@@ -38,7 +43,8 @@ func main() {
 	// Создаем зависимости
 	orderRepo := NewOrderRepository(db)
 	partRepo := NewPartRepositoryForOrders(db)
-	ordersService := NewOrdersService(orderRepo, partRepo)
+	cacheService := NewCacheService(redisClient)
+	ordersService := NewOrdersService(orderRepo, partRepo, cacheService)
 	handler := NewHandler(ordersService)
 
 	r := mux.NewRouter()
@@ -79,4 +85,21 @@ func main() {
 	case err := <-errChan:
 		log.Fatal("Ошибка сервера:", err)
 	}
+}
+
+// InitRedis инициализирует подключение к Redis
+func InitRedis(config *Config) {
+	redisClient = redis.NewClient(&redis.Options{
+		Addr:     config.RedisURL,
+		Password: config.RedisPassword,
+		DB:       config.RedisDB,
+	})
+
+	// Проверяем подключение
+	_, err := redisClient.Ping(context.Background()).Result()
+	if err != nil {
+		logrus.WithError(err).Fatal("Failed to connect to Redis")
+	}
+
+	logrus.Info("Redis connected successfully")
 }

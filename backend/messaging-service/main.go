@@ -21,6 +21,9 @@ func main() {
 	// Initialize database
 	InitDatabase()
 
+	// Initialize Redis
+	InitRedis()
+
 	// Создание контекста с отменой для graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
