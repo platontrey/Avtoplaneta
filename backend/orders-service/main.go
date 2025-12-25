@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gorilla/mux"
+	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )
@@ -47,10 +47,10 @@ func main() {
 	ordersService := NewOrdersService(orderRepo, partRepo, cacheService)
 	handler := NewHandler(ordersService)
 
-	r := mux.NewRouter()
+	r := gin.New()
 
 	// CORS middleware
-	r.Use(CORSMiddleware)
+	r.Use(CORSMiddleware())
 
 	// Setup routes с dependency injection
 	SetupRoutes(r, handler)

@@ -1,22 +1,22 @@
 package main
 
-import "github.com/gorilla/mux"
+import "github.com/gin-gonic/gin"
 
 // SetupRoutes настраивает маршруты для приложения с dependency injection
-func SetupRoutes(r *mux.Router, handler *Handler) {
+func SetupRoutes(r *gin.Engine, handler *Handler) {
 	// Применение middleware аутентификации ко всем маршрутам
-	r.Use(authMiddleware)
+	r.Use(authMiddleware())
 
 	// Маршруты только для администраторов
-	admin := r.PathPrefix("/admin").Subrouter()
-	admin.Use(adminMiddleware)
-	admin.HandleFunc("/orders", handler.GetOrdersHandler).Methods("GET", "OPTIONS")
-	admin.HandleFunc("/orders/{id:[0-9]+}/status", handler.UpdateOrderStatusHandler).Methods("PUT", "OPTIONS")
-	admin.HandleFunc("/orders/{id:[0-9]+}/complete", handler.CompleteOrderHandler).Methods("PUT", "OPTIONS")
-	admin.HandleFunc("/orders/{id:[0-9]+}", handler.DeleteOrderHandler).Methods("DELETE", "OPTIONS")
+	admin := r.Group("/admin")
+	admin.Use(adminMiddleware())
+	admin.GET("/orders", handler.GetOrdersHandler)
+	admin.PUT("/orders/:id/status", handler.UpdateOrderStatusHandler)
+	admin.PUT("/orders/:id/complete", handler.CompleteOrderHandler)
+	admin.DELETE("/orders/:id", handler.DeleteOrderHandler)
 
 	// Обычные пользовательские маршруты (для создания заказов)
-	r.HandleFunc("/orders", handler.CreateOrderHandler).Methods("POST", "OPTIONS")
-	r.HandleFunc("/orders", handler.GetOrdersHandler).Methods("GET", "OPTIONS")
-	r.HandleFunc("/orders/{id:[0-9]+}/items", handler.AddOrderItemHandler).Methods("POST", "OPTIONS")
+	r.POST("/orders", handler.CreateOrderHandler)
+	r.GET("/orders", handler.GetOrdersHandler)
+	r.POST("/orders/:id/items", handler.AddOrderItemHandler)
 }
