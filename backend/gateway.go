@@ -12,11 +12,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/eapache/go-resiliency/breaker"
+	"github.com/eapache/go-resiliency/retrier"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"github.com/swaggo/files"
 	"github.com/swaggo/gin-swagger"
+	"golang.org/x/time/rate"
 )
 
 // User представляет пользователя в системе
@@ -39,6 +42,22 @@ type Gateway struct {
 	ordersServiceURL    string
 	messagingServiceURL string
 	allowedOrigins      []string
+
+	// Resiliency patterns
+	authBreaker      *breaker.Breaker
+	partsBreaker     *breaker.Breaker
+	ordersBreaker    *breaker.Breaker
+	messagingBreaker *breaker.Breaker
+
+	authLimiter      *rate.Limiter
+	partsLimiter     *rate.Limiter
+	ordersLimiter    *rate.Limiter
+	messagingLimiter *rate.Limiter
+
+	authSem      chan struct{} // bulkhead for auth service
+	partsSem     chan struct{} // bulkhead for parts service
+	ordersSem    chan struct{} // bulkhead for orders service
+	messagingSem chan struct{} // bulkhead for messaging service
 }
 
 // NewGateway создает новый экземпляр Gateway
@@ -62,6 +81,7 @@ func NewGateway() *Gateway {
 	}
 
 	g.loadServiceURLs()
+	g.initResiliencyPatterns()
 	g.setupMiddleware()
 	g.setupRoutes()
 
@@ -74,6 +94,27 @@ func (g *Gateway) loadServiceURLs() {
 	g.partsServiceURL = getEnvOrDefault("PARTS_SERVICE_URL", "http://localhost:8081")
 	g.ordersServiceURL = getEnvOrDefault("ORDERS_SERVICE_URL", "http://localhost:8082")
 	g.messagingServiceURL = getEnvOrDefault("MESSAGING_SERVICE_URL", "http://localhost:8084")
+}
+
+// initResiliencyPatterns инициализирует паттерны устойчивости
+func (g *Gateway) initResiliencyPatterns() {
+	// Circuit Breakers: 5 ошибок подряд вызывают открытие на 10 секунд
+	g.authBreaker = breaker.New(5, 1, 10*time.Second)
+	g.partsBreaker = breaker.New(5, 1, 10*time.Second)
+	g.ordersBreaker = breaker.New(5, 1, 10*time.Second)
+	g.messagingBreaker = breaker.New(5, 1, 10*time.Second)
+
+	// Rate Limiters: 100 запросов в секунду на сервис
+	g.authLimiter = rate.NewLimiter(rate.Limit(100), 100)
+	g.partsLimiter = rate.NewLimiter(rate.Limit(100), 100)
+	g.ordersLimiter = rate.NewLimiter(rate.Limit(100), 100)
+	g.messagingLimiter = rate.NewLimiter(rate.Limit(100), 100)
+
+	// Bulkhead: максимум 50 одновременных соединений на сервис
+	g.authSem = make(chan struct{}, 50)
+	g.partsSem = make(chan struct{}, 50)
+	g.ordersSem = make(chan struct{}, 50)
+	g.messagingSem = make(chan struct{}, 50)
 }
 
 // setupMiddleware настраивает middleware для gateway
@@ -92,6 +133,9 @@ func (g *Gateway) setupMiddleware() {
 
 	// Logging middleware
 	g.router.Use(g.loggingMiddleware())
+
+	// Rate limiting middleware
+	g.router.Use(g.rateLimitingMiddleware())
 
 	// Metrics middleware
 	g.router.Use(MetricsMiddleware())
@@ -269,6 +313,40 @@ func (g *Gateway) loggingMiddleware() gin.HandlerFunc {
 	}
 }
 
+// rateLimitingMiddleware ограничивает частоту запросов
+func (g *Gateway) rateLimitingMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var limiter *rate.Limiter
+
+		// Определяем лимитер на основе пути запроса
+		path := c.Request.URL.Path
+		if strings.HasPrefix(path, "/auth/") {
+			limiter = g.authLimiter
+		} else if strings.HasPrefix(path, "/api/") && (strings.Contains(path, "/inventory") || strings.Contains(path, "/addpart") || strings.Contains(path, "/deletepart") || strings.Contains(path, "/updatepart")) {
+			limiter = g.partsLimiter
+		} else if strings.HasPrefix(path, "/orders/") || strings.HasPrefix(path, "/admin/orders") {
+			limiter = g.ordersLimiter
+		} else if strings.HasPrefix(path, "/api/messaging/") {
+			limiter = g.messagingLimiter
+		} else {
+			// Для остальных запросов используем общий лимитер
+			limiter = rate.NewLimiter(rate.Limit(1000), 1000)
+		}
+
+		if !limiter.Allow() {
+			logrus.WithFields(logrus.Fields{
+				"path":   path,
+				"ip":     c.ClientIP(),
+			}).Warn("Rate limit exceeded")
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "Rate limit exceeded"})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
 // proxyToAuthService проксирует запросы к auth-service
 func (g *Gateway) proxyToAuthService(c *gin.Context) {
 	g.proxyToService(c, g.authServiceURL, c.Request.Method, c.Request.URL.Path)
@@ -289,8 +367,60 @@ func (g *Gateway) proxyToMessagingService(c *gin.Context) {
 	g.proxyToService(c, g.messagingServiceURL, c.Request.Method, c.Request.URL.Path)
 }
 
-// proxyToService универсальный метод проксирования
+// proxyToService универсальный метод проксирования с паттернами устойчивости
 func (g *Gateway) proxyToService(c *gin.Context, serviceURL, method, path string) {
+	// Определяем компоненты resiliency на основе serviceURL
+	var breaker *breaker.Breaker
+	var sem chan struct{}
+
+	switch serviceURL {
+	case g.authServiceURL:
+		breaker = g.authBreaker
+		sem = g.authSem
+	case g.partsServiceURL:
+		breaker = g.partsBreaker
+		sem = g.partsSem
+	case g.ordersServiceURL:
+		breaker = g.ordersBreaker
+		sem = g.ordersSem
+	case g.messagingServiceURL:
+		breaker = g.messagingBreaker
+		sem = g.messagingSem
+	default:
+		logrus.WithField("serviceURL", serviceURL).Error("Unknown service URL")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unknown service"})
+		return
+	}
+
+	// Bulkhead: ограничиваем количество одновременных соединений
+	select {
+	case sem <- struct{}{}:
+		defer func() { <-sem }()
+	default:
+		logrus.WithField("service", serviceURL).Warn("Bulkhead: too many concurrent requests")
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Service temporarily unavailable"})
+		return
+	}
+
+	// Retry: создаем retrier с экспоненциальной задержкой
+	r := retrier.New(retrier.ConstantBackoff(3, 100*time.Millisecond), nil)
+
+	// Circuit Breaker + Retry: выполняем запрос через breaker с retry
+	err := breaker.Run(func() error {
+		return r.Run(func() error {
+			return g.executeRequest(c, serviceURL, method, path)
+		})
+	})
+
+	if err != nil {
+		logrus.WithError(err).WithField("service", serviceURL).Error("Failed to execute request after retries and circuit breaker")
+		// Если breaker.Run вернул ошибку, значит circuit breaker открыт или все попытки failed
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Service temporarily unavailable"})
+	}
+}
+
+// executeRequest выполняет один запрос с возможностью повторных попыток
+func (g *Gateway) executeRequest(c *gin.Context, serviceURL, method, path string) error {
 	// Build full URL with query parameters
 	fullURL := serviceURL + path
 	if c.Request.URL.RawQuery != "" {
@@ -307,7 +437,7 @@ func (g *Gateway) proxyToService(c *gin.Context, serviceURL, method, path string
 			if err != nil {
 				logrus.WithError(err).Error("Failed to read request body")
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read request body"})
-				return
+				return err
 			}
 			body = bytes.NewReader(bodyBytes)
 			c.Request.Body = io.NopCloser(bytes.NewReader(bodyBytes))
@@ -319,7 +449,7 @@ func (g *Gateway) proxyToService(c *gin.Context, serviceURL, method, path string
 	if err != nil {
 		logrus.WithError(err).Error("Failed to create proxy request")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request"})
-		return
+		return err
 	}
 
 	// Copy headers
@@ -348,18 +478,23 @@ func (g *Gateway) proxyToService(c *gin.Context, serviceURL, method, path string
 	}
 
 	// Execute request
-	client := &http.Client{}
+	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		logrus.WithError(err).WithField("service", serviceURL).Error("Failed to connect to service")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to service"})
-		return
+		return err
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
 			logrus.WithError(err).Warn("Failed to close response body")
 		}
 	}()
+
+	// Для circuit breaker: считаем неудачей только сетевые ошибки или 5xx статусы
+	if resp.StatusCode >= 500 {
+		return fmt.Errorf("server error: %d", resp.StatusCode)
+	}
 
 	// Copy response headers
 	for key, values := range resp.Header {
@@ -372,7 +507,10 @@ func (g *Gateway) proxyToService(c *gin.Context, serviceURL, method, path string
 	c.Status(resp.StatusCode)
 	if _, err := io.Copy(c.Writer, resp.Body); err != nil {
 		logrus.WithError(err).Error("Failed to copy response body")
+		return err
 	}
+
+	return nil
 }
 
 // Run запускает gateway с поддержкой graceful shutdown
