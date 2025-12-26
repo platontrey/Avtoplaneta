@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -10,34 +11,31 @@ import (
 
 // PartRepository определяет контракт для доступа к данным запчастей
 // Это позволяет легко заменять реализацию (например, на другую БД)
-
-// PartRepository определяет интерфейс для работы с запчастями в базе данных
-// Это позволяет легко заменять реализацию (например, на другую БД)
 type PartRepository interface {
 	// Create Основные операции CRUD
-	Create(part *Part) error                              // Создает новую запчасть
-	FindByID(id uint) (*Part, error)                      // Находит запчасть по ID
-	Update(id uint, updates map[string]interface{}) error // Обновляет запчасть
-	Delete(id uint) error                                 // Удаляет запчасть
+	Create(ctx context.Context, part *Part) error                              // Создает новую запчасть
+	FindByID(ctx context.Context, id uint) (*Part, error)                      // Находит запчасть по ID
+	Update(ctx context.Context, id uint, updates map[string]interface{}) error // Обновляет запчасть
+	Delete(ctx context.Context, id uint) error                                 // Удаляет запчасть
 
 	// FindAll Поиск и фильтрация
-	FindAll(query *gorm.DB) ([]Part, error)                         // Находит все запчасти по запросу
-	FindWithFilters(filters map[string]interface{}) ([]Part, error) // Находит с фильтрами
+	FindAll(ctx context.Context, query *gorm.DB) ([]Part, error)                         // Находит все запчасти по запросу
+	FindWithFilters(ctx context.Context, filters map[string]interface{}) ([]Part, error) // Находит с фильтрами
 
 	// MarkForDeletion Специфические операции
-	MarkForDeletion(id uint, deleteAt time.Time) error        // Отмечает для удаления
-	DeleteExpiredParts(before time.Time) error                // Удаляет просроченные
-	GetStatistics() (StatisticsResponse, error)               // Получает статистику
-	BulkDelete(ids []uint) error                              // Массовое удаление
-	BulkUpdate(updates []map[string]interface{}) (int, error) // Массовое обновление
+	MarkForDeletion(ctx context.Context, id uint, deleteAt time.Time) error        // Отмечает для удаления
+	DeleteExpiredParts(ctx context.Context, before time.Time) error                // Удаляет просроченные
+	GetStatistics(ctx context.Context) (StatisticsResponse, error)               // Получает статистику
+	BulkDelete(ctx context.Context, ids []uint) error                              // Массовое удаление
+	BulkUpdate(ctx context.Context, updates []map[string]interface{}) (int, error) // Массовое обновление
 
 	// DeleteZeroQuantityPartsBySupplier Supplier operations
-	DeleteZeroQuantityPartsBySupplier(supplierCode string) (int64, error) // Удаляет запчасти с нулевым количеством по поставщику
-	GetSupplierCodes() ([]string, error)                                  // Получает уникальные коды поставщиков
+	DeleteZeroQuantityPartsBySupplier(ctx context.Context, supplierCode string) (int64, error) // Удаляет запчасти с нулевым количеством по поставщику
+	GetSupplierCodes(ctx context.Context) ([]string, error)                                  // Получает уникальные коды поставщиков
 
 	// Earnings operations
-	GetTotalEarnings() (float64, error)     // Получает общий заработок
-	UpdateTotalEarnings(amount float64) error // Обновляет общий заработок
+	GetTotalEarnings(ctx context.Context) (float64, error)     // Получает общий заработок
+	UpdateTotalEarnings(ctx context.Context, amount float64) error // Обновляет общий заработок
 }
 
 // partRepository реализует PartRepository
@@ -51,14 +49,14 @@ func NewPartRepository(db *gorm.DB) PartRepository {
 }
 
 // Create создает новую запчасть
-func (r *partRepository) Create(part *Part) error {
-	return r.db.Create(part).Error
+func (r *partRepository) Create(ctx context.Context, part *Part) error {
+	return r.db.WithContext(ctx).Create(part).Error
 }
 
 // FindByID находит запчасть по ID
-func (r *partRepository) FindByID(id uint) (*Part, error) {
+func (r *partRepository) FindByID(ctx context.Context, id uint) (*Part, error) {
 	var part Part
-	err := r.db.First(&part, id).Error
+	err := r.db.WithContext(ctx).First(&part, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -66,25 +64,25 @@ func (r *partRepository) FindByID(id uint) (*Part, error) {
 }
 
 // Update обновляет запчасть по ID
-func (r *partRepository) Update(id uint, updates map[string]interface{}) error {
-	return r.db.Model(&Part{}).Where("id = ?", id).Updates(updates).Error
+func (r *partRepository) Update(ctx context.Context, id uint, updates map[string]interface{}) error {
+	return r.db.WithContext(ctx).Model(&Part{}).Where("id = ?", id).Updates(updates).Error
 }
 
 // Delete удаляет запчасть по ID
-func (r *partRepository) Delete(id uint) error {
-	return r.db.Delete(&Part{}, id).Error
+func (r *partRepository) Delete(ctx context.Context, id uint) error {
+	return r.db.WithContext(ctx).Delete(&Part{}, id).Error
 }
 
 // FindAll находит все запчасти с учетом запроса
-func (r *partRepository) FindAll(query *gorm.DB) ([]Part, error) {
+func (r *partRepository) FindAll(ctx context.Context, query *gorm.DB) ([]Part, error) {
 	var parts []Part
-	err := query.Find(&parts).Error
+	err := query.WithContext(ctx).Find(&parts).Error
 	return parts, err
 }
 
 // FindWithFilters находит запчасти с фильтрами
-func (r *partRepository) FindWithFilters(filters map[string]interface{}) ([]Part, error) {
-	query := r.db.Model(&Part{})
+func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string]interface{}) ([]Part, error) {
+	query := r.db.WithContext(ctx).Model(&Part{})
 
 	// Применяем фильтры
 	for key, value := range filters {
@@ -127,23 +125,23 @@ func (r *partRepository) FindWithFilters(filters map[string]interface{}) ([]Part
 }
 
 // MarkForDeletion отмечает запчасть для удаления
-func (r *partRepository) MarkForDeletion(id uint, deleteAt time.Time) error {
-	return r.db.Model(&Part{}).Where("id = ?", id).Update("to_delete_at", deleteAt).Error
+func (r *partRepository) MarkForDeletion(ctx context.Context, id uint, deleteAt time.Time) error {
+	return r.db.WithContext(ctx).Model(&Part{}).Where("id = ?", id).Update("to_delete_at", deleteAt).Error
 }
 
 // DeleteExpiredParts удаляет просроченные запчасти
-func (r *partRepository) DeleteExpiredParts(before time.Time) error {
-	return r.db.Where("to_delete_at IS NOT NULL AND to_delete_at <= ?", before).Delete(&Part{}).Error
+func (r *partRepository) DeleteExpiredParts(ctx context.Context, before time.Time) error {
+	return r.db.WithContext(ctx).Where("to_delete_at IS NOT NULL AND to_delete_at <= ?", before).Delete(&Part{}).Error
 }
 
 // GetStatistics получает статистику по запчастям
-func (r *partRepository) GetStatistics() (StatisticsResponse, error) {
+func (r *partRepository) GetStatistics(ctx context.Context) (StatisticsResponse, error) {
 	var stats StatisticsResponse
 
 	// Проверяем существование столбца price
 	var hasPriceColumn bool
 	checkQuery := `SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='parts' AND column_name='price')`
-	err := r.db.Raw(checkQuery).Scan(&hasPriceColumn).Error
+	err := r.db.WithContext(ctx).Raw(checkQuery).Scan(&hasPriceColumn).Error
 	if err != nil {
 		logrus.WithError(err).Error("Failed to check if price column exists")
 		return StatisticsResponse{}, err
@@ -161,7 +159,7 @@ func (r *partRepository) GetStatistics() (StatisticsResponse, error) {
 		FROM parts
 		WHERE to_delete_at IS NULL AND quantity >= 1
 	`
-	err = r.db.Raw(totalsQuery).Scan(&totals).Error
+	err = r.db.WithContext(ctx).Raw(totalsQuery).Scan(&totals).Error
 	if err != nil {
 		logrus.WithError(err).Error("Failed to get totals")
 		return StatisticsResponse{}, err
@@ -178,7 +176,7 @@ func (r *partRepository) GetStatistics() (StatisticsResponse, error) {
 		ORDER BY count DESC
 	`
 	var categories []CategoryCount
-	err = r.db.Raw(categoriesQuery).Scan(&categories).Error
+	err = r.db.WithContext(ctx).Raw(categoriesQuery).Scan(&categories).Error
 	if err != nil {
 		logrus.WithError(err).Error("Failed to get categories")
 		return StatisticsResponse{}, err
@@ -195,14 +193,14 @@ func (r *partRepository) GetStatistics() (StatisticsResponse, error) {
 }
 
 // BulkDelete удаляет несколько запчастей
-func (r *partRepository) BulkDelete(ids []uint) error {
+func (r *partRepository) BulkDelete(ctx context.Context, ids []uint) error {
 	logrus.WithFields(logrus.Fields{
 		"ids":   ids,
 		"count": len(ids),
 	}).Info("PartRepository.BulkDelete: Starting bulk delete")
 
 	// Используем транзакцию для атомарности
-	tx := r.db.Begin()
+	tx := r.db.WithContext(ctx).Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -226,7 +224,7 @@ func (r *partRepository) BulkDelete(ids []uint) error {
 }
 
 // BulkUpdate обновляет несколько запчастей
-func (r *partRepository) BulkUpdate(updates []map[string]interface{}) (int, error) {
+func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]interface{}) (int, error) {
 	logrus.WithFields(logrus.Fields{
 		"updates": updates,
 		"count":   len(updates),
@@ -266,7 +264,7 @@ func (r *partRepository) BulkUpdate(updates []map[string]interface{}) (int, erro
 			"update": update,
 		}).Debug("PartRepository.BulkUpdate: Processing update")
 
-		if err := r.Update(id, update); err != nil {
+		if err := r.Update(ctx, id, update); err != nil {
 			logrus.WithError(err).WithFields(logrus.Fields{
 				"index": i,
 				"id": id,
@@ -281,12 +279,12 @@ func (r *partRepository) BulkUpdate(updates []map[string]interface{}) (int, erro
 }
 
 // DeleteZeroQuantityPartsBySupplier удаляет запчасти с нулевым количеством по коду поставщика
-func (r *partRepository) DeleteZeroQuantityPartsBySupplier(supplierCode string) (int64, error) {
+func (r *partRepository) DeleteZeroQuantityPartsBySupplier(ctx context.Context, supplierCode string) (int64, error) {
 	fmt.Printf("Repository: DeleteZeroQuantityPartsBySupplier called with supplier_code='%s'\n", supplierCode)
 
 	// Сначала посчитаем, сколько записей будет удалено
 	var count int64
-	err := r.db.Model(&Part{}).Where("supplier_code = ? AND quantity = 0 AND to_delete_at IS NULL", supplierCode).Count(&count).Error
+	err := r.db.WithContext(ctx).Model(&Part{}).Where("supplier_code = ? AND quantity = 0 AND to_delete_at IS NULL", supplierCode).Count(&count).Error
 	if err != nil {
 		fmt.Printf("Repository: Error counting parts to delete: %v\n", err)
 		return 0, err
@@ -294,7 +292,7 @@ func (r *partRepository) DeleteZeroQuantityPartsBySupplier(supplierCode string) 
 	fmt.Printf("Repository: Found %d parts to delete for supplier_code='%s'\n", count, supplierCode)
 
 	// Выполним удаление
-	result := r.db.Where("supplier_code = ? AND quantity = 0 AND to_delete_at IS NULL", supplierCode).Delete(&Part{})
+	result := r.db.WithContext(ctx).Where("supplier_code = ? AND quantity = 0 AND to_delete_at IS NULL", supplierCode).Delete(&Part{})
 	if result.Error != nil {
 		fmt.Printf("Repository: Error deleting parts: %v\n", result.Error)
 		return 0, result.Error
@@ -305,10 +303,10 @@ func (r *partRepository) DeleteZeroQuantityPartsBySupplier(supplierCode string) 
 }
 
 // GetSupplierCodes получает уникальные коды поставщиков, для которых есть запчасти с quantity=0
-func (r *partRepository) GetSupplierCodes() ([]string, error) {
+func (r *partRepository) GetSupplierCodes(ctx context.Context) ([]string, error) {
 	fmt.Printf("Repository: GetSupplierCodes called\n")
 	var codes []string
-	err := r.db.Model(&Part{}).Where("supplier_code IS NOT NULL AND supplier_code != '' AND quantity = 0 AND to_delete_at IS NULL").Distinct("supplier_code").Pluck("supplier_code", &codes).Error
+	err := r.db.WithContext(ctx).Model(&Part{}).Where("supplier_code IS NOT NULL AND supplier_code != '' AND quantity = 0 AND to_delete_at IS NULL").Distinct("supplier_code").Pluck("supplier_code", &codes).Error
 	if err != nil {
 		fmt.Printf("Repository: GetSupplierCodes failed: %v\n", err)
 		return nil, err
@@ -318,14 +316,14 @@ func (r *partRepository) GetSupplierCodes() ([]string, error) {
 }
 
 // GetTotalEarnings получает общий заработок из базы данных
-func (r *partRepository) GetTotalEarnings() (float64, error) {
+func (r *partRepository) GetTotalEarnings(ctx context.Context) (float64, error) {
 	var earnings Earnings
-	err := r.db.First(&earnings).Error
+	err := r.db.WithContext(ctx).First(&earnings).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			// Если записи нет, создаем новую с нулевым значением
 			newEarnings := Earnings{TotalAmount: 0}
-			if createErr := r.db.Create(&newEarnings).Error; createErr != nil {
+			if createErr := r.db.WithContext(ctx).Create(&newEarnings).Error; createErr != nil {
 				return 0, createErr
 			}
 			return 0, nil
@@ -336,18 +334,18 @@ func (r *partRepository) GetTotalEarnings() (float64, error) {
 }
 
 // UpdateTotalEarnings обновляет общий заработок в базе данных
-func (r *partRepository) UpdateTotalEarnings(amount float64) error {
+func (r *partRepository) UpdateTotalEarnings(ctx context.Context, amount float64) error {
 	var earnings Earnings
-	err := r.db.First(&earnings).Error
+	err := r.db.WithContext(ctx).First(&earnings).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			// Создаем новую запись
 			newEarnings := Earnings{TotalAmount: amount}
-			return r.db.Create(&newEarnings).Error
+			return r.db.WithContext(ctx).Create(&newEarnings).Error
 		}
 		return err
 	}
 
 	// Обновляем существующую запись
-	return r.db.Model(&earnings).Update("total_amount", amount).Error
+	return r.db.WithContext(ctx).Model(&earnings).Update("total_amount", amount).Error
 }

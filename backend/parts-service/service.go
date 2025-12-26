@@ -29,28 +29,28 @@ type ElasticsearchClient interface {
 // Содержит всю логику валидации, обработки и координации между репозиторием и внешними сервисами
 type InventoryService interface {
 	// GetInventory Основные операции с запчастями
-	GetInventory(params InventoryQueryParams) ([]Part, error) // Получает список запчастей с фильтрами
-	AddPart(part *Part) (*Part, error)                        // Добавляет новую запчасть
-	UpdatePart(id uint, updates map[string]interface{}) error // Обновляет существующую запчасть
-	DeletePart(id uint) error                                 // Удаляет запчасть
-	MarkPartForDeletion(id uint) error                        // Отмечает запчасть для отложенного удаления
-	GetStatistics() (StatisticsResponse, error)               // Получает статистику по инвентарю
+	GetInventory(ctx context.Context, params InventoryQueryParams) ([]Part, error) // Получает список запчастей с фильтрами
+	AddPart(ctx context.Context, part *Part) (*Part, error)                        // Добавляет новую запчасть
+	UpdatePart(ctx context.Context, id uint, updates map[string]interface{}) error // Обновляет существующую запчасть
+	DeletePart(ctx context.Context, id uint) error                                 // Удаляет запчасть
+	MarkPartForDeletion(ctx context.Context, id uint) error                        // Отмечает запчасть для отложенного удаления
+	GetStatistics(ctx context.Context) (StatisticsResponse, error)               // Получает статистику по инвентарю
 
 	// BulkDeleteParts Админ операции
-	BulkDeleteParts(ids []uint) error                                     // Массовое удаление запчастей
-	BulkUpdateParts(updates []map[string]interface{}) (int, error)        // Массовое обновление запчастей
-	DeleteZeroQuantityPartsBySupplier(supplierCode string) (int64, error) // Удаление по поставщику
-	GetSupplierCodes() ([]string, error)                                  // Получение кодов поставщиков
+	BulkDeleteParts(ctx context.Context, ids []uint) error                                     // Массовое удаление запчастей
+	BulkUpdateParts(ctx context.Context, updates []map[string]interface{}) (int, error)        // Массовое обновление запчастей
+	DeleteZeroQuantityPartsBySupplier(ctx context.Context, supplierCode string) (int64, error) // Удаление по поставщику
+	GetSupplierCodes(ctx context.Context) ([]string, error)                                  // Получение кодов поставщиков
 
 	// UploadPartPhoto Фото операции
-	UploadPartPhoto(id uint, c *gin.Context) (string, error) // Загрузка фото запчасти
-	DeletePartPhoto(id uint, photoPath string) error         // Удаление фото запчасти (если photoPath пустой - удаляет все)
+	UploadPartPhoto(ctx context.Context, id uint, c *gin.Context) (string, error) // Загрузка фото запчасти
+	DeletePartPhoto(ctx context.Context, id uint, photoPath string) error         // Удаление фото запчасти (если photoPath пустой - удаляет все)
 
 	// GetPartByID Получение запчасти по ID
-	GetPartByID(id uint) (*Part, error)
+	GetPartByID(ctx context.Context, id uint) (*Part, error)
 
 	// UpdateEarnings Обновление общего заработка
-	UpdateEarnings(amount float64) error
+	UpdateEarnings(ctx context.Context, amount float64) error
 }
 
 // InventoryQueryParams параметры запроса для инвентаря
@@ -99,7 +99,8 @@ func NewInventoryService(repo PartRepository, es ElasticsearchClient, config *Co
 	}
 
 	// Инициализируем totalEarnings из базы данных
-	if earnings, err := repo.GetTotalEarnings(); err == nil {
+	ctx := context.Background()
+	if earnings, err := repo.GetTotalEarnings(ctx); err == nil {
 		service.totalEarnings = earnings
 	} else {
 		logrus.WithError(err).Warn("Failed to load total earnings from database, starting with 0")
@@ -110,15 +111,15 @@ func NewInventoryService(repo PartRepository, es ElasticsearchClient, config *Co
 }
 
 // GetInventory получает инвентарь запчастей с учетом фильтров и пагинации
-func (s *inventoryService) GetInventory(params InventoryQueryParams) ([]Part, error) {
+func (s *inventoryService) GetInventory(ctx context.Context, params InventoryQueryParams) ([]Part, error) {
 	// Очищаем просроченные запчасти перед поиском
-	if err := s.cleanupExpiredParts(); err != nil {
+	if err := s.cleanupExpiredParts(ctx); err != nil {
 		// Логируем ошибку, но продолжаем выполнение
 		logrus.WithError(err).Warn("Failed to cleanup expired parts during inventory fetch")
 	}
 
 	// Выбираем источник данных на основе параметров поиска
-	parts, err := s.fetchParts(params)
+	parts, err := s.fetchParts(ctx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -130,9 +131,9 @@ func (s *inventoryService) GetInventory(params InventoryQueryParams) ([]Part, er
 }
 
 // cleanupExpiredParts удаляет запчасти, отмеченные для удаления более 14 дней назад
-func (s *inventoryService) cleanupExpiredParts() error {
+func (s *inventoryService) cleanupExpiredParts(ctx context.Context) error {
 	fourteenDaysAgo := time.Now().AddDate(0, 0, -14)
-	err := s.repo.DeleteExpiredParts(fourteenDaysAgo)
+	err := s.repo.DeleteExpiredParts(ctx, fourteenDaysAgo)
 	if err != nil {
 		logrus.WithError(err).Warn("Failed to cleanup expired parts")
 	}
@@ -140,11 +141,11 @@ func (s *inventoryService) cleanupExpiredParts() error {
 }
 
 // fetchParts выбирает оптимальный источник данных для поиска
-func (s *inventoryService) fetchParts(params InventoryQueryParams) ([]Part, error) {
+func (s *inventoryService) fetchParts(ctx context.Context, params InventoryQueryParams) ([]Part, error) {
 	if s.shouldUseElasticsearch(params) && s.es != nil {
-		return s.getInventoryFromElasticsearch(params)
+		return s.getInventoryFromElasticsearch(ctx, params)
 	}
-	return s.getInventoryFromDatabase(params)
+	return s.getInventoryFromDatabase(ctx, params)
 }
 
 // formatPartsForDisplay добавляет форматированные поля для отображения
@@ -166,7 +167,7 @@ func (s *inventoryService) shouldUseElasticsearch(params InventoryQueryParams) b
 }
 
 // getInventoryFromElasticsearch получает данные из Elasticsearch
-func (s *inventoryService) getInventoryFromElasticsearch(params InventoryQueryParams) ([]Part, error) {
+func (s *inventoryService) getInventoryFromElasticsearch(ctx context.Context, params InventoryQueryParams) ([]Part, error) {
 	esQuery := s.buildElasticsearchQuery(params)
 	from := (params.Page - 1) * params.Limit
 
@@ -174,7 +175,7 @@ func (s *inventoryService) getInventoryFromElasticsearch(params InventoryQueryPa
 	if err != nil {
 		fmt.Printf("Error searching with Elasticsearch: %v\n", err)
 		// Fallback to database
-		return s.getInventoryFromDatabase(params)
+		return s.getInventoryFromDatabase(ctx, params)
 	}
 
 	// Преобразуем и фильтруем
@@ -190,7 +191,7 @@ func (s *inventoryService) getInventoryFromElasticsearch(params InventoryQueryPa
 		"to_delete_at_is_null": true,
 		"quantity_gte":         0,
 	}
-	validParts, err := s.repo.FindWithFilters(filters)
+	validParts, err := s.repo.FindWithFilters(ctx, filters)
 	if err != nil {
 		return nil, err
 	}
@@ -260,9 +261,9 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 }
 
 // getInventoryFromDatabase получает данные из базы данных
-func (s *inventoryService) getInventoryFromDatabase(params InventoryQueryParams) ([]Part, error) {
+func (s *inventoryService) getInventoryFromDatabase(ctx context.Context, params InventoryQueryParams) ([]Part, error) {
 	filters := s.buildDatabaseFilters(params)
-	query := db.Where("to_delete_at IS NULL AND quantity >= 0")
+	query := db.WithContext(ctx).Where("to_delete_at IS NULL AND quantity >= 0")
 
 	// Применяем фильтры
 	for key, value := range filters {
@@ -339,17 +340,17 @@ func (s *inventoryService) buildDatabaseFilters(params InventoryQueryParams) map
 }
 
 // AddPart добавляет новую запчасть
-func (s *inventoryService) AddPart(part *Part) (*Part, error) {
+func (s *inventoryService) AddPart(ctx context.Context, part *Part) (*Part, error) {
 	if err := ValidatePart(part); err != nil {
 		return nil, err
 	}
 
-	if err := s.repo.Create(part); err != nil {
+	if err := s.repo.Create(ctx, part); err != nil {
 		return nil, err
 	}
 
 	// Получаем созданную запчасть
-	createdPart, err := s.repo.FindByID(part.ID)
+	createdPart, err := s.repo.FindByID(ctx, part.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -362,15 +363,15 @@ func (s *inventoryService) AddPart(part *Part) (*Part, error) {
 	}
 
 	// Инвалидируем кэш статистики
-	s.invalidateStatisticsCache()
+	s.invalidateStatisticsCache(ctx)
 
 	return createdPart, nil
 }
 
 // UpdatePart обновляет запчасть
-func (s *inventoryService) UpdatePart(id uint, updates map[string]interface{}) error {
+func (s *inventoryService) UpdatePart(ctx context.Context, id uint, updates map[string]interface{}) error {
 	// Получаем существующую часть для обработки обновлений
-	existingPart, err := s.repo.FindByID(id)
+	existingPart, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -380,13 +381,13 @@ func (s *inventoryService) UpdatePart(id uint, updates map[string]interface{}) e
 		return err
 	}
 
-	if err := s.repo.Update(id, processedUpdates); err != nil {
+	if err := s.repo.Update(ctx, id, processedUpdates); err != nil {
 		return err
 	}
 
 	// Переиндексируем в Elasticsearch
 	if s.es != nil {
-		updatedPart, err := s.repo.FindByID(id)
+		updatedPart, err := s.repo.FindByID(ctx, id)
 		if err == nil {
 			if err := IndexPart(updatedPart); err != nil {
 				fmt.Printf("Warning: Failed to re-index part in Elasticsearch: %v\n", err)
@@ -395,14 +396,14 @@ func (s *inventoryService) UpdatePart(id uint, updates map[string]interface{}) e
 	}
 
 	// Инвалидируем кэш статистики
-	s.invalidateStatisticsCache()
+	s.invalidateStatisticsCache(ctx)
 
 	return nil
 }
 
 // DeletePart удаляет запчасть
-func (s *inventoryService) DeletePart(id uint) error {
-	part, err := s.repo.FindByID(id)
+func (s *inventoryService) DeletePart(ctx context.Context, id uint) error {
+	part, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -416,7 +417,7 @@ func (s *inventoryService) DeletePart(id uint) error {
 		}
 	}
 
-	if err := s.repo.Delete(id); err != nil {
+	if err := s.repo.Delete(ctx, id); err != nil {
 		return err
 	}
 
@@ -428,21 +429,19 @@ func (s *inventoryService) DeletePart(id uint) error {
 	}
 
 	// Инвалидируем кэш статистики
-	s.invalidateStatisticsCache()
+	s.invalidateStatisticsCache(ctx)
 
 	return nil
 }
 
 // MarkPartForDeletion отмечает запчасть для удаления
-func (s *inventoryService) MarkPartForDeletion(id uint) error {
+func (s *inventoryService) MarkPartForDeletion(ctx context.Context, id uint) error {
 	fourteenDaysFromNow := time.Now().AddDate(0, 0, 14)
-	return s.repo.MarkForDeletion(id, fourteenDaysFromNow)
+	return s.repo.MarkForDeletion(ctx, id, fourteenDaysFromNow)
 }
 
 // GetStatistics получает статистику с кэшированием
-func (s *inventoryService) GetStatistics() (StatisticsResponse, error) {
-	ctx := context.Background()
-
+func (s *inventoryService) GetStatistics(ctx context.Context) (StatisticsResponse, error) {
 	// Проверяем кэш
 	cachedData, err := s.redis.Get(ctx, statisticsCacheKey).Result()
 	if err == nil {
@@ -456,7 +455,7 @@ func (s *inventoryService) GetStatistics() (StatisticsResponse, error) {
 	}
 
 	// Получаем данные из базы данных
-	stats, err := s.repo.GetStatistics()
+	stats, err := s.repo.GetStatistics(ctx)
 	if err != nil {
 		return StatisticsResponse{}, err
 	}
@@ -482,8 +481,7 @@ func (s *inventoryService) GetStatistics() (StatisticsResponse, error) {
 }
 
 // invalidateStatisticsCache инвалидирует кэш статистики
-func (s *inventoryService) invalidateStatisticsCache() {
-	ctx := context.Background()
+func (s *inventoryService) invalidateStatisticsCache(ctx context.Context) {
 	if err := s.redis.Del(ctx, statisticsCacheKey).Err(); err != nil {
 		logrus.WithError(err).Warn("Failed to invalidate statistics cache")
 	} else {
@@ -492,7 +490,7 @@ func (s *inventoryService) invalidateStatisticsCache() {
 }
 
 // BulkDeleteParts удаляет несколько запчастей с использованием worker pool для параллельной обработки
-func (s *inventoryService) BulkDeleteParts(ids []uint) error {
+func (s *inventoryService) BulkDeleteParts(ctx context.Context, ids []uint) error {
 	logrus.WithFields(logrus.Fields{
 		"ids":   ids,
 		"count": len(ids),
@@ -509,7 +507,7 @@ func (s *inventoryService) BulkDeleteParts(ids []uint) error {
 		go func() {
 			defer wg.Done()
 			for id := range jobs {
-				part, err := s.repo.FindByID(id)
+				part, err := s.repo.FindByID(ctx, id)
 				if err != nil {
 					logrus.WithError(err).WithField("id", id).Warn("InventoryService.BulkDeleteParts: Failed to find part for photo deletion")
 					continue
@@ -546,44 +544,44 @@ func (s *inventoryService) BulkDeleteParts(ids []uint) error {
 	// Ожидание завершения воркеров
 	wg.Wait()
 
-	err := s.repo.BulkDelete(ids)
+	err := s.repo.BulkDelete(ctx, ids)
 	if err != nil {
 		logrus.WithError(err).Error("InventoryService.BulkDeleteParts: Failed to bulk delete")
 		return err
 	}
 
 	// Инвалидируем кэш статистики
-	s.invalidateStatisticsCache()
+	s.invalidateStatisticsCache(ctx)
 
 	logrus.Info("InventoryService.BulkDeleteParts: Successfully completed bulk delete")
 	return nil
 }
 
 // BulkUpdateParts обновляет несколько запчастей
-func (s *inventoryService) BulkUpdateParts(updates []map[string]interface{}) (int, error) {
+func (s *inventoryService) BulkUpdateParts(ctx context.Context, updates []map[string]interface{}) (int, error) {
 	logrus.WithFields(logrus.Fields{
 		"updates": updates,
 		"count":   len(updates),
 	}).Info("InventoryService.BulkUpdateParts: Starting bulk update")
 
-	updatedCount, err := s.repo.BulkUpdate(updates)
+	updatedCount, err := s.repo.BulkUpdate(ctx, updates)
 	if err != nil {
 		logrus.WithError(err).Error("InventoryService.BulkUpdateParts: Failed to bulk update")
 		return 0, err
 	}
 
 	// Инвалидируем кэш статистики
-	s.invalidateStatisticsCache()
+	s.invalidateStatisticsCache(ctx)
 
 	logrus.Info("InventoryService.BulkUpdateParts: Successfully completed bulk update")
 	return updatedCount, nil
 }
 
 // DeleteZeroQuantityPartsBySupplier удаляет запчасти с нулевым количеством по поставщику
-func (s *inventoryService) DeleteZeroQuantityPartsBySupplier(supplierCode string) (int64, error) {
+func (s *inventoryService) DeleteZeroQuantityPartsBySupplier(ctx context.Context, supplierCode string) (int64, error) {
 	fmt.Printf("Service: DeleteZeroQuantityPartsBySupplier called with supplier_code='%s'\n", supplierCode)
 
-	deletedCount, err := s.repo.DeleteZeroQuantityPartsBySupplier(supplierCode)
+	deletedCount, err := s.repo.DeleteZeroQuantityPartsBySupplier(ctx, supplierCode)
 	if err != nil {
 		fmt.Printf("Service: DeleteZeroQuantityPartsBySupplier failed for supplier_code='%s': %v\n", supplierCode, err)
 		return 0, err
@@ -594,8 +592,8 @@ func (s *inventoryService) DeleteZeroQuantityPartsBySupplier(supplierCode string
 }
 
 // GetSupplierCodes получает коды поставщиков
-func (s *inventoryService) GetSupplierCodes() ([]string, error) {
-	codes, err := s.repo.GetSupplierCodes()
+func (s *inventoryService) GetSupplierCodes(ctx context.Context) ([]string, error) {
+	codes, err := s.repo.GetSupplierCodes(ctx)
 	if err != nil {
 		fmt.Printf("Service: GetSupplierCodes failed: %v\n", err)
 		return nil, err
@@ -605,26 +603,26 @@ func (s *inventoryService) GetSupplierCodes() ([]string, error) {
 }
 
 // UploadPartPhoto загружает фото
-func (s *inventoryService) UploadPartPhoto(id uint, c *gin.Context) (string, error) {
+func (s *inventoryService) UploadPartPhoto(ctx context.Context, id uint, c *gin.Context) (string, error) {
 	return HandlePhotoUpload(c, id)
 }
 
 // DeletePartPhoto удаляет фото
-func (s *inventoryService) DeletePartPhoto(id uint, photoPath string) error {
+func (s *inventoryService) DeletePartPhoto(ctx context.Context, id uint, photoPath string) error {
 	return DeletePhoto(id, photoPath)
 }
 
 // GetPartByID получает запчасть по ID
-func (s *inventoryService) GetPartByID(id uint) (*Part, error) {
-	return s.repo.FindByID(id)
+func (s *inventoryService) GetPartByID(ctx context.Context, id uint) (*Part, error) {
+	return s.repo.FindByID(ctx, id)
 }
 
 // UpdateEarnings обновляет общий заработок
-func (s *inventoryService) UpdateEarnings(amount float64) error {
+func (s *inventoryService) UpdateEarnings(ctx context.Context, amount float64) error {
 	s.totalEarnings += amount
 
 	// Сохраняем в базу данных для персистентности
-	if err := s.repo.UpdateTotalEarnings(s.totalEarnings); err != nil {
+	if err := s.repo.UpdateTotalEarnings(ctx, s.totalEarnings); err != nil {
 		logrus.WithError(err).Error("Failed to save total earnings to database")
 		return err
 	}
