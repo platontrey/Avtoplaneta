@@ -171,7 +171,7 @@ func (s *inventoryService) getInventoryFromElasticsearch(ctx context.Context, pa
 	esQuery := s.buildElasticsearchQuery(params)
 	from := (params.Page - 1) * params.Limit
 
-	esParts, _, err := SearchParts(esQuery, from, params.Limit)
+	esParts, _, err := s.es.SearchParts(esQuery, from, params.Limit)
 	if err != nil {
 		fmt.Printf("Error searching with Elasticsearch: %v\n", err)
 		// Fallback to database
@@ -263,48 +263,29 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 // getInventoryFromDatabase получает данные из базы данных
 func (s *inventoryService) getInventoryFromDatabase(ctx context.Context, params InventoryQueryParams) ([]Part, error) {
 	filters := s.buildDatabaseFilters(params)
-	query := db.WithContext(ctx).Where("to_delete_at IS NULL AND quantity >= 0")
+	// Add default filters
+	filters["to_delete_at_is_null"] = true
+	filters["quantity_gte"] = 0
 
-	// Применяем фильтры
-	for key, value := range filters {
-		switch key {
-		case "search":
-			query = query.Where("name ILIKE ? OR description ILIKE ?", "%"+value.(string)+"%", "%"+value.(string)+"%")
-		case "category":
-			query = query.Where("category ILIKE ?", "%"+value.(string)+"%")
-		case "brand":
-			query = query.Where("brand ILIKE ?", "%"+value.(string)+"%")
-		case "model":
-			query = query.Where("model ILIKE ?", "%"+value.(string)+"%")
-		case "location":
-			query = query.Where("location ILIKE ?", "%"+value.(string)+"%")
-		case "salesman":
-			query = query.Where("salesman ILIKE ?", "%"+value.(string)+"%")
-		case "status":
-			if value == "true" {
-				query = query.Where("status = ?", true)
-			} else if value == "false" {
-				query = query.Where("status = ?", false)
-			}
-		case "hasPhoto":
-			if value == "with" {
-				query = query.Where("photos IS NOT NULL AND jsonb_array_length(photos) > 0")
-			} else if value == "without" {
-				query = query.Where("(photos IS NULL OR jsonb_array_length(photos) = 0)")
-			}
-		}
+	parts, err := s.repo.FindWithFilters(ctx, filters)
+	if err != nil {
+		return nil, err
 	}
 
-	var parts []Part
-	var err error
+	// Apply pagination if needed
 	if params.Limit > 0 {
-		offset := (params.Page - 1) * params.Limit
-		err = query.Limit(params.Limit).Offset(offset).Find(&parts).Error
-	} else {
-		err = query.Find(&parts).Error
+		start := (params.Page - 1) * params.Limit
+		end := start + params.Limit
+		if start > len(parts) {
+			return []Part{}, nil
+		}
+		if end > len(parts) {
+			end = len(parts)
+		}
+		parts = parts[start:end]
 	}
 
-	return parts, err
+	return parts, nil
 }
 
 // buildDatabaseFilters строит фильтры для базы данных
@@ -357,7 +338,7 @@ func (s *inventoryService) AddPart(ctx context.Context, part *Part) (*Part, erro
 
 	// Индексируем в Elasticsearch
 	if s.es != nil {
-		if err := IndexPart(createdPart); err != nil {
+		if err := s.es.IndexPart(createdPart); err != nil {
 			fmt.Printf("Warning: Failed to index part in Elasticsearch: %v\n", err)
 		}
 	}
@@ -389,7 +370,7 @@ func (s *inventoryService) UpdatePart(ctx context.Context, id uint, updates map[
 	if s.es != nil {
 		updatedPart, err := s.repo.FindByID(ctx, id)
 		if err == nil {
-			if err := IndexPart(updatedPart); err != nil {
+			if err := s.es.IndexPart(updatedPart); err != nil {
 				fmt.Printf("Warning: Failed to re-index part in Elasticsearch: %v\n", err)
 			}
 		}
@@ -423,7 +404,7 @@ func (s *inventoryService) DeletePart(ctx context.Context, id uint) error {
 
 	// Удаляем из Elasticsearch
 	if s.es != nil {
-		if err := DeletePartFromIndex(id); err != nil {
+		if err := s.es.DeletePartFromIndex(id); err != nil {
 			fmt.Printf("Warning: Failed to remove part from Elasticsearch index: %v\n", err)
 		}
 	}
@@ -527,7 +508,7 @@ func (s *inventoryService) BulkDeleteParts(ctx context.Context, ids []uint) erro
 
 				// Удаляем из Elasticsearch
 				if s.es != nil {
-					if err := DeletePartFromIndex(id); err != nil {
+					if err := s.es.DeletePartFromIndex(id); err != nil {
 						logrus.WithError(err).WithField("id", id).Warn("InventoryService.BulkDeleteParts: Failed to remove part from Elasticsearch index")
 					}
 				}

@@ -293,21 +293,28 @@ func (h *Handler) UploadPartPhotoHandler(c *gin.Context) {
 	file, _ := c.FormFile("photo")
 
 	// Получить обновленную часть для возврата всех фото
-	var updatedPart Part
-	if err := db.First(&updatedPart, partID).Error; err != nil {
+	updatedPart, err := h.inventoryService.GetPartByID(ctx, uint(partID))
+	if err != nil {
 		fmt.Printf("DEBUG UploadPartPhotoHandler: Failed to fetch updated part: %v\n", err)
+		updatedPart = &Part{} // Используем пустую структуру, если не удалось получить
 	} else {
 		fmt.Printf("DEBUG UploadPartPhotoHandler: Updated part photos: %v\n", updatedPart.Photos)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message":  "Фото загружено успешно",
-		"photo":    photoPath,
-		"photos":   updatedPart.Photos,
-		"filename": file.Filename,
-		"size":     file.Size,
-		"type":     file.Header.Get("Content-Type"),
-	})
+	response := gin.H{
+		"message": "Фото загружено успешно",
+		"photo":   photoPath,
+		"photos":  updatedPart.Photos,
+	}
+
+	// Добавить информацию о файле, если он существует
+	if file != nil {
+		response["filename"] = file.Filename
+		response["size"] = file.Size
+		response["type"] = file.Header.Get("Content-Type")
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // DeletePartPhotoHandler удаляет фото запчасти

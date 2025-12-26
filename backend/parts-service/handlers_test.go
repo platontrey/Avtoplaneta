@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -18,63 +19,73 @@ type MockInventoryService struct {
 	mock.Mock
 }
 
-func (m *MockInventoryService) GetInventory(params InventoryQueryParams) ([]Part, error) {
-	args := m.Called(params)
+func (m *MockInventoryService) GetInventory(ctx context.Context, params InventoryQueryParams) ([]Part, error) {
+	args := m.Called(ctx, params)
 	return args.Get(0).([]Part), args.Error(1)
 }
 
-func (m *MockInventoryService) AddPart(part *Part) (*Part, error) {
-	args := m.Called(part)
+func (m *MockInventoryService) AddPart(ctx context.Context, part *Part) (*Part, error) {
+	args := m.Called(ctx, part)
 	return args.Get(0).(*Part), args.Error(1)
 }
 
-func (m *MockInventoryService) UpdatePart(id uint, updates map[string]interface{}) error {
-	args := m.Called(id, updates)
+func (m *MockInventoryService) UpdatePart(ctx context.Context, id uint, updates map[string]interface{}) error {
+	args := m.Called(ctx, id, updates)
 	return args.Error(0)
 }
 
-func (m *MockInventoryService) DeletePart(id uint) error {
-	args := m.Called(id)
+func (m *MockInventoryService) DeletePart(ctx context.Context, id uint) error {
+	args := m.Called(ctx, id)
 	return args.Error(0)
 }
 
-func (m *MockInventoryService) MarkPartForDeletion(id uint) error {
-	args := m.Called(id)
+func (m *MockInventoryService) MarkPartForDeletion(ctx context.Context, id uint) error {
+	args := m.Called(ctx, id)
 	return args.Error(0)
 }
 
-func (m *MockInventoryService) GetStatistics() (StatisticsResponse, error) {
-	args := m.Called()
+func (m *MockInventoryService) GetStatistics(ctx context.Context) (StatisticsResponse, error) {
+	args := m.Called(ctx)
 	return args.Get(0).(StatisticsResponse), args.Error(1)
 }
 
-func (m *MockInventoryService) BulkDeleteParts(ids []uint) error {
-	args := m.Called(ids)
+func (m *MockInventoryService) BulkDeleteParts(ctx context.Context, ids []uint) error {
+	args := m.Called(ctx, ids)
 	return args.Error(0)
 }
 
-func (m *MockInventoryService) BulkUpdateParts(updates []map[string]interface{}) error {
-	args := m.Called(updates)
-	return args.Error(0)
+func (m *MockInventoryService) BulkUpdateParts(ctx context.Context, updates []map[string]interface{}) (int, error) {
+	args := m.Called(ctx, updates)
+	return args.Get(0).(int), args.Error(1)
 }
 
-func (m *MockInventoryService) DeleteZeroQuantityPartsBySupplier(supplierCode string) (int64, error) {
-	args := m.Called(supplierCode)
+func (m *MockInventoryService) DeleteZeroQuantityPartsBySupplier(ctx context.Context, supplierCode string) (int64, error) {
+	args := m.Called(ctx, supplierCode)
 	return args.Get(0).(int64), args.Error(1)
 }
 
-func (m *MockInventoryService) GetSupplierCodes() ([]string, error) {
-	args := m.Called()
+func (m *MockInventoryService) GetSupplierCodes(ctx context.Context) ([]string, error) {
+	args := m.Called(ctx)
 	return args.Get(0).([]string), args.Error(1)
 }
 
-func (m *MockInventoryService) UploadPartPhoto(id uint, c *gin.Context) (string, error) {
-	args := m.Called(id, c)
+func (m *MockInventoryService) UploadPartPhoto(ctx context.Context, id uint, c *gin.Context) (string, error) {
+	args := m.Called(ctx, id, c)
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockInventoryService) DeletePartPhoto(id uint) error {
-	args := m.Called(id)
+func (m *MockInventoryService) DeletePartPhoto(ctx context.Context, id uint, photoPath string) error {
+	args := m.Called(ctx, id, photoPath)
+	return args.Error(0)
+}
+
+func (m *MockInventoryService) GetPartByID(ctx context.Context, id uint) (*Part, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).(*Part), args.Error(1)
+}
+
+func (m *MockInventoryService) UpdateEarnings(ctx context.Context, amount float64) error {
+	args := m.Called(ctx, amount)
 	return args.Error(0)
 }
 
@@ -95,8 +106,17 @@ func (suite *HandlersTestSuite) SetupTest() {
 	// Настраиваем маршруты
 	suite.router.GET("/api/inventory", suite.handler.GetInventoryHandler)
 	suite.router.POST("/api/addpart", suite.handler.AddPartHandler)
-	suite.router.PUT("/api/updatepart/:id", suite.handler.UpdatePartHandler)
 	suite.router.DELETE("/api/deletepart/:id", suite.handler.DeletePartHandler)
+	suite.router.PUT("/api/updatepart/:id", suite.handler.UpdatePartHandler)
+	suite.router.POST("/api/uploadpartphoto/:id", suite.handler.UploadPartPhotoHandler)
+	suite.router.DELETE("/api/deletepartphoto/:id", suite.handler.DeletePartPhotoHandler)
+	suite.router.POST("/api/markpartfordeletion/:id", suite.handler.MarkPartForDeletionHandler)
+	suite.router.GET("/api/statistics", suite.handler.GetStatisticsHandler)
+	suite.router.POST("/api/statistics/update-earnings", suite.handler.UpdateEarningsHandler)
+	suite.router.DELETE("/api/admin/delete-zero-quantity-parts/:supplier_code", suite.handler.DeleteZeroQuantityPartsBySupplierHandler)
+	suite.router.GET("/api/admin/supplier-codes", suite.handler.GetSupplierCodesHandler)
+	suite.router.DELETE("/api/admin/bulk-delete-parts", suite.handler.BulkDeletePartsHandler)
+	suite.router.PUT("/api/admin/bulk-update-parts", suite.handler.BulkUpdatePartsHandler)
 }
 
 func (suite *HandlersTestSuite) TearDownTest() {
@@ -109,7 +129,7 @@ func (suite *HandlersTestSuite) TestGetInventoryHandler() {
 		{PartCore: PartCore{ID: 1, Name: "Test Part", Quantity: 10}},
 	}
 
-	suite.mockService.On("GetInventory", mock.AnythingOfType("main.InventoryQueryParams")).Return(expectedParts, nil)
+	suite.mockService.On("GetInventory", mock.Anything, mock.AnythingOfType("main.InventoryQueryParams")).Return(expectedParts, nil)
 
 	req, _ := http.NewRequest("GET", "/api/inventory?page=1&limit=10", nil)
 	w := httptest.NewRecorder()
@@ -144,7 +164,7 @@ func (suite *HandlersTestSuite) TestAddPartHandler() {
 		},
 	}
 
-	suite.mockService.On("AddPart", mock.AnythingOfType("*main.Part")).Return(expectedResult, nil)
+	suite.mockService.On("AddPart", mock.Anything, mock.AnythingOfType("*main.Part")).Return(expectedResult, nil)
 
 	partJSON, _ := json.Marshal(newPart)
 	req, _ := http.NewRequest("POST", "/api/addpart", bytes.NewBuffer(partJSON))
@@ -180,7 +200,7 @@ func (suite *HandlersTestSuite) TestUpdatePartHandler() {
 		"quantity": 20,
 	}
 
-	suite.mockService.On("UpdatePart", uint(1), updates).Return(nil)
+	suite.mockService.On("UpdatePart", mock.Anything, uint(1), map[string]interface{}{"name": "Updated Name", "quantity": float64(20)}).Return(nil)
 
 	updatesJSON, _ := json.Marshal(updates)
 	req, _ := http.NewRequest("PUT", "/api/updatepart/1", bytes.NewBuffer(updatesJSON))
@@ -213,7 +233,8 @@ func (suite *HandlersTestSuite) TestUpdatePartHandler_InvalidID() {
 
 // TestDeletePartHandler - тест удаления запчасти
 func (suite *HandlersTestSuite) TestDeletePartHandler() {
-	suite.mockService.On("DeletePart", uint(1)).Return(nil)
+	suite.mockService.On("DeletePart", mock.Anything, uint(1)).Return(nil)
+	suite.mockService.On("GetPartByID", mock.Anything, uint(1)).Return(&Part{PartCore: PartCore{Name: "Test Part"}}, nil)
 
 	req, _ := http.NewRequest("DELETE", "/api/deletepart/1", nil)
 	w := httptest.NewRecorder()
@@ -239,7 +260,7 @@ func (suite *HandlersTestSuite) TestGetStatisticsHandler() {
 		},
 	}
 
-	suite.mockService.On("GetStatistics").Return(expectedStats, nil)
+	suite.mockService.On("GetStatistics", mock.Anything).Return(expectedStats, nil)
 
 	req, _ := http.NewRequest("GET", "/api/statistics", nil)
 	w := httptest.NewRecorder()
@@ -251,7 +272,7 @@ func (suite *HandlersTestSuite) TestGetStatisticsHandler() {
 	var response StatisticsResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), int64(10), response.TotalParts)
+	assert.Equal(suite.T(), 10, response.TotalParts)
 	assert.Equal(suite.T(), 1000.0, response.TotalValue)
 }
 
@@ -259,7 +280,7 @@ func (suite *HandlersTestSuite) TestGetStatisticsHandler() {
 func (suite *HandlersTestSuite) TestBulkDeletePartsHandler() {
 	ids := []uint{1, 2, 3}
 
-	suite.mockService.On("BulkDeleteParts", ids).Return(nil)
+	suite.mockService.On("BulkDeleteParts", mock.Anything, ids).Return(nil)
 
 	requestData := map[string]interface{}{"ids": ids}
 	jsonData, _ := json.Marshal(requestData)
@@ -276,6 +297,148 @@ func (suite *HandlersTestSuite) TestBulkDeletePartsHandler() {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), "Запчасти удалены успешно", response["message"])
+}
+
+// TestMarkPartForDeletionHandler - тест отметки для удаления
+func (suite *HandlersTestSuite) TestMarkPartForDeletionHandler() {
+	suite.mockService.On("MarkPartForDeletion", mock.Anything, uint(1)).Return(nil)
+
+	req, _ := http.NewRequest("POST", "/api/markpartfordeletion/1", nil)
+	w := httptest.NewRecorder()
+
+	suite.router.ServeHTTP(w, req)
+
+	assert.Equal(suite.T(), http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "Часть отмечена для удаления через 14 дней", response["message"])
+}
+
+// TestUploadPartPhotoHandler - тест загрузки фото
+func (suite *HandlersTestSuite) TestUploadPartPhotoHandler() {
+	suite.mockService.On("UploadPartPhoto", mock.Anything, uint(1), mock.Anything).Return("uploads/photo.jpg", nil)
+	suite.mockService.On("GetPartByID", mock.Anything, uint(1)).Return(&Part{PartCore: PartCore{Photos: []string{"uploads/photo.jpg"}}}, nil)
+
+	req, _ := http.NewRequest("POST", "/api/uploadpartphoto/1", nil)
+	w := httptest.NewRecorder()
+
+	suite.router.ServeHTTP(w, req)
+
+	assert.Equal(suite.T(), http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "Фото загружено успешно", response["message"])
+	assert.Equal(suite.T(), "uploads/photo.jpg", response["photo"])
+}
+
+// TestDeletePartPhotoHandler - тест удаления фото
+func (suite *HandlersTestSuite) TestDeletePartPhotoHandler() {
+	suite.mockService.On("DeletePartPhoto", mock.Anything, uint(1), "").Return(nil)
+
+	req, _ := http.NewRequest("DELETE", "/api/deletepartphoto/1", nil)
+	w := httptest.NewRecorder()
+
+	suite.router.ServeHTTP(w, req)
+
+	assert.Equal(suite.T(), http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "Фото удалено успешно", response["message"])
+}
+
+// TestBulkUpdatePartsHandler - тест массового обновления
+func (suite *HandlersTestSuite) TestBulkUpdatePartsHandler() {
+	updates := []map[string]interface{}{
+		{"id": 1, "name": "Updated Part"},
+	}
+
+	suite.mockService.On("BulkUpdateParts", mock.Anything, []map[string]interface{}{{"id": float64(1), "name": "Updated Part"}}).Return(1, nil)
+
+	jsonData, _ := json.Marshal(updates)
+
+	req, _ := http.NewRequest("PUT", "/api/admin/bulk-update-parts", bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	suite.router.ServeHTTP(w, req)
+
+	assert.Equal(suite.T(), http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "Запчасти обновлены успешно", response["message"])
+	assert.Equal(suite.T(), float64(1), response["updated_count"])
+}
+
+// TestDeleteZeroQuantityPartsBySupplierHandler - тест удаления по поставщику
+func (suite *HandlersTestSuite) TestDeleteZeroQuantityPartsBySupplierHandler() {
+	suite.mockService.On("DeleteZeroQuantityPartsBySupplier", mock.Anything, "SUP001").Return(int64(5), nil)
+
+	req, _ := http.NewRequest("DELETE", "/api/admin/delete-zero-quantity-parts/SUP001", nil)
+	w := httptest.NewRecorder()
+
+	suite.router.ServeHTTP(w, req)
+
+	assert.Equal(suite.T(), http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "Запчасти с нулевым количеством удалены", response["message"])
+	assert.Equal(suite.T(), float64(5), response["deleted_count"])
+}
+
+// TestGetSupplierCodesHandler - тест получения кодов поставщиков
+func (suite *HandlersTestSuite) TestGetSupplierCodesHandler() {
+	expectedCodes := []string{"SUP001", "SUP002"}
+
+	suite.mockService.On("GetSupplierCodes", mock.Anything).Return(expectedCodes, nil)
+
+	req, _ := http.NewRequest("GET", "/api/admin/supplier-codes", nil)
+	w := httptest.NewRecorder()
+
+	suite.router.ServeHTTP(w, req)
+
+	assert.Equal(suite.T(), http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+
+	codesInterface := response["supplier_codes"].([]interface{})
+	var codes []string
+	for _, code := range codesInterface {
+		codes = append(codes, code.(string))
+	}
+	assert.Equal(suite.T(), expectedCodes, codes)
+}
+
+// TestUpdateEarningsHandler - тест обновления заработка
+func (suite *HandlersTestSuite) TestUpdateEarningsHandler() {
+	reqData := map[string]float64{"amount": 100.0}
+	jsonData, _ := json.Marshal(reqData)
+
+	suite.mockService.On("UpdateEarnings", mock.Anything, 100.0).Return(nil)
+
+	req, _ := http.NewRequest("POST", "/api/statistics/update-earnings", bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	suite.router.ServeHTTP(w, req)
+
+	assert.Equal(suite.T(), http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "Заработок обновлен", response["message"])
 }
 
 // TestRunSuite - запуск всех тестов handlers

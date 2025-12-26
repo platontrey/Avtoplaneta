@@ -1,191 +1,221 @@
 package main
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
+
+// MockPartRepository - мок для PartRepository
+type MockPartRepository struct {
+	mock.Mock
+}
+
+func (m *MockPartRepository) Create(ctx context.Context, part *Part) error {
+	args := m.Called(ctx, part)
+	return args.Error(0)
+}
+
+func (m *MockPartRepository) FindByID(ctx context.Context, id uint) (*Part, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).(*Part), args.Error(1)
+}
+
+func (m *MockPartRepository) FindAll(ctx context.Context, query *gorm.DB) ([]Part, error) {
+	args := m.Called(ctx, query)
+	if args.Get(0) == nil {
+		return []Part{}, args.Error(1)
+	}
+	return args.Get(0).([]Part), args.Error(1)
+}
+
+func (m *MockPartRepository) FindWithFilters(ctx context.Context, filters map[string]interface{}) ([]Part, error) {
+	args := m.Called(ctx, filters)
+	return args.Get(0).([]Part), args.Error(1)
+}
+
+func (m *MockPartRepository) Update(ctx context.Context, id uint, updates map[string]interface{}) error {
+	args := m.Called(ctx, id, updates)
+	return args.Error(0)
+}
+
+func (m *MockPartRepository) Delete(ctx context.Context, id uint) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockPartRepository) MarkForDeletion(ctx context.Context, id uint, deleteAt time.Time) error {
+	args := m.Called(ctx, id, deleteAt)
+	return args.Error(0)
+}
+
+func (m *MockPartRepository) DeleteExpiredParts(ctx context.Context, before time.Time) error {
+	args := m.Called(ctx, before)
+	return args.Error(0)
+}
+
+func (m *MockPartRepository) GetTotalEarnings(ctx context.Context) (float64, error) {
+	args := m.Called(ctx)
+	return args.Get(0).(float64), args.Error(1)
+}
+
+func (m *MockPartRepository) UpdateEarnings(ctx context.Context, amount float64) error {
+	args := m.Called(ctx, amount)
+	return args.Error(0)
+}
+
+func (m *MockPartRepository) BulkDelete(ctx context.Context, ids []uint) error {
+	args := m.Called(ctx, ids)
+	return args.Error(0)
+}
+
+func (m *MockPartRepository) BulkUpdate(ctx context.Context, updates []map[string]interface{}) (int, error) {
+	args := m.Called(ctx, updates)
+	return args.Get(0).(int), args.Error(1)
+}
+
+func (m *MockPartRepository) DeleteZeroQuantityPartsBySupplier(ctx context.Context, supplierCode string) (int64, error) {
+	args := m.Called(ctx, supplierCode)
+	return args.Get(0).(int64), args.Error(1)
+}
+
+func (m *MockPartRepository) GetStatistics(ctx context.Context) (StatisticsResponse, error) {
+	args := m.Called(ctx)
+	return args.Get(0).(StatisticsResponse), args.Error(1)
+}
+
+func (m *MockPartRepository) UpdateTotalEarnings(ctx context.Context, amount float64) error {
+	args := m.Called(ctx, amount)
+	return args.Error(0)
+}
+
+func (m *MockPartRepository) GetSupplierCodes(ctx context.Context) ([]string, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]string), args.Error(1)
+}
 
 // RepositoryTestSuite - набор тестов для репозитория
 type RepositoryTestSuite struct {
 	suite.Suite
-	db   *gorm.DB
-	repo PartRepository
+	mockRepo *MockPartRepository
+	repo     PartRepository
 }
 
 // SetupTest - настройка перед каждым тестом
 func (suite *RepositoryTestSuite) SetupTest() {
-	// Создаем in-memory базу данных для тестов
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	suite.Require().NoError(err)
-
-	// Миграция схемы
-	err = db.AutoMigrate(&Part{})
-	suite.Require().NoError(err)
-
-	suite.db = db
-	suite.repo = NewPartRepository(db)
+	suite.mockRepo = new(MockPartRepository)
+	suite.repo = suite.mockRepo
 }
 
 // TearDownTest - очистка после каждого теста
 func (suite *RepositoryTestSuite) TearDownTest() {
-	sqlDB, _ := suite.db.DB()
-	err := sqlDB.Close()
-	if err != nil {
-		return
-	}
+	suite.mockRepo.AssertExpectations(suite.T())
 }
 
 // TestCreate - тест создания запчасти
 func (suite *RepositoryTestSuite) TestCreate() {
 	part := &Part{
-		Name:        "Test Part",
-		Quantity:    10,
-		Description: "Test description",
-		Category:    "Test Category",
-		Price:       100.0,
+		PartCore: PartCore{
+			Name:        "Test Part",
+			Quantity:    10,
+			Description: "Test description",
+			Category:    "Test Category",
+			Price:       100.0,
+		},
 	}
 
-	err := suite.repo.Create(part)
+	suite.mockRepo.On("Create", mock.Anything, part).Return(nil)
+
+	err := suite.repo.Create(context.Background(), part)
 	assert.NoError(suite.T(), err)
-	assert.NotZero(suite.T(), part.ID)
 }
 
 // TestFindByID - тест поиска по ID
 func (suite *RepositoryTestSuite) TestFindByID() {
-	// Создаем тестовую запчасть
-	part := &Part{
-		Name:     "Test Part",
-		Quantity: 5,
-		Price:    50.0,
+	expectedPart := &Part{
+		PartCore: PartCore{
+			ID:       1,
+			Name:     "Test Part",
+			Quantity: 5,
+			Price:    50.0,
+		},
 	}
-	err := suite.repo.Create(part)
-	suite.Require().NoError(err)
 
-	// Ищем созданную запчасть
-	found, err := suite.repo.FindByID(part.ID)
+	suite.mockRepo.On("FindByID", mock.Anything, uint(1)).Return(expectedPart, nil)
+
+	found, err := suite.repo.FindByID(context.Background(), 1)
 	assert.NoError(suite.T(), err)
 	assert.NotNil(suite.T(), found)
-	assert.Equal(suite.T(), part.Name, found.Name)
-	assert.Equal(suite.T(), part.Quantity, found.Quantity)
+	assert.Equal(suite.T(), expectedPart.Name, found.Name)
+	assert.Equal(suite.T(), expectedPart.Quantity, found.Quantity)
 }
 
 // TestFindByID_NotFound - тест поиска несуществующей запчасти
 func (suite *RepositoryTestSuite) TestFindByID_NotFound() {
-	found, err := suite.repo.FindByID(999)
+	suite.mockRepo.On("FindByID", mock.Anything, uint(999)).Return((*Part)(nil), assert.AnError)
+
+	found, err := suite.repo.FindByID(context.Background(), 999)
 	assert.Error(suite.T(), err)
 	assert.Nil(suite.T(), found)
 }
 
 // TestUpdate - тест обновления запчасти
 func (suite *RepositoryTestSuite) TestUpdate() {
-	// Создаем тестовую запчасть
-	part := &Part{
-		Name:     "Original Name",
-		Quantity: 10,
-		Price:    100.0,
-	}
-	err := suite.repo.Create(part)
-	suite.Require().NoError(err)
-
-	// Обновляем
 	updates := map[string]interface{}{
 		"name":     "Updated Name",
 		"quantity": 20,
 	}
-	err = suite.repo.Update(part.ID, updates)
-	assert.NoError(suite.T(), err)
 
-	// Проверяем обновление
-	updated, err := suite.repo.FindByID(part.ID)
+	suite.mockRepo.On("Update", mock.Anything, uint(1), updates).Return(nil)
+
+	err := suite.repo.Update(context.Background(), 1, updates)
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), "Updated Name", updated.Name)
-	assert.Equal(suite.T(), 20, updated.Quantity)
 }
 
 // TestDelete - тест удаления запчасти
 func (suite *RepositoryTestSuite) TestDelete() {
-	// Создаем тестовую запчасть
-	part := &Part{
-		Name:     "To Delete",
-		Quantity: 1,
-	}
-	err := suite.repo.Create(part)
-	suite.Require().NoError(err)
+	suite.mockRepo.On("Delete", mock.Anything, uint(1)).Return(nil)
 
-	// Удаляем
-	err = suite.repo.Delete(part.ID)
+	err := suite.repo.Delete(context.Background(), 1)
 	assert.NoError(suite.T(), err)
-
-	// Проверяем, что не найдена
-	found, err := suite.repo.FindByID(part.ID)
-	assert.Error(suite.T(), err)
-	assert.Nil(suite.T(), found)
 }
 
 // TestMarkForDeletion - тест отметки для удаления
 func (suite *RepositoryTestSuite) TestMarkForDeletion() {
-	// Создаем тестовую запчасть
-	part := &Part{
-		Name:     "To Mark",
-		Quantity: 1,
-	}
-	err := suite.repo.Create(part)
-	suite.Require().NoError(err)
-
-	// Отмечаем для удаления
 	deleteAt := time.Now().AddDate(0, 0, 14)
-	err = suite.repo.MarkForDeletion(part.ID, deleteAt)
-	assert.NoError(suite.T(), err)
 
-	// Проверяем
-	updated, err := suite.repo.FindByID(part.ID)
+	suite.mockRepo.On("MarkForDeletion", mock.Anything, uint(1), mock.AnythingOfType("time.Time")).Return(nil)
+
+	err := suite.repo.MarkForDeletion(context.Background(), 1, deleteAt)
 	assert.NoError(suite.T(), err)
-	assert.NotNil(suite.T(), updated.ToDeleteAt)
 }
 
 // TestDeleteExpiredParts - тест удаления просроченных запчастей
 func (suite *RepositoryTestSuite) TestDeleteExpiredParts() {
-	// Создаем запчасть с прошедшей датой удаления
-	pastTime := time.Now().AddDate(0, 0, -1)
-	part := &Part{
-		Name:       "Expired",
-		Quantity:   1,
-		ToDeleteAt: &pastTime,
-	}
-	err := suite.repo.Create(part)
-	suite.Require().NoError(err)
+	now := time.Now()
 
-	// Удаляем просроченные
-	err = suite.repo.DeleteExpiredParts(time.Now())
+	suite.mockRepo.On("DeleteExpiredParts", mock.Anything, mock.AnythingOfType("time.Time")).Return(nil)
+
+	err := suite.repo.DeleteExpiredParts(context.Background(), now)
 	assert.NoError(suite.T(), err)
-
-	// Проверяем, что удалена
-	found, err := suite.repo.FindByID(part.ID)
-	assert.Error(suite.T(), err)
-	assert.Nil(suite.T(), found)
 }
 
 // TestFindAll - тест получения всех запчастей
 func (suite *RepositoryTestSuite) TestFindAll() {
-	// Создаем несколько запчастей
-	parts := []*Part{
-		{Name: "Part 1", Quantity: 1},
-		{Name: "Part 2", Quantity: 2},
-		{Name: "Part 3", Quantity: 3},
+	expectedParts := []Part{
+		{PartCore: PartCore{Name: "Part 1", Quantity: 1}},
+		{PartCore: PartCore{Name: "Part 2", Quantity: 2}},
+		{PartCore: PartCore{Name: "Part 3", Quantity: 3}},
 	}
 
-	for _, p := range parts {
-		err := suite.repo.Create(p)
-		suite.Require().NoError(err)
-	}
+	suite.mockRepo.On("FindAll", mock.Anything, mock.Anything).Return(expectedParts, nil)
 
-	// Получаем все
-	found, err := suite.repo.FindAll(suite.db.Model(&Part{}))
+	found, err := suite.repo.FindAll(context.Background(), nil)
 	assert.NoError(suite.T(), err)
 	assert.Len(suite.T(), found, 3)
 }

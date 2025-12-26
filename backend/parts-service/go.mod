@@ -6,6 +6,7 @@ require (
 	github.com/elastic/go-elasticsearch/v8 v8.19.0
 	github.com/gin-gonic/gin v1.11.0
 	github.com/prometheus/client_golang v1.19.1
+	github.com/redis/go-redis/v9 v9.17.2
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.11.1
 	gorm.io/driver/postgres v1.6.0
@@ -52,7 +53,6 @@ require (
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/quic-go/quic-go v0.54.0 // indirect
-	github.com/redis/go-redis/v9 v9.17.2 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect

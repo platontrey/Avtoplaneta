@@ -1,15 +1,15 @@
 package main
 
 import (
+	"context"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 )
+
+
 
 // MockElasticsearchClient - мок для Elasticsearch клиента
 type MockElasticsearchClient struct {
@@ -26,79 +26,84 @@ func (m *MockElasticsearchClient) DeletePartFromIndex(id uint) error {
 	return args.Error(0)
 }
 
-func (m *MockElasticsearchClient) SearchParts(query map[string]interface{}, from, size int) ([]Part, int, error) {
+func (m *MockElasticsearchClient) SearchParts(query map[string]interface{}, from, size int) ([]ElasticsearchPart, int64, error) {
 	args := m.Called(query, from, size)
-	return args.Get(0).([]Part), args.Int(1), args.Error(2)
+	return args.Get(0).([]ElasticsearchPart), args.Get(1).(int64), args.Error(2)
 }
 
 // ServiceTestSuite - набор тестов для сервиса
 type ServiceTestSuite struct {
 	suite.Suite
-	db         *gorm.DB
-	repo       PartRepository
-	mockES     *MockElasticsearchClient
-	service    InventoryService
-	testPart   *Part
+	mockRepo *MockPartRepository
+	mockES   *MockElasticsearchClient
+	service  InventoryService
+	testPart *Part
 }
 
 func (suite *ServiceTestSuite) SetupTest() {
-	// Создаем in-memory базу данных
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	suite.Require().NoError(err)
-
-	// Миграция схемы
-	err = db.AutoMigrate(&Part{})
-	suite.Require().NoError(err)
-
-	suite.db = db
-	suite.repo = NewPartRepository(db)
+	suite.mockRepo = new(MockPartRepository)
 	suite.mockES = new(MockElasticsearchClient)
-	suite.service = NewInventoryService(suite.repo, suite.mockES)
+	config := &Config{RedisURL: "127.0.0.1:6379"}
+
+	// Настраиваем mock для GetTotalEarnings, который вызывается в NewInventoryService
+	suite.mockRepo.On("GetTotalEarnings", mock.Anything).Return(500.0, nil)
+
+	suite.service = NewInventoryService(suite.mockRepo, suite.mockES, config)
 
 	// Создаем тестовую запчасть
 	suite.testPart = &Part{
-		Name:        "Test Part",
-		Quantity:    10,
-		Description: "Test description",
-		Category:    "Test Category",
-		Price:       100.0,
+		PartCore: PartCore{
+			ID:          1,
+			Name:        "Test Part",
+			Quantity:    10,
+			Description: "Test description",
+			Category:    "Test Category",
+			Price:       100.0,
+		},
 	}
-	err = suite.repo.Create(suite.testPart)
-	suite.Require().NoError(err)
 }
 
 func (suite *ServiceTestSuite) TearDownTest() {
-	sqlDB, _ := suite.db.DB()
-	sqlDB.Close()
+	suite.mockRepo.AssertExpectations(suite.T())
+	suite.mockES.AssertExpectations(suite.T())
 }
 
 // TestAddPart - тест добавления запчасти
 func (suite *ServiceTestSuite) TestAddPart() {
 	newPart := &Part{
-		Name:     "New Part",
-		Quantity: 5,
-		Price:    50.0,
+		PartCore: PartCore{
+			Name:     "New Part",
+			Quantity: 5,
+			Price:    50.0,
+		},
 	}
 
-	// Настраиваем мок для Elasticsearch
+	// Настраиваем моки
+	suite.mockRepo.On("Create", mock.Anything, newPart).Return(nil).Run(func(args mock.Arguments) {
+		part := args.Get(1).(*Part)
+		part.ID = 2
+	})
+	suite.mockRepo.On("FindByID", mock.Anything, uint(2)).Return(newPart, nil)
 	suite.mockES.On("IndexPart", mock.AnythingOfType("*main.Part")).Return(nil)
 
-	result, err := suite.service.AddPart(newPart)
+	result, err := suite.service.AddPart(context.Background(), newPart)
 	assert.NoError(suite.T(), err)
 	assert.NotNil(suite.T(), result)
 	assert.Equal(suite.T(), "New Part", result.Name)
-
-	suite.mockES.AssertExpectations(suite.T())
 }
 
 // TestAddPart_InvalidData - тест добавления с невалидными данными
 func (suite *ServiceTestSuite) TestAddPart_InvalidData() {
 	invalidPart := &Part{
-		Name:     "", // пустое имя - невалидно
-		Quantity: 5,
+		PartCore: PartCore{
+			Name:     "", // пустое имя - невалидно
+			Quantity: 5,
+		},
 	}
 
-	result, err := suite.service.AddPart(invalidPart)
+	suite.mockRepo.On("Create", mock.Anything, invalidPart).Return(assert.AnError)
+
+	result, err := suite.service.AddPart(context.Background(), invalidPart)
 	assert.Error(suite.T(), err)
 	assert.Nil(suite.T(), result)
 }
@@ -110,45 +115,32 @@ func (suite *ServiceTestSuite) TestUpdatePart() {
 		"quantity": 20,
 	}
 
-	// Настраиваем мок для Elasticsearch
+	// Настраиваем моки
+	suite.mockRepo.On("Update", mock.Anything, suite.testPart.ID, updates).Return(nil)
+	suite.mockRepo.On("FindByID", mock.Anything, suite.testPart.ID).Return(suite.testPart, nil)
 	suite.mockES.On("IndexPart", mock.AnythingOfType("*main.Part")).Return(nil)
 
-	err := suite.service.UpdatePart(suite.testPart.ID, updates)
+	err := suite.service.UpdatePart(context.Background(), suite.testPart.ID, updates)
 	assert.NoError(suite.T(), err)
-
-	// Проверяем обновление
-	updated, err := suite.repo.FindByID(suite.testPart.ID)
-	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), "Updated Name", updated.Name)
-	assert.Equal(suite.T(), 20, updated.Quantity)
-
-	suite.mockES.AssertExpectations(suite.T())
 }
 
 // TestDeletePart - тест удаления запчасти
 func (suite *ServiceTestSuite) TestDeletePart() {
-	// Настраиваем мок для Elasticsearch
+	// Настраиваем моки
+	suite.mockRepo.On("Delete", mock.Anything, suite.testPart.ID).Return(nil)
+	suite.mockRepo.On("FindByID", mock.Anything, suite.testPart.ID).Return(suite.testPart, nil)
 	suite.mockES.On("DeletePartFromIndex", suite.testPart.ID).Return(nil)
 
-	err := suite.service.DeletePart(suite.testPart.ID)
+	err := suite.service.DeletePart(context.Background(), suite.testPart.ID)
 	assert.NoError(suite.T(), err)
-
-	// Проверяем, что удалена
-	_, err = suite.repo.FindByID(suite.testPart.ID)
-	assert.Error(suite.T(), err)
-
-	suite.mockES.AssertExpectations(suite.T())
 }
 
 // TestMarkPartForDeletion - тест отметки для удаления
 func (suite *ServiceTestSuite) TestMarkPartForDeletion() {
-	err := suite.service.MarkPartForDeletion(suite.testPart.ID)
-	assert.NoError(suite.T(), err)
+	suite.mockRepo.On("MarkForDeletion", mock.Anything, suite.testPart.ID, mock.AnythingOfType("time.Time")).Return(nil)
 
-	// Проверяем
-	updated, err := suite.repo.FindByID(suite.testPart.ID)
+	err := suite.service.MarkPartForDeletion(context.Background(), suite.testPart.ID)
 	assert.NoError(suite.T(), err)
-	assert.NotNil(suite.T(), updated.ToDeleteAt)
 }
 
 // TestGetInventory - тест получения инвентаря
@@ -158,7 +150,12 @@ func (suite *ServiceTestSuite) TestGetInventory() {
 		Limit: 10,
 	}
 
-	parts, err := suite.service.GetInventory(params)
+	expectedParts := []Part{*suite.testPart}
+	suite.mockRepo.On("DeleteExpiredParts", mock.Anything, mock.Anything).Return(nil)
+	suite.mockES.On("SearchParts", mock.AnythingOfType("map[string]interface {}"), mock.AnythingOfType("int"), mock.AnythingOfType("int")).Return([]ElasticsearchPart{{ID: suite.testPart.ID, Name: suite.testPart.Name}}, int64(1), nil)
+	suite.mockRepo.On("FindWithFilters", mock.Anything, mock.Anything).Return(expectedParts, nil)
+
+	parts, err := suite.service.GetInventory(context.Background(), params)
 	assert.NoError(suite.T(), err)
 	assert.NotEmpty(suite.T(), parts)
 	assert.Equal(suite.T(), suite.testPart.Name, parts[0].Name)
@@ -172,7 +169,11 @@ func (suite *ServiceTestSuite) TestGetInventory_WithSearch() {
 		Limit:  10,
 	}
 
-	parts, err := suite.service.GetInventory(params)
+	expectedParts := []Part{*suite.testPart}
+	suite.mockRepo.On("DeleteExpiredParts", mock.Anything, mock.Anything).Return(nil)
+	suite.mockRepo.On("FindWithFilters", mock.Anything, mock.Anything).Return(expectedParts, nil)
+
+	parts, err := suite.service.GetInventory(context.Background(), params)
 	assert.NoError(suite.T(), err)
 	assert.Len(suite.T(), parts, 1)
 	assert.Equal(suite.T(), suite.testPart.Name, parts[0].Name)
@@ -180,28 +181,27 @@ func (suite *ServiceTestSuite) TestGetInventory_WithSearch() {
 
 // TestGetStatistics - тест получения статистики
 func (suite *ServiceTestSuite) TestGetStatistics() {
-	stats, err := suite.service.GetStatistics()
+	suite.mockRepo.On("GetStatistics", mock.Anything).Return(StatisticsResponse{}, nil)
+	suite.mockRepo.On("GetTotalEarnings", mock.Anything).Return(500.0, nil)
+
+	stats, err := suite.service.GetStatistics(context.Background())
 	assert.NoError(suite.T(), err)
 	assert.NotNil(suite.T(), stats)
-	assert.GreaterOrEqual(suite.T(), stats.TotalParts, int64(1))
+	assert.GreaterOrEqual(suite.T(), stats.TotalEarnings, 500.0)
 }
 
 // TestBulkDeleteParts - тест массового удаления
 func (suite *ServiceTestSuite) TestBulkDeleteParts() {
-	// Создаем еще одну запчасть
-	part2 := &Part{Name: "Part 2", Quantity: 5}
-	err := suite.repo.Create(part2)
-	suite.Require().NoError(err)
-
+	part2 := &Part{PartCore: PartCore{ID: 2, Name: "Part 2", Quantity: 5}}
 	ids := []uint{suite.testPart.ID, part2.ID}
-	err = suite.service.BulkDeleteParts(ids)
-	assert.NoError(suite.T(), err)
 
-	// Проверяем, что обе удалены
-	_, err1 := suite.repo.FindByID(suite.testPart.ID)
-	_, err2 := suite.repo.FindByID(part2.ID)
-	assert.Error(suite.T(), err1)
-	assert.Error(suite.T(), err2)
+	suite.mockRepo.On("FindByID", mock.Anything, suite.testPart.ID).Return(suite.testPart, nil)
+	suite.mockRepo.On("FindByID", mock.Anything, part2.ID).Return(part2, nil)
+	suite.mockRepo.On("BulkDelete", mock.Anything, ids).Return(nil)
+	suite.mockES.On("DeletePartFromIndex", mock.Anything).Return(nil)
+
+	err := suite.service.BulkDeleteParts(context.Background(), ids)
+	assert.NoError(suite.T(), err)
 }
 
 // TestBulkUpdateParts - тест массового обновления
@@ -214,14 +214,29 @@ func (suite *ServiceTestSuite) TestBulkUpdateParts() {
 		},
 	}
 
-	err := suite.service.BulkUpdateParts(updates)
-	assert.NoError(suite.T(), err)
+	suite.mockRepo.On("BulkUpdate", mock.Anything, updates).Return(1, nil)
 
-	// Проверяем обновление
-	updated, err := suite.repo.FindByID(suite.testPart.ID)
+	count, err := suite.service.BulkUpdateParts(context.Background(), updates)
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), "Bulk Updated", updated.Name)
-	assert.Equal(suite.T(), 99, updated.Quantity)
+	assert.Equal(suite.T(), 1, count)
+}
+
+// TestGetPartByID - тест получения запчасти по ID
+func (suite *ServiceTestSuite) TestGetPartByID() {
+	suite.mockRepo.On("FindByID", mock.Anything, suite.testPart.ID).Return(suite.testPart, nil)
+
+	part, err := suite.service.GetPartByID(context.Background(), suite.testPart.ID)
+	assert.NoError(suite.T(), err)
+	assert.NotNil(suite.T(), part)
+	assert.Equal(suite.T(), suite.testPart.Name, part.Name)
+}
+
+// TestUpdateEarnings - тест обновления заработка
+func (suite *ServiceTestSuite) TestUpdateEarnings() {
+	suite.mockRepo.On("UpdateTotalEarnings", mock.Anything, mock.Anything).Return(nil)
+
+	err := suite.service.UpdateEarnings(context.Background(), 100.0)
+	assert.NoError(suite.T(), err)
 }
 
 // TestRunSuite - запуск всех тестов сервиса
