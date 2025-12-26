@@ -17,6 +17,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -34,6 +35,28 @@ var (
 		},
 		[]string{"operation", "service", "status"},
 	)
+	httpRequestsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "avtoplaneta_http_requests_total",
+			Help: "Total number of HTTP requests",
+		},
+		[]string{"method", "endpoint", "status"},
+	)
+	httpRequestDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "avtoplaneta_http_request_duration_seconds",
+			Help:    "HTTP request duration in seconds",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"method", "endpoint"},
+	)
+	httpRequestsErrorsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "avtoplaneta_http_requests_errors_total",
+			Help: "Total number of HTTP request errors",
+		},
+		[]string{"method", "endpoint", "status"},
+	)
 )
 
 func RecordDBError(operation, service string) {
@@ -43,10 +66,22 @@ func RecordBusinessOperation(operation, service, status string) {
 	businessOperationsTotal.WithLabelValues(operation, service, status).Inc()
 }
 func init() {
-	prometheus.MustRegister(dbErrorsTotal, businessOperationsTotal)
+	prometheus.MustRegister(
+		dbErrorsTotal,
+		businessOperationsTotal,
+		httpRequestsTotal,
+		httpRequestDuration,
+		httpRequestsErrorsTotal,
+	)
 }
 
 func setupRoutes(r *gin.Engine) {
+	// Add metrics middleware
+	r.Use(metricsMiddleware())
+
+	// Add /metrics endpoint
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
 	api := r.Group("/api/messaging")
 	{
 		// Conversations
@@ -125,6 +160,7 @@ func getConversations(c *gin.Context) {
 }
 
 func createConversation(c *gin.Context) {
+	ctx := c.Request.Context()
 	userID := c.GetHeader("X-User-ID")
 	if userID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
@@ -177,7 +213,7 @@ func createConversation(c *gin.Context) {
 	}
 
 	log.Printf("Creating conversation with participants: %v", conversation.Participants)
-	if err := DB.Debug().Create(&conversation).Error; err != nil {
+	if err := DB.WithContext(ctx).Debug().Create(&conversation).Error; err != nil {
 		RecordDBError("create", "messaging-service")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create conversation"})
 		return
@@ -190,6 +226,7 @@ func createConversation(c *gin.Context) {
 }
 
 func getConversation(c *gin.Context) {
+	ctx := c.Request.Context()
 	userID := c.GetHeader("X-User-ID")
 	if userID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
@@ -210,7 +247,7 @@ func getConversation(c *gin.Context) {
 	}
 
 	var conversation Conversation
-	if err := DB.First(&conversation, conversationIDInt).Error; err != nil {
+	if err := DB.WithContext(ctx).First(&conversation, conversationIDInt).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Conversation not found"})
 		return
 	}
@@ -351,6 +388,7 @@ func deleteConversation(c *gin.Context) {
 }
 
 func removeParticipant(c *gin.Context) {
+	ctx := c.Request.Context()
 	userID := c.GetHeader("X-User-ID")
 	if userID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
@@ -378,7 +416,7 @@ func removeParticipant(c *gin.Context) {
 	}
 
 	// Get current user to check role
-	currentUser, err := getCurrentUser(userID, c.GetHeader("Authorization"))
+	currentUser, err := getCurrentUser(ctx, userID, c.GetHeader("Authorization"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user info"})
 		return
@@ -597,6 +635,33 @@ func getDromMessages(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"messages": messages})
+}
+
+// metricsMiddleware measures HTTP request latency and throughput
+func metricsMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+		method := c.Request.Method
+		path := c.Request.URL.Path
+
+		// Proceed with the request
+		c.Next()
+
+		// Measure duration
+		duration := time.Since(start).Seconds()
+
+		// Get status code
+		status := c.Writer.Status()
+
+		// Record metrics
+		httpRequestsTotal.WithLabelValues(method, path, fmt.Sprintf("%d", status)).Inc()
+		httpRequestDuration.WithLabelValues(method, path).Observe(duration)
+
+		// Record errors if status >= 400
+		if status >= 400 {
+			httpRequestsErrorsTotal.WithLabelValues(method, path, fmt.Sprintf("%d", status)).Inc()
+		}
+	}
 }
 
 // Cache helper functions
@@ -857,10 +922,10 @@ type User struct {
 	Role     string `json:"role"`
 }
 
-func getCurrentUser(userID string, authHeader string) (*User, error) {
+func getCurrentUser(ctx context.Context, userID string, authHeader string) (*User, error) {
 	gatewayURL := "http://localhost:8080" // Assuming gateway is on 8080
 
-	req, err := http.NewRequest("GET", gatewayURL+"/api/users/me", nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", gatewayURL+"/api/users/me", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
@@ -945,6 +1010,7 @@ func getUsers(c *gin.Context) {
 }
 
 func sendMessage(c *gin.Context) {
+	ctx := c.Request.Context()
 	userID := c.GetHeader("X-User-ID")
 	if userID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
@@ -966,7 +1032,7 @@ func sendMessage(c *gin.Context) {
 
 	// Check if user is participant
 	var conversation Conversation
-	if err := DB.First(&conversation, conversationIDInt).Error; err != nil {
+	if err := DB.WithContext(ctx).First(&conversation, conversationIDInt).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Conversation not found"})
 		return
 	}
@@ -1552,3 +1618,4 @@ func searchMessages(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"messages": messages})
 }
+

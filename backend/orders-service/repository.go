@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,29 +14,29 @@ import (
 
 // OrderRepository определяет интерфейс для работы с заказами
 type OrderRepository interface {
-	Create(order *Order) error
-	CreateItem(item *OrderItem) error
-	FindByID(id uint) (*Order, error)
-	FindWithItemsByID(id uint) (*Order, error)
-	FindAll() ([]Order, error)
-	FindActive() ([]Order, error)
-	FindWithItems() ([]Order, error)
-	FindOrderItem(orderID, partID uint) (*OrderItem, error)
-	Update(id uint, updates map[string]interface{}) error
-	UpdateStatus(id uint, status string) error
-	UpdateItem(item *OrderItem) error
-	Delete(id uint) error
-	DeleteItemsByOrderID(orderID uint) error
-	MarkExpiredAsAutoDeleted(before time.Time) error
+	Create(ctx context.Context, order *Order) error
+	CreateItem(ctx context.Context, item *OrderItem) error
+	FindByID(ctx context.Context, id uint) (*Order, error)
+	FindWithItemsByID(ctx context.Context, id uint) (*Order, error)
+	FindAll(ctx context.Context) ([]Order, error)
+	FindActive(ctx context.Context) ([]Order, error)
+	FindWithItems(ctx context.Context) ([]Order, error)
+	FindOrderItem(ctx context.Context, orderID, partID uint) (*OrderItem, error)
+	Update(ctx context.Context, id uint, updates map[string]interface{}) error
+	UpdateStatus(ctx context.Context, id uint, status string) error
+	UpdateItem(ctx context.Context, item *OrderItem) error
+	Delete(ctx context.Context, id uint) error
+	DeleteItemsByOrderID(ctx context.Context, orderID uint) error
+	MarkExpiredAsAutoDeleted(ctx context.Context, before time.Time) error
 }
 
 // PartRepositoryForOrders определяет интерфейс для работы с запчастями (для orders-service)
 type PartRepositoryForOrders interface {
-	FindByID(id uint) (*Part, error)
-	UpdateQuantity(id uint, newQuantity int) error
-	DecreaseQuantity(id uint, amount int) error
-	IncreaseQuantity(id uint, amount int) error
-	DeletePart(id uint) error
+	FindByID(ctx context.Context, id uint) (*Part, error)
+	UpdateQuantity(ctx context.Context, id uint, newQuantity int) error
+	DecreaseQuantity(ctx context.Context, id uint, amount int) error
+	IncreaseQuantity(ctx context.Context, id uint, amount int) error
+	DeletePart(ctx context.Context, id uint) error
 }
 
 // orderRepository реализует OrderRepository
@@ -46,81 +48,118 @@ func NewOrderRepository(db *gorm.DB) OrderRepository {
 	return &orderRepository{db: db}
 }
 
-func (r *orderRepository) Create(order *Order) error {
-	return r.db.Create(order).Error
+func (r *orderRepository) Create(ctx context.Context, order *Order) error {
+	return r.db.WithContext(ctx).Create(order).Error
 }
 
-func (r *orderRepository) FindByID(id uint) (*Order, error) {
+func (r *orderRepository) FindByID(ctx context.Context, id uint) (*Order, error) {
 	var order Order
-	err := r.db.First(&order, id).Error
+	err := r.db.WithContext(ctx).First(&order, id).Error
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to find order with ID %d: %w", id, err)
 	}
 	return &order, nil
 }
 
-func (r *orderRepository) FindWithItemsByID(id uint) (*Order, error) {
+func (r *orderRepository) FindWithItemsByID(ctx context.Context, id uint) (*Order, error) {
 	var order Order
-	err := r.db.Preload("Items").First(&order, id).Error
+	err := r.db.WithContext(ctx).Preload("Items").First(&order, id).Error
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to find order with items for ID %d: %w", id, err)
 	}
 	return &order, nil
 }
 
-func (r *orderRepository) FindAll() ([]Order, error) {
+func (r *orderRepository) FindAll(ctx context.Context) ([]Order, error) {
 	var orders []Order
-	err := r.db.Where("auto_deleted = ?", false).Find(&orders).Error
-	return orders, err
+	err := r.db.WithContext(ctx).Where("auto_deleted = ?", false).Find(&orders).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to find all orders: %w", err)
+	}
+	return orders, nil
 }
 
-func (r *orderRepository) FindWithItems() ([]Order, error) {
+func (r *orderRepository) FindWithItems(ctx context.Context) ([]Order, error) {
 	var orders []Order
-	err := r.db.Preload("Items").Where("auto_deleted = ?", false).Find(&orders).Error
-	return orders, err
+	err := r.db.WithContext(ctx).Preload("Items").Where("auto_deleted = ?", false).Find(&orders).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to find orders with items: %w", err)
+	}
+	return orders, nil
 }
 
-func (r *orderRepository) Update(id uint, updates map[string]interface{}) error {
-	return r.db.Model(&Order{}).Where("id = ?", id).Updates(updates).Error
+func (r *orderRepository) Update(ctx context.Context, id uint, updates map[string]interface{}) error {
+	err := r.db.WithContext(ctx).Model(&Order{}).Where("id = ?", id).Updates(updates).Error
+	if err != nil {
+		return fmt.Errorf("failed to update order %d: %w", id, err)
+	}
+	return nil
 }
 
-func (r *orderRepository) Delete(id uint) error {
-	return r.db.Delete(&Order{}, id).Error
+func (r *orderRepository) Delete(ctx context.Context, id uint) error {
+	err := r.db.WithContext(ctx).Delete(&Order{}, id).Error
+	if err != nil {
+		return fmt.Errorf("failed to delete order %d: %w", id, err)
+	}
+	return nil
 }
 
-func (r *orderRepository) MarkExpiredAsAutoDeleted(before time.Time) error {
-	return r.db.Model(&Order{}).Where("created_at <= ? AND auto_deleted = ?", before, false).Update("auto_deleted", true).Error
+func (r *orderRepository) MarkExpiredAsAutoDeleted(ctx context.Context, before time.Time) error {
+	err := r.db.WithContext(ctx).Model(&Order{}).Where("created_at <= ? AND auto_deleted = ?", before, false).Update("auto_deleted", true).Error
+	if err != nil {
+		return fmt.Errorf("failed to mark expired orders as auto-deleted: %w", err)
+	}
+	return nil
 }
 
-func (r *orderRepository) CreateItem(item *OrderItem) error {
-	return r.db.Create(item).Error
+func (r *orderRepository) CreateItem(ctx context.Context, item *OrderItem) error {
+	err := r.db.WithContext(ctx).Create(item).Error
+	if err != nil {
+		return fmt.Errorf("failed to create order item: %w", err)
+	}
+	return nil
 }
 
-func (r *orderRepository) FindActive() ([]Order, error) {
+func (r *orderRepository) FindActive(ctx context.Context) ([]Order, error) {
 	var orders []Order
-	err := r.db.Preload("Items").Where("auto_deleted = ?", false).Find(&orders).Error
-	return orders, err
+	err := r.db.WithContext(ctx).Preload("Items").Where("auto_deleted = ?", false).Find(&orders).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to find active orders: %w", err)
+	}
+	return orders, nil
 }
 
-func (r *orderRepository) FindOrderItem(orderID, partID uint) (*OrderItem, error) {
+func (r *orderRepository) FindOrderItem(ctx context.Context, orderID, partID uint) (*OrderItem, error) {
 	var item OrderItem
-	err := r.db.Where("order_id = ? AND part_id = ?", orderID, partID).First(&item).Error
+	err := r.db.WithContext(ctx).Where("order_id = ? AND part_id = ?", orderID, partID).First(&item).Error
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to find order item for order %d and part %d: %w", orderID, partID, err)
 	}
 	return &item, nil
 }
 
-func (r *orderRepository) UpdateStatus(id uint, status string) error {
-	return r.db.Model(&Order{}).Where("id = ?", id).Update("status", status).Error
+func (r *orderRepository) UpdateStatus(ctx context.Context, id uint, status string) error {
+	err := r.db.WithContext(ctx).Model(&Order{}).Where("id = ?", id).Update("status", status).Error
+	if err != nil {
+		return fmt.Errorf("failed to update status for order %d: %w", id, err)
+	}
+	return nil
 }
 
-func (r *orderRepository) UpdateItem(item *OrderItem) error {
-	return r.db.Save(item).Error
+func (r *orderRepository) UpdateItem(ctx context.Context, item *OrderItem) error {
+	err := r.db.WithContext(ctx).Save(item).Error
+	if err != nil {
+		return fmt.Errorf("failed to update order item: %w", err)
+	}
+	return nil
 }
 
-func (r *orderRepository) DeleteItemsByOrderID(orderID uint) error {
-	return r.db.Where("order_id = ?", orderID).Delete(&OrderItem{}).Error
+func (r *orderRepository) DeleteItemsByOrderID(ctx context.Context, orderID uint) error {
+	err := r.db.WithContext(ctx).Where("order_id = ?", orderID).Delete(&OrderItem{}).Error
+	if err != nil {
+		return fmt.Errorf("failed to delete order items for order %d: %w", orderID, err)
+	}
+	return nil
 }
 
 // partRepositoryForOrders реализует PartRepositoryForOrders
@@ -132,33 +171,45 @@ func NewPartRepositoryForOrders(db *gorm.DB) PartRepositoryForOrders {
 	return &partRepositoryForOrders{db: db}
 }
 
-func (r *partRepositoryForOrders) FindByID(id uint) (*Part, error) {
+func (r *partRepositoryForOrders) FindByID(ctx context.Context, id uint) (*Part, error) {
 	var part Part
-	err := r.db.First(&part, id).Error
+	err := r.db.WithContext(ctx).First(&part, id).Error
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to find part with ID %d: %w", id, err)
 	}
 	return &part, nil
 }
 
-func (r *partRepositoryForOrders) UpdateQuantity(id uint, newQuantity int) error {
-	return r.db.Model(&Part{}).Where("id = ?", id).Update("quantity", newQuantity).Error
+func (r *partRepositoryForOrders) UpdateQuantity(ctx context.Context, id uint, newQuantity int) error {
+	err := r.db.WithContext(ctx).Model(&Part{}).Where("id = ?", id).Update("quantity", newQuantity).Error
+	if err != nil {
+		return fmt.Errorf("failed to update quantity for part %d: %w", id, err)
+	}
+	return nil
 }
 
-func (r *partRepositoryForOrders) DecreaseQuantity(id uint, amount int) error {
-	return r.db.Model(&Part{}).Where("id = ?", id).Update("quantity", r.db.Raw("CASE WHEN quantity - ? <= 0 THEN -1 ELSE quantity - ? END", amount, amount)).Error
+func (r *partRepositoryForOrders) DecreaseQuantity(ctx context.Context, id uint, amount int) error {
+	err := r.db.WithContext(ctx).Model(&Part{}).Where("id = ?", id).Update("quantity", r.db.Raw("CASE WHEN quantity - ? <= 0 THEN -1 ELSE quantity - ? END", amount, amount)).Error
+	if err != nil {
+		return fmt.Errorf("failed to decrease quantity for part %d by %d: %w", id, amount, err)
+	}
+	return nil
 }
 
-func (r *partRepositoryForOrders) IncreaseQuantity(id uint, amount int) error {
-	return r.db.Model(&Part{}).Where("id = ?", id).Update("quantity", r.db.Raw("quantity + ?", amount)).Error
+func (r *partRepositoryForOrders) IncreaseQuantity(ctx context.Context, id uint, amount int) error {
+	err := r.db.WithContext(ctx).Model(&Part{}).Where("id = ?", id).Update("quantity", r.db.Raw("quantity + ?", amount)).Error
+	if err != nil {
+		return fmt.Errorf("failed to increase quantity for part %d by %d: %w", id, amount, err)
+	}
+	return nil
 }
 
-func (r *partRepositoryForOrders) DeletePart(id uint) error {
+func (r *partRepositoryForOrders) DeletePart(ctx context.Context, id uint) error {
 	logrus.WithField("part_id", id).Info("Starting part deletion")
 
 	// Получаем запчасть для удаления фото
 	var part Part
-	if err := r.db.First(&part, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).First(&part, id).Error; err != nil {
 		logrus.WithError(err).WithField("part_id", id).Error("Failed to find part for deletion")
 		return err
 	}
@@ -198,9 +249,9 @@ func (r *partRepositoryForOrders) DeletePart(id uint) error {
 		logrus.WithField("part_id", id).Info("No photo to delete for part")
 	}
 
-	if err := r.db.Delete(&Part{}, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Delete(&Part{}, id).Error; err != nil {
 		logrus.WithError(err).WithField("part_id", id).Error("Failed to delete part from database")
-		return err
+		return fmt.Errorf("failed to delete part %d from database: %w", id, err)
 	}
 
 	logrus.WithField("part_id", id).Info("Part deleted from database successfully")

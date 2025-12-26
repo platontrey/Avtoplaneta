@@ -6,6 +6,8 @@ require (
 	github.com/PuerkitoBio/goquery v1.11.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/lib/pq v1.10.9
+	github.com/prometheus/client_golang v1.23.2
+	github.com/redis/go-redis/v9 v9.17.2
 	gorm.io/driver/postgres v1.5.4
 	gorm.io/gorm v1.25.5
 )
@@ -37,11 +39,9 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.8 // indirect
-	github.com/prometheus/client_golang v1.23.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.66.1 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
-	github.com/redis/go-redis/v9 v9.17.2 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.11 // indirect

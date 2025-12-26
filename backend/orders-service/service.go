@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,12 +16,12 @@ import (
 // OrdersService определяет интерфейс для бизнес-логики управления заказами
 type OrdersService interface {
 	// GetOrders Основные операции с заказами
-	GetOrders() ([]Order, error)
-	CreateOrder(req CreateOrderRequest) (*Order, error)
-	UpdateOrderStatus(orderID uint, status string) error
-	CompleteOrder(orderID uint) error
-	DeleteOrder(orderID uint) error
-	AddOrderItem(orderID uint, req AddOrderItemRequest) error
+	GetOrders(ctx context.Context) ([]Order, error)
+	CreateOrder(ctx context.Context, req CreateOrderRequest) (*Order, error)
+	UpdateOrderStatus(ctx context.Context, orderID uint, status string) error
+	CompleteOrder(ctx context.Context, orderID uint) error
+	DeleteOrder(ctx context.Context, orderID uint) error
+	AddOrderItem(ctx context.Context, orderID uint, req AddOrderItemRequest) error
 }
 
 // CreateOrderRequest запрос на создание заказа
@@ -58,7 +59,7 @@ func NewOrdersService(orderRepo OrderRepository, partRepo PartRepositoryForOrder
 }
 
 // GetOrders получает все активные заказы с использованием кеша
-func (s *ordersService) GetOrders() ([]Order, error) {
+func (s *ordersService) GetOrders(ctx context.Context) ([]Order, error) {
 	// Сначала пытаемся получить из кеша
 	cachedOrders, err := s.cache.GetOrders()
 	if err != nil {
@@ -69,10 +70,10 @@ func (s *ordersService) GetOrders() ([]Order, error) {
 	}
 
 	// Если в кеше нет данных, получаем из базы данных
-	orders, err := s.orderRepo.FindActive()
+	orders, err := s.orderRepo.FindActive(ctx)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to get orders from database")
-		return nil, err
+		return nil, fmt.Errorf("failed to get orders from database: %w", err)
 	}
 
 	// Форматируем данные для отображения
@@ -83,7 +84,7 @@ func (s *ordersService) GetOrders() ([]Order, error) {
 
 		// Получаем location из первой позиции заказа
 		if len(orders[i].Items) > 0 {
-			part, err := s.partRepo.FindByID(orders[i].Items[0].PartID)
+			part, err := s.partRepo.FindByID(ctx, orders[i].Items[0].PartID)
 			if err != nil {
 				logrus.WithError(err).WithField("part_id", orders[i].Items[0].PartID).Warn("Failed to get part location")
 				orders[i].Location = "Неизвестно"
@@ -104,20 +105,20 @@ func (s *ordersService) GetOrders() ([]Order, error) {
 }
 
 // CreateOrder создает новый заказ
-func (s *ordersService) CreateOrder(req CreateOrderRequest) (*Order, error) {
+func (s *ordersService) CreateOrder(ctx context.Context, req CreateOrderRequest) (*Order, error) {
 	if req.BuyerNumber == "" {
-		return nil, fmt.Errorf("buyer number is required")
+		return nil, ValidationError{Field: "buyer_number", Message: "buyer number is required"}
 	}
 
 	if len(req.Items) == 0 {
-		return nil, fmt.Errorf("at least one part must be selected")
+		return nil, ValidationError{Field: "items", Message: "at least one part must be selected"}
 	}
 
 	// Получаем ID пользователя из контекста (предполагаем, что он установлен middleware)
 	userIDStr := getUserIDFromContext() // TODO: реализовать получение из контекста
 	userID, err := strconv.ParseUint(userIDStr, 10, 32)
 	if err != nil {
-		return nil, fmt.Errorf("invalid user ID")
+		return nil, fmt.Errorf("failed to parse user ID: %w", err)
 	}
 
 	// Получаем имя пользователя
@@ -136,17 +137,17 @@ func (s *ordersService) CreateOrder(req CreateOrderRequest) (*Order, error) {
 		CreatedAt:   time.Now(),
 	}
 
-	if err := s.orderRepo.Create(order); err != nil {
-		logrus.WithError(err).Error("Failed to create order")
-		return nil, err
+	if err := s.orderRepo.Create(ctx, order); err != nil {
+		logrus.WithError(err).Error("Failed to create order in database")
+		return nil, fmt.Errorf("failed to create order: %w", err)
 	}
 
 	// Создаем позиции заказа и уменьшаем количество запчастей
 	for _, item := range req.Items {
-		part, err := s.partRepo.FindByID(item.PartID)
+		part, err := s.partRepo.FindByID(ctx, item.PartID)
 		if err != nil {
 			logrus.WithError(err).WithField("part_id", item.PartID).Error("Failed to get part for order item")
-			return nil, fmt.Errorf("failed to get part information")
+			return nil, fmt.Errorf("failed to get part information for part %d: %w", item.PartID, err)
 		}
 
 		orderItem := &OrderItem{
@@ -156,15 +157,15 @@ func (s *ordersService) CreateOrder(req CreateOrderRequest) (*Order, error) {
 			Price:    part.Price,
 		}
 
-		if err := s.orderRepo.CreateItem(orderItem); err != nil {
-			logrus.WithError(err).Error("Failed to create order item")
-			return nil, err
+		if err := s.orderRepo.CreateItem(ctx, orderItem); err != nil {
+			logrus.WithError(err).Error("Failed to create order item in database")
+			return nil, fmt.Errorf("failed to create order item: %w", err)
 		}
 
 		// Уменьшаем количество запчасти
-		if err := s.partRepo.DecreaseQuantity(item.PartID, item.Quantity); err != nil {
+		if err := s.partRepo.DecreaseQuantity(ctx, item.PartID, item.Quantity); err != nil {
 			logrus.WithError(err).WithField("part_id", item.PartID).Error("Failed to decrease part quantity")
-			return nil, err
+			return nil, fmt.Errorf("failed to decrease part quantity for part %d: %w", item.PartID, err)
 		}
 
 		logrus.WithFields(logrus.Fields{
@@ -174,10 +175,10 @@ func (s *ordersService) CreateOrder(req CreateOrderRequest) (*Order, error) {
 	}
 
 	// Загружаем полный заказ с позициями
-	completeOrder, err := s.orderRepo.FindByID(order.ID)
+	completeOrder, err := s.orderRepo.FindByID(ctx, order.ID)
 	if err != nil {
 		logrus.WithError(err).WithField("order_id", order.ID).Error("Failed to load created order")
-		return nil, err
+		return nil, fmt.Errorf("failed to load created order %d: %w", order.ID, err)
 	}
 
 	// Форматируем данные
@@ -194,7 +195,7 @@ func (s *ordersService) CreateOrder(req CreateOrderRequest) (*Order, error) {
 }
 
 // UpdateOrderStatus обновляет статус заказа
-func (s *ordersService) UpdateOrderStatus(orderID uint, status string) error {
+func (s *ordersService) UpdateOrderStatus(ctx context.Context, orderID uint, status string) error {
 	validStatuses := map[string]bool{
 		"red":    true,
 		"brown":  true,
@@ -203,12 +204,12 @@ func (s *ordersService) UpdateOrderStatus(orderID uint, status string) error {
 	}
 
 	if !validStatuses[status] {
-		return fmt.Errorf("invalid status: %s", status)
+		return ValidationError{Field: "status", Message: fmt.Sprintf("invalid status: %s", status)}
 	}
 
-	if err := s.orderRepo.UpdateStatus(orderID, status); err != nil {
-		logrus.WithError(err).WithField("order_id", orderID).Error("Failed to update order status")
-		return err
+	if err := s.orderRepo.UpdateStatus(ctx, orderID, status); err != nil {
+		logrus.WithError(err).WithField("order_id", orderID).Error("Failed to update order status in database")
+		return fmt.Errorf("failed to update order status for order %d: %w", orderID, err)
 	}
 
 	logrus.WithFields(logrus.Fields{
@@ -225,21 +226,21 @@ func (s *ordersService) UpdateOrderStatus(orderID uint, status string) error {
 }
 
 // CompleteOrder завершает заказ (переводит в статус green) и удаляет запчасти
-func (s *ordersService) CompleteOrder(orderID uint) error {
+func (s *ordersService) CompleteOrder(ctx context.Context, orderID uint) error {
 	logrus.WithField("order_id", orderID).Info("Starting order completion")
 
 	// Получаем заказ с позициями
-	order, err := s.orderRepo.FindWithItemsByID(orderID)
+	order, err := s.orderRepo.FindWithItemsByID(ctx, orderID)
 	if err != nil {
 		logrus.WithError(err).WithField("order_id", orderID).Error("Failed to find order for completion")
-		return err
+		return fmt.Errorf("failed to find order %d for completion: %w", orderID, err)
 	}
 
 	// Меняем статус
-	err = s.UpdateOrderStatus(orderID, "green")
+	err = s.UpdateOrderStatus(ctx, orderID, "green")
 	if err != nil {
 		logrus.WithError(err).WithField("order_id", orderID).Error("Failed to complete order")
-		return err
+		return fmt.Errorf("failed to complete order %d: %w", orderID, err)
 	}
 
 	// Рассчитываем сумму заказа
@@ -250,7 +251,7 @@ func (s *ordersService) CompleteOrder(orderID uint) error {
 
 	// Удаляем запчасти полностью
 	for _, item := range order.Items {
-		if err := s.partRepo.DeletePart(item.PartID); err != nil {
+		if err := s.partRepo.DeletePart(ctx, item.PartID); err != nil {
 			logrus.WithError(err).WithField("part_id", item.PartID).Error("Failed to delete part after order completion")
 			// Продолжаем, не прерываем
 		} else {
@@ -259,19 +260,19 @@ func (s *ordersService) CompleteOrder(orderID uint) error {
 	}
 
 	// Удаляем позиции заказа
-	if err := s.orderRepo.DeleteItemsByOrderID(orderID); err != nil {
+	if err := s.orderRepo.DeleteItemsByOrderID(ctx, orderID); err != nil {
 		logrus.WithError(err).WithField("order_id", orderID).Error("Failed to delete order items")
 		return err
 	}
 
 	// Удаляем заказ
-	if err := s.orderRepo.Delete(orderID); err != nil {
+	if err := s.orderRepo.Delete(ctx, orderID); err != nil {
 		logrus.WithError(err).WithField("order_id", orderID).Error("Failed to delete order")
 		return err
 	}
 
 	// Обновляем статистику в parts-service
-	if err := s.updatePartsStatistics(totalAmount); err != nil {
+	if err := s.updatePartsStatistics(ctx, totalAmount); err != nil {
 		logrus.WithError(err).WithField("order_id", orderID).Warn("Failed to update parts statistics")
 		// Не прерываем, заказ завершен
 	}
@@ -290,19 +291,19 @@ func (s *ordersService) CompleteOrder(orderID uint) error {
 }
 
 // DeleteOrder удаляет заказ и возвращает запчасти в инвентарь
-func (s *ordersService) DeleteOrder(orderID uint) error {
+func (s *ordersService) DeleteOrder(ctx context.Context, orderID uint) error {
 	logrus.WithField("order_id", orderID).Info("Starting order deletion")
 	// Получаем заказ с позициями перед удалением
-	orderWithItems, err := s.orderRepo.FindWithItemsByID(orderID)
+	orderWithItems, err := s.orderRepo.FindWithItemsByID(ctx, orderID)
 	if err != nil {
 		logrus.WithError(err).WithField("order_id", orderID).Error("Failed to find order with items for deletion")
-		return fmt.Errorf("заказ не найден")
+		return NotFoundError{Resource: "order", ID: orderID}
 	}
 	logrus.WithField("order_id", orderID).WithField("items_count", len(orderWithItems.Items)).Info("Found order with items for deletion")
 
 	// Возвращаем запчасти в инвентарь
 	for _, item := range orderWithItems.Items {
-		if err := s.partRepo.IncreaseQuantity(item.PartID, item.Quantity); err != nil {
+		if err := s.partRepo.IncreaseQuantity(ctx, item.PartID, item.Quantity); err != nil {
 			logrus.WithError(err).WithField("part_id", item.PartID).Error("Failed to return part quantity to inventory")
 			// Продолжаем, не прерываем
 		} else {
@@ -316,15 +317,15 @@ func (s *ordersService) DeleteOrder(orderID uint) error {
 
 	// Удаляем позиции заказа перед удалением самого заказа
 	logrus.WithField("order_id", orderID).Info("Deleting order items")
-	if err := s.orderRepo.DeleteItemsByOrderID(orderID); err != nil {
-		logrus.WithError(err).WithField("order_id", orderID).Error("Failed to delete order items")
-		return err
+	if err := s.orderRepo.DeleteItemsByOrderID(ctx, orderID); err != nil {
+		logrus.WithError(err).WithField("order_id", orderID).Error("Failed to delete order items from database")
+		return fmt.Errorf("failed to delete order items for order %d: %w", orderID, err)
 	}
 
 	logrus.WithField("order_id", orderID).Info("Attempting to delete order from database")
-	if err := s.orderRepo.Delete(orderID); err != nil {
-		logrus.WithError(err).WithField("order_id", orderID).Error("Failed to delete order")
-		return err
+	if err := s.orderRepo.Delete(ctx, orderID); err != nil {
+		logrus.WithError(err).WithField("order_id", orderID).Error("Failed to delete order from database")
+		return fmt.Errorf("failed to delete order %d: %w", orderID, err)
 	}
 
 	// Инвалидируем кеш заказов
@@ -337,27 +338,27 @@ func (s *ordersService) DeleteOrder(orderID uint) error {
 }
 
 // AddOrderItem добавляет позицию в существующий заказ
-func (s *ordersService) AddOrderItem(orderID uint, req AddOrderItemRequest) error {
+func (s *ordersService) AddOrderItem(ctx context.Context, orderID uint, req AddOrderItemRequest) error {
 	// Проверяем существование заказа
-	_, err := s.orderRepo.FindByID(orderID)
+	_, err := s.orderRepo.FindByID(ctx, orderID)
 	if err != nil {
-		return fmt.Errorf("order not found")
+		return NotFoundError{Resource: "order", ID: orderID}
 	}
 
 	// Проверяем существование запчасти
-	part, err := s.partRepo.FindByID(req.PartID)
+	part, err := s.partRepo.FindByID(ctx, req.PartID)
 	if err != nil {
-		return fmt.Errorf("part not found")
+		return NotFoundError{Resource: "part", ID: req.PartID}
 	}
 
 	// Проверяем, есть ли уже такая позиция в заказе
-	existingItem, err := s.orderRepo.FindOrderItem(orderID, req.PartID)
+	existingItem, err := s.orderRepo.FindOrderItem(ctx, orderID, req.PartID)
 	if err == nil {
 		// Обновляем количество существующей позиции
 		existingItem.Quantity += req.Quantity
-		if err := s.orderRepo.UpdateItem(existingItem); err != nil {
-			logrus.WithError(err).Error("Failed to update order item")
-			return err
+		if err := s.orderRepo.UpdateItem(ctx, existingItem); err != nil {
+			logrus.WithError(err).Error("Failed to update order item in database")
+			return fmt.Errorf("failed to update order item: %w", err)
 		}
 	} else {
 		// Создаем новую позицию
@@ -368,16 +369,16 @@ func (s *ordersService) AddOrderItem(orderID uint, req AddOrderItemRequest) erro
 			Price:    part.Price,
 		}
 
-		if err := s.orderRepo.CreateItem(orderItem); err != nil {
-			logrus.WithError(err).Error("Failed to create order item")
-			return err
+		if err := s.orderRepo.CreateItem(ctx, orderItem); err != nil {
+			logrus.WithError(err).Error("Failed to create order item in database")
+			return fmt.Errorf("failed to create order item: %w", err)
 		}
 	}
 
 	// Уменьшаем количество запчасти
-	if err := s.partRepo.DecreaseQuantity(req.PartID, req.Quantity); err != nil {
+	if err := s.partRepo.DecreaseQuantity(ctx, req.PartID, req.Quantity); err != nil {
 		logrus.WithError(err).WithField("part_id", req.PartID).Error("Failed to decrease part quantity")
-		return err
+		return fmt.Errorf("failed to decrease part quantity for part %d: %w", req.PartID, err)
 	}
 
 	logrus.WithFields(logrus.Fields{
@@ -419,7 +420,7 @@ func formatTimeAgo(duration time.Duration) string {
 }
 
 // updatePartsStatistics обновляет статистику в parts-service
-func (s *ordersService) updatePartsStatistics(amount float64) error {
+func (s *ordersService) updatePartsStatistics(ctx context.Context, amount float64) error {
 	reqData := map[string]interface{}{
 		"amount": amount,
 	}
@@ -428,7 +429,7 @@ func (s *ordersService) updatePartsStatistics(amount float64) error {
 		return err
 	}
 
-	req, err := http.NewRequest("POST", "http://localhost:8081/api/statistics/update-earnings", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, "POST", "http://localhost:8081/api/statistics/update-earnings", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return err
 	}

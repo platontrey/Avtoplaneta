@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -26,7 +27,7 @@ func NewHandler(ordersService OrdersService) *Handler {
 }
 
 // logUserActivity логирует активность пользователя, отправляя запрос к auth-service
-func (h *Handler) logUserActivity(c *gin.Context, action, resourceType, details string, resourceID *uint) {
+func (h *Handler) logUserActivity(ctx context.Context, c *gin.Context, action, resourceType, details string, resourceID *uint) {
 	userIDStr := c.GetHeader("X-User-ID")
 	userEmail := c.GetHeader("X-User-Email")
 	userName := c.GetHeader("X-User-Name")
@@ -49,7 +50,7 @@ func (h *Handler) logUserActivity(c *gin.Context, action, resourceType, details 
 		return
 	}
 
-	req, err := http.NewRequest("POST", "http://localhost:8083/internal/log-activity", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, "POST", "http://localhost:8083/internal/log-activity", bytes.NewBuffer(jsonData))
 	if err != nil {logrus.WithError(err).Warn("Failed to create log request")
 		return
 	}
@@ -83,7 +84,8 @@ func (h *Handler) logUserActivity(c *gin.Context, action, resourceType, details 
 
 // GetOrdersHandler обрабатывает запрос на получение заказов
 func (h *Handler) GetOrdersHandler(c *gin.Context) {
-	orders, err := h.ordersService.GetOrders()
+	ctx := c.Request.Context()
+	orders, err := h.ordersService.GetOrders(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch orders"})
 		return
@@ -94,26 +96,32 @@ func (h *Handler) GetOrdersHandler(c *gin.Context) {
 
 // CreateOrderHandler создает новый заказ
 func (h *Handler) CreateOrderHandler(c *gin.Context) {
+	ctx := c.Request.Context()
 	var req CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data"})
 		return
 	}
 
-	order, err := h.ordersService.CreateOrder(req)
+	order, err := h.ordersService.CreateOrder(ctx, req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		if IsValidationError(err) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order"})
+		}
 		return
 	}
 
 	// Логируем создание заказа
-	h.logUserActivity(c, "create_order", "order", fmt.Sprintf("Created order for buyer: %s", req.BuyerNumber), &order.ID)
+	h.logUserActivity(ctx, c, "create_order", "order", fmt.Sprintf("Created order for buyer: %s", req.BuyerNumber), &order.ID)
 
 	c.JSON(http.StatusCreated, order)
 }
 
 // UpdateOrderStatusHandler обновляет статус заказа
 func (h *Handler) UpdateOrderStatusHandler(c *gin.Context) {
+	ctx := c.Request.Context()
 	orderIDStr := c.Param("id")
 	orderID, err := strconv.ParseUint(orderIDStr, 10, 32)
 	if err != nil {
@@ -129,8 +137,12 @@ func (h *Handler) UpdateOrderStatusHandler(c *gin.Context) {
 		return
 	}
 
-	if err := h.ordersService.UpdateOrderStatus(uint(orderID), req.Status); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := h.ordersService.UpdateOrderStatus(ctx, uint(orderID), req.Status); err != nil {
+		if IsValidationError(err) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update order status"})
+		}
 		return
 	}
 
@@ -139,6 +151,7 @@ func (h *Handler) UpdateOrderStatusHandler(c *gin.Context) {
 
 // CompleteOrderHandler завершает заказ
 func (h *Handler) CompleteOrderHandler(c *gin.Context) {
+	ctx := c.Request.Context()
 	orderIDStr := c.Param("id")
 	orderID, err := strconv.ParseUint(orderIDStr, 10, 32)
 	if err != nil {
@@ -146,20 +159,25 @@ func (h *Handler) CompleteOrderHandler(c *gin.Context) {
 		return
 	}
 
-	if err := h.ordersService.CompleteOrder(uint(orderID)); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := h.ordersService.CompleteOrder(ctx, uint(orderID)); err != nil {
+		if IsNotFoundError(err) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to complete order"})
+		}
 		return
 	}
 
 	// Логируем завершение заказа
 	orderIDUint := uint(orderID)
-	h.logUserActivity(c, "complete_order", "order", fmt.Sprintf("Completed order ID: %d", orderID), &orderIDUint)
+	h.logUserActivity(ctx, c, "complete_order", "order", fmt.Sprintf("Completed order ID: %d", orderID), &orderIDUint)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Order completed"})
 }
 
 // DeleteOrderHandler удаляет заказ
 func (h *Handler) DeleteOrderHandler(c *gin.Context) {
+	ctx := c.Request.Context()
 	orderIDStr := c.Param("id")
 	orderID, err := strconv.ParseUint(orderIDStr, 10, 32)
 	if err != nil {
@@ -167,20 +185,25 @@ func (h *Handler) DeleteOrderHandler(c *gin.Context) {
 		return
 	}
 
-	if err := h.ordersService.DeleteOrder(uint(orderID)); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := h.ordersService.DeleteOrder(ctx, uint(orderID)); err != nil {
+		if IsNotFoundError(err) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete order"})
+		}
 		return
 	}
 
 	// Логируем удаление заказа
 	orderIDUint := uint(orderID)
-	h.logUserActivity(c, "delete_order", "order", fmt.Sprintf("Deleted order ID: %d", orderID), &orderIDUint)
+	h.logUserActivity(ctx, c, "delete_order", "order", fmt.Sprintf("Deleted order ID: %d", orderID), &orderIDUint)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Order deleted"})
 }
 
 // AddOrderItemHandler добавляет позицию в заказ
 func (h *Handler) AddOrderItemHandler(c *gin.Context) {
+	ctx := c.Request.Context()
 	orderIDStr := c.Param("id")
 	orderID, err := strconv.ParseUint(orderIDStr, 10, 32)
 	if err != nil {
@@ -194,8 +217,12 @@ func (h *Handler) AddOrderItemHandler(c *gin.Context) {
 		return
 	}
 
-	if err := h.ordersService.AddOrderItem(uint(orderID), req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := h.ordersService.AddOrderItem(ctx, uint(orderID), req); err != nil {
+		if IsNotFoundError(err) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add item to order"})
+		}
 		return
 	}
 
