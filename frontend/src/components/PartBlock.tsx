@@ -639,7 +639,7 @@ function PartBlock({
                             )}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-3">
-                                    <h4 className="font-semibold text-sm text-foreground mb-3">Основная информация:</h4>
+                                    <h4 className="font-semibold text-sm text-muted-foreground mb-3">ХАРАКТЕРИСТИКИ:</h4>
                                     <div className="grid grid-cols-1 gap-3">
                                         {part.brand && (
                                             <motion.div

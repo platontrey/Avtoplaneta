@@ -34,13 +34,13 @@ type InventoryService interface {
 	UpdatePart(ctx context.Context, id uint, updates map[string]interface{}) error // Обновляет существующую запчасть
 	DeletePart(ctx context.Context, id uint) error                                 // Удаляет запчасть
 	MarkPartForDeletion(ctx context.Context, id uint) error                        // Отмечает запчасть для отложенного удаления
-	GetStatistics(ctx context.Context) (StatisticsResponse, error)               // Получает статистику по инвентарю
+	GetStatistics(ctx context.Context) (StatisticsResponse, error)                 // Получает статистику по инвентарю
 
 	// BulkDeleteParts Админ операции
 	BulkDeleteParts(ctx context.Context, ids []uint) error                                     // Массовое удаление запчастей
 	BulkUpdateParts(ctx context.Context, updates []map[string]interface{}) (int, error)        // Массовое обновление запчастей
 	DeleteZeroQuantityPartsBySupplier(ctx context.Context, supplierCode string) (int64, error) // Удаление по поставщику
-	GetSupplierCodes(ctx context.Context) ([]string, error)                                  // Получение кодов поставщиков
+	GetSupplierCodes(ctx context.Context) ([]string, error)                                    // Получение кодов поставщиков
 
 	// UploadPartPhoto Фото операции
 	UploadPartPhoto(ctx context.Context, id uint, c *gin.Context) (string, error) // Загрузка фото запчасти
@@ -80,16 +80,16 @@ type inventoryService struct {
 func NewInventoryService(repo PartRepository, es ElasticsearchClient, config *Config) InventoryService {
 	// Инициализация Redis клиента с настройками для IPv4
 	rdb := redis.NewClient(&redis.Options{
-		Addr:        config.RedisURL,
-		Network:     "tcp",  // Явно указываем TCP для IPv4
-		DialTimeout: 5 * time.Second,
-		ReadTimeout: 3 * time.Second,
+		Addr:         config.RedisURL,
+		Network:      "tcp", // Явно указываем TCP для IPv4
+		DialTimeout:  5 * time.Second,
+		ReadTimeout:  3 * time.Second,
 		WriteTimeout: 3 * time.Second,
 	})
 
 	service := &inventoryService{
-		repo: repo,
-		es:   es,
+		repo:  repo,
+		es:    es,
 		redis: rdb,
 		queryPool: sync.Pool{
 			New: func() interface{} {
@@ -254,6 +254,51 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 		})
 	}
 
+	if params.HasPhoto != "" && params.HasPhoto != "all" {
+		if params.HasPhoto == "with" {
+			must = append(must, map[string]interface{}{
+				"exists": map[string]interface{}{
+					"field": "photos",
+				},
+			})
+			must = append(must, map[string]interface{}{
+				"bool": map[string]interface{}{
+					"must_not": []map[string]interface{}{
+						{
+							"term": map[string]interface{}{
+								"photos": []string{},
+							},
+						},
+					},
+				},
+			})
+		} else if params.HasPhoto == "without" {
+			must = append(must, map[string]interface{}{
+				"bool": map[string]interface{}{
+					"should": []map[string]interface{}{
+						{
+							"bool": map[string]interface{}{
+								"must_not": []map[string]interface{}{
+									{
+										"exists": map[string]interface{}{
+											"field": "photos",
+										},
+									},
+								},
+							},
+						},
+						{
+							"term": map[string]interface{}{
+								"photos": []string{},
+							},
+						},
+					},
+					"minimum_should_match": 1,
+				},
+			})
+		}
+	}
+
 	// Аналогично для других фильтров...
 
 	query["bool"].(map[string]interface{})["must"] = must
@@ -313,8 +358,14 @@ func (s *inventoryService) buildDatabaseFilters(params InventoryQueryParams) map
 	if params.Status != "" {
 		filters["status"] = params.Status
 	}
-	if params.HasPhoto != "" {
-		filters["hasPhoto"] = params.HasPhoto
+	if params.HasPhoto != "" && params.HasPhoto != "all" {
+		var hasPhotoBool bool
+		if params.HasPhoto == "with" {
+			hasPhotoBool = true
+		} else if params.HasPhoto == "without" {
+			hasPhotoBool = false
+		}
+		filters["has_photo"] = hasPhotoBool
 	}
 
 	return filters
