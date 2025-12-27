@@ -150,12 +150,13 @@ func (r *partRepository) GetStatistics(ctx context.Context) (StatisticsResponse,
 
 	// Получаем totals
 	type Totals struct {
-		TotalParts int     `json:"total_parts"`
-		TotalValue float64 `json:"total_value"`
+		TotalParts    int     `json:"total_parts"`
+		TotalQuantity int     `json:"total_quantity"`
+		TotalValue    float64 `json:"total_value"`
 	}
 	var totals Totals
 	totalsQuery := `
-		SELECT COUNT(*) as total_parts, COALESCE(SUM(price * quantity), 0) as total_value
+		SELECT COUNT(*) as total_parts, COALESCE(SUM(quantity), 0) as total_quantity, COALESCE(SUM(price * quantity), 0) as total_value
 		FROM parts
 		WHERE to_delete_at IS NULL AND quantity >= 1
 	`
@@ -165,6 +166,7 @@ func (r *partRepository) GetStatistics(ctx context.Context) (StatisticsResponse,
 		return StatisticsResponse{}, err
 	}
 	stats.TotalParts = totals.TotalParts
+	stats.TotalQuantity = totals.TotalQuantity
 	stats.TotalValue = totals.TotalValue
 
 	// Получаем categories

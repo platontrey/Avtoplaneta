@@ -125,7 +125,7 @@ function Inventory() {
      <div ref={containerRef} className="max-w-7xl mx-auto px-4 sm:px-6 py-4" style={{ minHeight: '100vh' }}>
        <div className="mb-4 sm:mb-6">
          <h1 className="text-2xl sm:text-3xl font-bold mb-2">Доступные запчасти</h1>
-         <p className="text-white mb-6 sm:mb-8 text-sm sm:text-base">Список всех запасных частей</p>
+         <p className="text-gray-600 mb-6 sm:mb-8 text-sm sm:text-base">Управляйте вашими запчастями в инвентаре</p>
 
          {/* Компонент поиска */}
          <PartsSearch

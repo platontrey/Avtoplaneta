@@ -4,11 +4,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart } from 'recharts';
+import { Package, Hash, DollarSign, TrendingUp } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Statistics {
    total_parts: number;
+   total_quantity: number;
    total_value: number;
    total_earnings: number;
    categories: { name: string; count: number }[];
@@ -65,9 +67,10 @@ function Statistics() {
           </div>
 
           {/* Summary cards skeleton */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card>
-              <CardHeader className="pb-2">
+              <CardHeader className="pb-2 flex flex-col items-start">
+                <Skeleton className="h-8 w-8 mb-2" />
                 <Skeleton className="h-6 w-32" />
               </CardHeader>
               <CardContent>
@@ -75,7 +78,8 @@ function Statistics() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader className="pb-2">
+              <CardHeader className="pb-2 flex flex-col items-start">
+                <Skeleton className="h-8 w-8 mb-2" />
                 <Skeleton className="h-6 w-40" />
               </CardHeader>
               <CardContent>
@@ -83,7 +87,17 @@ function Statistics() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader className="pb-2">
+              <CardHeader className="pb-2 flex flex-col items-start">
+                <Skeleton className="h-8 w-8 mb-2" />
+                <Skeleton className="h-6 w-36" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-20" />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2 flex flex-col items-start">
+                <Skeleton className="h-8 w-8 mb-2" />
                 <Skeleton className="h-6 w-36" />
               </CardHeader>
               <CardContent>
@@ -161,6 +175,7 @@ function Statistics() {
 
   const summaryData = [
     { name: 'Всего запчастей', value: data?.total_parts || 0, color: '#6b7280' },
+    { name: 'Общее количество', value: data?.total_quantity || 0, color: '#7c3aed' },
     { name: 'Общая стоимость', value: data?.total_value || 0, color: '#374151' },
     { name: 'Общий заработок', value: data?.total_earnings || 0, color: '#059669' }
   ];
@@ -173,9 +188,10 @@ function Statistics() {
       {data ? (
         <div className="space-y-8">
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card>
-              <CardHeader className="pb-2">
+              <CardHeader className="pb-0 flex flex-col items-start">
+                <Package className="h-8 w-8 mb-0" />
                 <CardTitle className="text-lg">Всего запчастей</CardTitle>
               </CardHeader>
               <CardContent>
@@ -183,7 +199,17 @@ function Statistics() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader className="pb-2">
+              <CardHeader className="pb-0 flex flex-col items-start">
+                <Hash className="h-8 w-8 mb-0" />
+                <CardTitle className="text-lg">Общее количество</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold">{data.total_quantity}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-0 flex flex-col items-start">
+                <DollarSign className="h-8 w-8 mb-0" />
                 <CardTitle className="text-lg">Общая стоимость</CardTitle>
               </CardHeader>
               <CardContent>
@@ -191,7 +217,8 @@ function Statistics() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader className="pb-2">
+              <CardHeader className="pb-0 flex flex-col items-start">
+                <TrendingUp className="h-8 w-8 mb-0" />
                 <CardTitle className="text-lg">Общий заработок</CardTitle>
               </CardHeader>
               <CardContent>

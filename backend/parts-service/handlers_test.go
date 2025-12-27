@@ -252,7 +252,8 @@ func (suite *HandlersTestSuite) TestDeletePartHandler() {
 // TestGetStatisticsHandler - тест получения статистики
 func (suite *HandlersTestSuite) TestGetStatisticsHandler() {
 	expectedStats := StatisticsResponse{
-		TotalParts:    10,
+		TotalParts:     10,
+		TotalQuantity:  50,
 		TotalValue:    1000.0,
 		TotalEarnings: 500.0,
 		Categories: []CategoryCount{
