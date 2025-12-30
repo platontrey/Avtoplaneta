@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"runtime"
 	"sync"
 	"time"
@@ -14,8 +16,11 @@ import (
 )
 
 const (
-	statisticsCacheKey = "parts:statistics"
-	statisticsCacheTTL = 5 * time.Minute
+	statisticsCacheKey            = "parts:statistics"
+	statisticsCacheTTL            = 5 * time.Minute
+	inventoryCacheKey             = "parts:inventory"
+	inventoryCacheKeyWithoutPhotos = "parts:inventory:without_photos"
+	inventoryCacheTTL             = 10 * time.Minute
 )
 
 // ElasticsearchClient определяет интерфейс для работы с Elasticsearch
@@ -495,8 +500,14 @@ func (s *inventoryService) GetStatistics(ctx context.Context) (StatisticsRespons
 	// Устанавливаем общий заработок
 	stats.TotalEarnings = s.totalEarnings
 
-	// Добавляем месячные продажи (нужен доступ к orders DB, пока оставим пустым)
-	stats.MonthlySales = []MonthlySales{}
+	// Получаем месячные продажи из orders-service
+	monthlySales, err := s.getMonthlySalesFromOrdersService(ctx)
+	if err != nil {
+		logrus.WithError(err).Warn("Failed to get monthly sales from orders service, using empty list")
+		stats.MonthlySales = []MonthlySales{}
+	} else {
+		stats.MonthlySales = monthlySales
+	}
 
 	// Кэшируем результат
 	if data, err := json.Marshal(stats); err == nil {
@@ -510,6 +521,37 @@ func (s *inventoryService) GetStatistics(ctx context.Context) (StatisticsRespons
 	}
 
 	return stats, nil
+}
+
+// getMonthlySalesFromOrdersService получает месячные продажи из orders-service
+func (s *inventoryService) getMonthlySalesFromOrdersService(ctx context.Context) ([]MonthlySales, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", "http://localhost:8080/monthly-sales", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("orders service returned status %d", resp.StatusCode)
+	}
+
+	var monthlySales []MonthlySales
+	if err := json.NewDecoder(resp.Body).Decode(&monthlySales); err != nil {
+		return nil, err
+	}
+
+	return monthlySales, nil
 }
 
 // invalidateStatisticsCache инвалидирует кэш статистики

@@ -28,6 +28,8 @@ type OrderRepository interface {
 	Delete(ctx context.Context, id uint) error
 	DeleteItemsByOrderID(ctx context.Context, orderID uint) error
 	MarkExpiredAsAutoDeleted(ctx context.Context, before time.Time) error
+	GetMonthlySales(ctx context.Context) ([]MonthlySales, error)
+	CreateSalesHistory(ctx context.Context, history *SalesHistory) error
 }
 
 // PartRepositoryForOrders определяет интерфейс для работы с запчастями (для orders-service)
@@ -160,6 +162,32 @@ func (r *orderRepository) DeleteItemsByOrderID(ctx context.Context, orderID uint
 		return fmt.Errorf("failed to delete order items for order %d: %w", orderID, err)
 	}
 	return nil
+}
+
+func (r *orderRepository) GetMonthlySales(ctx context.Context) ([]MonthlySales, error) {
+	var results []struct {
+		Month string
+		Sales float64
+	}
+	err := r.db.WithContext(ctx).Model(&OrderItem{}).
+		Joins("JOIN orders ON order_items.order_id = orders.id").
+		Where("orders.status = ? AND orders.auto_deleted = ?", "green", true).
+		Select("DATE_FORMAT(orders.created_at, '%Y-%m') as month, SUM(order_items.price * order_items.quantity) as sales").
+		Group("DATE_FORMAT(orders.created_at, '%Y-%m')").
+		Order("month DESC").
+		Scan(&results).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to get monthly sales: %w", err)
+	}
+	monthlySales := make([]MonthlySales, len(results))
+	for i, res := range results {
+		monthlySales[i] = MonthlySales{Month: res.Month, Sales: res.Sales}
+	}
+	return monthlySales, nil
+}
+
+func (r *orderRepository) CreateSalesHistory(ctx context.Context, history *SalesHistory) error {
+	return r.db.WithContext(ctx).Create(history).Error
 }
 
 // partRepositoryForOrders реализует PartRepositoryForOrders

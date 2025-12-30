@@ -57,7 +57,7 @@ const PWAInstallPrompt: React.FC = () => {
   if (!isVisible) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 bg-blue-600 text-white p-4 shadow-lg">
+    <div className="fixed top-0 left-0 right-0 z-50 bg-gray-600 text-black p-4 shadow-lg">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex-1">
           <p className="text-sm font-medium">

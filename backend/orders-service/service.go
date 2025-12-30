@@ -22,6 +22,7 @@ type OrdersService interface {
 	CompleteOrder(ctx context.Context, orderID uint) error
 	DeleteOrder(ctx context.Context, orderID uint) error
 	AddOrderItem(ctx context.Context, orderID uint, req AddOrderItemRequest) error
+	GetMonthlySales(ctx context.Context) ([]MonthlySales, error)
 }
 
 // CreateOrderRequest запрос на создание заказа
@@ -259,15 +260,26 @@ func (s *ordersService) CompleteOrder(ctx context.Context, orderID uint) error {
 		}
 	}
 
-	// Удаляем позиции заказа
-	if err := s.orderRepo.DeleteItemsByOrderID(ctx, orderID); err != nil {
-		logrus.WithError(err).WithField("order_id", orderID).Error("Failed to delete order items")
-		return err
+	// Добавляем запись в историю продаж
+	month := time.Now().Format("2006-01")
+	salesHistory := &SalesHistory{
+		Month: month,
+		Sales: totalAmount,
+	}
+	if err := s.orderRepo.CreateSalesHistory(ctx, salesHistory); err != nil {
+		logrus.WithError(err).WithField("order_id", orderID).Error("Failed to create sales history")
+		// Продолжаем, не прерываем
+	} else {
+		logrus.WithFields(logrus.Fields{
+			"order_id": orderID,
+			"month":    month,
+			"sales":    totalAmount,
+		}).Info("Sales history created")
 	}
 
-	// Удаляем заказ
-	if err := s.orderRepo.Delete(ctx, orderID); err != nil {
-		logrus.WithError(err).WithField("order_id", orderID).Error("Failed to delete order")
+	// Помечаем заказ как автоматически удаленный (для статистики)
+	if err := s.orderRepo.Update(ctx, orderID, map[string]interface{}{"auto_deleted": true}); err != nil {
+		logrus.WithError(err).WithField("order_id", orderID).Error("Failed to mark order as auto-deleted")
 		return err
 	}
 
@@ -417,6 +429,11 @@ func formatTimeAgo(duration time.Duration) string {
 		days := hours / 24
 		return fmt.Sprintf("%d дней назад", days)
 	}
+}
+
+// GetMonthlySales получает продажи по месяцам
+func (s *ordersService) GetMonthlySales(ctx context.Context) ([]MonthlySales, error) {
+	return s.orderRepo.GetMonthlySales(ctx)
 }
 
 // updatePartsStatistics обновляет статистику в parts-service

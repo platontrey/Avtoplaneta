@@ -65,6 +65,7 @@ func SetupRoutes(r *gin.Engine, handler *Handler) {
 	r.POST("/orders", handler.CreateOrderHandler)
 	r.GET("/orders", handler.GetOrdersHandler)
 	r.POST("/orders/:id/items", handler.AddOrderItemHandler)
+	r.GET("/monthly-sales", handler.GetMonthlySalesHandler)
 }
 
 // metricsMiddleware measures HTTP request latency and throughput

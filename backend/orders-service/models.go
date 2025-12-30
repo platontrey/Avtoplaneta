@@ -40,3 +40,17 @@ type Part struct {
 	Location string  `json:"location,omitempty"`
 	Photo    string  `json:"photo,omitempty"`
 }
+
+// SalesHistory хранит исторические данные продаж по месяцам
+type SalesHistory struct {
+	ID       uint      `gorm:"primaryKey"`
+	Month    string    `gorm:"not null"` // Формат: "2023-12"
+	Sales    float64   `gorm:"not null"`
+	CreatedAt time.Time `gorm:"autoCreateTime"`
+}
+
+// MonthlySales представляет продажи за месяц
+type MonthlySales struct {
+	Month string  `json:"month"`
+	Sales float64 `json:"sales"`
+}

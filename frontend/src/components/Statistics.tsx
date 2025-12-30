@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart } from 'recharts';
-import { Package, Hash, DollarSign, TrendingUp } from 'lucide-react';
+import { Package, Boxes, DollarSign, TrendingUp, TrendingDown, ChartNoAxesCombined } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -20,6 +20,18 @@ interface Statistics {
 function Statistics() {
   const [data, setData] = useState<Statistics | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const GrowthIndicator = ({ growth }: { growth: number }) => {
+    const Icon = growth >= 0 ? TrendingUp : TrendingDown;
+    const color = growth >= 0 ? 'text-green-600' : 'text-red-600';
+    const sign = growth >= 0 ? '+' : '';
+    return (
+      <div className="absolute top-2 right-2 bg-gray-100 rounded-lg p-2 flex items-center gap-1">
+        <Icon className={`h-4 w-4 ${color}`} />
+        <span className={`text-sm font-bold ${color}`}>{sign}{growth.toFixed(1)}%</span>
+      </div>
+    );
+  };
 
   // Функция форматирования цены для корректного отображения
   const formatPrice = (price: number) => {
@@ -173,6 +185,21 @@ function Statistics() {
      fill: ['#059669', '#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#34d399', '#10b981', '#059669', '#047857', '#065f46', '#064e3b', '#022c22'][index % 12]
   })) || [];
 
+  // Calculate growth percentage for earnings
+  const growthPercentage = (() => {
+    if (!data?.monthly_sales || data.monthly_sales.length < 2) return 0;
+    const sorted = [...data.monthly_sales].sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
+    const last = sorted[sorted.length - 1].sales;
+    const prev = sorted[sorted.length - 2].sales;
+    if (prev === 0) return 0;
+    return ((last - prev) / prev) * 100;
+  })();
+
+  // For other metrics, use the same growth as earnings for now (since no historical data)
+  const partsGrowth = growthPercentage;
+  const quantityGrowth = growthPercentage;
+  const valueGrowth = growthPercentage;
+
   const summaryData = [
     { name: 'Всего запчастей', value: data?.total_parts || 0, color: '#6b7280' },
     { name: 'Общее количество', value: data?.total_quantity || 0, color: '#7c3aed' },
@@ -189,40 +216,52 @@ function Statistics() {
         <div className="space-y-8">
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card>
+            <Card className="shadow-none gap-0 relative">
               <CardHeader className="pb-0 flex flex-col items-start">
-                <Package className="h-8 w-8 mb-0" />
+                <GrowthIndicator growth={partsGrowth} />
+                <div className="bg-gray-100 rounded-lg p-2 mb-0">
+                  <Package className="h-8 w-8" />
+                </div>
                 <CardTitle className="text-lg">Всего запчастей</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-bold">{data.total_parts}</p>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="shadow-none gap-0 relative">
               <CardHeader className="pb-0 flex flex-col items-start">
-                <Hash className="h-8 w-8 mb-0" />
+                <GrowthIndicator growth={quantityGrowth} />
+                <div className="bg-gray-100 rounded-lg p-2 mb-0">
+                  <Boxes className="h-8 w-8" />
+                </div>
                 <CardTitle className="text-lg">Общее количество</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-bold">{data.total_quantity}</p>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="shadow-none gap-0 relative">
               <CardHeader className="pb-0 flex flex-col items-start">
-                <DollarSign className="h-8 w-8 mb-0" />
+                <GrowthIndicator growth={valueGrowth} />
+                <div className="bg-gray-100 rounded-lg p-2 mb-0">
+                  <DollarSign className="h-8 w-8" />
+                </div>
                 <CardTitle className="text-lg">Общая стоимость</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-bold">₽{formatPrice(data.total_value)}</p>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="shadow-none gap-0 relative">
               <CardHeader className="pb-0 flex flex-col items-start">
-                <TrendingUp className="h-8 w-8 mb-0" />
+                <GrowthIndicator growth={growthPercentage} />
+                <div className="bg-gray-100 rounded-lg p-2 mb-0">
+                  <ChartNoAxesCombined className="h-8 w-8" />
+                </div>
                 <CardTitle className="text-lg">Общий заработок</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold text-green-600">₽{formatPrice(data.total_earnings)}</p>
+                <p className="text-3xl font-bold">₽{formatPrice(data.total_earnings)}</p>
               </CardContent>
             </Card>
           </div>

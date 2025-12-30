@@ -19,7 +19,7 @@ func InitDB(config *Config) {
 	}
 
 	// Автоматическая миграция схем заказов и запчастей
-	if err := db.AutoMigrate(&Order{}, &OrderItem{}, &Part{}); err != nil {
+	if err := db.AutoMigrate(&Order{}, &OrderItem{}, &Part{}, &SalesHistory{}); err != nil {
 		log.Fatal("Не удалось выполнить миграцию базы данных:", err)
 	}
 }
