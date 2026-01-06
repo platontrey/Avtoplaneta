@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Masterminds/squirrel"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -155,12 +156,16 @@ func (r *partRepository) GetStatistics(ctx context.Context) (StatisticsResponse,
 		TotalValue    float64 `json:"total_value"`
 	}
 	var totals Totals
-	totalsQuery := `
-		SELECT COUNT(*) as total_parts, COALESCE(SUM(quantity), 0) as total_quantity, COALESCE(SUM(price * quantity), 0) as total_value
-		FROM parts
-		WHERE to_delete_at IS NULL AND quantity >= 1
-	`
-	err = r.db.WithContext(ctx).Raw(totalsQuery).Scan(&totals).Error
+	totalsQuery, args, err := squirrel.Select("COUNT(*) as total_parts", "COALESCE(SUM(quantity), 0) as total_quantity", "COALESCE(SUM(price * quantity), 0) as total_value").
+		From("parts").
+		Where(squirrel.Eq{"to_delete_at": nil}).
+		Where(squirrel.GtOrEq{"quantity": 1}).
+		ToSql()
+	if err != nil {
+		logrus.WithError(err).Error("Failed to build totals query")
+		return StatisticsResponse{}, err
+	}
+	err = r.db.WithContext(ctx).Raw(totalsQuery, args...).Scan(&totals).Error
 	if err != nil {
 		logrus.WithError(err).Error("Failed to get totals")
 		return StatisticsResponse{}, err
@@ -170,15 +175,20 @@ func (r *partRepository) GetStatistics(ctx context.Context) (StatisticsResponse,
 	stats.TotalValue = totals.TotalValue
 
 	// Получаем categories
-	categoriesQuery := `
-		SELECT category as name, COUNT(*) as count
-		FROM parts
-		WHERE to_delete_at IS NULL AND quantity >= 1 AND category != ''
-		GROUP BY category
-		ORDER BY count DESC
-	`
+	categoriesQuery, args, err := squirrel.Select("category as name", "COUNT(*) as count").
+		From("parts").
+		Where(squirrel.Eq{"to_delete_at": nil}).
+		Where(squirrel.GtOrEq{"quantity": 1}).
+		Where(squirrel.NotEq{"category": ""}).
+		GroupBy("category").
+		OrderBy("count DESC").
+		ToSql()
+	if err != nil {
+		logrus.WithError(err).Error("Failed to build categories query")
+		return StatisticsResponse{}, err
+	}
 	var categories []CategoryCount
-	err = r.db.WithContext(ctx).Raw(categoriesQuery).Scan(&categories).Error
+	err = r.db.WithContext(ctx).Raw(categoriesQuery, args...).Scan(&categories).Error
 	if err != nil {
 		logrus.WithError(err).Error("Failed to get categories")
 		return StatisticsResponse{}, err

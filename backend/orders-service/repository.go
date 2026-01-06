@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/squirrel"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -169,13 +170,17 @@ func (r *orderRepository) GetMonthlySales(ctx context.Context) ([]MonthlySales, 
 		Month string
 		Sales float64
 	}
-	err := r.db.WithContext(ctx).Model(&OrderItem{}).
-		Joins("JOIN orders ON order_items.order_id = orders.id").
-		Where("orders.status = ? AND orders.auto_deleted = ?", "green", true).
-		Select("DATE_FORMAT(orders.created_at, '%Y-%m') as month, SUM(order_items.price * order_items.quantity) as sales").
-		Group("DATE_FORMAT(orders.created_at, '%Y-%m')").
-		Order("month DESC").
-		Scan(&results).Error
+	query, args, err := squirrel.Select("TO_CHAR(orders.created_at, 'YYYY-MM') as month", "SUM(order_items.price * order_items.quantity) as sales").
+		From("order_items").
+		Join("orders ON order_items.order_id = orders.id").
+		Where(squirrel.Eq{"orders.status": "green", "orders.auto_deleted": true}).
+		GroupBy("TO_CHAR(orders.created_at, 'YYYY-MM')").
+		OrderBy("month DESC").
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build monthly sales query: %w", err)
+	}
+	err = r.db.WithContext(ctx).Raw(query, args...).Scan(&results).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to get monthly sales: %w", err)
 	}
