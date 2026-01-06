@@ -25,16 +25,16 @@ type PartRepository interface {
 	// MarkForDeletion Специфические операции
 	MarkForDeletion(ctx context.Context, id uint, deleteAt time.Time) error        // Отмечает для удаления
 	DeleteExpiredParts(ctx context.Context, before time.Time) error                // Удаляет просроченные
-	GetStatistics(ctx context.Context) (StatisticsResponse, error)               // Получает статистику
+	GetStatistics(ctx context.Context) (StatisticsResponse, error)                 // Получает статистику
 	BulkDelete(ctx context.Context, ids []uint) error                              // Массовое удаление
 	BulkUpdate(ctx context.Context, updates []map[string]interface{}) (int, error) // Массовое обновление
 
 	// DeleteZeroQuantityPartsBySupplier Supplier operations
 	DeleteZeroQuantityPartsBySupplier(ctx context.Context, supplierCode string) (int64, error) // Удаляет запчасти с нулевым количеством по поставщику
-	GetSupplierCodes(ctx context.Context) ([]string, error)                                  // Получает уникальные коды поставщиков
+	GetSupplierCodes(ctx context.Context) ([]string, error)                                    // Получает уникальные коды поставщиков
 
 	// Earnings operations
-	GetTotalEarnings(ctx context.Context) (float64, error)     // Получает общий заработок
+	GetTotalEarnings(ctx context.Context) (float64, error)         // Получает общий заработок
 	UpdateTotalEarnings(ctx context.Context, amount float64) error // Обновляет общий заработок
 }
 
@@ -186,8 +186,8 @@ func (r *partRepository) GetStatistics(ctx context.Context) (StatisticsResponse,
 	stats.Categories = categories
 
 	logrus.WithFields(logrus.Fields{
-		"total_parts": stats.TotalParts,
-		"total_value": stats.TotalValue,
+		"total_parts":      stats.TotalParts,
+		"total_value":      stats.TotalValue,
 		"categories_count": len(stats.Categories),
 	}).Info("Statistics retrieved successfully")
 
@@ -225,14 +225,77 @@ func (r *partRepository) BulkDelete(ctx context.Context, ids []uint) error {
 	return nil
 }
 
-// BulkUpdate обновляет несколько запчастей
+// BulkUpdate обновляет несколько запчастей с использованием batch-операций
 func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]interface{}) (int, error) {
 	logrus.WithFields(logrus.Fields{
 		"updates": updates,
 		"count":   len(updates),
 	}).Info("PartRepository.BulkUpdate: Starting bulk update")
 
-	updatedCount := 0
+	if len(updates) == 0 {
+		return 0, nil
+	}
+
+	// Используем транзакцию для атомарности
+	tx := r.db.WithContext(ctx).Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Создаем временную таблицу для batch update
+	tempTableName := "temp_parts_update"
+	createTempTable := fmt.Sprintf(`
+		CREATE TEMP TABLE %s (
+			id BIGINT PRIMARY KEY,
+			name TEXT,
+			quantity INTEGER,
+			description TEXT,
+			category TEXT,
+			price DECIMAL(10,2),
+			brand TEXT,
+			model TEXT,
+			location TEXT,
+			salesman TEXT,
+			status TEXT,
+			photos JSONB,
+			body_brand TEXT,
+			engine_brand TEXT,
+			car_release_date TEXT,
+			front_rear TEXT,
+			left_right TEXT,
+			top_bottom TEXT,
+			number TEXT,
+			manufacturer TEXT,
+			manufacturer_code TEXT,
+			oem_code TEXT,
+			color TEXT,
+			condition TEXT,
+			supplier_code TEXT,
+			defect TEXT,
+			transmission TEXT,
+			drive TEXT,
+			wear_percentage DECIMAL(5,2),
+			season TEXT,
+			diameter TEXT,
+			width TEXT,
+			profile TEXT,
+			tire_quantity INTEGER,
+			drilling TEXT,
+			offset TEXT,
+			center_hole_diameter TEXT,
+			tire_model TEXT
+		) ON COMMIT DROP
+	`, tempTableName)
+
+	if err := tx.Exec(createTempTable).Error; err != nil {
+		logrus.WithError(err).Error("PartRepository.BulkUpdate: Failed to create temp table")
+		tx.Rollback()
+		return 0, err
+	}
+
+	// Вставляем данные во временную таблицу
 	for i, update := range updates {
 		var id uint
 		if idVal, exists := update["id"]; exists {
@@ -247,37 +310,148 @@ func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]in
 				logrus.WithFields(logrus.Fields{
 					"index": i,
 					"idVal": idVal,
-					"type": fmt.Sprintf("%T", idVal),
+					"type":  fmt.Sprintf("%T", idVal),
 				}).Error("PartRepository.BulkUpdate: Invalid id type")
-				return updatedCount, fmt.Errorf("update at index %d has invalid id type", i)
+				tx.Rollback()
+				return 0, fmt.Errorf("update at index %d has invalid id type", i)
 			}
 		} else {
 			logrus.WithFields(logrus.Fields{
-				"index": i,
+				"index":  i,
 				"update": update,
 			}).Error("PartRepository.BulkUpdate: Update missing 'id' field")
-			return updatedCount, fmt.Errorf("update at index %d missing 'id' field", i)
+			tx.Rollback()
+			return 0, fmt.Errorf("update at index %d missing 'id' field", i)
 		}
 
 		delete(update, "id")
-		logrus.WithFields(logrus.Fields{
-			"index": i,
-			"id": id,
-			"update": update,
-		}).Debug("PartRepository.BulkUpdate: Processing update")
 
-		if err := r.Update(ctx, id, update); err != nil {
+		// Вставляем в temp таблицу
+		insertSQL := fmt.Sprintf(`
+			INSERT INTO %s (id, name, quantity, description, category, price, brand, model, location, salesman, status, photos,
+				body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer,
+				manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, drive, wear_percentage,
+				season, diameter, width, profile, tire_quantity, drilling, offset, center_hole_diameter, tire_model)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, tempTableName)
+
+		if err := tx.Exec(insertSQL,
+			id,
+			update["name"],
+			update["quantity"],
+			update["description"],
+			update["category"],
+			update["price"],
+			update["brand"],
+			update["model"],
+			update["location"],
+			update["salesman"],
+			update["status"],
+			update["photos"],
+			update["body_brand"],
+			update["engine_brand"],
+			update["car_release_date"],
+			update["front_rear"],
+			update["left_right"],
+			update["top_bottom"],
+			update["number"],
+			update["manufacturer"],
+			update["manufacturer_code"],
+			update["oem_code"],
+			update["color"],
+			update["condition"],
+			update["supplier_code"],
+			update["defect"],
+			update["transmission"],
+			update["drive"],
+			update["wear_percentage"],
+			update["season"],
+			update["diameter"],
+			update["width"],
+			update["profile"],
+			update["tire_quantity"],
+			update["drilling"],
+			update["offset"],
+			update["center_hole_diameter"],
+			update["tire_model"],
+		).Error; err != nil {
 			logrus.WithError(err).WithFields(logrus.Fields{
 				"index": i,
-				"id": id,
-			}).Error("PartRepository.BulkUpdate: Failed to update part")
-			return updatedCount, err
+				"id":    id,
+			}).Error("PartRepository.BulkUpdate: Failed to insert into temp table")
+			tx.Rollback()
+			return 0, err
 		}
-		updatedCount++
 	}
 
-	logrus.Info("PartRepository.BulkUpdate: Successfully completed bulk update")
-	return updatedCount, nil
+	// Выполняем batch update из temp таблицы
+	updateSQL := fmt.Sprintf(`
+		UPDATE parts
+		SET
+			name = COALESCE(t.name, parts.name),
+			quantity = COALESCE(t.quantity, parts.quantity),
+			description = COALESCE(t.description, parts.description),
+			category = COALESCE(t.category, parts.category),
+			price = COALESCE(t.price, parts.price),
+			brand = COALESCE(t.brand, parts.brand),
+			model = COALESCE(t.model, parts.model),
+			location = COALESCE(t.location, parts.location),
+			salesman = COALESCE(t.salesman, parts.salesman),
+			status = COALESCE(t.status, parts.status),
+			photos = COALESCE(t.photos, parts.photos),
+			body_brand = COALESCE(t.body_brand, parts.body_brand),
+			engine_brand = COALESCE(t.engine_brand, parts.engine_brand),
+			car_release_date = COALESCE(t.car_release_date, parts.car_release_date),
+			front_rear = COALESCE(t.front_rear, parts.front_rear),
+			left_right = COALESCE(t.left_right, parts.left_right),
+			top_bottom = COALESCE(t.top_bottom, parts.top_bottom),
+			number = COALESCE(t.number, parts.number),
+			manufacturer = COALESCE(t.manufacturer, parts.manufacturer),
+			manufacturer_code = COALESCE(t.manufacturer_code, parts.manufacturer_code),
+			oem_code = COALESCE(t.oem_code, parts.oem_code),
+			color = COALESCE(t.color, parts.color),
+			condition = COALESCE(t.condition, parts.condition),
+			supplier_code = COALESCE(t.supplier_code, parts.supplier_code),
+			defect = COALESCE(t.defect, parts.defect),
+			transmission = COALESCE(t.transmission, parts.transmission),
+			drive = COALESCE(t.drive, parts.drive),
+			wear_percentage = COALESCE(t.wear_percentage, parts.wear_percentage),
+			season = COALESCE(t.season, parts.season),
+			diameter = COALESCE(t.diameter, parts.diameter),
+			width = COALESCE(t.width, parts.width),
+			profile = COALESCE(t.profile, parts.profile),
+			tire_quantity = COALESCE(t.tire_quantity, parts.tire_quantity),
+			drilling = COALESCE(t.drilling, parts.drilling),
+			offset = COALESCE(t.offset, parts.offset),
+			center_hole_diameter = COALESCE(t.center_hole_diameter, parts.center_hole_diameter),
+			tire_model = COALESCE(t.tire_model, parts.tire_model),
+			updated_at = NOW()
+		FROM %s t
+		WHERE parts.id = t.id
+	`, tempTableName)
+
+	if err := tx.Exec(updateSQL).Error; err != nil {
+		logrus.WithError(err).Error("PartRepository.BulkUpdate: Failed to execute batch update")
+		tx.Rollback()
+		return 0, err
+	}
+
+	// Получаем количество обновленных строк
+	var updatedCount int64
+	countSQL := fmt.Sprintf("SELECT COUNT(*) FROM %s", tempTableName)
+	if err := tx.Raw(countSQL).Scan(&updatedCount).Error; err != nil {
+		logrus.WithError(err).Error("PartRepository.BulkUpdate: Failed to get updated count")
+		tx.Rollback()
+		return 0, err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		logrus.WithError(err).Error("PartRepository.BulkUpdate: Failed to commit transaction")
+		return 0, err
+	}
+
+	logrus.WithField("updated_count", updatedCount).Info("PartRepository.BulkUpdate: Successfully completed bulk update")
+	return int(updatedCount), nil
 }
 
 // DeleteZeroQuantityPartsBySupplier удаляет запчасти с нулевым количеством по коду поставщика

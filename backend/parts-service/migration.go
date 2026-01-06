@@ -73,10 +73,14 @@ func createIndexes(db *gorm.DB) {
 		{"idx_parts_supplier_code", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_supplier_code ON parts (supplier_code)"},
 		{"idx_parts_to_delete_at", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_to_delete_at ON parts (to_delete_at) WHERE to_delete_at IS NULL"},
 		{"idx_parts_quantity", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_quantity ON parts (quantity)"},
+		{"idx_parts_price", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_price ON parts (price)"},
 		{"idx_parts_created_at", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_created_at ON parts (created_at DESC)"},
 
 		// Индекс на id для bulk-операций
 		{"idx_parts_id", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_id ON parts (id)"},
+
+		// GIN индекс для JSONB поля photos
+		{"idx_parts_photos", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_photos ON parts USING GIN (photos)"},
 
 		// Индекс для earnings
 		{"idx_earnings_id", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_earnings_id ON earnings (id)"},
