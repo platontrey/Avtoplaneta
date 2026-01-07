@@ -44,8 +44,9 @@ func main() {
 	orderRepo := NewOrderRepository(db)
 	partRepo := NewPartRepositoryForOrders(db)
 	cacheService := NewCacheService(redisClient)
-	ordersService := NewOrdersService(orderRepo, partRepo, cacheService)
-	handler := NewHandler(ordersService)
+	eventPublisher := NewEventPublisher(redisClient)
+	ordersService := NewOrdersService(orderRepo, partRepo, cacheService, eventPublisher)
+	handler := NewHandler(ordersService, eventPublisher)
 
 	r := gin.New()
 

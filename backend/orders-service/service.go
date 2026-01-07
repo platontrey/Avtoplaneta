@@ -1,12 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"strconv"
 	"time"
 
@@ -48,14 +44,16 @@ type ordersService struct {
 	orderRepo OrderRepository
 	partRepo  PartRepositoryForOrders
 	cache     CacheService
+	publisher EventPublisher
 }
 
 // NewOrdersService создает новый сервис заказов
-func NewOrdersService(orderRepo OrderRepository, partRepo PartRepositoryForOrders, cache CacheService) OrdersService {
+func NewOrdersService(orderRepo OrderRepository, partRepo PartRepositoryForOrders, cache CacheService, publisher EventPublisher) OrdersService {
 	return &ordersService{
 		orderRepo: orderRepo,
 		partRepo:  partRepo,
 		cache:     cache,
+		publisher: publisher,
 	}
 }
 
@@ -283,9 +281,9 @@ func (s *ordersService) CompleteOrder(ctx context.Context, orderID uint) error {
 		return err
 	}
 
-	// Обновляем статистику в parts-service
-	if err := s.updatePartsStatistics(ctx, totalAmount); err != nil {
-		logrus.WithError(err).WithField("order_id", orderID).Warn("Failed to update parts statistics")
+	// Публикуем событие завершения заказа для обновления статистики
+	if err := s.publisher.PublishOrderCompleted(ctx, orderID, totalAmount); err != nil {
+		logrus.WithError(err).WithField("order_id", orderID).Warn("Failed to publish order completed event")
 		// Не прерываем, заказ завершен
 	}
 
@@ -436,37 +434,3 @@ func (s *ordersService) GetMonthlySales(ctx context.Context) ([]MonthlySales, er
 	return s.orderRepo.GetMonthlySales(ctx)
 }
 
-// updatePartsStatistics обновляет статистику в parts-service
-func (s *ordersService) updatePartsStatistics(ctx context.Context, amount float64) error {
-	reqData := map[string]interface{}{
-		"amount": amount,
-	}
-	jsonData, err := json.Marshal(reqData)
-	if err != nil {
-		return err
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", "http://localhost:8081/api/statistics/update-earnings", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-
-		}
-	}(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("parts service returned status %d", resp.StatusCode)
-	}
-
-	return nil
-}

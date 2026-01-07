@@ -1,14 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -17,16 +13,18 @@ import (
 // Handler содержит все HTTP handlers для orders-service
 type Handler struct {
 	ordersService OrdersService
+	publisher     EventPublisher
 }
 
 // NewHandler создает новый handler с dependency injection
-func NewHandler(ordersService OrdersService) *Handler {
+func NewHandler(ordersService OrdersService, publisher EventPublisher) *Handler {
 	return &Handler{
 		ordersService: ordersService,
+		publisher:     publisher,
 	}
 }
 
-// logUserActivity логирует активность пользователя, отправляя запрос к auth-service
+// logUserActivity логирует активность пользователя через Redis Streams
 func (h *Handler) logUserActivity(ctx context.Context, c *gin.Context, action, resourceType, details string, resourceID *uint) {
 	userIDStr := c.GetHeader("X-User-ID")
 	userEmail := c.GetHeader("X-User-Email")
@@ -37,48 +35,16 @@ func (h *Handler) logUserActivity(ctx context.Context, c *gin.Context, action, r
 		return
 	}
 
-	logData := map[string]interface{}{
-		"action":        action,
+	eventDetails := map[string]interface{}{
 		"resource_type": resourceType,
 		"resource_id":   resourceID,
 		"details":       details,
+		"user_email":    userEmail,
+		"user_name":     userName,
 	}
 
-	jsonData, err := json.Marshal(logData)
-	if err != nil {
-		logrus.WithError(err).Warn("Failed to marshal log data")
-		return
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", "http://localhost:8083/internal/log-activity", bytes.NewBuffer(jsonData))
-	if err != nil {logrus.WithError(err).Warn("Failed to create log request")
-		return
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-User-ID", userIDStr)
-	req.Header.Set("X-User-Email", userEmail)
-	req.Header.Set("X-User-Name", userName)
-
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		logrus.WithError(err).Warn("Failed to send log request")
-		return
-	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-
-		}
-	}(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		logrus.WithFields(logrus.Fields{
-			"status":   resp.StatusCode,
-			"response": string(body),
-		}).Warn("Log request failed")
+	if err := h.publisher.PublishUserAction(ctx, userIDStr, action, eventDetails); err != nil {
+		logrus.WithError(err).Warn("Failed to publish user action event")
 	}
 }
 

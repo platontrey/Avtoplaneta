@@ -12,7 +12,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
+	"github.com/sirupsen/logrus"
 )
+
+var redisClient *redis.Client
 
 func main() {
 	// Установка количества OS-тредов для оптимизации под доступное количество ядер
@@ -23,6 +27,11 @@ func main() {
 
 	config := LoadConfig()
 	InitDB(config)
+	InitRedis(config)
+
+	// Создание контекста с отменой для graceful shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// Инициализация Elasticsearch
 	var esClient ElasticsearchClient
@@ -48,9 +57,13 @@ func main() {
 	service := NewInventoryService(repo, esClient, config)
 	handler := NewHandler(service)
 
-	// Создание контекста с отменой для graceful shutdown
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	// Создание и запуск consumer событий
+	eventConsumer := NewEventConsumer(redisClient, service)
+	go func() {
+		if err := eventConsumer.Start(ctx); err != nil {
+			log.Printf("Ошибка consumer событий: %v", err)
+		}
+	}()
 
 	// Обработка сигналов для graceful shutdown
 	sigChan := make(chan os.Signal, 1)
@@ -102,4 +115,19 @@ func main() {
 	case err := <-errChan:
 		log.Fatal("Ошибка сервера:", err)
 	}
+}
+
+// InitRedis инициализирует подключение к Redis
+func InitRedis(config *Config) {
+	redisClient = redis.NewClient(&redis.Options{
+		Addr: config.RedisURL,
+	})
+
+	// Проверяем подключение
+	_, err := redisClient.Ping(context.Background()).Result()
+	if err != nil {
+		logrus.WithError(err).Fatal("Failed to connect to Redis")
+	}
+
+	logrus.Info("Redis connected successfully")
 }
