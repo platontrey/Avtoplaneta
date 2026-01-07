@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -34,7 +35,7 @@ type PartRepository interface {
 	DeleteZeroQuantityPartsBySupplier(ctx context.Context, supplierCode string) (int64, error) // Удаляет запчасти с нулевым количеством по поставщику
 	GetSupplierCodes(ctx context.Context) ([]string, error)                                    // Получает уникальные коды поставщиков
 
-	// Earnings operations
+	// GetTotalEarnings Earnings operations
 	GetTotalEarnings(ctx context.Context) (float64, error)         // Получает общий заработок
 	UpdateTotalEarnings(ctx context.Context, amount float64) error // Обновляет общий заработок
 }
@@ -506,7 +507,7 @@ func (r *partRepository) GetTotalEarnings(ctx context.Context) (float64, error) 
 	var earnings Earnings
 	err := r.db.WithContext(ctx).First(&earnings).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(gorm.ErrRecordNotFound, err) {
 			// Если записи нет, создаем новую с нулевым значением
 			newEarnings := Earnings{TotalAmount: 0}
 			if createErr := r.db.WithContext(ctx).Create(&newEarnings).Error; createErr != nil {
@@ -524,7 +525,7 @@ func (r *partRepository) UpdateTotalEarnings(ctx context.Context, amount float64
 	var earnings Earnings
 	err := r.db.WithContext(ctx).First(&earnings).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// Создаем новую запись
 			newEarnings := Earnings{TotalAmount: amount}
 			return r.db.WithContext(ctx).Create(&newEarnings).Error
