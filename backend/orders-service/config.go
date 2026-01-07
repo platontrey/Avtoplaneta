@@ -4,24 +4,26 @@ import "os"
 
 // Config содержит конфигурационные параметры приложения
 type Config struct {
-	DatabaseURL   string
-	SessionSecret string
-	NodeEnv       string
-	Port          string
-	RedisURL      string
-	RedisPassword string
-	RedisDB       int
+	DatabaseURL    string
+	SessionSecret  string
+	NodeEnv        string
+	Port           string
+	RedisURL       string
+	RedisPassword  string
+	RedisDB        int
+	AuthServiceURL string
 }
 
 // LoadConfig загружает конфигурацию из переменных окружения
 func LoadConfig() *Config {
 	config := &Config{
-		DatabaseURL:   os.Getenv("DATABASE_URL"),
-		SessionSecret: os.Getenv("SESSION_SECRET"),
-		NodeEnv:       os.Getenv("NODE_ENV"),
-		Port:          os.Getenv("PORT"),
-		RedisURL:      os.Getenv("REDIS_URL"),
-		RedisPassword: os.Getenv("REDIS_PASSWORD"),
+		DatabaseURL:    os.Getenv("DATABASE_URL"),
+		SessionSecret:  os.Getenv("SESSION_SECRET"),
+		NodeEnv:        os.Getenv("NODE_ENV"),
+		Port:           os.Getenv("PORT"),
+		RedisURL:       os.Getenv("REDIS_URL"),
+		RedisPassword:  os.Getenv("REDIS_PASSWORD"),
+		AuthServiceURL: os.Getenv("AUTH_SERVICE_URL"),
 	}
 
 	// Значения по умолчанию
@@ -40,6 +42,9 @@ func LoadConfig() *Config {
 	}
 	if config.RedisPassword == "" {
 		config.RedisPassword = ""
+	}
+	if config.AuthServiceURL == "" {
+		config.AuthServiceURL = "http://localhost:8083"
 	}
 	config.RedisDB = 0 // По умолчанию база данных 0
 

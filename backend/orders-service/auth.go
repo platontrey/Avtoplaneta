@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -11,9 +13,23 @@ import (
 )
 
 var store *sessions.CookieStore
+var config *Config
+
+// User представляет пользователя в системе
+type User struct {
+	ID       uint   `json:"id"`
+	Email    string `json:"email"`
+	Name     string `json:"name"`
+	Initials string `json:"initials,omitempty"`
+	INN      string `json:"inn,omitempty"`
+	Provider string `json:"provider"`
+	Role     string `json:"role"`
+	Password string `json:"-"`
+}
 
 // InitAuth инициализирует хранилище сессий
-func InitAuth(config *Config) {
+func InitAuth(cfg *Config) {
+	config = cfg
 	sessionKey := config.SessionSecret
 
 	// Проверка длины ключа сессии
@@ -55,35 +71,73 @@ func authMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Для прямых запросов проверяем сессию (fallback для тестирования)
-		session, err := store.Get(c.Request, "auth-session")
+		// Для прямых запросов проверяем аутентификацию через auth-service
+		authURL := config.AuthServiceURL + "/auth/me"
+		req, err := http.NewRequest("GET", authURL, nil)
 		if err != nil {
-			log.Printf("SECURITY: Invalid session from %s: %v", c.ClientIP(), err)
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid session"})
+			log.Printf("AUTH: Failed to create auth request from %s: %v", c.ClientIP(), err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Authentication error"})
 			c.Abort()
 			return
 		}
 
-		userID, ok := session.Values["user_id"]
-		if !ok || userID == nil {
+		// Копируем cookies из оригинального запроса
+		for _, cookie := range c.Request.Cookies() {
+			req.AddCookie(cookie)
+		}
+
+		// Выполняем запрос к auth-service
+		client := &http.Client{Timeout: 5 * time.Second}
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Printf("AUTH: Failed to connect to auth service from %s: %v", c.ClientIP(), err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Authentication error"})
+			c.Abort()
+			return
+		}
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				log.Printf("AUTH: Failed to close auth response body: %v", err)
+			}
+		}()
+
+		if resp.StatusCode == http.StatusUnauthorized {
+			log.Printf("AUTH: User not authenticated from %s", c.ClientIP())
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 			c.Abort()
 			return
 		}
 
-		// Проверка времени сессии
-		if loginTime, ok := session.Values["login_time"].(int64); ok {
-			if time.Now().Unix()-loginTime > 86400*30 { // 30 days
-				log.Printf("SECURITY: Session expired for user ID %v from %s", userID, c.ClientIP())
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "Session expired"})
-				c.Abort()
-				return
-			}
+		if resp.StatusCode != http.StatusOK {
+			log.Printf("AUTH: Auth service error from %s: status %d", c.ClientIP(), resp.StatusCode)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Authentication error"})
+			c.Abort()
+			return
 		}
 
-		// For orders service, we just need to ensure user is authenticated
-		// The actual user data would be fetched from auth service in production
-		c.Request.Header.Set("X-User-ID", strconv.FormatUint(uint64(userID.(uint)), 10))
+		// Парсим ответ от auth-service
+		var user User
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Printf("AUTH: Failed to read auth response from %s: %v", c.ClientIP(), err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Authentication error"})
+			c.Abort()
+			return
+		}
+
+		if err := json.Unmarshal(body, &user); err != nil {
+			log.Printf("AUTH: Failed to parse auth response from %s: %v", c.ClientIP(), err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Authentication error"})
+			c.Abort()
+			return
+		}
+
+		log.Printf("AUTH: User authenticated via auth-service for user ID %d from %s", user.ID, c.ClientIP())
+
+		// Устанавливаем заголовки для совместимости
+		c.Request.Header.Set("X-User-ID", strconv.FormatUint(uint64(user.ID), 10))
+		c.Request.Header.Set("X-User-Email", user.Email)
+		c.Request.Header.Set("X-User-Name", user.Name)
 
 		c.Next()
 	})

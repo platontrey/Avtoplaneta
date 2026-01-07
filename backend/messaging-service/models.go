@@ -62,7 +62,8 @@ type Notification struct {
 
 // UserStatus представляет онлайн статус пользователя
 type UserStatus struct {
-	UserID    int       `json:"user_id" gorm:"primaryKey"`
+	ID        int       `json:"id" gorm:"primaryKey"`
+	UserID    int       `json:"user_id" gorm:"unique;not null"`
 	IsOnline  bool      `json:"is_online"`
 	LastSeen  time.Time `json:"last_seen"`
 }

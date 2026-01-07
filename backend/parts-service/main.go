@@ -110,13 +110,20 @@ func main() {
 			keyFile = "key.pem"
 		}
 
-		if _, err := os.Stat(certFile); err == nil {
-			log.Println("Запуск с TLS...")
-			if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				errChan <- err
+		if os.Getenv("NODE_ENV") == "production" {
+			if _, err := os.Stat(certFile); err == nil {
+				log.Println("Запуск с TLS...")
+				if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil && !errors.Is(err, http.ErrServerClosed) {
+					errChan <- err
+				}
+			} else {
+				log.Println("Сертификаты не найдены, запуск без TLS...")
+				if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+					errChan <- err
+				}
 			}
 		} else {
-			log.Println("Сертификаты не найдены, запуск без TLS...")
+			log.Println("Режим разработки: запуск без TLS...")
 			if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				errChan <- err
 			}

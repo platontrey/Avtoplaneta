@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -412,4 +411,3 @@ func formatTimeAgo(duration time.Duration) string {
 func (s *ordersService) GetMonthlySales(ctx context.Context) ([]MonthlySales, error) {
 	return s.orderRepo.GetMonthlySales(ctx)
 }
-

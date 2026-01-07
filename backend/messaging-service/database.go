@@ -46,20 +46,17 @@ func InitDatabase() {
 }
 
 func InitRedis() {
-	redisURL := os.Getenv("REDIS_URL")
-	if redisURL == "" {
-		redisURL = "redis://localhost:6379"
+	redisAddr := os.Getenv("REDIS_URL")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
 	}
 
-	opt, err := redis.ParseURL(redisURL)
-	if err != nil {
-		log.Fatal("Failed to parse Redis URL:", err)
-	}
-
-	RedisClient = redis.NewClient(opt)
+	RedisClient = redis.NewClient(&redis.Options{
+		Addr: redisAddr,
+	})
 
 	// Test connection
-	_, err = RedisClient.Ping(context.Background()).Result()
+	_, err := RedisClient.Ping(context.Background()).Result()
 	if err != nil {
 		log.Fatal("Failed to connect to Redis:", err)
 	}
