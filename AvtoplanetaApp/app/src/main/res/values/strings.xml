@@ -28,4 +28,17 @@
     <string name="error_login_failed">Ошибка авторизации</string>
     <string name="error_invalid_credentials">Неверный email или пароль</string>
     <string name="error_connection">Ошибка соединения</string>
+
+    <!-- Filter Arrays -->
+    <string-array name="status_options">
+        <item>Все</item>
+        <item>В наличии</item>
+        <item>Не в наличии</item>
+    </string-array>
+
+    <string-array name="photo_options">
+        <item>Все</item>
+        <item>С фото</item>
+        <item>Без фото</item>
+    </string-array>
 </resources>

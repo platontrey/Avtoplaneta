@@ -7,6 +7,13 @@
     android:background="?android:attr/selectableItemBackground"
     android:layout_marginBottom="8dp">
 
+    <CheckBox
+        android:id="@+id/cbPartSelected"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:layout_marginBottom="8dp" />
+
     <TextView
         android:id="@+id/tvPartName"
         android:layout_width="match_parent"

@@ -1,7 +1,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Minimalist Base Theme -->
+    <!-- Theme matching website -->
     <style name="Base.Theme.AvtoplanetaApp" parent="Theme.Material3.Light.NoActionBar">
-        
+
         <!-- Color Scheme -->
         <item name="colorPrimary">@color/primary</item>
         <item name="colorPrimaryDark">@color/primary_dark</item>
@@ -12,13 +12,13 @@
         <item name="colorOnSurface">@color/text_primary</item>
         <item name="colorSurfaceVariant">@color/surface_variant</item>
         <item name="colorOnSurfaceVariant">@color/text_secondary</item>
-        
+
         <!-- Background -->
         <item name="android:colorBackground">@color/background</item>
         <item name="android:textColorPrimary">@color/text_primary</item>
         <item name="android:textColorSecondary">@color/text_secondary</item>
         <item name="android:textColorHint">@color/text_hint</item>
-        
+
         <!-- Status Bar -->
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>

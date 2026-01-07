@@ -92,6 +92,16 @@ public class SelectPartActivity extends AppCompatActivity implements PartsAdapte
     }
 
     @Override
+    public void onPartSelected(int partId, boolean isSelected) {
+        // Not used in this activity
+    }
+
+    @Override
+    public void onLongPress(int partId) {
+        // Not used in this activity
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         binding = null;

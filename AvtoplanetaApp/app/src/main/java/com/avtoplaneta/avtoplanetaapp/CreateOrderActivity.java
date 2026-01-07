@@ -6,6 +6,7 @@ import android.util.Log;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.avtoplaneta.avtoplanetaapp.api.ApiService;
 import com.avtoplaneta.avtoplanetaapp.api.RetrofitClient;
@@ -192,6 +193,11 @@ public class CreateOrderActivity extends AppCompatActivity implements OrderParts
         });
     }
 
+    @Override
+    public void onSelectionChanged(Set<Integer> selectedParts) {
+        // Update UI based on selection changes if needed
+        Log.d("CreateOrderActivity", "Selection changed: " + selectedParts.size() + " parts selected");
+    }
 
     @Override
     protected void onDestroy() {

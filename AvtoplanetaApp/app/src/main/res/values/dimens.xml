@@ -29,10 +29,10 @@
     <dimen name="icon_large">32dp</dimen>
     <dimen name="icon_xlarge">48dp</dimen>
     
-    <!-- Corner Radius - Subtle -->
+    <!-- Corner Radius - Matching website -->
     <dimen name="radius_tiny">4dp</dimen>
     <dimen name="radius_small">8dp</dimen>
-    <dimen name="radius_medium">12dp</dimen>
+    <dimen name="radius_medium">10dp</dimen>
     <dimen name="radius_large">16dp</dimen>
     <dimen name="radius_xlarge">24dp</dimen>
     <dimen name="radius_round">9999dp</dimen>

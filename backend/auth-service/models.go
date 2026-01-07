@@ -15,6 +15,11 @@ type User struct {
 	Password string `json:"-" gorm:"not null;default:''"`   // Пароль не сериализуется в JSON
 }
 
+type LoginResponse struct {
+	User    User   `json:"user"`
+	Message string `json:"message"`
+}
+
 type UserActivityLog struct {
 	ID           uint      `json:"id" gorm:"primaryKey"`
 	UserID       uint      `json:"user_id" gorm:"not null"`

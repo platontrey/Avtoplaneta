@@ -39,141 +39,12 @@
 
     </RelativeLayout>
 
-    <ScrollView
+    <!-- Fragment Container -->
+    <FrameLayout
+        android:id="@+id/fragmentContainer"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:paddingBottom="100dp">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
-
-            <!-- Search Bar -->
-            <androidx.cardview.widget.CardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                app:cardCornerRadius="8dp"
-                app:cardElevation="2dp">
-
-                <RelativeLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:padding="12dp">
-
-                    <ImageView
-                        android:id="@+id/searchIcon"
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:layout_alignParentStart="true"
-                        android:layout_centerVertical="true"
-                        android:src="@android:drawable/ic_menu_search"
-                        android:contentDescription="Search" />
-
-                    <EditText
-                        android:id="@+id/searchEditText"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_centerVertical="true"
-                        android:layout_marginStart="8dp"
-                        android:layout_toEndOf="@id/searchIcon"
-                        android:background="@null"
-                        android:hint="Поиск запчастей"
-                        android:textSize="14sp"
-                        android:textColorHint="#999999" />
-                </RelativeLayout>
-            </androidx.cardview.widget.CardView>
-
-            <!-- Parts List -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/partsRecyclerView"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
-
-            <!-- Statistics Cards -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="16dp">
-
-                <!-- Total Parts Card -->
-                <androidx.cardview.widget.CardView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="8dp"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="2dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Всего запчастей"
-                            android:textSize="12sp"
-                            android:textColor="#666666"
-                            android:layout_marginBottom="8dp" />
-
-                        <TextView
-                            android:id="@+id/tvTotalParts"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="0"
-                            android:textSize="24sp"
-                            android:textColor="#000000"
-                            android:textStyle="bold" />
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
-
-                <!-- Available Parts Card -->
-                <androidx.cardview.widget.CardView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="2dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="В наличии"
-                            android:textSize="12sp"
-                            android:textColor="#666666"
-                            android:layout_marginBottom="8dp" />
-
-                        <TextView
-                            android:id="@+id/tvAvailableParts"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="0"
-                            android:textSize="24sp"
-                            android:textColor="#4CAF50"
-                            android:textStyle="bold" />
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
-            </LinearLayout>
-
-
-        </LinearLayout>
-    </ScrollView>
+        android:layout_weight="1" />
 
     <!-- Bottom Navigation -->
     <LinearLayout
@@ -215,6 +86,18 @@
             android:layout_weight="1"
             android:src="@drawable/ic_cart"
             android:contentDescription="Корзина"
+            android:padding="8dp"
+            android:layout_gravity="center"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <ImageView
+            android:id="@+id/ivNavStats"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:src="@android:drawable/ic_menu_info_details"
+            android:contentDescription="Статистика"
             android:padding="8dp"
             android:layout_gravity="center"
             android:clickable="true"

@@ -106,7 +106,11 @@ func (h *Handler) UserLoginHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, user)
+	response := LoginResponse{
+		User:    *user,
+		Message: "Login successful",
+	}
+	c.JSON(http.StatusOK, response)
 }
 
 // LogoutHandler обрабатывает выход пользователя

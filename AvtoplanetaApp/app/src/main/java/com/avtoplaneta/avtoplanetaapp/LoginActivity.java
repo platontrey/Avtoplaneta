@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.avtoplaneta.avtoplanetaapp.api.RetrofitClient;
 import com.avtoplaneta.avtoplanetaapp.databinding.ActivityLoginBinding;
+import com.avtoplaneta.avtoplanetaapp.models.CsrfResponse;
 import com.avtoplaneta.avtoplanetaapp.models.LoginRequest;
 import com.avtoplaneta.avtoplanetaapp.models.LoginResponse;
 import com.google.gson.Gson;
@@ -85,13 +86,13 @@ public class LoginActivity extends AppCompatActivity {
 
                 if (response.isSuccessful() && response.body() != null) {
                     LoginResponse loginResponse = response.body();
-                    
+
                     if (loginResponse.getUser() != null) {
                         // Сохранить данные пользователя
                         saveUserData(loginResponse);
-                        
-                        // Перейти к Inventory
-                        navigateToInventory();
+
+                        // Получить CSRF токен
+                        fetchCsrfToken();
                     } else {
                         showError("Ошибка авторизации");
                     }
@@ -119,6 +120,29 @@ public class LoginActivity extends AppCompatActivity {
 
     private boolean isUserLoggedIn() {
         return sharedPreferences.getBoolean(KEY_IS_LOGGED_IN, false);
+    }
+
+    private void fetchCsrfToken() {
+        RetrofitClient.getApiService().getCsrfToken().enqueue(new Callback<CsrfResponse>() {
+            @Override
+            public void onResponse(Call<CsrfResponse> call, Response<CsrfResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    String csrfToken = response.body().getCsrfToken();
+                    RetrofitClient.setCsrfToken(csrfToken);
+                    // Перейти к Inventory
+                    navigateToInventory();
+                } else {
+                    // Даже если не удалось получить токен, продолжаем
+                    navigateToInventory();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<CsrfResponse> call, Throwable t) {
+                // Даже если не удалось получить токен, продолжаем
+                navigateToInventory();
+            }
+        });
     }
 
     private void navigateToInventory() {

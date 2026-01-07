@@ -73,6 +73,11 @@
             android:name=".SelectPartActivity"
             android:exported="false" />
 
+        <!-- StatisticsActivity - экран статистики -->
+        <activity
+            android:name=".StatisticsActivity"
+            android:exported="false" />
+
     </application>
 
 </manifest>
