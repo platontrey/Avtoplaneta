@@ -5,7 +5,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import PartsSearch from './PartsSearch';
 import PartsList from './PartsList';
-import { useParts } from '@/hooks/useParts';
+import { useParts, useInfiniteParts } from '@/hooks/useParts';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useQueryClient } from '@tanstack/react-query';
 import { partsKeys } from '@/hooks/useParts';
@@ -33,10 +33,7 @@ function Inventory() {
       });
 
       const [displayLimit, setDisplayLimit] = useState<number | undefined>(20);
-      const [currentPage, setCurrentPage] = useState(1);
       const [allParts, setAllParts] = useState<Part[]>([]);
-      const [hasMore, setHasMore] = useState(true);
-      const [isLoadingMore, setIsLoadingMore] = useState(false);
   
       // Pull to refresh functionality
       const { bindPullToRefresh } = usePullToRefresh({
@@ -46,42 +43,60 @@ function Inventory() {
           threshold: 80
       });
   
-       // Используем React Query хук для загрузки данных
-     const { data: partsData, isLoading, error } = useParts({
-         ...filters,
-         limit: displayLimit === undefined ? 10000 : (displayLimit || 20),
-         page: displayLimit !== undefined ? 1 : currentPage
-     });
+       // Выбираем хук в зависимости от режима
+       const isInfiniteMode = displayLimit === undefined;
+ 
+       // Для бесконечной прокрутки
+       const infiniteQuery = useInfiniteParts(isInfiniteMode ? filters : undefined);
+ 
+       // Для фиксированного лимита
+       const regularQuery = useParts(!isInfiniteMode ? {
+          ...filters,
+          limit: displayLimit || 20,
+          page: 1
+       } : undefined);
+ 
+       // Выбираем данные в зависимости от режима
+       const { data: partsData, isLoading, error, hasNextPage, fetchNextPage, isFetchingNextPage } = isInfiniteMode ? {
+          data: infiniteQuery.data?.pages.flat() || [],
+          isLoading: infiniteQuery.isLoading,
+          error: infiniteQuery.error,
+          hasNextPage: infiniteQuery.hasNextPage,
+          fetchNextPage: infiniteQuery.fetchNextPage,
+          isFetchingNextPage: infiniteQuery.isFetchingNextPage,
+       } : {
+          data: regularQuery.data || [],
+          isLoading: regularQuery.isLoading,
+          error: regularQuery.error,
+          hasNextPage: false,
+          fetchNextPage: () => {},
+          isFetchingNextPage: false,
+       };
+
 
      // Обновляем allParts при получении данных
      useEffect(() => {
          if (partsData) {
-             if (displayLimit !== undefined) {
-                 // Если limit установлен, просто используем данные
-                 setAllParts(partsData);
-                 setHasMore(false); // Все данные загружены сразу
-             } else {
-                 // Если пагинация, добавляем к существующим (оптимизированная конкатенация)
-                 setAllParts(prev => {
-                     if (currentPage === 1) {
-                         return partsData;
-                     } else {
-                         // Используем более эффективную конкатенацию для больших массивов
-                         const newArray = new Array(prev.length + partsData.length);
-                         for (let i = 0; i < prev.length; i++) {
-                             newArray[i] = prev[i];
-                         }
-                         for (let i = 0; i < partsData.length; i++) {
-                             newArray[prev.length + i] = partsData[i];
-                         }
-                         return newArray;
+             // Используем функциональное обновление, чтобы избежать лишних ререндеров
+             setAllParts(prev => {
+                 // Если это первая страница или данные полностью заменились (например, при фильтрации)
+                 if (!isInfiniteMode) {
+                     if (prev.length === partsData.length && prev.every((p, i) => p.id === partsData[i].id)) {
+                         return prev;
                      }
-                 });
-                 setHasMore(partsData.length === 20);
-             }
-             setIsLoadingMore(false);
+                     return partsData;
+                 }
+
+                 // Для бесконечной прокрутки:
+                 // partsData содержит все загруженные страницы (flat).
+                 // Просто обновляем состояние, если оно отличается.
+                 if (prev.length === partsData.length && prev.every((p, i) => p.id === partsData[i].id)) {
+                     return prev;
+                 }
+                 return partsData;
+             });
          }
-     }, [partsData, displayLimit, currentPage]);
+     }, [partsData, isInfiniteMode]);
 
      // Bind pull to refresh
      useEffect(() => {
@@ -99,26 +114,21 @@ function Inventory() {
          hasPhoto?: string;
      }) => {
          setFilters(newFilters);
-         setCurrentPage(1);
          setAllParts([]);
-         setHasMore(true);
      }, []);
 
      // Обработчик изменения лимита отображения
      const handleDisplayLimitChange = useCallback((newLimit: number | undefined) => {
          setDisplayLimit(newLimit);
-         setCurrentPage(1);
          setAllParts([]);
-         setHasMore(true);
      }, []);
 
      // Функция загрузки дополнительных данных
      const loadMore = useCallback(() => {
-         if (!isLoadingMore && hasMore) {
-             setIsLoadingMore(true);
-             setCurrentPage(prev => prev + 1);
+         if (isInfiniteMode && hasNextPage && !isFetchingNextPage) {
+             fetchNextPage();
          }
-     }, [isLoadingMore, hasMore]);
+     }, [isInfiniteMode, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
 
    return (
@@ -138,11 +148,11 @@ function Inventory() {
        {/* Компонент списка запчастей */}
        <PartsList
          parts={allParts}
-         isLoading={isLoading || isLoadingMore}
+         isLoading={isLoading || isFetchingNextPage}
          error={error}
-         onLoadMore={displayLimit ? undefined : loadMore}
-         hasMore={hasMore}
-         isInfiniteScroll={displayLimit === undefined}
+         onLoadMore={isInfiniteMode ? loadMore : undefined}
+         hasMore={hasNextPage}
+         isInfiniteScroll={isInfiniteMode}
        />
      </div>
    );

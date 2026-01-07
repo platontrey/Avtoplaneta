@@ -152,8 +152,7 @@ func (suite *ServiceTestSuite) TestGetInventory() {
 
 	expectedParts := []Part{*suite.testPart}
 	suite.mockRepo.On("DeleteExpiredParts", mock.Anything, mock.Anything).Return(nil)
-	suite.mockES.On("SearchParts", mock.AnythingOfType("map[string]interface {}"), mock.AnythingOfType("int"), mock.AnythingOfType("int")).Return([]ElasticsearchPart{{ID: suite.testPart.ID, Name: suite.testPart.Name}}, int64(1), nil)
-	suite.mockRepo.On("FindWithFilters", mock.Anything, mock.Anything).Return(expectedParts, nil)
+	suite.mockRepo.On("FindWithFilters", mock.Anything, mock.Anything, 0, 10).Return(expectedParts, nil)
 
 	parts, err := suite.service.GetInventory(context.Background(), params)
 	assert.NoError(suite.T(), err)
@@ -171,7 +170,8 @@ func (suite *ServiceTestSuite) TestGetInventory_WithSearch() {
 
 	expectedParts := []Part{*suite.testPart}
 	suite.mockRepo.On("DeleteExpiredParts", mock.Anything, mock.Anything).Return(nil)
-	suite.mockRepo.On("FindWithFilters", mock.Anything, mock.Anything).Return(expectedParts, nil)
+	suite.mockES.On("SearchParts", mock.AnythingOfType("map[string]interface {}"), 0, 10).Return([]ElasticsearchPart{{ID: suite.testPart.ID, Name: suite.testPart.Name}}, int64(1), nil)
+	suite.mockRepo.On("FindWithFilters", mock.Anything, mock.Anything, 0, 0).Return(expectedParts, nil)
 
 	parts, err := suite.service.GetInventory(context.Background(), params)
 	assert.NoError(suite.T(), err)

@@ -82,30 +82,32 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
         setSelectedParts(new Set());
     };
 
-    // Intersection Observer для бесконечной прокрутки
+    // Обработчик прокрутки для бесконечной загрузки (более надежный метод чем IntersectionObserver)
     useEffect(() => {
-        if (!isInfiniteScroll || !onLoadMore || !hasMore) return;
+        if (!isInfiniteScroll || !onLoadMore) return;
 
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0].isIntersecting && !isLoading) {
-                    onLoadMore();
-                }
-            },
-            { threshold: 0.1 }
-        );
+        const handleScroll = () => {
+            if (isLoading || !hasMore) return;
 
-        if (loadMoreRef.current) {
-            observer.observe(loadMoreRef.current);
-        }
+            // Проверяем, достигли ли мы низа страницы (с запасом 500px)
+            const scrolledToBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 500;
+            if (scrolledToBottom) {
+                onLoadMore();
+            }
+        };
 
-        return () => observer.disconnect();
+        window.addEventListener('scroll', handleScroll);
+        // Вызываем сразу на случай, если контент короткий
+        handleScroll();
+
+        return () => window.removeEventListener('scroll', handleScroll);
     }, [isInfiniteScroll, onLoadMore, hasMore, isLoading]);
 
     // Bind swipe events to container
     useEffect(() => {
         return bindSwipeEvents(containerRef.current);
     }, [bindSwipeEvents]);
+
 
     if (error) {
         return (
@@ -231,20 +233,20 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
             </Accordion>
 
             {/* Триггер бесконечной прокрутки */}
-            {isInfiniteScroll && hasMore && (
+            {isInfiniteScroll && (
                 <div ref={loadMoreRef} className="flex justify-center py-4">
                     {isLoading ? (
                         <div className="flex items-center gap-2">
                             <Loader2 className="h-4 w-4 animate-spin" />
                             <span>Загрузка...</span>
                         </div>
-                    ) : (
-                        <div className="h-4" /> // Невидимый элемент триггера
-                    )}
+                    ) : hasMore ? (
+                        <div className="h-4 w-full text-center text-xs text-transparent select-none">Load More Trigger</div>
+                    ) : null}
                 </div>
             )}
 
-            {/* Кнопка ручной загрузки */}
+            {/* Кнопка ручной загрузки (только если не бесконечная прокрутка) */}
             {!isInfiniteScroll && onLoadMore && hasMore && (
                 <div className="flex justify-center py-4">
                     <Button

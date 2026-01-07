@@ -34,8 +34,8 @@ func (m *MockPartRepository) FindAll(ctx context.Context, query *gorm.DB) ([]Par
 	return args.Get(0).([]Part), args.Error(1)
 }
 
-func (m *MockPartRepository) FindWithFilters(ctx context.Context, filters map[string]interface{}) ([]Part, error) {
-	args := m.Called(ctx, filters)
+func (m *MockPartRepository) FindWithFilters(ctx context.Context, filters map[string]interface{}, offset, limit int) ([]Part, error) {
+	args := m.Called(ctx, filters, offset, limit)
 	return args.Get(0).([]Part), args.Error(1)
 }
 

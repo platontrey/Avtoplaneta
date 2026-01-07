@@ -2,7 +2,7 @@
  * Copyright (c) 2025 Avtoplaneta. All rights reserved.
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { partsApi } from '@/features/parts/api/partsApi';
 import type { Part } from '@/features/parts/types';
 
@@ -55,6 +55,49 @@ export function useParts(filters?: {
     queryFn: () => {
       console.log('useParts queryFn executing with filters:', filters);
       return partsApi.getAll(filters || {});
+    },
+    staleTime: 1000 * 60 * 2, // 2 minutes
+  });
+}
+
+/**
+ * Хук для бесконечной прокрутки запчастей
+ * @param filters - Объект с фильтрами для поиска запчастей
+ * @returns Объект с данными, функциями для загрузки следующей страницы
+ */
+export function useInfiniteParts(filters?: {
+  /** Строка поиска */
+  search?: string;
+  /** Категория запчасти */
+  category?: string;
+  /** Бренд автомобиля */
+  brand?: string;
+  /** Модель автомобиля */
+  model?: string;
+  /** Местоположение */
+  location?: string;
+  /** Продавец */
+  salesman?: string;
+  /** Статус запчасти */
+  status?: string;
+  /** Фильтр по наличию фото */
+  hasPhoto?: string;
+}) {
+  console.log('useInfiniteParts called with filters:', filters);
+  return useInfiniteQuery({
+    queryKey: [...partsKeys.lists(), 'infinite', filters || {}],
+    queryFn: ({ pageParam = 1 }) => {
+      console.log('useInfiniteParts queryFn executing with filters:', filters, 'page:', pageParam);
+      return partsApi.getAll({
+        ...filters,
+        page: pageParam,
+        limit: 20, // Фиксированный лимит для бесконечной прокрутки
+      });
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      // Если последняя страница содержит меньше 20 элементов, значит это последняя
+      return lastPage.length === 20 ? allPages.length + 1 : undefined;
     },
     staleTime: 1000 * 60 * 2, // 2 minutes
   });

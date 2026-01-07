@@ -21,8 +21,8 @@ type PartRepository interface {
 	Delete(ctx context.Context, id uint) error                                 // Удаляет запчасть
 
 	// FindAll Поиск и фильтрация
-	FindAll(ctx context.Context, query *gorm.DB) ([]Part, error)                         // Находит все запчасти по запросу
-	FindWithFilters(ctx context.Context, filters map[string]interface{}) ([]Part, error) // Находит с фильтрами
+	FindAll(ctx context.Context, query *gorm.DB) ([]Part, error)                                            // Находит все запчасти по запросу
+	FindWithFilters(ctx context.Context, filters map[string]interface{}, offset, limit int) ([]Part, error) // Находит с фильтрами и пагинацией
 
 	// MarkForDeletion Специфические операции
 	MarkForDeletion(ctx context.Context, id uint, deleteAt time.Time) error        // Отмечает для удаления
@@ -82,8 +82,8 @@ func (r *partRepository) FindAll(ctx context.Context, query *gorm.DB) ([]Part, e
 	return parts, err
 }
 
-// FindWithFilters находит запчасти с фильтрами
-func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string]interface{}) ([]Part, error) {
+// FindWithFilters находит запчасти с фильтрами и пагинацией
+func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string]interface{}, offset, limit int) ([]Part, error) {
 	query := r.db.WithContext(ctx).Model(&Part{})
 
 	// Применяем фильтры
@@ -119,6 +119,11 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 			searchTerm := "%" + value.(string) + "%"
 			query = query.Where("name ILIKE ? OR description ILIKE ?", searchTerm, searchTerm)
 		}
+	}
+
+	// Применяем пагинацию
+	if limit > 0 {
+		query = query.Offset(offset).Limit(limit)
 	}
 
 	var parts []Part

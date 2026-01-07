@@ -196,7 +196,7 @@ func (s *inventoryService) getInventoryFromElasticsearch(ctx context.Context, pa
 		"to_delete_at_is_null": true,
 		"quantity_gte":         0,
 	}
-	validParts, err := s.repo.FindWithFilters(ctx, filters)
+	validParts, err := s.repo.FindWithFilters(ctx, filters, 0, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -317,22 +317,17 @@ func (s *inventoryService) getInventoryFromDatabase(ctx context.Context, params 
 	filters["to_delete_at_is_null"] = true
 	filters["quantity_gte"] = 0
 
-	parts, err := s.repo.FindWithFilters(ctx, filters)
-	if err != nil {
-		return nil, err
+	// Calculate offset for pagination
+	offset := 0
+	limit := 0
+	if params.Limit > 0 {
+		offset = (params.Page - 1) * params.Limit
+		limit = params.Limit
 	}
 
-	// Apply pagination if needed
-	if params.Limit > 0 {
-		start := (params.Page - 1) * params.Limit
-		end := start + params.Limit
-		if start > len(parts) {
-			return []Part{}, nil
-		}
-		if end > len(parts) {
-			end = len(parts)
-		}
-		parts = parts[start:end]
+	parts, err := s.repo.FindWithFilters(ctx, filters, offset, limit)
+	if err != nil {
+		return nil, err
 	}
 
 	return parts, nil
