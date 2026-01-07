@@ -44,7 +44,7 @@ func main() {
 	userRepo := NewUserRepository(db)
 	activityRepo := NewActivityLogRepository(db)
 	authService := NewAuthService(userRepo, activityRepo, store, nil) // Rate limiter пока не реализован
-	handler := NewHandler(authService)
+	handler := NewHandler(authService, config)
 
 	log.Println("Сервис аутентификации готов к работе с пользователями.")
 
@@ -57,7 +57,7 @@ func main() {
 	}
 
 	// Setup middleware
-	r.Use(CORSMiddleware())
+	r.Use(CORSMiddleware(config))
 	r.Use(csrfMiddleware)
 
 	// Setup routes с dependency injection
@@ -75,8 +75,24 @@ func main() {
 	// Запуск сервера в goroutine
 	go func() {
 		log.Printf("Сервис аутентификации запускается на порту %s", config.Port)
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(http.ErrServerClosed, err) {
-			errChan <- err
+
+		certFile := "../../cert.pem"
+		keyFile := "../../key.pem"
+		if _, err := os.Stat(certFile); os.IsNotExist(err) {
+			certFile = "cert.pem"
+			keyFile = "key.pem"
+		}
+
+		if _, err := os.Stat(certFile); err == nil {
+			log.Println("Запуск с TLS...")
+			if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil && !errors.Is(http.ErrServerClosed, err) {
+				errChan <- err
+			}
+		} else {
+			log.Println("Сертификаты не найдены, запуск без TLS...")
+			if err := srv.ListenAndServe(); err != nil && !errors.Is(http.ErrServerClosed, err) {
+				errChan <- err
+			}
 		}
 	}()
 

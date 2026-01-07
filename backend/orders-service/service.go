@@ -13,7 +13,7 @@ import (
 type OrdersService interface {
 	// GetOrders Основные операции с заказами
 	GetOrders(ctx context.Context) ([]Order, error)
-	CreateOrder(ctx context.Context, req CreateOrderRequest) (*Order, error)
+	CreateOrder(ctx context.Context, req CreateOrderRequest, userID uint, userName string) (*Order, error)
 	UpdateOrderStatus(ctx context.Context, orderID uint, status string) error
 	CompleteOrder(ctx context.Context, orderID uint) error
 	DeleteOrder(ctx context.Context, orderID uint) error
@@ -104,7 +104,7 @@ func (s *ordersService) GetOrders(ctx context.Context) ([]Order, error) {
 }
 
 // CreateOrder создает новый заказ
-func (s *ordersService) CreateOrder(ctx context.Context, req CreateOrderRequest) (*Order, error) {
+func (s *ordersService) CreateOrder(ctx context.Context, req CreateOrderRequest, userID uint, userName string) (*Order, error) {
 	if req.BuyerNumber == "" {
 		return nil, ValidationError{Field: "buyer_number", Message: "buyer number is required"}
 	}
@@ -113,20 +113,10 @@ func (s *ordersService) CreateOrder(ctx context.Context, req CreateOrderRequest)
 		return nil, ValidationError{Field: "items", Message: "at least one part must be selected"}
 	}
 
-	// Получаем ID пользователя из контекста (предполагаем, что он установлен middleware)
-	userIDStr := getUserIDFromContext() // TODO: реализовать получение из контекста
-	userID, err := strconv.ParseUint(userIDStr, 10, 32)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse user ID: %w", err)
-	}
-
-	// Получаем имя пользователя
-	userName := getUserNameFromContext() // TODO: реализовать
-
 	// Создаем заказ
 	order := &Order{
 		CustomerID:  req.CustomerID,
-		SellerID:    uint(userID),
+		SellerID:    userID,
 		Seller:      userName,
 		Part:        req.Part,
 		PartID:      req.PartID,
@@ -403,17 +393,6 @@ func (s *ordersService) AddOrderItem(ctx context.Context, orderID uint, req AddO
 	}
 
 	return nil
-}
-
-// Вспомогательные функции (нужно реализовать получение данных из контекста)
-func getUserIDFromContext() string {
-	// TODO: реализовать получение из gorilla/mux context или gin context
-	return "1" // заглушка
-}
-
-func getUserNameFromContext() string {
-	// TODO: реализовать получение из контекста
-	return "Test User" // заглушка
 }
 
 func formatTimeAgo(duration time.Duration) string {

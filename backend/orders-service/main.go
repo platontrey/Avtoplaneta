@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )
@@ -21,6 +22,10 @@ var redisClient *redis.Client
 func main() {
 	// Установка количества OS-тредов для оптимизации под доступное количество ядер
 	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	if err := godotenv.Load("../../.env"); err != nil {
+		log.Println("No .env file found")
+	}
 
 	config := LoadConfig()
 	InitDB(config)
@@ -68,8 +73,24 @@ func main() {
 	// Запуск сервера в goroutine
 	go func() {
 		log.Println("Сервис заказов запущен на порту", config.Port)
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(http.ErrServerClosed, err) {
-			errChan <- err
+
+		certFile := "../../cert.pem"
+		keyFile := "../../key.pem"
+		if _, err := os.Stat(certFile); os.IsNotExist(err) {
+			certFile = "cert.pem"
+			keyFile = "key.pem"
+		}
+
+		if _, err := os.Stat(certFile); err == nil {
+			log.Println("Запуск с TLS...")
+			if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil && !errors.Is(http.ErrServerClosed, err) {
+				errChan <- err
+			}
+		} else {
+			log.Println("Сертификаты не найдены, запуск без TLS...")
+			if err := srv.ListenAndServe(); err != nil && !errors.Is(http.ErrServerClosed, err) {
+				errChan <- err
+			}
 		}
 	}()
 

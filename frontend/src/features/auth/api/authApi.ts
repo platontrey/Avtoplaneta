@@ -5,7 +5,7 @@
 import type { User, LoginCredentials } from '../types';
 import { getAuthHeaders } from '@/lib/csrf';
 
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export const authApi = {
   login: async (credentials: LoginCredentials): Promise<User> => {

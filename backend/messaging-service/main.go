@@ -12,11 +12,16 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 func main() {
 	// Установка количества OS-тредов для оптимизации под доступное количество ядер
 	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	if err := godotenv.Load("../../.env"); err != nil {
+		log.Println("No .env file found")
+	}
 
 	// Initialize database
 	InitDatabase()

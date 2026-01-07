@@ -17,12 +17,14 @@ import (
 // Handler содержит все HTTP handlers для auth-service
 type Handler struct {
 	authService AuthService
+	config      *Config
 }
 
 // NewHandler создает новый handler с dependency injection
-func NewHandler(authService AuthService) *Handler {
+func NewHandler(authService AuthService, config *Config) *Handler {
 	return &Handler{
 		authService: authService,
+		config:      config,
 	}
 }
 
@@ -481,7 +483,8 @@ func (h *Handler) InternalLogUserActivityHandler(c *gin.Context) {
 // getTotalPartsCount получает общее количество запчастей через запрос к parts-service
 func (h *Handler) getTotalPartsCount() (int, error) {
 	// Делаем запрос к parts-service для получения статистики
-	req, err := http.NewRequest("GET", "http://localhost:8081/api/statistics", nil)
+	url := fmt.Sprintf("%s/api/statistics", h.config.PartsServiceURL)
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to create parts statistics request")
 		return 0, err

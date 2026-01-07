@@ -527,8 +527,19 @@ func (g *Gateway) Run(ctx context.Context, port string) error {
 
 	// Запуск сервера в goroutine
 	go func() {
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			errChan <- err
+		certFile := "cert.pem"
+		keyFile := "key.pem"
+
+		if _, err := os.Stat(certFile); err == nil {
+			logrus.Info("Starting Gateway with TLS...")
+			if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				errChan <- err
+			}
+		} else {
+			logrus.Warn("Certificates not found, starting Gateway without TLS...")
+			if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				errChan <- err
+			}
 		}
 	}()
 

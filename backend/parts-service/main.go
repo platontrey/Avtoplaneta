@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )
@@ -24,6 +25,10 @@ func main() {
 
 	// Установка режима Gin в Release для продакшена
 	gin.SetMode(gin.ReleaseMode)
+
+	if err := godotenv.Load("../../.env"); err != nil {
+		log.Println("No .env file found")
+	}
 
 	config := LoadConfig()
 	InitDB(config)
@@ -97,8 +102,24 @@ func main() {
 	// Запуск сервера в goroutine
 	go func() {
 		log.Printf("Сервис запчастей запускается на порту %s", config.Port)
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			errChan <- err
+
+		certFile := "../../cert.pem"
+		keyFile := "../../key.pem"
+		if _, err := os.Stat(certFile); os.IsNotExist(err) {
+			certFile = "cert.pem"
+			keyFile = "key.pem"
+		}
+
+		if _, err := os.Stat(certFile); err == nil {
+			log.Println("Запуск с TLS...")
+			if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				errChan <- err
+			}
+		} else {
+			log.Println("Сертификаты не найдены, запуск без TLS...")
+			if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				errChan <- err
+			}
 		}
 	}()
 

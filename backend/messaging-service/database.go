@@ -17,7 +17,7 @@ var RedisClient *redis.Client
 func InitDatabase() {
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
-		dsn = "host=localhost user=postgres password=qewret123 dbname=autoplanet port=5432 sslmode=disable"
+		dsn = "host=localhost user=postgres dbname=autoplanet port=5432 sslmode=disable"
 	}
 
 	var err error

@@ -20,9 +20,19 @@ type csrfToken struct {
 }
 
 // CORSMiddleware добавляет CORS заголовки для кросс-доменных запросов
-func CORSMiddleware() gin.HandlerFunc {
+func CORSMiddleware(config *Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		allowedOrigins := []string{"http://localhost:5173", "http://192.168.1.63:5173", "http://192.168.56.1:5173", "http://192.168.51.2:5173"}
+		var allowedOrigins []string
+		if config.AllowedOrigins != "" {
+			allowedOrigins = strings.Split(config.AllowedOrigins, ",")
+			// Trim spaces
+			for i := range allowedOrigins {
+				allowedOrigins[i] = strings.TrimSpace(allowedOrigins[i])
+			}
+		} else {
+			allowedOrigins = []string{"http://localhost:5173", "http://192.168.1.63:5173", "http://192.168.56.1:5173", "http://192.168.51.2:5173"}
+		}
+
 		origin := c.GetHeader("Origin")
 		for _, o := range allowedOrigins {
 			if o == origin {

@@ -69,7 +69,21 @@ func (h *Handler) CreateOrderHandler(c *gin.Context) {
 		return
 	}
 
-	order, err := h.ordersService.CreateOrder(ctx, req)
+	userIDStr := c.GetHeader("X-User-ID")
+	if userIDStr == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
+
+	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	userName := c.GetHeader("X-User-Name")
+
+	order, err := h.ordersService.CreateOrder(ctx, req, uint(userID), userName)
 	if err != nil {
 		if IsValidationError(err) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
