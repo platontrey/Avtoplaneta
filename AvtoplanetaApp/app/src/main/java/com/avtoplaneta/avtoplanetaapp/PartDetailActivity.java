@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.avtoplaneta.avtoplanetaapp.databinding.ActivityPartDetailBinding;
 import com.avtoplaneta.avtoplanetaapp.models.InventoryItem;
 import com.bumptech.glide.Glide;
+import timber.log.Timber;
 
 public class PartDetailActivity extends AppCompatActivity {
 
@@ -32,6 +33,7 @@ public class PartDetailActivity extends AppCompatActivity {
 
         // Get part data from intent
         part = (InventoryItem) getIntent().getSerializableExtra("part");
+        Timber.d("PartDetailActivity onCreate: part received: %s", part != null ? part.getName() : "null");
         if (part == null) {
             Toast.makeText(this, "Ошибка загрузки данных запчасти", Toast.LENGTH_SHORT).show();
             finish();

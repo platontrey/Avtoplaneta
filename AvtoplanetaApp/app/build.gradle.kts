@@ -75,6 +75,9 @@ dependencies {
     // OkHttp для работы с сетью
     implementation("com.squareup.okhttp3:okhttp:4.11.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+    implementation("com.squareup.okhttp3:okhttp-urlconnection:4.11.0")
+    // Persistent Cookie Jar
+    implementation("com.github.franmontiel:PersistentCookieJar:v1.0.1")
 
     // Gson для JSON
     implementation("com.google.code.gson:gson:2.10.1")

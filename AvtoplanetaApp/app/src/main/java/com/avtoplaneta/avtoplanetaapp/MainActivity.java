@@ -36,6 +36,7 @@ public class MainActivity extends AppCompatActivity {
     private OrdersFragment ordersFragment;
     private StatisticsFragment statisticsFragment;
     private AddPartFragment addPartFragment;
+    private ConversationsFragment conversationsFragment;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,6 +71,7 @@ public class MainActivity extends AppCompatActivity {
         ordersFragment = new OrdersFragment();
         statisticsFragment = new StatisticsFragment();
         addPartFragment = new AddPartFragment();
+        conversationsFragment = new ConversationsFragment();
 
         // Показать HomeFragment по умолчанию
         showFragment(homeFragment);
@@ -112,9 +114,8 @@ public class MainActivity extends AppCompatActivity {
         });
 
         binding.ivNavAdd.setOnClickListener(v -> {
-            Log.d("MainActivity", "Add clicked - opening add part screen");
-            Intent intent = new Intent(MainActivity.this, AddPartActivity.class);
-            startActivityForResult(intent, 100);
+            Log.d("MainActivity", "Add clicked - showing add options dialog");
+            showAddOptionsDialog();
         });
 
         binding.ivNavCart.setOnClickListener(v -> {
@@ -125,6 +126,11 @@ public class MainActivity extends AppCompatActivity {
         binding.ivNavStats.setOnClickListener(v -> {
             Log.d("MainActivity", "Stats clicked - showing statistics fragment");
             showFragment(statisticsFragment);
+        });
+
+        binding.ivNavMessages.setOnClickListener(v -> {
+            Log.d("MainActivity", "Messages clicked - showing conversations fragment");
+            showFragment(conversationsFragment);
         });
     }
 
@@ -178,6 +184,29 @@ public class MainActivity extends AppCompatActivity {
         dialog.show();
     }
 
+    private void showAddOptionsDialog() {
+        String[] options = {"Добавить запчасть", "Добавить автомобиль"};
+
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("Что добавить?")
+                .setItems(options, (dialog, which) -> {
+                    switch (which) {
+                        case 0: // Добавить запчасть
+                            Log.d("MainActivity", "Add part selected");
+                            Intent partIntent = new Intent(MainActivity.this, AddPartActivity.class);
+                            startActivityForResult(partIntent, 100);
+                            break;
+                        case 1: // Добавить автомобиль
+                            Log.d("MainActivity", "Add car selected");
+                            Intent carIntent = new Intent(MainActivity.this, AddCarActivity.class);
+                            startActivity(carIntent);
+                            break;
+                    }
+                })
+                .setNegativeButton("Отмена", null)
+                .show();
+    }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_inventory, menu);
@@ -213,4 +242,3 @@ public class MainActivity extends AppCompatActivity {
         binding = null;
     }
 }
-

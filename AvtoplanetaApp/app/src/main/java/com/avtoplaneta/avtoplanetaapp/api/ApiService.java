@@ -1,15 +1,28 @@
 package com.avtoplaneta.avtoplanetaapp.api;
 
 import com.avtoplaneta.avtoplanetaapp.models.AddOrderItemRequest;
+import com.avtoplaneta.avtoplanetaapp.models.AddReactionRequest;
 import com.avtoplaneta.avtoplanetaapp.models.BulkUpdateRequest;
+import com.avtoplaneta.avtoplanetaapp.models.Car;
+import com.avtoplaneta.avtoplanetaapp.models.Conversation;
+import com.avtoplaneta.avtoplanetaapp.models.ConversationsResponse;
+import com.avtoplaneta.avtoplanetaapp.models.CreateConversationRequest;
 import com.avtoplaneta.avtoplanetaapp.models.CsrfResponse;
 import com.avtoplaneta.avtoplanetaapp.models.InventoryItem;
 import com.avtoplaneta.avtoplanetaapp.models.LoginRequest;
 import com.avtoplaneta.avtoplanetaapp.models.LoginResponse;
+import com.avtoplaneta.avtoplanetaapp.models.Message;
+import com.avtoplaneta.avtoplanetaapp.models.MessagesResponse;
 import com.avtoplaneta.avtoplanetaapp.models.MonthlySales;
+import com.avtoplaneta.avtoplanetaapp.models.Notification;
+import com.avtoplaneta.avtoplanetaapp.models.NotificationsResponse;
 import com.avtoplaneta.avtoplanetaapp.models.Order;
+import com.avtoplaneta.avtoplanetaapp.models.Reaction;
+import com.avtoplaneta.avtoplanetaapp.models.SendMessageRequest;
 import com.avtoplaneta.avtoplanetaapp.models.StatisticsResponse;
 import com.avtoplaneta.avtoplanetaapp.models.UpdateEarningsRequest;
+import com.avtoplaneta.avtoplanetaapp.models.User;
+import com.avtoplaneta.avtoplanetaapp.models.UsersResponse;
 
 import java.util.List;
 
@@ -112,4 +125,73 @@ public interface ApiService {
 
     @PUT("api/admin/bulk-update-parts")
     Call<Object> bulkUpdateParts(@Body BulkUpdateRequest request);
+
+    // Cars API methods
+    @GET("api/cars")
+    Call<List<Car>> getCars();
+
+    @POST("api/cars")
+    Call<Car> addCar(@Body Car car);
+
+    @PUT("api/cars/{id}")
+    Call<Car> updateCar(@Path("id") int id, @Body Car car);
+
+    @DELETE("api/cars/{id}")
+    Call<Object> deleteCar(@Path("id") int id);
+
+    // Messaging API methods
+    @GET("api/messaging/conversations")
+    Call<ConversationsResponse> getConversations();
+
+    @POST("api/messaging/conversations")
+    Call<Conversation> createConversation(@Body CreateConversationRequest request);
+
+    @GET("api/messaging/conversations/{id}")
+    Call<Conversation> getConversation(@Path("id") int id);
+
+    @PUT("api/messaging/conversations/{id}")
+    Call<Conversation> updateConversation(@Path("id") int id, @Body Conversation conversation);
+
+    @DELETE("api/messaging/conversations/{id}")
+    Call<Object> deleteConversation(@Path("id") int id);
+
+    @DELETE("api/messaging/conversations/{id}/participants/{userId}")
+    Call<Object> removeParticipant(@Path("id") int conversationId, @Path("userId") int userId);
+
+    @GET("api/messaging/conversations/{id}/messages")
+    Call<MessagesResponse> getMessages(@Path("id") int conversationId);
+
+    @POST("api/messaging/conversations/{id}/messages")
+    Call<Message> sendMessage(@Path("id") int conversationId, @Body SendMessageRequest request);
+
+    @Multipart
+    @POST("api/messaging/conversations/{id}/messages/voice")
+    Call<Message> sendVoiceMessage(@Path("id") int conversationId, @Part MultipartBody.Part voice);
+
+    @DELETE("api/messaging/messages/{id}")
+    Call<Object> deleteMessage(@Path("id") int messageId);
+
+    @PUT("api/messaging/messages/{id}/read")
+    Call<Object> markMessageRead(@Path("id") int messageId);
+
+    @POST("api/messaging/messages/{id}/reactions")
+    Call<Reaction> addReaction(@Path("id") int messageId, @Body AddReactionRequest request);
+
+    @DELETE("api/messaging/messages/{id}/reactions/{reactionId}")
+    Call<Object> removeReaction(@Path("id") int messageId, @Path("reactionId") int reactionId);
+
+    @GET("api/messaging/notifications")
+    Call<NotificationsResponse> getNotifications();
+
+    @PUT("api/messaging/notifications/{id}/read")
+    Call<Object> markNotificationRead(@Path("id") int notificationId);
+
+    @PUT("api/messaging/notifications/read-all")
+    Call<Object> markAllNotificationsRead();
+
+    @GET("api/messaging/users")
+    Call<UsersResponse> getUsers();
+
+    @GET("api/messaging/search")
+    Call<MessagesResponse> searchMessages(@retrofit2.http.Query("q") String query);
 }

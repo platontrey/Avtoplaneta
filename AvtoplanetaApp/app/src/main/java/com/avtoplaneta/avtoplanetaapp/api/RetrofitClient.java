@@ -3,6 +3,10 @@ package com.avtoplaneta.avtoplanetaapp.api;
 import android.util.Log;
 
 import com.avtoplaneta.avtoplanetaapp.BuildConfig;
+import java.net.CookieManager;
+import java.net.CookiePolicy;
+
+import okhttp3.JavaNetCookieJar;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.logging.HttpLoggingInterceptor;
@@ -15,6 +19,7 @@ public class RetrofitClient {
     private static final String BASE_URL = BuildConfig.BASE_URL;
     private static Retrofit retrofit = null;
     private static String csrfToken = null;
+    private static CookieManager cookieManager = null;
 
     public static Retrofit getClient() {
         if (retrofit == null) {
@@ -26,7 +31,14 @@ public class RetrofitClient {
                 logging.setLevel(HttpLoggingInterceptor.Level.NONE);
             }
 
+            // Настройка cookie manager для поддержки сессий
+            if (cookieManager == null) {
+                cookieManager = new CookieManager();
+                cookieManager.setCookiePolicy(CookiePolicy.ACCEPT_ALL);
+            }
+
             OkHttpClient client = new OkHttpClient.Builder()
+                    .cookieJar(new JavaNetCookieJar(cookieManager))
                     .addInterceptor(chain -> {
                         Request.Builder builder = chain.request().newBuilder();
                         // Добавляем CSRF токен, если есть

@@ -70,6 +70,10 @@ public class AddPartFragment extends Fragment {
         updateUIForEditMode();
 
         setupListeners();
+
+        // Update tire specs visibility based on current category
+        String currentCategory = binding.etCategory.getText().toString();
+        updateTireSpecsVisibility(currentCategory);
         Log.d("AddPartFragment", "onViewCreated completed");
     }
 
@@ -80,11 +84,32 @@ public class AddPartFragment extends Fragment {
             dispatchTakePictureIntent();
         });
 
+        // Category change listener to show/hide tire specs
+        binding.etCategory.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                updateTireSpecsVisibility(s.toString());
+            }
+
+            @Override
+            public void afterTextChanged(android.text.Editable s) {}
+        });
 
         // Save button
         binding.btnSave.setOnClickListener(v -> {
             savePart();
         });
+    }
+
+    private void updateTireSpecsVisibility(String category) {
+        boolean isTire = "Шины".equals(category) || "Tires".equals(category);
+        binding.tvTireSpecs.setVisibility(isTire ? android.view.View.VISIBLE : android.view.View.GONE);
+        binding.llTireRow1.setVisibility(isTire ? android.view.View.VISIBLE : android.view.View.GONE);
+        binding.llTireRow2.setVisibility(isTire ? android.view.View.VISIBLE : android.view.View.GONE);
+        binding.llTireRow3.setVisibility(isTire ? android.view.View.VISIBLE : android.view.View.GONE);
     }
 
     private void dispatchTakePictureIntent() {
@@ -220,6 +245,28 @@ public class AddPartFragment extends Fragment {
         String priceStr = binding.etPrice.getText().toString().trim();
         String quantityStr = binding.etQuantity.getText().toString().trim();
         String description = binding.etDescription.getText().toString().trim();
+        String vin = binding.etVin.getText().toString().trim();
+
+        // Specifications
+        String manufacturer = binding.etManufacturer.getText().toString().trim();
+        String oemCode = binding.etOemCode.getText().toString().trim();
+        String color = binding.etColor.getText().toString().trim();
+        String condition = binding.etCondition.getText().toString().trim();
+        String transmission = binding.etTransmission.getText().toString().trim();
+        String drive = binding.etDrive.getText().toString().trim();
+        String frontRear = binding.etFrontRear.getText().toString().trim();
+        String leftRight = binding.etLeftRight.getText().toString().trim();
+        String supplierCode = binding.etSupplierCode.getText().toString().trim();
+        String defect = binding.etDefect.getText().toString().trim();
+        String wearPercentage = binding.etWearPercentage.getText().toString().trim();
+
+        // Tire specifications
+        String season = binding.etSeason.getText().toString().trim();
+        String diameter = binding.etDiameter.getText().toString().trim();
+        String width = binding.etWidth.getText().toString().trim();
+        String profile = binding.etProfile.getText().toString().trim();
+        String tireModel = binding.etTireModel.getText().toString().trim();
+        String drilling = binding.etDrilling.getText().toString().trim();
 
         Log.d("AddPartFragment", "Form data - name: " + name + ", brand: " + brand + ", price: " + priceStr + ", quantity: " + quantityStr);
 
@@ -255,10 +302,14 @@ public class AddPartFragment extends Fragment {
 
             if (isEditMode) {
                 // Update existing part
-                updatePart(editingPartId, name, brand, model, category, location, price, quantity, description);
+                updatePart(editingPartId, name, brand, model, category, location, price, quantity, description, vin,
+                          manufacturer, oemCode, color, condition, transmission, drive, frontRear, leftRight,
+                          supplierCode, defect, wearPercentage, season, diameter, width, profile, tireModel, drilling);
             } else {
                 // Create new part
-                saveNewPart(name, brand, model, category, location, price, quantity, description);
+                saveNewPart(name, brand, model, category, location, price, quantity, description, vin,
+                           manufacturer, oemCode, color, condition, transmission, drive, frontRear, leftRight,
+                           supplierCode, defect, wearPercentage, season, diameter, width, profile, tireModel, drilling);
             }
 
         } catch (NumberFormatException e) {
@@ -286,6 +337,28 @@ public class AddPartFragment extends Fragment {
                 binding.etPrice.setText(String.valueOf(args.getDouble("part_price", 0)));
                 binding.etQuantity.setText(String.valueOf(args.getInt("part_quantity", 0)));
                 binding.etDescription.setText(args.getString("part_description"));
+                binding.etVin.setText(args.getString("part_vin"));
+
+                // Load specifications
+                binding.etManufacturer.setText(args.getString("part_manufacturer"));
+                binding.etOemCode.setText(args.getString("part_oem_code"));
+                binding.etColor.setText(args.getString("part_color"));
+                binding.etCondition.setText(args.getString("part_condition"));
+                binding.etTransmission.setText(args.getString("part_transmission"));
+                binding.etDrive.setText(args.getString("part_drive"));
+                binding.etFrontRear.setText(args.getString("part_front_rear"));
+                binding.etLeftRight.setText(args.getString("part_left_right"));
+                binding.etSupplierCode.setText(args.getString("part_supplier_code"));
+                binding.etDefect.setText(args.getString("part_defect"));
+                binding.etWearPercentage.setText(args.getString("part_wear_percentage"));
+
+                // Load tire specifications
+                binding.etSeason.setText(args.getString("part_season"));
+                binding.etDiameter.setText(args.getString("part_diameter"));
+                binding.etWidth.setText(args.getString("part_width"));
+                binding.etProfile.setText(args.getString("part_profile"));
+                binding.etTireModel.setText(args.getString("part_tire_model"));
+                binding.etDrilling.setText(args.getString("part_drilling"));
 
                 // Load existing photo if available
                 String photoUrl = args.getString("part_photo");
@@ -310,7 +383,9 @@ public class AddPartFragment extends Fragment {
         }
     }
 
-    private void saveNewPart(String name, String brand, String model, String category, String location, double price, int quantity, String description) {
+    private void saveNewPart(String name, String brand, String model, String category, String location, double price, int quantity, String description, String vin,
+                            String manufacturer, String oemCode, String color, String condition, String transmission, String drive, String frontRear, String leftRight,
+                            String supplierCode, String defect, String wearPercentage, String season, String diameter, String width, String profile, String tireModel, String drilling) {
         Log.d("AddPartFragment", "saveNewPart called with name: " + name + ", brand: " + brand);
 
         // Create new part object
@@ -324,6 +399,28 @@ public class AddPartFragment extends Fragment {
         newPart.setQuantity(quantity);
         newPart.setDescription(description);
         newPart.setStatus(true);
+        newPart.setVin(vin);
+
+        // Set specifications
+        newPart.setManufacturer(manufacturer);
+        newPart.setOem_code(oemCode);
+        newPart.setColor(color);
+        newPart.setCondition(condition);
+        newPart.setTransmission(transmission);
+        newPart.setDrive(drive);
+        newPart.setFront_rear(frontRear);
+        newPart.setLeft_right(leftRight);
+        newPart.setSupplier_code(supplierCode);
+        newPart.setDefect(defect);
+        newPart.setWear_percentage(wearPercentage);
+
+        // Tire specifications
+        newPart.setSeason(season);
+        newPart.setDiameter(diameter);
+        newPart.setWidth(width);
+        newPart.setProfile(profile);
+        newPart.setTire_model(tireModel);
+        newPart.setDrilling(drilling);
 
         // Make API call
         ApiService apiService = RetrofitClient.getApiService();
@@ -357,7 +454,9 @@ public class AddPartFragment extends Fragment {
         });
     }
 
-    private void updatePart(int partId, String name, String brand, String model, String category, String location, double price, int quantity, String description) {
+    private void updatePart(int partId, String name, String brand, String model, String category, String location, double price, int quantity, String description, String vin,
+                           String manufacturer, String oemCode, String color, String condition, String transmission, String drive, String frontRear, String leftRight,
+                           String supplierCode, String defect, String wearPercentage, String season, String diameter, String width, String profile, String tireModel, String drilling) {
         // Create updated part object
         InventoryItem updatedPart = new InventoryItem();
         updatedPart.setId(partId);
@@ -370,6 +469,28 @@ public class AddPartFragment extends Fragment {
         updatedPart.setQuantity(quantity);
         updatedPart.setDescription(description);
         updatedPart.setStatus(true);
+        updatedPart.setVin(vin);
+
+        // Set specifications
+        updatedPart.setManufacturer(manufacturer);
+        updatedPart.setOem_code(oemCode);
+        updatedPart.setColor(color);
+        updatedPart.setCondition(condition);
+        updatedPart.setTransmission(transmission);
+        updatedPart.setDrive(drive);
+        updatedPart.setFront_rear(frontRear);
+        updatedPart.setLeft_right(leftRight);
+        updatedPart.setSupplier_code(supplierCode);
+        updatedPart.setDefect(defect);
+        updatedPart.setWear_percentage(wearPercentage);
+
+        // Tire specifications
+        updatedPart.setSeason(season);
+        updatedPart.setDiameter(diameter);
+        updatedPart.setWidth(width);
+        updatedPart.setProfile(profile);
+        updatedPart.setTire_model(tireModel);
+        updatedPart.setDrilling(drilling);
 
         // Upload photo if available
         if (selectedImageUri != null) {

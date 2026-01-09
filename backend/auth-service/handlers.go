@@ -157,6 +157,11 @@ func (h *Handler) LogoutHandler(c *gin.Context) {
 
 // GetCurrentUserHandler возвращает информацию о текущем пользователе
 func (h *Handler) GetCurrentUserHandler(c *gin.Context) {
+	logrus.WithFields(logrus.Fields{
+		"cookies_count": len(c.Request.Cookies()),
+		"headers":       c.Request.Header,
+	}).Info("GetCurrentUserHandler: received request")
+
 	session, err := store.Get(c.Request, "auth-session")
 	if err != nil {
 		logrus.WithError(err).Warn("Failed to get session")
@@ -164,8 +169,14 @@ func (h *Handler) GetCurrentUserHandler(c *gin.Context) {
 		return
 	}
 
+	logrus.WithFields(logrus.Fields{
+		"session_values": session.Values,
+		"session_id":     session.ID,
+	}).Info("GetCurrentUserHandler: session details")
+
 	userID, ok := session.Values["user_id"]
 	if !ok || userID == nil {
+		logrus.Warn("GetCurrentUserHandler: user_id not found in session")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Не аутентифицирован"})
 		return
 	}

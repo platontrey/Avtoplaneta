@@ -103,6 +103,18 @@
             android:clickable="true"
             android:focusable="true" />
 
+        <ImageView
+            android:id="@+id/ivNavMessages"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:src="@drawable/ic_message"
+            android:contentDescription="Сообщения"
+            android:padding="8dp"
+            android:layout_gravity="center"
+            android:clickable="true"
+            android:focusable="true" />
+
     </LinearLayout>
 
 </LinearLayout>

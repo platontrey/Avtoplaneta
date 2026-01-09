@@ -17,8 +17,8 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"github.com/swaggo/files"
-	"github.com/swaggo/gin-swagger"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"golang.org/x/time/rate"
 )
 
@@ -251,7 +251,7 @@ func (g *Gateway) setupOrdersRoutes() {
 	}
 
 	for _, route := range orderRoutes {
-		g.router.Any(route, authMiddleware, requireRole("manager"), g.proxyToOrdersService)
+		g.router.Any(route, authMiddleware, requireRole("operator"), g.proxyToOrdersService)
 	}
 }
 
@@ -335,8 +335,8 @@ func (g *Gateway) rateLimitingMiddleware() gin.HandlerFunc {
 
 		if !limiter.Allow() {
 			logrus.WithFields(logrus.Fields{
-				"path":   path,
-				"ip":     c.ClientIP(),
+				"path": path,
+				"ip":   c.ClientIP(),
 			}).Warn("Rate limit exceeded")
 			c.JSON(http.StatusTooManyRequests, gin.H{"error": "Rate limit exceeded"})
 			c.Abort()
@@ -637,7 +637,12 @@ func authMiddleware(c *gin.Context) {
 
 	// Если auth-service вернул ошибку аутентификации
 	if resp.StatusCode == http.StatusUnauthorized {
-		logrus.WithField("ip", c.ClientIP()).Warn("User not authenticated")
+		// Прочитать тело ответа для логирования
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		logrus.WithFields(logrus.Fields{
+			"ip":            c.ClientIP(),
+			"response_body": string(bodyBytes),
+		}).Warn("User not authenticated, auth service response")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		c.Abort()
 		return

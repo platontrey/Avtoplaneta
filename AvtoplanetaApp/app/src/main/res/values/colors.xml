@@ -7,7 +7,7 @@
     <color name="white">#FFFFFF</color>
 
     <!-- Background - Matching website -->
-    <color name="background">#FFFFFF</color>
+    <color name="background">#fafafa</color>
     <color name="background_secondary">#F7F7F7</color>
     <color name="surface">#FFFFFF</color>
     <color name="surface_variant">#F7F7F7</color>

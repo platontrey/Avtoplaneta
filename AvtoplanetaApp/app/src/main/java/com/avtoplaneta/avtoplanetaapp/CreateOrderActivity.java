@@ -3,6 +3,7 @@ package com.avtoplaneta.avtoplanetaapp;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.ArrayAdapter;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -11,6 +12,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import com.avtoplaneta.avtoplanetaapp.api.ApiService;
 import com.avtoplaneta.avtoplanetaapp.api.RetrofitClient;
 import com.avtoplaneta.avtoplanetaapp.databinding.ActivityCreateOrderBinding;
+import com.avtoplaneta.avtoplanetaapp.models.Car;
 import com.avtoplaneta.avtoplanetaapp.models.InventoryItem;
 import com.avtoplaneta.avtoplanetaapp.models.Order;
 import com.avtoplaneta.avtoplanetaapp.models.OrderItem;
@@ -28,6 +30,8 @@ public class CreateOrderActivity extends AppCompatActivity implements OrderParts
     private ActivityCreateOrderBinding binding;
     private OrderPartsAdapter adapter;
     private List<InventoryItem> partsList = new ArrayList<>();
+    private List<Car> carsList = new ArrayList<>();
+    private ArrayAdapter<String> carAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,6 +44,7 @@ public class CreateOrderActivity extends AppCompatActivity implements OrderParts
         setupUI();
         setupBottomNavigation();
         loadParts();
+        loadCars();
     }
 
     private void setupUI() {
@@ -53,6 +58,13 @@ public class CreateOrderActivity extends AppCompatActivity implements OrderParts
         binding.rvParts.setLayoutManager(new LinearLayoutManager(this));
         adapter = new OrderPartsAdapter(partsList, this);
         binding.rvParts.setAdapter(adapter);
+
+        // Setup car spinner
+        List<String> carOptions = new ArrayList<>();
+        carOptions.add("Не выбран");
+        carAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, carOptions);
+        carAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        binding.spinnerCar.setAdapter(carAdapter);
 
         // Create order button
         binding.btnCreateOrder.setOnClickListener(v -> {
@@ -83,6 +95,44 @@ public class CreateOrderActivity extends AppCompatActivity implements OrderParts
 
             @Override
             public void onFailure(Call<List<InventoryItem>> call, Throwable t) {
+                Log.e("CreateOrderActivity", "Network error: " + t.getMessage());
+                Toast.makeText(CreateOrderActivity.this, "Ошибка сети", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void loadCars() {
+        Log.d("CreateOrderActivity", "Loading cars from API");
+
+        ApiService apiService = RetrofitClient.getApiService();
+        Call<List<Car>> call = apiService.getCars();
+
+        call.enqueue(new Callback<List<Car>>() {
+            @Override
+            public void onResponse(Call<List<Car>> call, Response<List<Car>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    carsList.clear();
+                    carsList.addAll(response.body());
+
+                    // Update spinner
+                    List<String> carOptions = new ArrayList<>();
+                    carOptions.add("Не выбран");
+                    for (Car car : carsList) {
+                        carOptions.add(car.getBrand() + " " + car.getModel() + " (" + car.getYear() + ")");
+                    }
+                    carAdapter.clear();
+                    carAdapter.addAll(carOptions);
+                    carAdapter.notifyDataSetChanged();
+
+                    Log.d("CreateOrderActivity", "Loaded " + carsList.size() + " cars");
+                } else {
+                    Log.e("CreateOrderActivity", "Error loading cars: " + response.code());
+                    Toast.makeText(CreateOrderActivity.this, "Ошибка загрузки автомобилей", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<Car>> call, Throwable t) {
                 Log.e("CreateOrderActivity", "Network error: " + t.getMessage());
                 Toast.makeText(CreateOrderActivity.this, "Ошибка сети", Toast.LENGTH_SHORT).show();
             }
@@ -151,6 +201,13 @@ public class CreateOrderActivity extends AppCompatActivity implements OrderParts
         order.setPart("Заказ запчастей"); // Generic name for multi-part orders
         order.setOrder_number(orderNumber);
         order.setBuyer_number(buyerNumber);
+
+        // Set car_id if selected
+        int selectedCarPosition = binding.spinnerCar.getSelectedItemPosition();
+        if (selectedCarPosition > 0) { // 0 is "Не выбран"
+            Car selectedCar = carsList.get(selectedCarPosition - 1);
+            order.setCar_id(selectedCar.getId());
+        }
 
         // Create order items from selected parts
         List<OrderItem> items = new ArrayList<>();

@@ -15,6 +15,7 @@ import com.avtoplaneta.avtoplanetaapp.models.InventoryItem;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import timber.log.Timber;
 
 public class PartsAdapter extends RecyclerView.Adapter<PartsAdapter.PartViewHolder> {
 
@@ -164,6 +165,7 @@ public class PartsAdapter extends RecyclerView.Adapter<PartsAdapter.PartViewHold
                     }
                 } else {
                     // Открываем детальный вид
+                    Timber.d("Starting PartDetailActivity for part: %s (id: %d)", part.getName(), part.getId());
                     Intent intent = new Intent(itemView.getContext(), PartDetailActivity.class);
                     intent.putExtra("part", part);
                     itemView.getContext().startActivity(intent);

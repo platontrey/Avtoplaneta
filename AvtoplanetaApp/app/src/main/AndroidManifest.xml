@@ -73,9 +73,20 @@
             android:name=".SelectPartActivity"
             android:exported="false" />
 
+        <!-- AddCarActivity - экран добавления автомобиля -->
+        <activity
+            android:name=".AddCarActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- StatisticsActivity - экран статистики -->
         <activity
             android:name=".StatisticsActivity"
+            android:exported="false" />
+
+        <!-- PartDetailActivity - экран деталей запчасти -->
+        <activity
+            android:name=".PartDetailActivity"
             android:exported="false" />
 
     </application>

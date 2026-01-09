@@ -5,6 +5,31 @@
     android:viewportHeight="24"
     android:tint="?attr/colorControlNormal">
   <path
-      android:fillColor="@android:color/white"
-      android:pathData="M4,5v14h16V5H4z M14,7v2H6V7H14z M14,11v2H6v-2H14z M14,15v2H6v-2H14z"/>
+      android:pathData="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"
+      android:strokeWidth="2"
+      android:strokeColor="@android:color/white"
+      android:strokeLineCap="round"
+      android:strokeLineJoin="round"
+      android:fill="none" />
+  <path
+      android:pathData="M12 22V12"
+      android:strokeWidth="2"
+      android:strokeColor="@android:color/white"
+      android:strokeLineCap="round"
+      android:strokeLineJoin="round"
+      android:fill="none" />
+  <polyline
+      points="3.29 7 12 12 20.71 7"
+      android:strokeWidth="2"
+      android:strokeColor="@android:color/white"
+      android:strokeLineCap="round"
+      android:strokeLineJoin="round"
+      android:fill="none" />
+  <path
+      android:pathData="m7.5 4.27 9 5.15"
+      android:strokeWidth="2"
+      android:strokeColor="@android:color/white"
+      android:strokeLineCap="round"
+      android:strokeLineJoin="round"
+      android:fill="none" />
 </vector>

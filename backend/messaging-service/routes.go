@@ -156,7 +156,7 @@ func getConversations(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"conversations": conversations})
+	c.JSON(http.StatusOK, conversations)
 }
 
 func createConversation(c *gin.Context) {
@@ -266,7 +266,7 @@ func getConversation(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"conversation": conversation})
+	c.JSON(http.StatusOK, conversation)
 }
 
 func updateConversation(c *gin.Context) {
@@ -1472,7 +1472,7 @@ func getNotifications(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"notifications": notifications})
+	c.JSON(http.StatusOK, notifications)
 }
 
 func markNotificationRead(c *gin.Context) {
@@ -1618,4 +1618,3 @@ func searchMessages(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"messages": messages})
 }
-

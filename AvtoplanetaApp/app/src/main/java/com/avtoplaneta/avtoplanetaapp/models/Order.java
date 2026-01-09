@@ -10,6 +10,7 @@ public class Order implements Serializable {
     private String seller;
     private String part;
     private int part_id;
+    private int car_id;
     private String order_number;
     private String buyer_number;
     private String status;
@@ -70,6 +71,14 @@ public class Order implements Serializable {
 
     public void setPart_id(int part_id) {
         this.part_id = part_id;
+    }
+
+    public int getCar_id() {
+        return car_id;
+    }
+
+    public void setCar_id(int car_id) {
+        this.car_id = car_id;
     }
 
     public String getOrder_number() {
