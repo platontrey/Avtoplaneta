@@ -1,0 +1,31 @@
+http:
+  middlewares:
+    dashboard-auth:
+      basicAuth:
+        users:
+          - "${DASHBOARD_USER}:${DASHBOARD_PASSWORD}"
+    
+    security-headers:
+      headers:
+        frameDeny: true
+        browserXssFilter: true
+        contentTypeNosniff: true
+        forceSTSHeader: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000
+    
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 50
+        period: 1m
+
+  routers:
+    dashboard:
+      rule: "Host(`traefik.${DOMAIN:-localhost}`)"
+      entryPoints:
+        - web
+      middlewares:
+        - dashboard-auth
+      service: api@internal

@@ -49,7 +49,7 @@ func CreateDefaultUser() {
 	}
 
 	// Создать default пользователя
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("qewret123"), bcrypt.DefaultCost)
 	if err != nil {
 		log.Printf("Не удалось хэшировать пароль для default пользователя: %v", err)
 		return
@@ -68,5 +68,5 @@ func CreateDefaultUser() {
 		return
 	}
 
-	log.Println("Default пользователь создан: bibidatrbib@gmail.com / password123")
+	log.Println("Default пользователь создан: bibidatrbib@gmail.com / qewret123")
 }

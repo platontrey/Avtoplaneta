@@ -44,6 +44,10 @@ func init() {
 
 // SetupRoutes настраивает маршруты для приложения с dependency injection
 func SetupRoutes(r *gin.Engine, handler *Handler) {
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "healthy"})
+	})
+
 	// Add metrics middleware
 	r.Use(metricsMiddleware())
 

@@ -7,7 +7,7 @@ import { haptic } from '@/lib/haptic';
 const MobileBottomNav: React.FC<{ onOpenAI: () => void }> = ({ onOpenAI }) => {
   const location = useLocation();
 
-  const navItems = [
+  const navItems: { to?: string; type?: 'ai'; icon: React.ElementType; label: string; active: boolean }[] = [
     {
       to: '/inventory',
       icon: Package,
@@ -74,7 +74,7 @@ const MobileBottomNav: React.FC<{ onOpenAI: () => void }> = ({ onOpenAI }) => {
           return (
             <Link
               key={item.to}
-              to={item.to}
+              to={item.to!}
               onClick={() => haptic.selection()}
               className={cn(
                 "flex flex-col items-center justify-center p-3 rounded-lg transition-colors min-w-0 flex-1 min-h-[44px]",

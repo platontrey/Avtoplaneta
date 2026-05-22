@@ -1,6 +1,6 @@
 import type { Conversation, Message, User, UserStatus, Notification, Reaction, DromDialog, DromMessage } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 class MessagingApi {
   private getHeaders() {
@@ -20,7 +20,9 @@ class MessagingApi {
     });
     if (!response.ok) throw new Error('Failed to fetch conversations');
     const data = await response.json();
-    return data.conversations;
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    return data.conversations ?? data ?? [];
   }
 
 

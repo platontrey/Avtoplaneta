@@ -1,0 +1,263 @@
+services:
+  traefik:
+    image: traefik:latest
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - "--configFile=/etc/traefik/traefik.yml"
+    ports:
+      - "80:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      - traefik-logs:/var/log/traefik
+    networks:
+      - avtoplaneta_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN}`)"
+      - "traefik.http.routers.traefik.entrypoints=web"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.middlewares=dashboard-auth"
+    environment:
+      - ACME_EMAIL=${ACME_EMAIL:-admin@example.com}
+      - DASHBOARD_USER=${DASHBOARD_USER:-admin}
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:-$$2y$$05$$example}
+      - DOMAIN=${DOMAIN:-localhost}
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=https://${DOMAIN}
+    container_name: avtoplaneta-frontend
+    restart: unless-stopped
+    networks:
+      - avtoplaneta_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN}`) || Host(`${SERVER_IP}`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+    environment:
+      - VITE_API_BASE_URL=https://${DOMAIN}
+    depends_on:
+      - gateway
+
+  gateway:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: avtoplaneta-gateway
+    restart: unless-stopped
+    networks:
+      - avtoplaneta_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gateway.rule=(Host(`${DOMAIN}`) || Host(`${SERVER_IP}`)) && (PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/admin`) || PathPrefix(`/orders`) || PathPrefix(`/uploads`) || PathPrefix(`/health`) || PathPrefix(`/ready`) || PathPrefix(`/metrics`) || PathPrefix(`/swagger`))"
+      - "traefik.http.routers.gateway.entrypoints=web"
+      - "traefik.http.services.gateway.loadbalancer.server.port=8080"
+      - "traefik.http.middlewares.gateway-stripprefix.stripprefix.prefixes=/api"
+    environment:
+      - NODE_ENV=production
+      - DOMAIN=${DOMAIN}
+      - AUTH_SERVICE_URL=http://auth-service:8083
+      - PARTS_SERVICE_URL=http://parts-service:8081
+      - ORDERS_SERVICE_URL=http://orders-service:8082
+      - MESSAGING_SERVICE_URL=http://messaging-service:8084
+      - SESSION_SECRET=${SESSION_SECRET}
+      - DATABASE_URL=${DATABASE_URL}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - FORWARDED_ALLOW_IPS=*
+    depends_on:
+      - auth-service
+      - parts-service
+      - orders-service
+      - messaging-service
+      - postgres
+      - redis
+
+  auth-service:
+    build:
+      context: ./backend/auth-service
+      dockerfile: Dockerfile
+    container_name: avtoplaneta-auth
+    restart: unless-stopped
+    networks:
+      - avtoplaneta_network
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - JWT_SECRET=${JWT_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_CALLBACK_URL=https://${DOMAIN}/auth/google/callback
+      - ALLOWED_ORIGINS=https://${DOMAIN},http://${DOMAIN}
+    depends_on:
+      - postgres
+      - redis
+
+  parts-service:
+    build:
+      context: ./backend/parts-service
+      dockerfile: Dockerfile
+    container_name: avtoplaneta-parts
+    restart: unless-stopped
+    networks:
+      - avtoplaneta_network
+    volumes:
+      - parts-uploads:/app/uploads
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - ELASTICSEARCH_URL=
+      - REDIS_URL=redis:6379
+    depends_on:
+      - postgres
+      - redis
+
+  orders-service:
+    build:
+      context: ./backend/orders-service
+      dockerfile: Dockerfile
+    container_name: avtoplaneta-orders
+    restart: unless-stopped
+    networks:
+      - avtoplaneta_network
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - REDIS_URL=redis:6379
+    depends_on:
+      - postgres
+      - redis
+
+  messaging-service:
+    build:
+      context: ./backend/messaging-service
+      dockerfile: Dockerfile
+    container_name: avtoplaneta-messaging
+    restart: unless-stopped
+    networks:
+      - avtoplaneta_network
+    volumes:
+      - messaging-uploads:/app/uploads
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis:6379
+      - GATEWAY_URL=http://gateway:8080
+      - DROM_API_KEY=${DROM_API_KEY}
+      - DROM_PACKET_ID=${DROM_PACKET_ID}
+    depends_on:
+      - postgres
+      - redis
+
+  postgres:
+    image: postgres:latest
+    container_name: avtoplaneta-postgres
+    restart: unless-stopped
+    networks:
+      - avtoplaneta_network
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-avtoplaneta}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:latest
+    container_name: avtoplaneta-redis
+    restart: unless-stopped
+    networks:
+      - avtoplaneta_network
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # elasticsearch:
+  #   image: elasticsearch:9.3.3
+  #   container_name: avtoplaneta-elasticsearch
+  #   restart: unless-stopped
+  #   networks:
+  #     - avtoplaneta_network
+  #   ports:
+  #     - "9200:9200"
+  #   environment:
+  #     - discovery.type=single-node
+  #     - xpack.security.enabled=false
+  #     - ES_JAVA_OPTS=-Xms512m -Xmx512m
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: avtoplaneta-prometheus
+  #   restart: unless-stopped
+  #   networks:
+  #     - avtoplaneta_network
+  #   volumes:
+  #     - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  #     - prometheus-data:/prometheus
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #     - '--storage.tsdb.path=/prometheus'
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.prometheus.rule=Host(`prometheus.${DOMAIN}`)"
+  #     - "traefik.http.routers.prometheus.entrypoints=web"
+  #     - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   container_name: avtoplaneta-grafana
+  #   restart: unless-stopped
+  #   networks:
+  #     - avtoplaneta_network
+  #   volumes:
+  #     - grafana-data:/var/lib/grafana
+  #     - ./grafana/provisioning:/etc/grafana/provisioning:ro
+  #   environment:
+  #     - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+  #     - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)"
+  #     - "traefik.http.routers.grafana.entrypoints=web"
+  #     - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+networks:
+  avtoplaneta_network:
+    driver: bridge
+
+volumes:
+  traefik-logs:
+  postgres-data:
+  redis-data:
+  parts-uploads:
+  messaging-uploads:
+  # prometheus-data:
+  # grafana-data:

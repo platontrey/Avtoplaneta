@@ -13,6 +13,7 @@ import { getAuthHeaders } from "@/lib/csrf";
 import { logUserActivity } from "@/features/admin/api/adminApi";
 import { useQueryClient } from '@tanstack/react-query';
 import { partsKeys } from '@/features/parts/hooks/usePartsQueries';
+import { API_BASE_URL } from '@/lib/api';
 
 interface BulkEditDialogProps {
   isOpen: boolean;
@@ -61,7 +62,7 @@ export default function BulkEditDialog({ isOpen, onClose, selectedPartIds, onSuc
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('http://localhost:8083/admin/users', {
+      const response = await fetch(`${API_BASE_URL}/admin/users`, {
         headers: getAuthHeaders(),
         credentials: 'include',
       });
@@ -102,7 +103,7 @@ export default function BulkEditDialog({ isOpen, onClose, selectedPartIds, onSuc
       }));
 
       // Отправляем запрос на массовое обновление
-      const response = await fetch('http://localhost:8081/api/admin/bulk-update-parts', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/bulk-update-parts`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

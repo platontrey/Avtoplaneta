@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import type { User } from '../features/auth/types';
 import { logUserActivity } from '../features/admin/api/adminApi';
+import { API_BASE_URL } from '@/lib/api';
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -15,7 +16,7 @@ export const useAuth = () => {
 
   const checkAuthStatus = async () => {
     try {
-      const response = await fetch('http://localhost:8083/auth/me', {
+      const response = await fetch(`${API_BASE_URL}/auth/me`, {
         credentials: 'include',
       });
       if (response.ok) {
@@ -54,7 +55,7 @@ export const useAuth = () => {
         }).catch(console.warn);
       }
 
-      await fetch('http://localhost:8083/auth/logout', {
+      await fetch(`${API_BASE_URL}/auth/logout`, {
         method: 'POST',
         credentials: 'include',
       });

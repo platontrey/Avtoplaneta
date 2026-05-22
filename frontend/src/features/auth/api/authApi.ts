@@ -21,7 +21,8 @@ export const authApi = {
       throw new Error(`Login failed: ${errorText}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    return data.user || data;
   },
 
   adminLogin: async (password: string): Promise<User> => {

@@ -65,6 +65,8 @@ func NewGateway() *Gateway {
 	// Инициализируем метрики
 	InitMetrics()
 
+	domain := getEnvOrDefault("DOMAIN", "localhost")
+
 	g := &Gateway{
 		router: gin.Default(),
 		allowedOrigins: []string{
@@ -77,6 +79,10 @@ func NewGateway() *Gateway {
 			"http://192.168.56.1:5173",
 			"http://192.168.51.2:5173",
 			"https://spectrologically-seeable-zenobia.ngrok-free.dev",
+			"https://avtoplaneta.avtoplaneta.crazedns.ru",
+			"http://avtoplaneta.avtoplaneta.crazedns.ru",
+			"https://" + domain,
+			"http://" + domain,
 		},
 	}
 
@@ -119,25 +125,26 @@ func (g *Gateway) initResiliencyPatterns() {
 
 // setupMiddleware настраивает middleware для gateway
 func (g *Gateway) setupMiddleware() {
-	// CORS middleware
+	if trustedProxies := os.Getenv("FORWARDED_ALLOW_IPS"); trustedProxies != "" {
+		if trustedProxies == "*" {
+			g.router.ForwardedByClientIP = true
+		} else {
+			g.router.SetTrustedProxies(strings.Split(trustedProxies, ","))
+		}
+	}
+
 	g.router.Use(cors.New(cors.Config{
 		AllowOrigins:     g.allowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-CSRF-Token", "X-User-ID", "X-User-Email", "X-User-Name"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-CSRF-Token", "X-User-ID", "X-User-Email", "X-User-Name", "X-Forwarded-For", "X-Forwarded-Proto", "X-Forwarded-Host"},
+		ExposeHeaders:    []string{"Content-Length", "X-Request-Id"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
 
-	// Security headers middleware
 	g.router.Use(g.securityHeadersMiddleware())
-
-	// Logging middleware
 	g.router.Use(g.loggingMiddleware())
-
-	// Rate limiting middleware
 	g.router.Use(g.rateLimitingMiddleware())
-
-	// Metrics middleware
 	g.router.Use(MetricsMiddleware())
 }
 
@@ -186,6 +193,7 @@ func (g *Gateway) setupAuthRoutes() {
 		"/auth/logout",
 		"/auth/me",
 		"/auth/csrf-token",
+		"/auth/refresh",
 	}
 
 	for _, route := range authRoutes {
@@ -228,6 +236,7 @@ func (g *Gateway) setupPartsRoutes() {
 		"/api/uploadpartphoto/:id",
 		"/api/deletepartphoto/:id",
 		"/api/markpartfordeletion/:id",
+		"/api/defect-reports",
 		"/api/admin/delete-zero-quantity-parts/:supplier_code",
 		"/api/admin/supplier-codes",
 		"/api/admin/bulk-delete-parts",
@@ -276,7 +285,6 @@ func (g *Gateway) setupStaticRoutes() {
 // securityHeadersMiddleware добавляет заголовки безопасности
 func (g *Gateway) securityHeadersMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Content Security Policy
 		csp := "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http://localhost:8080; font-src 'self' data:; connect-src 'self'"
 		if os.Getenv("NODE_ENV") != "production" {
 			csp += "; script-src 'self' 'unsafe-eval' 'unsafe-inline'; connect-src 'self' http://localhost:8080 http://localhost:5173 http://localhost:5174 http://192.168.1.63:8080 http://192.168.56.1:8080 http://192.168.51.2:8080 ws://localhost:5173 ws://localhost:5174 ws://192.168.1.63:5173 ws://192.168.56.1:5173 ws://192.168.51.2:5173"
@@ -289,11 +297,6 @@ func (g *Gateway) securityHeadersMiddleware() gin.HandlerFunc {
 		c.Header("X-XSS-Protection", "1; mode=block")
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		c.Header("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
-
-		// HSTS for production
-		if os.Getenv("NODE_ENV") == "production" {
-			c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-		}
 
 		c.Next()
 	}
@@ -525,28 +528,14 @@ func (g *Gateway) Run(ctx context.Context, port string) error {
 	// Канал для ошибок сервера
 	errChan := make(chan error, 1)
 
-	// Запуск сервера в goroutine
 	go func() {
-		certFile := "cert.pem"
-		keyFile := "key.pem"
-
 		if os.Getenv("NODE_ENV") == "production" {
-			if _, err := os.Stat(certFile); err == nil {
-				logrus.Info("Starting Gateway with TLS...")
-				if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil && !errors.Is(err, http.ErrServerClosed) {
-					errChan <- err
-				}
-			} else {
-				logrus.Warn("Certificates not found, starting Gateway without TLS...")
-				if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-					errChan <- err
-				}
-			}
+			logrus.Info("Production mode: TLS handled by Traefik/Reverse Proxy")
 		} else {
 			logrus.Info("Development mode: starting Gateway without TLS...")
-			if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				errChan <- err
-			}
+		}
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errChan <- err
 		}
 	}()
 

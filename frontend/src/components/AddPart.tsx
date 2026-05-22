@@ -24,6 +24,7 @@ import { Link } from "react-router-dom";
 import { getAuthHeaders } from "@/lib/csrf";
 import { sanitizeHtml } from "@/lib/security";
 import ImageEditor from "./ImageEditor";
+import { API_BASE_URL } from '@/lib/api';
 
 const brandOptions = [
         { value: "Acura", label: "Acura" },
@@ -246,7 +247,7 @@ export default function AddPart() {
     useEffect(() => {
         const fetchUsers = async () => {
             try {
-                const response = await fetch("http://localhost:8083/admin/users", {
+                const response = await fetch(`${API_BASE_URL}/admin/users`, {
                     method: "GET",
                     headers: getAuthHeaders(),
                     credentials: 'include',
@@ -402,7 +403,7 @@ export default function AddPart() {
 
         try {
             // Сначала добавить запчасть
-            const response = await fetch("http://localhost:8081/api/addpart", {
+            const response = await fetch(`${API_BASE_URL}/api/addpart`, {
                 method: "POST",
                 headers: getAuthHeaders(),
                 credentials: 'include', // Include cookies in the request
@@ -434,7 +435,7 @@ export default function AddPart() {
                           const photoFormData = new FormData();
                           photoFormData.append("photo", photoFile);
 
-                          const uploadUrl = `http://localhost:8081/api/uploadpartphoto/${result.id}`;
+                          const uploadUrl = `${API_BASE_URL}/api/uploadpartphoto/${result.id}`;
                           console.log('AddPart onSubmit: Making photo upload request to:', uploadUrl);
 
                           const photoResponse = await fetch(uploadUrl, {

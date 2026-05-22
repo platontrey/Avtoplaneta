@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -88,6 +89,11 @@ func (h *Handler) UserLoginHandler(c *gin.Context) {
 		return
 	}
 
+	logrus.WithFields(logrus.Fields{
+		"email":        loginReq.Email,
+		"password_len": len(loginReq.Password),
+	}).Info("Login attempt")
+
 	// Аутентифицируем через сервис
 	user, err := h.authService.AuthenticateUser(loginReq.Email, loginReq.Password)
 	if err != nil {
@@ -95,7 +101,7 @@ func (h *Handler) UserLoginHandler(c *gin.Context) {
 		return
 	}
 
-	// Сохраняем в сессии
+	// Сохраняем в сессии (для веб-приложения)
 	session, _ := store.Get(c.Request, "auth-session")
 	session.Values["user_id"] = user.ID
 	session.Values["login_time"] = time.Now().Unix()
@@ -106,9 +112,20 @@ func (h *Handler) UserLoginHandler(c *gin.Context) {
 		return
 	}
 
+	// Генерируем JWT токены (для мобильного приложения)
+	accessToken, refreshToken, err := GenerateJWTTokens(user, h.config)
+	if err != nil {
+		logrus.WithError(err).Error("Failed to generate JWT tokens")
+		// Не блокируем — сессионная авторизация всё равно работает
+		accessToken = ""
+		refreshToken = ""
+	}
+
 	response := LoginResponse{
-		User:    *user,
-		Message: "Login successful",
+		User:         *user,
+		Message:      "Login successful",
+		Token:        accessToken,
+		RefreshToken: refreshToken,
 	}
 	c.JSON(http.StatusOK, response)
 }
@@ -159,9 +176,29 @@ func (h *Handler) LogoutHandler(c *gin.Context) {
 func (h *Handler) GetCurrentUserHandler(c *gin.Context) {
 	logrus.WithFields(logrus.Fields{
 		"cookies_count": len(c.Request.Cookies()),
-		"headers":       c.Request.Header,
 	}).Info("GetCurrentUserHandler: received request")
 
+	// Сначала пробуем JWT (для мобильного приложения)
+	authHeader := c.GetHeader("Authorization")
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		claims, err := ValidateJWTToken(tokenString, h.config.JWTSecret)
+		if err != nil {
+			logrus.WithError(err).Warn("GetCurrentUserHandler: invalid JWT token")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Недействительный токен"})
+			return
+		}
+		user, err := h.authService.GetCurrentUser(claims.UserID)
+		if err != nil {
+			logrus.WithError(err).WithField("user_id", claims.UserID).Error("GetCurrentUserHandler: user not found by JWT claims")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Пользователь не найден"})
+			return
+		}
+		c.JSON(http.StatusOK, user)
+		return
+	}
+
+	// Fallback: сессионная аутентификация (для веб-приложения)
 	session, err := store.Get(c.Request, "auth-session")
 	if err != nil {
 		logrus.WithError(err).Warn("Failed to get session")
@@ -493,6 +530,46 @@ func (h *Handler) InternalLogUserActivityHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Активность залогирована"})
+}
+
+// RefreshTokenHandler обновляет JWT access token по refresh token
+func (h *Handler) RefreshTokenHandler(c *gin.Context) {
+	var req struct {
+		RefreshToken string `json:"refresh_token" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "refresh_token обязателен"})
+		return
+	}
+
+	userID, err := ValidateRefreshToken(req.RefreshToken, h.config.JWTSecret)
+	if err != nil {
+		logrus.WithError(err).Warn("RefreshTokenHandler: invalid refresh token")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Недействительный refresh token"})
+		return
+	}
+
+	user, err := h.authService.GetCurrentUser(userID)
+	if err != nil {
+		logrus.WithError(err).WithField("user_id", userID).Error("RefreshTokenHandler: user not found")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Пользователь не найден"})
+		return
+	}
+
+	accessToken, refreshToken, err := GenerateJWTTokens(user, h.config)
+	if err != nil {
+		logrus.WithError(err).Error("RefreshTokenHandler: failed to generate tokens")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось обновить токен"})
+		return
+	}
+
+	logrus.WithField("user_id", userID).Info("JWT tokens refreshed")
+	c.JSON(http.StatusOK, gin.H{
+		"token":         accessToken,
+		"refresh_token": refreshToken,
+		"user":          user,
+	})
 }
 
 // getTotalPartsCount получает общее количество запчастей через запрос к parts-service

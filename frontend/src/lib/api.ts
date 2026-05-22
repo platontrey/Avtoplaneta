@@ -6,8 +6,8 @@ import type { Part, StatisticsResponse } from './types.ts';
 import { getAuthHeaders } from './csrf';
 
 // Central configuration for API endpoints
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
-export const ORDERS_API_URL = 'http://localhost:8082';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+export const ORDERS_API_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 // Parts API
 export const partsApi = {
@@ -196,7 +196,8 @@ export const authApi = {
       throw new Error(`Login failed: ${errorText}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    return data.user || data;
   },
 
 

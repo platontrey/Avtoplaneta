@@ -2,7 +2,7 @@ import { getAuthHeaders } from '@/lib/csrf';
 import type { UserActivityLog, UserActivityAction, UserActivityResourceType } from '@/lib/types';
 
 // Admin service работает через gateway
-const ADMIN_API_URL = 'http://localhost:8080';
+const ADMIN_API_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export const getUserActivityLogs = async (params?: {
   user_id?: number;

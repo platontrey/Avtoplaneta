@@ -24,6 +24,7 @@ type UserActivityResourceType =
     | 'photo'
     | 'system';
 import PushNotifications from "./PushNotifications";
+import { API_BASE_URL } from '@/lib/api';
 
 interface User {
   id: number;
@@ -107,7 +108,7 @@ export default function AdminPanel() {
   const fetchUsers = async () => {
     try {
       console.log('Fetching users...');
-      const response = await fetch('http://localhost:8080/admin/users', {
+      const response = await fetch(`${API_BASE_URL}/admin/users`, {
         credentials: 'include',
       });
 
@@ -139,7 +140,7 @@ export default function AdminPanel() {
 
   const fetchSupplierCodes = async () => {
     try {
-      const response = await fetch('http://localhost:8081/api/admin/supplier-codes', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/supplier-codes`, {
         credentials: 'include',
       });
 
@@ -178,7 +179,7 @@ export default function AdminPanel() {
   const fetchServerStatus = async () => {
     try {
       setStatusLoading(true);
-      const response = await fetch('http://localhost:8080/admin/status', {
+      const response = await fetch(`${API_BASE_URL}/admin/status`, {
         credentials: 'include',
       });
 
@@ -200,7 +201,7 @@ export default function AdminPanel() {
     try {
       setLogsLoading(true);
       console.log('Fetching server logs...');
-      const response = await fetch('http://localhost:8080/admin/logs', {
+      const response = await fetch(`${API_BASE_URL}/admin/logs`, {
         credentials: 'include',
       });
 
@@ -274,7 +275,7 @@ export default function AdminPanel() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8080/admin/users', {
+      const response = await fetch(`${API_BASE_URL}/admin/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -324,7 +325,7 @@ export default function AdminPanel() {
     if (!editingUser) return;
 
     try {
-      const response = await fetch(`http://localhost:8080/admin/users/${editingUser.id}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users/${editingUser.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -361,7 +362,7 @@ export default function AdminPanel() {
     }
 
     try {
-      const response = await fetch(`http://localhost:8080/admin/users/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
         method: 'DELETE',
         headers: {
           'X-CSRF-Token': getAuthHeaders()['X-CSRF-Token'] || '',
@@ -415,7 +416,7 @@ export default function AdminPanel() {
 
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:8081/api/admin/delete-zero-quantity-parts/${encodeURIComponent(selectedSupplierCode)}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/delete-zero-quantity-parts/${encodeURIComponent(selectedSupplierCode)}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
         credentials: 'include',

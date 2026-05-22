@@ -4,6 +4,10 @@ import "github.com/gin-gonic/gin"
 
 // SetupRoutes настраивает маршруты для приложения с dependency injection
 func SetupRoutes(r *gin.Engine, handler *Handler) {
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "healthy"})
+	})
+
 	// Основные маршруты аутентификации
 	r.GET("/auth/google", handler.GoogleAuthHandler)
 	r.GET("/auth/google/callback", handler.GoogleAuthCallbackHandler)
@@ -11,6 +15,7 @@ func SetupRoutes(r *gin.Engine, handler *Handler) {
 	r.POST("/auth/logout", handler.LogoutHandler)
 	r.GET("/auth/me", handler.GetCurrentUserHandler)
 	r.GET("/auth/csrf-token", handler.GetCSRFTokenHandler)
+	r.POST("/auth/refresh", handler.RefreshTokenHandler)
 
 	// Маршруты панели администратора
 	admin := r.Group("/admin")

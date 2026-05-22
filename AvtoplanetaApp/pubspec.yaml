@@ -1,0 +1,56 @@
+name: avtoplaneta_app
+description: "Avtoplaneta — система управления автозапчастями"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # HTTP клиент
+  dio: ^5.8.0
+  pretty_dio_logger: ^1.4.0
+
+  # Состояние
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Навигация
+  go_router: ^15.1.2
+
+  # Безопасное хранение токенов
+  flutter_secure_storage: ^9.2.4
+
+  # Изображения
+  cached_network_image: ^3.4.1
+  image_picker: ^1.1.2
+
+  # Чарты (статистика)
+  fl_chart: ^0.71.0
+
+  # UI компоненты
+  cupertino_icons: ^1.0.8
+  shimmer: ^3.0.0
+  pull_to_refresh: ^2.0.0
+
+  # Утилиты
+  intl: ^0.20.2
+  timeago: ^3.7.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.15
+  riverpod_generator: ^2.6.5
+  custom_lint: ^0.7.5
+  riverpod_lint: ^2.6.5
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/

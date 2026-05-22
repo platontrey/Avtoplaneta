@@ -21,6 +21,7 @@ import { Save, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getAuthHeaders } from "@/lib/csrf";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { API_BASE_URL } from '@/lib/api';
 
 const availableColors = [
   "Черный",
@@ -1641,7 +1642,7 @@ export default function DefectReport() {
         }),
       };
 
-      const response = await fetch("http://localhost:8081/api/defect-reports", {
+      const response = await fetch(`${API_BASE_URL}/api/defect-reports`, {
         method: "POST",
         headers: getAuthHeaders(),
         credentials: 'include',

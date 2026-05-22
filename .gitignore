@@ -1,2 +1,23 @@
 /backend/elasticsearch-9.2.3
 .env
+
+# Traefik
+traefik/acme.json
+traefik/acme-*.json
+
+# Docker volumes
+docker-compose.override.yml
+
+# Logs
+*.log
+logs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

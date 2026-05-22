@@ -9,6 +9,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Button } from './ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
+import { API_BASE_URL } from '@/lib/api';
 
 interface PartSelectorProps {
     value?: string;
@@ -54,7 +55,7 @@ function PartSelector({ value, onChange, placeholder = "Выберите зап�
         setIsSearching(true);
 
         try {
-            const url = `http://localhost:8080/api/inventory?search=${encodeURIComponent(query)}&limit=20`;
+            const url = `${API_BASE_URL}/api/inventory?search=${encodeURIComponent(query)}&limit=20`;
             const response = await fetch(url, {
                 credentials: 'include',
                 signal: abortControllerRef.current.signal
@@ -124,7 +125,7 @@ function PartSelector({ value, onChange, placeholder = "Выберите зап�
     useEffect(() => {
         const loadPopularParts = async () => {
             try {
-                const response = await fetch('http://localhost:8080/api/inventory?limit=5', {
+                const response = await fetch(`${API_BASE_URL}/api/inventory?limit=5`, {
                     credentials: 'include'
                 });
                 if (response.ok) {
@@ -159,7 +160,7 @@ function PartSelector({ value, onChange, placeholder = "Выберите зап�
             // Загружаем информацию о выбранной запчасти
             const loadSelectedPart = async () => {
                 try {
-                    const response = await fetch(`http://localhost:8080/api/inventory/${value}`, {
+                    const response = await fetch(`${API_BASE_URL}/api/inventory/${value}`, {
                         credentials: 'include'
                     });
                     if (response.ok) {

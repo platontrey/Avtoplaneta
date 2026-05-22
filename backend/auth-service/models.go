@@ -16,8 +16,10 @@ type User struct {
 }
 
 type LoginResponse struct {
-	User    User   `json:"user"`
-	Message string `json:"message"`
+	User         User   `json:"user"`
+	Message      string `json:"message"`
+	Token        string `json:"token,omitempty"`
+	RefreshToken string `json:"refresh_token,omitempty"`
 }
 
 type UserActivityLog struct {

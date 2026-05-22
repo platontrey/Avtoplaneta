@@ -4,6 +4,10 @@ import "github.com/gin-gonic/gin"
 
 // SetupRoutes настраивает маршруты для приложения с dependency injection
 func SetupRoutes(r *gin.Engine, handler *Handler) {
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "healthy"})
+	})
+
 	// Основные маршруты сервиса запчастей
 	r.GET("/api/inventory", handler.GetInventoryHandler)
 	r.POST("/api/addpart", handler.AddPartHandler)

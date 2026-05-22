@@ -95,7 +95,10 @@ OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxx
 git clone <repository-url>
 cd avtoplaneta
 
-# Запустить все сервисы
+# Настройте переменные окружения для Traefik (DOMAIN, ACME_EMAIL, DASHBOARD_USER, DASHBOARD_PASSWORD и т.д.)
+# Подробности: TRAEFIK-README.md
+
+# Запустить все сервисы (включая Traefik)
 docker-compose up -d
 
 # Или для разработки

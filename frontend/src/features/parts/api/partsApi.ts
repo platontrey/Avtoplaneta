@@ -6,7 +6,7 @@ import type { Part } from '../types';
 import { getAuthHeaders } from '@/lib/csrf';
 import { logUserActivity } from '../../admin/api/adminApi';
 
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export const partsApi = {
   // Get all parts with optional filters

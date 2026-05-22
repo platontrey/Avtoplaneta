@@ -1,0 +1,25 @@
+api:
+  dashboard: true
+  insecure: false
+
+ping: {}
+
+entryPoints:
+  web:
+    address: ":80"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: avtoplaneta_avtoplaneta_network
+  file:
+    filename: /etc/traefik/dynamic/middleware.yml
+    watch: true
+
+log:
+  level: INFO
+
+accessLog:
+  filePath: "/var/log/traefik/access.log"
+  format: json

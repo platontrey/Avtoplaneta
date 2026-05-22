@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Package, Boxes, DollarSign, TrendingUp, TrendingDown, ChartNoAxesCombined } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { API_BASE_URL } from '@/lib/api';
 
 interface Statistics {
    total_parts: number;
@@ -40,7 +41,7 @@ function Statistics() {
 
   const fetchData = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/statistics', {
+      const response = await fetch(`${API_BASE_URL}/api/statistics`, {
         credentials: 'include', // Include cookies in the request
       });
       if (!response.ok) {

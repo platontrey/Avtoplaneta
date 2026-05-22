@@ -1,6 +1,6 @@
 module avtoplaneta-backend
 
-go 1.25.1
+go 1.26.2
 
 require (
 	github.com/eapache/go-resiliency v1.7.0

@@ -4,7 +4,7 @@ import type { Order } from '@/lib/types';
 import { logUserActivity } from '../../admin/api/adminApi';
 
 // Orders service работает на отдельном порту
-const ORDERS_API_URL = 'http://localhost:8082';
+const ORDERS_API_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export const getOrders = async (): Promise<Order[]> => {
   console.log('ordersApi.getOrders: Fetching from', `${ORDERS_API_URL}/orders`);

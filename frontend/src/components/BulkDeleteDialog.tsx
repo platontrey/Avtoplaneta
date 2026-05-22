@@ -10,6 +10,7 @@ import { getAuthHeaders } from "@/lib/csrf";
 import { logUserActivity } from "@/features/admin/api/adminApi";
 import { useQueryClient } from '@tanstack/react-query';
 import { partsKeys } from '@/features/parts/hooks/usePartsQueries';
+import { API_BASE_URL } from '@/lib/api';
 
 interface BulkDeleteDialogProps {
   isOpen: boolean;
@@ -27,7 +28,7 @@ export default function BulkDeleteDialog({ isOpen, onClose, selectedPartIds, onS
 
     try {
       // Отправляем запрос на массовое удаление
-      const response = await fetch('http://localhost:8081/api/admin/bulk-delete-parts', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/bulk-delete-parts`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',

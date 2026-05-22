@@ -1,0 +1,16 @@
+**/node_modules
+.git
+.env
+.env.*
+*.md
+.idea
+.vscode
+bin/
+main
+main.exe
+avtoplaneta-backend
+gateway
+drom-test/
+elasticsearch-9.2.3/
+start-production.bat
+start-production.sh

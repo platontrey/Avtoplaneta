@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { LazyLoadImage } from "react-lazy-load-image-component";
 import "react-lazy-load-image-component/src/effects/blur.css";
 import type { Part } from "../../types";
+import { API_BASE_URL } from '@/lib/api';
 
 interface PartCardContentProps {
   part: Part;
@@ -39,7 +40,7 @@ export function PartCardContent({ part }: PartCardContentProps) {
                   transition={{ duration: 0.2 }}
                 >
                   <LazyLoadImage
-                    src={`http://localhost:8080${part.photo}?t=${Date.now()}`}
+                    src={`${API_BASE_URL}${part.photo}?t=${Date.now()}`}
                     alt={part.name}
                     className="max-w-full h-auto max-h-48 object-contain rounded border"
                     effect="blur"
@@ -49,7 +50,7 @@ export function PartCardContent({ part }: PartCardContentProps) {
               </DialogTrigger>
               <DialogContent className="max-w-4xl">
                 <LazyLoadImage
-                  src={`http://localhost:8080${part.photo}?t=${Date.now()}`}
+                  src={`${API_BASE_URL}${part.photo}?t=${Date.now()}`}
                   alt={part.name}
                   className="w-full h-auto max-h-[80vh] object-contain"
                   effect="blur"

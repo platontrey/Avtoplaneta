@@ -4,12 +4,13 @@ import "os"
 
 // Config содержит конфигурационные параметры приложения
 type Config struct {
-	DatabaseURL   string
-	SessionSecret string
-	NodeEnv       string
+	DatabaseURL     string
+	SessionSecret   string
+	NodeEnv         string
 	Port            string
 	AllowedOrigins  string
 	PartsServiceURL string
+	JWTSecret       string
 }
 
 // LoadConfig загружает конфигурацию из переменных окружения
@@ -21,6 +22,7 @@ func LoadConfig() *Config {
 		Port:            os.Getenv("PORT"),
 		AllowedOrigins:  os.Getenv("ALLOWED_ORIGINS"),
 		PartsServiceURL: os.Getenv("PARTS_SERVICE_URL"),
+		JWTSecret:       os.Getenv("JWT_SECRET"),
 	}
 
 	// Значения по умолчанию
@@ -35,6 +37,9 @@ func LoadConfig() *Config {
 	}
 	if config.Port == "" {
 		config.Port = "8083"
+	}
+	if config.JWTSecret == "" {
+		config.JWTSecret = config.SessionSecret // fallback — используем SESSION_SECRET
 	}
 
 	return config

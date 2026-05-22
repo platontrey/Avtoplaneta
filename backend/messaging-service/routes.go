@@ -76,6 +76,10 @@ func init() {
 }
 
 func setupRoutes(r *gin.Engine) {
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "healthy"})
+	})
+
 	// Add metrics middleware
 	r.Use(metricsMiddleware())
 
@@ -923,7 +927,10 @@ type User struct {
 }
 
 func getCurrentUser(ctx context.Context, userID string, authHeader string) (*User, error) {
-	gatewayURL := "http://localhost:8080" // Assuming gateway is on 8080
+	gatewayURL := os.Getenv("GATEWAY_URL")
+	if gatewayURL == "" {
+		gatewayURL = "http://gateway:8080"
+	}
 
 	req, err := http.NewRequestWithContext(ctx, "GET", gatewayURL+"/api/users/me", nil)
 	if err != nil {
@@ -959,7 +966,10 @@ func getCurrentUser(ctx context.Context, userID string, authHeader string) (*Use
 
 func getUsers(c *gin.Context) {
 	// Get users from gateway
-	gatewayURL := "http://localhost:8080" // Assuming gateway is on 8080
+	gatewayURL := os.Getenv("GATEWAY_URL")
+	if gatewayURL == "" {
+		gatewayURL = "http://gateway:8080"
+	}
 
 	req, err := http.NewRequest("GET", gatewayURL+"/api/users", nil)
 	if err != nil {

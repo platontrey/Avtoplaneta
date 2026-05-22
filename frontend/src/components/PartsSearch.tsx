@@ -70,6 +70,7 @@ import { SearchableSelect } from './ui/searchable-select';
 import type { SelectOption } from './ui/searchable-select';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { motion, AnimatePresence } from 'framer-motion';
+import { API_BASE_URL } from '@/lib/api';
 
 interface PartsSearchProps {
     onSearchChange?: (searchQuery: string) => void;
@@ -232,7 +233,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         setIsSearching(true);
 
         try {
-            const url = `http://localhost:8080/api/inventory?search=${encodeURIComponent(query)}&limit=10`;
+            const url = `${API_BASE_URL}/api/inventory?search=${encodeURIComponent(query)}&limit=10`;
             const response = await fetch(url, {
                 credentials: 'include',
                 signal: abortControllerRef.current.signal

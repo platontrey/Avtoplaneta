@@ -27,20 +27,13 @@ func InitAuth(ctx context.Context, config *Config) {
 
 	store = sessions.NewCookieStore([]byte(sessionKey))
 
-	// Параметры безопасного использования cookies
-	isProduction := config.NodeEnv == "production"
 	store.Options = &sessions.Options{
 		Path:     "/",
-		Domain:   "",           // Пустой domain для local development
-		MaxAge:   86400 * 7,    // 7 дней
-		HttpOnly: true,         // Предотвращает XSS атаки
-		Secure:   isProduction, // HTTPS только в продакшене
-		SameSite: func() http.SameSite {
-			if isProduction {
-				return http.SameSiteLaxMode
-			}
-			return http.SameSiteLaxMode // Для разработки использовать Lax для HTTP
-		}(),
+		Domain:   "",
+		MaxAge:   86400 * 7,
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
 	}
 
 	// Настройка OAuth провайдера Google

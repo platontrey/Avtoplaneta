@@ -30,7 +30,14 @@ func CORSMiddleware(config *Config) gin.HandlerFunc {
 				allowedOrigins[i] = strings.TrimSpace(allowedOrigins[i])
 			}
 		} else {
-			allowedOrigins = []string{"http://localhost:5173", "http://192.168.1.63:5173", "http://192.168.56.1:5173", "http://192.168.51.2:5173"}
+			allowedOrigins = []string{
+				"http://localhost:5173",
+				"http://192.168.1.63:5173",
+				"http://192.168.56.1:5173",
+				"http://192.168.51.2:5173",
+				"https://avtoplaneta.avtoplaneta.crazedns.ru",
+				"http://avtoplaneta.avtoplaneta.crazedns.ru",
+			}
 		}
 
 		origin := c.GetHeader("Origin")
