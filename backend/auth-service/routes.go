@@ -1,6 +1,9 @@
 package main
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+)
 
 // SetupRoutes настраивает маршруты для приложения с dependency injection
 func SetupRoutes(r *gin.Engine, handler *Handler) {
@@ -8,9 +11,16 @@ func SetupRoutes(r *gin.Engine, handler *Handler) {
 		c.JSON(200, gin.H{"status": "healthy"})
 	})
 
+	// Add metrics middleware
+	r.Use(metricsMiddleware())
+
+	// Add /metrics endpoint
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
 	// Основные маршруты аутентификации
 	r.GET("/auth/google", handler.GoogleAuthHandler)
 	r.GET("/auth/google/callback", handler.GoogleAuthCallbackHandler)
+	r.POST("/auth/google/mobile", handler.GoogleMobileAuthHandler)
 	r.POST("/auth/login", handler.UserLoginHandler)
 	r.POST("/auth/logout", handler.LogoutHandler)
 	r.GET("/auth/me", handler.GetCurrentUserHandler)

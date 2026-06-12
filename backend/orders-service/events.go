@@ -10,7 +10,7 @@ import (
 
 // EventPublisher определяет интерфейс для публикации событий
 type EventPublisher interface {
-	PublishOrderCompleted(ctx context.Context, orderID uint, amount float64) error
+	PublishOrderCompleted(ctx context.Context, orderID int64, amount float64) error
 	PublishUserAction(ctx context.Context, userID, action string, details map[string]interface{}) error
 }
 
@@ -27,7 +27,7 @@ func NewEventPublisher(client *redis.Client) EventPublisher {
 }
 
 // PublishOrderCompleted публикует событие завершения заказа
-func (p *RedisEventPublisher) PublishOrderCompleted(ctx context.Context, orderID uint, amount float64) error {
+func (p *RedisEventPublisher) PublishOrderCompleted(ctx context.Context, orderID int64, amount float64) error {
 	event := map[string]interface{}{
 		"type":     "order_completed",
 		"order_id": orderID,

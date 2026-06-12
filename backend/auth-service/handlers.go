@@ -15,13 +15,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Handler содержит все HTTP handlers для auth-service
 type Handler struct {
 	authService AuthService
 	config      *Config
 }
 
-// NewHandler создает новый handler с dependency injection
+var googleTokenInfoURL = "https://oauth2.googleapis.com/tokeninfo"
+
+
 func NewHandler(authService AuthService, config *Config) *Handler {
 	return &Handler{
 		authService: authService,
@@ -29,19 +30,15 @@ func NewHandler(authService AuthService, config *Config) *Handler {
 	}
 }
 
-// GoogleAuthHandler начинает процесс OAuth аутентификации через Google
 func (h *Handler) GoogleAuthHandler(c *gin.Context) {
-	// Проверяем, настроен ли Google OAuth
 	if os.Getenv("GOOGLE_CLIENT_ID") == "" {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Google аутентификация не настроена"})
 		return
 	}
 
-	// Начинаем процесс OAuth аутентификации
 	gothic.BeginAuthHandler(c.Writer, c.Request)
 }
 
-// GoogleAuthCallbackHandler обрабатывает callback от Google OAuth
 func (h *Handler) GoogleAuthCallbackHandler(c *gin.Context) {
 	user, err := gothic.CompleteUserAuth(c.Writer, c.Request)
 	if err != nil {
@@ -50,7 +47,6 @@ func (h *Handler) GoogleAuthCallbackHandler(c *gin.Context) {
 		return
 	}
 
-	// Создаем пользователя через сервис
 	createdUser, err := h.authService.CreateUserFromGoogle(user.Email, user.Name)
 	if err != nil {
 		logrus.WithError(err).WithField("email", user.Email).Error("Failed to create user from Google")
@@ -58,7 +54,6 @@ func (h *Handler) GoogleAuthCallbackHandler(c *gin.Context) {
 		return
 	}
 
-	// Сохраняем в сессии
 	session, _ := store.Get(c.Request, "auth-session")
 	session.Values["user_id"] = createdUser.ID
 	session.Values["login_time"] = time.Now().Unix()
@@ -77,7 +72,105 @@ func (h *Handler) GoogleAuthCallbackHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, createdUser)
 }
 
-// UserLoginHandler обрабатывает вход пользователя с email и паролем
+func (h *Handler) GoogleMobileAuthHandler(c *gin.Context) {
+	var req struct {
+		IDToken string `json:"id_token" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "id_token обязателен"})
+		return
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	reqURL := fmt.Sprintf("%s?id_token=%s", googleTokenInfoURL, req.IDToken)
+
+	httpReq, err := http.NewRequestWithContext(c.Request.Context(), "GET", reqURL, nil)
+	if err != nil {
+		logrus.WithError(err).Error("Failed to create HTTP request for Google tokeninfo")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Внутренняя ошибка сервера"})
+		return
+	}
+
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		logrus.WithError(err).Error("Failed to call Google tokeninfo API")
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Не удалось связаться с сервером Google"})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		logrus.WithFields(logrus.Fields{
+			"status": resp.StatusCode,
+			"body":   string(bodyBytes),
+		}).Warn("Google tokeninfo returned non-200 status")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Невалидный id_token"})
+		return
+	}
+
+	var tokenInfo struct {
+		Email         string `json:"email"`
+		EmailVerified string `json:"email_verified"`
+		Name          string `json:"name"`
+		Error         string `json:"error"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&tokenInfo); err != nil {
+		logrus.WithError(err).Error("Failed to decode Google tokeninfo response")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Ошибка обработки ответа от Google"})
+		return
+	}
+
+	if tokenInfo.Error != "" {
+		logrus.WithField("google_error", tokenInfo.Error).Warn("Google tokeninfo returned error")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Невалидный id_token"})
+		return
+	}
+
+	if tokenInfo.EmailVerified != "true" || tokenInfo.Email == "" {
+		logrus.WithField("email_verified", tokenInfo.EmailVerified).Warn("Google email not verified or empty")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Email не подтвержден в Google"})
+		return
+	}
+
+	createdUser, err := h.authService.CreateUserFromGoogle(tokenInfo.Email, tokenInfo.Name)
+	if err != nil {
+		logrus.WithError(err).WithField("email", tokenInfo.Email).Error("Failed to create user from Google (mobile)")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось войти через Google"})
+		return
+	}
+
+	session, _ := store.Get(c.Request, "auth-session")
+	session.Values["user_id"] = createdUser.ID
+	session.Values["login_time"] = time.Now().Unix()
+	if err := session.Save(c.Request, c.Writer); err != nil {
+		logrus.WithError(err).Error("Failed to save session (mobile)")
+	}
+
+	accessToken, refreshToken, err := GenerateJWTTokens(createdUser, h.config)
+	if err != nil {
+		logrus.WithError(err).Error("Failed to generate JWT tokens (mobile)")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось создать токены авторизации"})
+		return
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"email": createdUser.Email,
+		"ip":    c.ClientIP(),
+	}).Info("Google mobile login successful")
+
+	response := LoginResponse{
+		User:         *createdUser,
+		Message:      "Login successful",
+		Token:        accessToken,
+		RefreshToken: refreshToken,
+	}
+	c.JSON(http.StatusOK, response)
+}
+
+
 func (h *Handler) UserLoginHandler(c *gin.Context) {
 	var loginReq struct {
 		Email    string `json:"email" binding:"required"`
@@ -94,14 +187,12 @@ func (h *Handler) UserLoginHandler(c *gin.Context) {
 		"password_len": len(loginReq.Password),
 	}).Info("Login attempt")
 
-	// Аутентифицируем через сервис
 	user, err := h.authService.AuthenticateUser(loginReq.Email, loginReq.Password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Сохраняем в сессии (для веб-приложения)
 	session, _ := store.Get(c.Request, "auth-session")
 	session.Values["user_id"] = user.ID
 	session.Values["login_time"] = time.Now().Unix()
@@ -112,11 +203,9 @@ func (h *Handler) UserLoginHandler(c *gin.Context) {
 		return
 	}
 
-	// Генерируем JWT токены (для мобильного приложения)
 	accessToken, refreshToken, err := GenerateJWTTokens(user, h.config)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to generate JWT tokens")
-		// Не блокируем — сессионная авторизация всё равно работает
 		accessToken = ""
 		refreshToken = ""
 	}
@@ -130,28 +219,25 @@ func (h *Handler) UserLoginHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// LogoutHandler обрабатывает выход пользователя
 func (h *Handler) LogoutHandler(c *gin.Context) {
-	// Получаем информацию о пользователе для логирования
 	var userEmail string
 	if user, exists := c.Get("user"); exists {
 		userEmail = user.(User).Email
 	}
 
-	// Получаем сессию
 	session, err := store.Get(c.Request, "auth-session")
 	if err != nil {
 		logrus.WithError(err).WithField("ip", c.ClientIP()).Warn("Failed to get session during logout")
-		// Продолжаем в любом случае
 	}
 
-	// Получаем user_id перед очисткой
-	var userID uint
-	if session != nil && session.Values["user_id"] != nil {
-		userID = session.Values["user_id"].(uint)
+	var userID int64
+	if session != nil {
+		val, ok := session.Values["user_id"]
+		if ok {
+			userID, _ = getUserIDFromSessionValue(val)
+		}
 	}
 
-	// Очищаем сессию
 	if session != nil {
 		session.Values = make(map[interface{}]interface{})
 		session.Options.MaxAge = -1
@@ -161,7 +247,6 @@ func (h *Handler) LogoutHandler(c *gin.Context) {
 		}
 	}
 
-	// Выполняем logout через сервис
 	if userID != 0 {
 		if err := h.authService.Logout(userID); err != nil {
 			logrus.WithError(err).WithField("user_id", userID).Warn("Failed to logout user")
@@ -172,13 +257,11 @@ func (h *Handler) LogoutHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Выход выполнен успешно"})
 }
 
-// GetCurrentUserHandler возвращает информацию о текущем пользователе
 func (h *Handler) GetCurrentUserHandler(c *gin.Context) {
 	logrus.WithFields(logrus.Fields{
 		"cookies_count": len(c.Request.Cookies()),
 	}).Info("GetCurrentUserHandler: received request")
 
-	// Сначала пробуем JWT (для мобильного приложения)
 	authHeader := c.GetHeader("Authorization")
 	if strings.HasPrefix(authHeader, "Bearer ") {
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
@@ -198,7 +281,6 @@ func (h *Handler) GetCurrentUserHandler(c *gin.Context) {
 		return
 	}
 
-	// Fallback: сессионная аутентификация (для веб-приложения)
 	session, err := store.Get(c.Request, "auth-session")
 	if err != nil {
 		logrus.WithError(err).Warn("Failed to get session")
@@ -211,24 +293,22 @@ func (h *Handler) GetCurrentUserHandler(c *gin.Context) {
 		"session_id":     session.ID,
 	}).Info("GetCurrentUserHandler: session details")
 
-	userID, ok := session.Values["user_id"]
-	if !ok || userID == nil {
+	userID, ok := getUserIDFromSessionValue(session.Values["user_id"])
+	if !ok {
 		logrus.Warn("GetCurrentUserHandler: user_id not found in session")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Не аутентифицирован"})
 		return
 	}
 
-	// Проверяем возраст сессии
 	if loginTime, ok := session.Values["login_time"].(int64); ok {
-		if time.Now().Unix()-loginTime > 86400*30 { // 30 дней
+		if time.Now().Unix()-loginTime > 86400*30 {
 			logrus.WithField("user_id", userID).Warn("Session expired")
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Сеанс истек, пожалуйста, войдите снова"})
 			return
 		}
 	}
 
-	// Получаем пользователя через сервис
-	user, err := h.authService.GetCurrentUser(userID.(uint))
+	user, err := h.authService.GetCurrentUser(userID)
 	if err != nil {
 		logrus.WithError(err).WithField("user_id", userID).Error("Failed to get current user")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Пользователь не найден"})
@@ -238,17 +318,15 @@ func (h *Handler) GetCurrentUserHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
-// GetCSRFTokenHandler возвращает токен CSRF для текущего пользователя
 func (h *Handler) GetCSRFTokenHandler(c *gin.Context) {
 	session, _ := store.Get(c.Request, "auth-session")
-	var userID *uint
+	var userID *int64
 
-	if session.Values["user_id"] != nil {
-		uid := session.Values["user_id"].(uint)
+	if val, ok := session.Values["user_id"]; ok && val != nil {
+		uid, _ := getUserIDFromSessionValue(val)
 		userID = &uid
 	}
 
-	// Генерируем токен через сервис
 	token, err := h.authService.GenerateCSRFToken(userID)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to generate CSRF token")
@@ -256,7 +334,6 @@ func (h *Handler) GetCSRFTokenHandler(c *gin.Context) {
 		return
 	}
 
-	// Сохраняем в сессии для неаутентифицированных пользователей
 	if userID == nil {
 		session.Values["csrf_token"] = token
 		if err := session.Save(c.Request, c.Writer); err != nil {
@@ -269,7 +346,6 @@ func (h *Handler) GetCSRFTokenHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"csrf_token": token})
 }
 
-// CreateUserHandler создает нового пользователя (только для админов)
 func (h *Handler) CreateUserHandler(c *gin.Context) {
 	var req CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -286,7 +362,6 @@ func (h *Handler) CreateUserHandler(c *gin.Context) {
 	c.JSON(http.StatusCreated, user)
 }
 
-// GetUsersHandler получает список пользователей (для менеджеров и выше)
 func (h *Handler) GetUsersHandler(c *gin.Context) {
 	users, err := h.authService.GetUsers()
 	if err != nil {
@@ -299,10 +374,9 @@ func (h *Handler) GetUsersHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"users": users})
 }
 
-// UpdateUserHandler обновляет пользователя (только для админов)
 func (h *Handler) UpdateUserHandler(c *gin.Context) {
 	userIDStr := c.Param("id")
-	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	userID, err := strconv.ParseInt(userIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный ID пользователя"})
 		return
@@ -314,7 +388,7 @@ func (h *Handler) UpdateUserHandler(c *gin.Context) {
 		return
 	}
 
-	user, err := h.authService.UpdateUser(uint(userID), req)
+	user, err := h.authService.UpdateUser(userID, req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -323,16 +397,15 @@ func (h *Handler) UpdateUserHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
-// DeleteUserHandler удаляет пользователя (только для админов)
 func (h *Handler) DeleteUserHandler(c *gin.Context) {
 	userIDStr := c.Param("id")
-	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	userID, err := strconv.ParseInt(userIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный ID пользователя"})
 		return
 	}
 
-	if err := h.authService.DeleteUser(uint(userID)); err != nil {
+	if err := h.authService.DeleteUser(userID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -340,16 +413,13 @@ func (h *Handler) DeleteUserHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Пользователь удален"})
 }
 
-// GetServerStatusHandler получает статус сервера (только для админов)
 func (h *Handler) GetServerStatusHandler(c *gin.Context) {
-	// Получаем статистику пользователей из базы данных
 	totalUsers, err := h.authService.GetTotalUsersCount()
 	if err != nil {
 		logrus.WithError(err).Error("Failed to get total users count")
 		totalUsers = 0
 	}
 
-	// Получаем статистику запчастей через запрос к parts-service
 	totalParts, err := h.getTotalPartsCount()
 	if err != nil {
 		logrus.WithError(err).Error("Failed to get total parts count")
@@ -359,10 +429,10 @@ func (h *Handler) GetServerStatusHandler(c *gin.Context) {
 	status := map[string]interface{}{
 		"server": map[string]interface{}{
 			"status":     "ok",
-			"uptime":     "unknown", // TODO: реализовать получение uptime
-			"go_version": "1.21",    // TODO: получить из runtime
-			"os":         "linux",   // TODO: получить из runtime
-			"arch":       "amd64",   // TODO: получить из runtime
+			"uptime":     "unknown",
+			"go_version": "1.21",
+			"os":         "linux",
+			"arch":       "amd64",
 		},
 		"database": map[string]interface{}{
 			"status":      "ok",
@@ -375,11 +445,9 @@ func (h *Handler) GetServerStatusHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, status)
 }
 
-// GetServerLogsHandler получает логи сервера (только для админов)
 func (h *Handler) GetServerLogsHandler(c *gin.Context) {
 	logrus.Info("GetServerLogsHandler called - returning mock logs")
 
-	// Заглушка - в реальности нужно реализовать чтение логов
 	logs := []map[string]interface{}{
 		{
 			"timestamp": time.Now().Format(time.RFC3339),
@@ -397,15 +465,12 @@ func (h *Handler) GetServerLogsHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"logs": logs})
 }
 
-// GetUserActivityLogsHandler получает логи активности пользователей
 func (h *Handler) GetUserActivityLogsHandler(c *gin.Context) {
 	var filters ActivityLogFilters
 
-	// Парсим query параметры
 	if userIDStr := c.Query("user_id"); userIDStr != "" {
-		if userID, err := strconv.ParseUint(userIDStr, 10, 32); err == nil {
-			userIDUint := uint(userID)
-			filters.UserID = &userIDUint
+		if userID, err := strconv.ParseInt(userIDStr, 10, 64); err == nil {
+			filters.UserID = &userID
 		}
 	}
 	if action := c.Query("action"); action != "" {
@@ -429,7 +494,7 @@ func (h *Handler) GetUserActivityLogsHandler(c *gin.Context) {
 			filters.Limit = limit
 		}
 	} else {
-		filters.Limit = 100 // default limit
+		filters.Limit = 100
 	}
 	if offsetStr := c.Query("offset"); offsetStr != "" {
 		if offset, err := strconv.Atoi(offsetStr); err == nil && offset >= 0 {
@@ -447,12 +512,11 @@ func (h *Handler) GetUserActivityLogsHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"logs": logs})
 }
 
-// LogUserActivityHandler логирует активность пользователя
 func (h *Handler) LogUserActivityHandler(c *gin.Context) {
 	var req struct {
 		Action       string `json:"action"`
 		ResourceType string `json:"resource_type"`
-		ResourceID   *uint  `json:"resource_id"`
+		ResourceID   *int64 `json:"resource_id"`
 		Details      string `json:"details"`
 	}
 
@@ -469,14 +533,12 @@ func (h *Handler) LogUserActivityHandler(c *gin.Context) {
 
 	u := user.(User)
 	if err := h.authService.LogUserActivity(&u, req.Action, req.ResourceType, req.ResourceID, req.Details, c.ClientIP(), c.GetHeader("User-Agent")); err != nil {
-		// Логирование не должно ломать пользовательский поток
 		logrus.WithError(err).Warn("Failed to log user activity")
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Активность залогирована"})
 }
 
-// InternalGetUsersHandler получает список пользователей для внутренних сервисов (без аутентификации)
 func (h *Handler) InternalGetUsersHandler(c *gin.Context) {
 	users, err := h.authService.GetUsers()
 	if err != nil {
@@ -489,12 +551,11 @@ func (h *Handler) InternalGetUsersHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"users": users})
 }
 
-// InternalLogUserActivityHandler логирует активность пользователя для внутренних сервисов (без аутентификации)
 func (h *Handler) InternalLogUserActivityHandler(c *gin.Context) {
 	var req struct {
 		Action       string `json:"action"`
 		ResourceType string `json:"resource_type"`
-		ResourceID   *uint  `json:"resource_id"`
+		ResourceID   *int64 `json:"resource_id"`
 		Details      string `json:"details"`
 	}
 
@@ -503,28 +564,25 @@ func (h *Handler) InternalLogUserActivityHandler(c *gin.Context) {
 		return
 	}
 
-	// Получить userID из заголовка
 	userIDStr := c.GetHeader("X-User-ID")
 	if userIDStr == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Отсутствует X-User-ID"})
 		return
 	}
 
-	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	userID, err := strconv.ParseInt(userIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный X-User-ID"})
 		return
 	}
 
-	// Найти пользователя по ID
-	user, err := h.authService.GetCurrentUser(uint(userID))
+	user, err := h.authService.GetCurrentUser(userID)
 	if err != nil {
 		logrus.WithError(err).WithField("user_id", userID).Warn("Failed to get user for internal logging")
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Пользователь не найден"})
 		return
 	}
 
-	// Логировать активность
 	if err := h.authService.LogUserActivity(user, req.Action, req.ResourceType, req.ResourceID, req.Details, c.ClientIP(), c.GetHeader("User-Agent")); err != nil {
 		logrus.WithError(err).Warn("Failed to log user activity internally")
 	}
@@ -532,7 +590,6 @@ func (h *Handler) InternalLogUserActivityHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Активность залогирована"})
 }
 
-// RefreshTokenHandler обновляет JWT access token по refresh token
 func (h *Handler) RefreshTokenHandler(c *gin.Context) {
 	var req struct {
 		RefreshToken string `json:"refresh_token" binding:"required"`
@@ -572,9 +629,7 @@ func (h *Handler) RefreshTokenHandler(c *gin.Context) {
 	})
 }
 
-// getTotalPartsCount получает общее количество запчастей через запрос к parts-service
 func (h *Handler) getTotalPartsCount() (int, error) {
-	// Делаем запрос к parts-service для получения статистики
 	url := fmt.Sprintf("%s/api/statistics", h.config.PartsServiceURL)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {

@@ -1,15 +1,10 @@
 package main
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -37,11 +32,8 @@ func NewHandler(inventoryService InventoryService) *Handler {
 	}
 }
 
-// logUserActivity логирует активность пользователя, отправляя запрос к auth-service
-func (h *Handler) logUserActivity(c *gin.Context, action, resourceType, details string, resourceID *uint) {
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
-	defer cancel()
-
+// logUserActivity логирует активность пользователя через gRPC (с HTTP fallback)
+func (h *Handler) logUserActivity(c *gin.Context, action, resourceType, details string, resourceID *int64) {
 	userIDStr := c.GetHeader("X-User-ID")
 	userEmail := c.GetHeader("X-User-Email")
 	userName := c.GetHeader("X-User-Name")
@@ -51,50 +43,12 @@ func (h *Handler) logUserActivity(c *gin.Context, action, resourceType, details 
 		return
 	}
 
-	logData := map[string]interface{}{
-		"action":        action,
-		"resource_type": resourceType,
-		"resource_id":   resourceID,
-		"details":       details,
+	// Пробуем gRPC
+	var rid uint32
+	if resourceID != nil {
+		rid = uint32(*resourceID)
 	}
-
-	jsonData, err := json.Marshal(logData)
-	if err != nil {
-		logrus.WithError(err).Warn("Failed to marshal log data")
-		return
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", "http://localhost:8083/internal/log-activity", bytes.NewBuffer(jsonData))
-	if err != nil {
-		logrus.WithError(err).Warn("Failed to create log request")
-		return
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-User-ID", userIDStr)
-	req.Header.Set("X-User-Email", userEmail)
-	req.Header.Set("X-User-Name", userName)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		logrus.WithError(err).Warn("Failed to send log request")
-		return
-	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-
-		}
-	}(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		logrus.WithFields(logrus.Fields{
-			"status":   resp.StatusCode,
-			"response": string(body),
-		}).Warn("Log request failed")
-	}
+	logUserActivityGRPC(c.Request.Context(), userIDStr, userName, userEmail, action, resourceType, details, rid)
 }
 
 // GetInventoryHandler получает список запчастей с фильтрами
@@ -194,13 +148,13 @@ func (h *Handler) UpdatePartHandler(c *gin.Context) {
 	fmt.Printf("Received updates for part %s: %+v\n", partIDStr, updateData)
 
 	ctx := c.Request.Context()
-	if err := h.inventoryService.UpdatePart(ctx, uint(partID), updateData); err != nil {
+	if err := h.inventoryService.UpdatePart(ctx, int64(partID), updateData); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Не удалось обновить часть: %v", err)})
 		return
 	}
 
 	// Логируем обновление запчасти
-	partIDUint := uint(partID)
+	partIDUint := int64(partID)
 	h.logUserActivity(c, "update_part", "part", fmt.Sprintf("Updated part ID: %d with fields: %v", partID, getUpdatedFields(updateData)), &partIDUint)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Часть обновлена успешно"})
@@ -216,13 +170,13 @@ func (h *Handler) DeletePartHandler(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	if err := h.inventoryService.DeletePart(ctx, uint(partID)); err != nil {
+	if err := h.inventoryService.DeletePart(ctx, int64(partID)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось удалить часть"})
 		return
 	}
 
 	// Логируем удаление запчасти
-	partIDUint := uint(partID)
+	partIDUint := int64(partID)
 	part, _ := h.inventoryService.GetPartByID(ctx, partIDUint) // Получить данные запчасти перед удалением
 	partName := "Unknown"
 	if part != nil {
@@ -243,13 +197,13 @@ func (h *Handler) MarkPartForDeletionHandler(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	if err := h.inventoryService.MarkPartForDeletion(ctx, uint(partID)); err != nil {
+	if err := h.inventoryService.MarkPartForDeletion(ctx, int64(partID)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось отметить часть для удаления"})
 		return
 	}
 
 	// Логируем отметку для удаления
-	partIDUint := uint(partID)
+	partIDUint := int64(partID)
 	h.logUserActivity(c, "mark_part_for_deletion", "part", fmt.Sprintf("Marked part ID: %d for deletion", partID), &partIDUint)
 
 	c.JSON(http.StatusOK, gin.H{
@@ -279,21 +233,21 @@ func (h *Handler) UploadPartPhotoHandler(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	photoPath, err := h.inventoryService.UploadPartPhoto(ctx, uint(partID), c)
+	photoPath, err := h.inventoryService.UploadPartPhoto(ctx, int64(partID), c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Логируем загрузку фото
-	partIDUint := uint(partID)
+	partIDUint := int64(partID)
 	h.logUserActivity(c, "upload_photo", "part", fmt.Sprintf("Uploaded photo for part ID: %d", partID), &partIDUint)
 
 	// Получить файл для размера и типа
 	file, _ := c.FormFile("photo")
 
 	// Получить обновленную часть для возврата всех фото
-	updatedPart, err := h.inventoryService.GetPartByID(ctx, uint(partID))
+	updatedPart, err := h.inventoryService.GetPartByID(ctx, int64(partID))
 	if err != nil {
 		fmt.Printf("DEBUG UploadPartPhotoHandler: Failed to fetch updated part: %v\n", err)
 		updatedPart = &Part{} // Используем пустую структуру, если не удалось получить
@@ -331,14 +285,14 @@ func (h *Handler) DeletePartPhotoHandler(c *gin.Context) {
 	fmt.Printf("DeletePartPhotoHandler: partID=%d, photoPath='%s'\n", partID, photoPath)
 
 	ctx := c.Request.Context()
-	if err := h.inventoryService.DeletePartPhoto(ctx, uint(partID), photoPath); err != nil {
+	if err := h.inventoryService.DeletePartPhoto(ctx, int64(partID), photoPath); err != nil {
 		fmt.Printf("DeletePartPhotoHandler: Error deleting photo: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Логируем удаление фото
-	partIDUint := uint(partID)
+	partIDUint := int64(partID)
 	photoInfo := "all photos"
 	if photoPath != "" {
 		photoInfo = photoPath
@@ -352,7 +306,7 @@ func (h *Handler) DeletePartPhotoHandler(c *gin.Context) {
 // BulkDeletePartsHandler удаляет несколько запчастей
 func (h *Handler) BulkDeletePartsHandler(c *gin.Context) {
 	var requestData struct {
-		IDs []uint `json:"ids"`
+		IDs []int64 `json:"ids"`
 	}
 
 	if err := c.ShouldBindJSON(&requestData); err != nil {
@@ -362,7 +316,7 @@ func (h *Handler) BulkDeletePartsHandler(c *gin.Context) {
 	}
 
 	logrus.WithFields(logrus.Fields{
-		"ids": requestData.IDs,
+		"ids":   requestData.IDs,
 		"count": len(requestData.IDs),
 	}).Info("BulkDeletePartsHandler: Received request")
 
@@ -391,7 +345,7 @@ func (h *Handler) BulkUpdatePartsHandler(c *gin.Context) {
 
 	logrus.WithFields(logrus.Fields{
 		"updates": updates,
-		"count": len(updates),
+		"count":   len(updates),
 	}).Info("BulkUpdatePartsHandler: Received request")
 
 	ctx := c.Request.Context()
@@ -407,7 +361,7 @@ func (h *Handler) BulkUpdatePartsHandler(c *gin.Context) {
 
 	logrus.Info("BulkUpdatePartsHandler: Successfully updated parts")
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Запчасти обновлены успешно",
+		"message":       "Запчасти обновлены успешно",
 		"updated_count": updatedCount,
 	})
 }
@@ -467,4 +421,23 @@ func (h *Handler) UpdateEarningsHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Заработок обновлен"})
+}
+
+// GetPartByIDHandler получает запчасть по ID
+func (h *Handler) GetPartByIDHandler(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный ID запчасти"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	part, err := h.inventoryService.GetPartByID(ctx, id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Запчасть не найдена"})
+		return
+	}
+
+	c.JSON(http.StatusOK, part)
 }

@@ -37,10 +37,11 @@ func main() {
 	// Создание контекста с отменой для graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	defer closeGRPCClients()
 
 	// Инициализация Elasticsearch
 	var esClient ElasticsearchClient
-	if err := InitElasticsearch(); err != nil {
+	if err := InitElasticsearch(config.ElasticsearchURL); err != nil {
 		log.Printf("Предупреждение: Не удалось инициализировать Elasticsearch: %v", err)
 		log.Println("Продолжаем без функциональности Elasticsearch")
 		esClient = nil
@@ -58,9 +59,23 @@ func main() {
 	}
 
 	// Создание зависимостей с dependency injection
-	repo := NewPartRepository(db)
+	repo := NewPartRepository(dbPool)
 	service := NewInventoryService(repo, esClient, config)
 	handler := NewHandler(service)
+
+	// Запуск gRPC-сервера в отдельной горутине
+	grpcPort := os.Getenv("GRPC_PORT")
+	if grpcPort == "" {
+		grpcPort = "9081"
+	}
+	go func() {
+		if err := StartGRPCServer(service, grpcPort); err != nil {
+			log.Fatalf("gRPC server failed: %v", err)
+		}
+	}()
+
+	// Инициализация gRPC клиентов для межсервисной коммуникации
+	initGRPCClients()
 
 	// Создание и запуск consumer событий
 	eventConsumer := NewEventConsumer(redisClient, service)
@@ -148,7 +163,8 @@ func main() {
 // InitRedis инициализирует подключение к Redis
 func InitRedis(config *Config) {
 	redisClient = redis.NewClient(&redis.Options{
-		Addr: config.RedisURL,
+		Addr:     config.RedisURL,
+		Password: config.RedisPassword,
 	})
 
 	// Проверяем подключение

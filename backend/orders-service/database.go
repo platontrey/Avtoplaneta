@@ -1,65 +1,75 @@
 package main
 
 import (
+	"context"
+	"embed"
+	"io/fs"
 	"log"
+	"sort"
+	"strings"
+	"time"
 
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var db *gorm.DB
+//go:embed db/migrations/*.up.sql
+var migrationsFS embed.FS
 
-// InitDB инициализирует подключение к базе данных и выполняет миграцию
+var dbPool *pgxpool.Pool
+
+// InitDB инициализирует подключение к базе данных и выполняет миграции
 func InitDB(config *Config) {
-	var err error
+	poolConfig, err := pgxpool.ParseConfig(config.DatabaseURL)
+	if err != nil {
+		log.Fatal("Не удалось разобрать DatabaseURL:", err)
+	}
 
-	db, err = gorm.Open(postgres.Open(config.DatabaseURL), &gorm.Config{})
+	poolConfig.MaxConns = 100
+	poolConfig.MinConns = 10
+	poolConfig.MaxConnLifetime = 30 * time.Minute
+	poolConfig.MaxConnIdleTime = 5 * time.Minute
+
+	dbPool, err = pgxpool.NewWithConfig(context.Background(), poolConfig)
 	if err != nil {
 		log.Fatal("Не удалось подключиться к базе данных:", err)
 	}
 
-	// Автоматическая миграция схем заказов и запчастей
-	if err := db.AutoMigrate(&Order{}, &OrderItem{}, &Part{}, &SalesHistory{}); err != nil {
-		log.Fatal("Не удалось выполнить миграцию базы данных:", err)
+	if err := dbPool.Ping(context.Background()); err != nil {
+		log.Fatal("Не удалось проверить подключение к базе данных:", err)
 	}
 
-	// Выполнить дополнительные миграции (индексы)
-	RunMigrations(db)
+	log.Println("Подключение к базе данных установлено")
+	log.Println("Connection pooling настроен: MinConns=10, MaxConns=100")
+
+	runMigrations()
 }
 
-// RunMigrations выполняет дополнительные миграции для оптимизации
-func RunMigrations(db *gorm.DB) {
-	log.Println("Выполнение миграций для orders-service")
-
-	indexes := []struct {
-		name string
-		sql  string
-	}{
-		// Индексы для order_items
-		{"idx_order_items_order_id", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_order_items_order_id ON order_items (order_id)"},
-		{"idx_order_items_part_id", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_order_items_part_id ON order_items (part_id)"},
-
-		// Индексы для orders
-		{"idx_orders_status", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_status ON orders (status)"},
-		{"idx_orders_created_at", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_created_at ON orders (created_at DESC)"},
-		{"idx_orders_auto_deleted", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_auto_deleted ON orders (auto_deleted)"},
-		{"idx_orders_user_id", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_user_id ON orders (user_id)"},
-
-		// Индексы для parts (для orders-service)
-		{"idx_parts_id_orders", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_id_orders ON parts (id)"},
-		{"idx_parts_quantity_orders", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_parts_quantity_orders ON parts (quantity)"},
-
-		// Индексы для sales_history
-		{"idx_sales_history_created_at", "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sales_history_created_at ON sales_history (created_at DESC)"},
+func runMigrations() {
+	entries, err := fs.ReadDir(migrationsFS, "db/migrations")
+	if err != nil {
+		log.Fatal("Не удалось прочитать файлы миграций:", err)
 	}
 
-	for _, idx := range indexes {
-		if err := db.Exec(idx.sql).Error; err != nil {
-			log.Printf("Ошибка создания индекса %s: %v", idx.name, err)
-		} else {
-			log.Printf("Индекс %s создан успешно", idx.name)
+	var upFiles []string
+	for _, entry := range entries {
+		name := entry.Name()
+		if strings.HasSuffix(name, ".up.sql") {
+			upFiles = append(upFiles, name)
 		}
 	}
+	sort.Strings(upFiles)
 
-	log.Println("Миграции orders-service выполнены")
+	for _, fileName := range upFiles {
+		data, err := migrationsFS.ReadFile("db/migrations/" + fileName)
+		if err != nil {
+			log.Fatalf("Не удалось прочитать миграцию %s: %v", fileName, err)
+		}
+
+		_, err = dbPool.Exec(context.Background(), string(data))
+		if err != nil {
+			log.Printf("Предупреждение при выполнении миграции %s: %v", fileName, err)
+		} else {
+			log.Printf("Миграция %s выполнена", fileName)
+		}
+	}
 }

@@ -27,6 +27,16 @@ class User {
         role: json['role'] as String? ?? 'operator',
       );
 
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'email': email,
+        'name': name,
+        'initials': initials,
+        'inn': inn,
+        'provider': provider,
+        'role': role,
+      };
+
   bool get isAdmin => role == 'admin';
   bool get isManager => role == 'manager' || role == 'admin';
   bool get isOperator => true; // все роли включают operator права

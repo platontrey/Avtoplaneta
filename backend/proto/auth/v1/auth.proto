@@ -1,0 +1,160 @@
+syntax = "proto3";
+package auth.v1;
+option go_package = "avtoplaneta/gen/auth/v1;authv1";
+
+import "google/protobuf/timestamp.proto";
+
+service AuthService {
+  // Валидация сессии — горячий путь, вызывается на каждый защищённый запрос
+  rpc ValidateSession(ValidateSessionRequest) returns (ValidateSessionResponse);
+
+  // CRUD пользователей
+  rpc GetUser(GetUserRequest) returns (User);
+  rpc GetUsers(GetUsersRequest) returns (UserList);
+  rpc CreateUser(CreateUserRequest) returns (User);
+  rpc UpdateUser(UpdateUserRequest) returns (User);
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+
+  // Активность
+  rpc LogActivity(LogActivityRequest) returns (LogActivityResponse);
+  rpc GetActivityLogs(GetActivityLogsRequest) returns (ActivityLogList);
+
+  // Админ
+  rpc GetServerStatus(GetServerStatusRequest) returns (ServerStatus);
+  rpc GetServerLogs(GetServerLogsRequest) returns (ServerLogsResponse);
+}
+
+// ─── Auth ───────────────────────────────────────────────────────────────────
+
+message ValidateSessionRequest {
+  string session_cookie = 1;
+  string authorization = 2;
+}
+
+message ValidateSessionResponse {
+  bool valid = 1;
+  User user = 2;
+}
+
+// ─── User ───────────────────────────────────────────────────────────────────
+
+message User {
+  uint32 id = 1;
+  string email = 2;
+  string name = 3;
+  string role = 4;
+  string initials = 5;
+  string inn = 6;
+  string provider = 7;
+}
+
+message UserList {
+  repeated User users = 1;
+}
+
+message GetUserRequest {
+  uint32 id = 1;
+}
+
+message GetUsersRequest {
+  // пустой — возвращает всех
+}
+
+message CreateUserRequest {
+  string email = 1;
+  string name = 2;
+  string password = 3;
+  string role = 4;
+  string initials = 5;
+  string inn = 6;
+}
+
+message UpdateUserRequest {
+  uint32 id = 1;
+  string name = 2;
+  string email = 3;
+  string role = 4;
+  string initials = 5;
+  string inn = 6;
+}
+
+message DeleteUserRequest {
+  uint32 id = 1;
+}
+
+message DeleteUserResponse {}
+
+// ─── Activity Logs ──────────────────────────────────────────────────────────
+
+message LogActivityRequest {
+  uint32 user_id = 1;
+  string user_name = 2;
+  string user_email = 3;
+  string action = 4;
+  string resource_type = 5;
+  uint32 resource_id = 6;
+  string details = 7;
+  string ip_address = 8;
+  string user_agent = 9;
+}
+
+message LogActivityResponse {}
+
+message GetActivityLogsRequest {
+  uint32 user_id = 1;
+  string action = 2;
+  string resource_type = 3;
+  google.protobuf.Timestamp start_date = 4;
+  google.protobuf.Timestamp end_date = 5;
+  int32 limit = 6;
+  int32 offset = 7;
+}
+
+message ActivityLog {
+  uint32 id = 1;
+  uint32 user_id = 2;
+  string user_name = 3;
+  string user_email = 4;
+  string action = 5;
+  string resource_type = 6;
+  uint32 resource_id = 7;
+  string details = 8;
+  string ip_address = 9;
+  string user_agent = 10;
+  google.protobuf.Timestamp created_at = 11;
+}
+
+message ActivityLogList {
+  repeated ActivityLog logs = 1;
+  int32 total = 2;
+}
+
+// ─── Server Status ──────────────────────────────────────────────────────────
+
+message GetServerStatusRequest {}
+
+message ServerStatus {
+  string status = 1;
+  int64 uptime_seconds = 2;
+  int32 total_users = 3;
+  int32 active_sessions = 4;
+  double memory_usage_mb = 5;
+  int32 goroutines = 6;
+  int32 total_parts = 7;
+}
+
+message GetServerLogsRequest {
+  int32 limit = 1;
+  string level = 2;
+}
+
+message ServerLog {
+  string timestamp = 1;
+  string level = 2;
+  string message = 3;
+  string source = 4;
+}
+
+message ServerLogsResponse {
+  repeated ServerLog logs = 1;
+}

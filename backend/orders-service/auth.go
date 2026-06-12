@@ -17,7 +17,7 @@ var config *Config
 
 // User представляет пользователя в системе
 type User struct {
-	ID       uint   `json:"id"`
+	ID       int64  `json:"id"`
 	Email    string `json:"email"`
 	Name     string `json:"name"`
 	Initials string `json:"initials,omitempty"`
@@ -135,7 +135,7 @@ func authMiddleware() gin.HandlerFunc {
 		log.Printf("AUTH: User authenticated via auth-service for user ID %d from %s", user.ID, c.ClientIP())
 
 		// Устанавливаем заголовки для совместимости
-		c.Request.Header.Set("X-User-ID", strconv.FormatUint(uint64(user.ID), 10))
+		c.Request.Header.Set("X-User-ID", strconv.FormatInt(user.ID, 10))
 		c.Request.Header.Set("X-User-Email", user.Email)
 		c.Request.Header.Set("X-User-Name", user.Name)
 

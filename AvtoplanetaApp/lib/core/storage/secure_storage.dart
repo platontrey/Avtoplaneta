@@ -7,6 +7,7 @@ class SecureStorage {
 
   static const _keyToken = 'jwt_token';
   static const _keyRefreshToken = 'jwt_refresh_token';
+  static const _keyUser = 'cached_user';
 
   static Future<void> saveTokens({
     required String token,
@@ -23,10 +24,18 @@ class SecureStorage {
   static Future<String?> getRefreshToken() =>
       _storage.read(key: _keyRefreshToken);
 
+  static Future<void> saveUser(String userJson) =>
+      _storage.write(key: _keyUser, value: userJson);
+
+  static Future<String?> getUser() => _storage.read(key: _keyUser);
+
+  static Future<void> clearUser() => _storage.delete(key: _keyUser);
+
   static Future<void> clearTokens() async {
     await Future.wait([
       _storage.delete(key: _keyToken),
       _storage.delete(key: _keyRefreshToken),
+      _storage.delete(key: _keyUser),
     ]);
   }
 }

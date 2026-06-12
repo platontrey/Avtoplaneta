@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-
-
 // MockElasticsearchClient - мок для Elasticsearch клиента
 type MockElasticsearchClient struct {
 	mock.Mock
@@ -21,8 +19,8 @@ func (m *MockElasticsearchClient) IndexPart(part *Part) error {
 	return args.Error(0)
 }
 
-func (m *MockElasticsearchClient) DeletePartFromIndex(id uint) error {
-	args := m.Called(id)
+func (m *MockElasticsearchClient) DeletePartFromIndex(partID int64) error {
+	args := m.Called(partID)
 	return args.Error(0)
 }
 
@@ -83,8 +81,7 @@ func (suite *ServiceTestSuite) TestAddPart() {
 		part := args.Get(1).(*Part)
 		part.ID = 2
 	})
-	suite.mockRepo.On("FindByID", mock.Anything, uint(2)).Return(newPart, nil)
-	suite.mockES.On("IndexPart", mock.AnythingOfType("*main.Part")).Return(nil)
+	suite.mockRepo.On("FindByID", mock.Anything, int64(2)).Return(newPart, nil)
 
 	result, err := suite.service.AddPart(context.Background(), newPart)
 	assert.NoError(suite.T(), err)
@@ -118,7 +115,6 @@ func (suite *ServiceTestSuite) TestUpdatePart() {
 	// Настраиваем моки
 	suite.mockRepo.On("Update", mock.Anything, suite.testPart.ID, updates).Return(nil)
 	suite.mockRepo.On("FindByID", mock.Anything, suite.testPart.ID).Return(suite.testPart, nil)
-	suite.mockES.On("IndexPart", mock.AnythingOfType("*main.Part")).Return(nil)
 
 	err := suite.service.UpdatePart(context.Background(), suite.testPart.ID, updates)
 	assert.NoError(suite.T(), err)
@@ -129,7 +125,6 @@ func (suite *ServiceTestSuite) TestDeletePart() {
 	// Настраиваем моки
 	suite.mockRepo.On("Delete", mock.Anything, suite.testPart.ID).Return(nil)
 	suite.mockRepo.On("FindByID", mock.Anything, suite.testPart.ID).Return(suite.testPart, nil)
-	suite.mockES.On("DeletePartFromIndex", suite.testPart.ID).Return(nil)
 
 	err := suite.service.DeletePart(context.Background(), suite.testPart.ID)
 	assert.NoError(suite.T(), err)
@@ -193,12 +188,11 @@ func (suite *ServiceTestSuite) TestGetStatistics() {
 // TestBulkDeleteParts - тест массового удаления
 func (suite *ServiceTestSuite) TestBulkDeleteParts() {
 	part2 := &Part{PartCore: PartCore{ID: 2, Name: "Part 2", Quantity: 5}}
-	ids := []uint{suite.testPart.ID, part2.ID}
+	ids := []int64{suite.testPart.ID, part2.ID}
 
 	suite.mockRepo.On("FindByID", mock.Anything, suite.testPart.ID).Return(suite.testPart, nil)
 	suite.mockRepo.On("FindByID", mock.Anything, part2.ID).Return(part2, nil)
 	suite.mockRepo.On("BulkDelete", mock.Anything, ids).Return(nil)
-	suite.mockES.On("DeletePartFromIndex", mock.Anything).Return(nil)
 
 	err := suite.service.BulkDeleteParts(context.Background(), ids)
 	assert.NoError(suite.T(), err)

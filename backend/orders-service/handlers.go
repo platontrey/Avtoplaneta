@@ -25,7 +25,7 @@ func NewHandler(ordersService OrdersService, publisher EventPublisher) *Handler 
 }
 
 // logUserActivity логирует активность пользователя через Redis Streams
-func (h *Handler) logUserActivity(ctx context.Context, c *gin.Context, action, resourceType, details string, resourceID *uint) {
+func (h *Handler) logUserActivity(ctx context.Context, c *gin.Context, action, resourceType, details string, resourceID *int64) {
 	userIDStr := c.GetHeader("X-User-ID")
 	userEmail := c.GetHeader("X-User-Email")
 	userName := c.GetHeader("X-User-Name")
@@ -75,7 +75,7 @@ func (h *Handler) CreateOrderHandler(c *gin.Context) {
 		return
 	}
 
-	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	userID, err := strconv.ParseInt(userIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
@@ -83,7 +83,7 @@ func (h *Handler) CreateOrderHandler(c *gin.Context) {
 
 	userName := c.GetHeader("X-User-Name")
 
-	order, err := h.ordersService.CreateOrder(ctx, req, uint(userID), userName)
+	order, err := h.ordersService.CreateOrder(ctx, req, userID, userName)
 	if err != nil {
 		if IsValidationError(err) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -103,7 +103,7 @@ func (h *Handler) CreateOrderHandler(c *gin.Context) {
 func (h *Handler) UpdateOrderStatusHandler(c *gin.Context) {
 	ctx := c.Request.Context()
 	orderIDStr := c.Param("id")
-	orderID, err := strconv.ParseUint(orderIDStr, 10, 32)
+	orderID, err := strconv.ParseInt(orderIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
 		return
@@ -117,7 +117,7 @@ func (h *Handler) UpdateOrderStatusHandler(c *gin.Context) {
 		return
 	}
 
-	if err := h.ordersService.UpdateOrderStatus(ctx, uint(orderID), req.Status); err != nil {
+	if err := h.ordersService.UpdateOrderStatus(ctx, orderID, req.Status); err != nil {
 		if IsValidationError(err) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		} else {
@@ -133,13 +133,13 @@ func (h *Handler) UpdateOrderStatusHandler(c *gin.Context) {
 func (h *Handler) CompleteOrderHandler(c *gin.Context) {
 	ctx := c.Request.Context()
 	orderIDStr := c.Param("id")
-	orderID, err := strconv.ParseUint(orderIDStr, 10, 32)
+	orderID, err := strconv.ParseInt(orderIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
 		return
 	}
 
-	if err := h.ordersService.CompleteOrder(ctx, uint(orderID)); err != nil {
+	if err := h.ordersService.CompleteOrder(ctx, orderID); err != nil {
 		if IsNotFoundError(err) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		} else {
@@ -149,8 +149,7 @@ func (h *Handler) CompleteOrderHandler(c *gin.Context) {
 	}
 
 	// Логируем завершение заказа
-	orderIDUint := uint(orderID)
-	h.logUserActivity(ctx, c, "complete_order", "order", fmt.Sprintf("Completed order ID: %d", orderID), &orderIDUint)
+	h.logUserActivity(ctx, c, "complete_order", "order", fmt.Sprintf("Completed order ID: %d", orderID), &orderID)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Order completed"})
 }
@@ -159,13 +158,13 @@ func (h *Handler) CompleteOrderHandler(c *gin.Context) {
 func (h *Handler) DeleteOrderHandler(c *gin.Context) {
 	ctx := c.Request.Context()
 	orderIDStr := c.Param("id")
-	orderID, err := strconv.ParseUint(orderIDStr, 10, 32)
+	orderID, err := strconv.ParseInt(orderIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
 		return
 	}
 
-	if err := h.ordersService.DeleteOrder(ctx, uint(orderID)); err != nil {
+	if err := h.ordersService.DeleteOrder(ctx, orderID); err != nil {
 		if IsNotFoundError(err) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		} else {
@@ -175,8 +174,7 @@ func (h *Handler) DeleteOrderHandler(c *gin.Context) {
 	}
 
 	// Логируем удаление заказа
-	orderIDUint := uint(orderID)
-	h.logUserActivity(ctx, c, "delete_order", "order", fmt.Sprintf("Deleted order ID: %d", orderID), &orderIDUint)
+	h.logUserActivity(ctx, c, "delete_order", "order", fmt.Sprintf("Deleted order ID: %d", orderID), &orderID)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Order deleted"})
 }
@@ -185,7 +183,7 @@ func (h *Handler) DeleteOrderHandler(c *gin.Context) {
 func (h *Handler) AddOrderItemHandler(c *gin.Context) {
 	ctx := c.Request.Context()
 	orderIDStr := c.Param("id")
-	orderID, err := strconv.ParseUint(orderIDStr, 10, 32)
+	orderID, err := strconv.ParseInt(orderIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
 		return
@@ -197,7 +195,7 @@ func (h *Handler) AddOrderItemHandler(c *gin.Context) {
 		return
 	}
 
-	if err := h.ordersService.AddOrderItem(ctx, uint(orderID), req); err != nil {
+	if err := h.ordersService.AddOrderItem(ctx, orderID, req); err != nil {
 		if IsNotFoundError(err) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		} else {

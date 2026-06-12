@@ -7,19 +7,30 @@ services:
       - "--configFile=/etc/traefik/traefik.yml"
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      - ./traefik/acme.json:/etc/traefik/acme.json
       - traefik-logs:/var/log/traefik
     networks:
       - avtoplaneta_network
     labels:
       - "traefik.enable=true"
+      # Dashboard Router (HTTPS)
       - "traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN}`)"
-      - "traefik.http.routers.traefik.entrypoints=web"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls=true"
+      - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
       - "traefik.http.routers.traefik.service=api@internal"
-      - "traefik.http.routers.traefik.middlewares=dashboard-auth"
+      - "traefik.http.routers.traefik.middlewares=dashboard-auth@file"
+      # Global HTTP to HTTPS redirect
+      - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
     environment:
       - ACME_EMAIL=${ACME_EMAIL:-admin@example.com}
       - DASHBOARD_USER=${DASHBOARD_USER:-admin}
@@ -44,7 +55,9 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=Host(`${DOMAIN}`) || Host(`${SERVER_IP}`)"
-      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
     environment:
       - VITE_API_BASE_URL=https://${DOMAIN}
@@ -62,7 +75,9 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.gateway.rule=(Host(`${DOMAIN}`) || Host(`${SERVER_IP}`)) && (PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/admin`) || PathPrefix(`/orders`) || PathPrefix(`/uploads`) || PathPrefix(`/health`) || PathPrefix(`/ready`) || PathPrefix(`/metrics`) || PathPrefix(`/swagger`))"
-      - "traefik.http.routers.gateway.entrypoints=web"
+      - "traefik.http.routers.gateway.entrypoints=websecure"
+      - "traefik.http.routers.gateway.tls=true"
+      - "traefik.http.routers.gateway.tls.certresolver=letsencrypt"
       - "traefik.http.services.gateway.loadbalancer.server.port=8080"
       - "traefik.http.middlewares.gateway-stripprefix.stripprefix.prefixes=/api"
     environment:
@@ -72,6 +87,7 @@ services:
       - PARTS_SERVICE_URL=http://parts-service:8081
       - ORDERS_SERVICE_URL=http://orders-service:8082
       - MESSAGING_SERVICE_URL=http://messaging-service:8084
+      - AUTH_GRPC_ADDR=auth-service:9083
       - SESSION_SECRET=${SESSION_SECRET}
       - DATABASE_URL=${DATABASE_URL}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
@@ -86,14 +102,19 @@ services:
 
   auth-service:
     build:
-      context: ./backend/auth-service
-      dockerfile: Dockerfile
+      context: ./backend
+      dockerfile: auth-service/Dockerfile
     container_name: avtoplaneta-auth
     restart: unless-stopped
     networks:
       - avtoplaneta_network
+    expose:
+      - "8083"
+      - "9083"
     environment:
       - NODE_ENV=production
+      - PORT=8083
+      - GRPC_PORT=9083
       - DATABASE_URL=${DATABASE_URL}
       - SESSION_SECRET=${SESSION_SECRET}
       - JWT_SECRET=${JWT_SECRET}
@@ -101,39 +122,52 @@ services:
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GOOGLE_CALLBACK_URL=https://${DOMAIN}/auth/google/callback
       - ALLOWED_ORIGINS=https://${DOMAIN},http://${DOMAIN}
+      - PARTS_SERVICE_URL=http://parts-service:8081
     depends_on:
       - postgres
       - redis
 
   parts-service:
     build:
-      context: ./backend/parts-service
-      dockerfile: Dockerfile
+      context: ./backend
+      dockerfile: parts-service/Dockerfile
     container_name: avtoplaneta-parts
     restart: unless-stopped
     networks:
       - avtoplaneta_network
     volumes:
       - parts-uploads:/app/uploads
+    expose:
+      - "8081"
+      - "9081"
     environment:
       - NODE_ENV=production
+      - PORT=8081
+      - GRPC_PORT=9081
       - DATABASE_URL=${DATABASE_URL}
-      - ELASTICSEARCH_URL=
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
       - REDIS_URL=redis:6379
+      - AUTH_GRPC_ADDR=auth-service:9083
+      - ORDERS_GRPC_ADDR=orders-service:9082
     depends_on:
       - postgres
       - redis
 
   orders-service:
     build:
-      context: ./backend/orders-service
-      dockerfile: Dockerfile
+      context: ./backend
+      dockerfile: orders-service/Dockerfile
     container_name: avtoplaneta-orders
     restart: unless-stopped
     networks:
       - avtoplaneta_network
+    expose:
+      - "8082"
+      - "9082"
     environment:
       - NODE_ENV=production
+      - PORT=8082
+      - GRPC_PORT=9082
       - DATABASE_URL=${DATABASE_URL}
       - SESSION_SECRET=${SESSION_SECRET}
       - REDIS_URL=redis:6379
@@ -143,16 +177,21 @@ services:
 
   messaging-service:
     build:
-      context: ./backend/messaging-service
-      dockerfile: Dockerfile
+      context: ./backend
+      dockerfile: messaging-service/Dockerfile
     container_name: avtoplaneta-messaging
     restart: unless-stopped
     networks:
       - avtoplaneta_network
     volumes:
       - messaging-uploads:/app/uploads
+    expose:
+      - "8084"
+      - "9084"
     environment:
       - NODE_ENV=production
+      - PORT=8084
+      - GRPC_PORT=9084
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=redis:6379
       - GATEWAY_URL=http://gateway:8080
@@ -195,59 +234,67 @@ services:
       timeout: 5s
       retries: 5
 
-  # elasticsearch:
-  #   image: elasticsearch:9.3.3
-  #   container_name: avtoplaneta-elasticsearch
-  #   restart: unless-stopped
-  #   networks:
-  #     - avtoplaneta_network
-  #   ports:
-  #     - "9200:9200"
-  #   environment:
-  #     - discovery.type=single-node
-  #     - xpack.security.enabled=false
-  #     - ES_JAVA_OPTS=-Xms512m -Xmx512m
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 5
+#   elasticsearch:
+#     image: elasticsearch:9.3.3
+#     container_name: avtoplaneta-elasticsearch
+#     restart: unless-stopped
+#     networks:
+#       - avtoplaneta_network
+#     ports:
+#       - "9200:9200"
+#     environment:
+#       - discovery.type=single-node
+#       - xpack.security.enabled=false
+#       - ES_JAVA_OPTS=-Xms2g -Xmx2g
+#     healthcheck:
+#       test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+#       interval: 30s
+#       timeout: 10s
+#       retries: 5
 
-  # prometheus:
-  #   image: prom/prometheus:latest
-  #   container_name: avtoplaneta-prometheus
-  #   restart: unless-stopped
-  #   networks:
-  #     - avtoplaneta_network
-  #   volumes:
-  #     - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-  #     - prometheus-data:/prometheus
-  #   command:
-  #     - '--config.file=/etc/prometheus/prometheus.yml'
-  #     - '--storage.tsdb.path=/prometheus'
-  #   labels:
-  #     - "traefik.enable=true"
-  #     - "traefik.http.routers.prometheus.rule=Host(`prometheus.${DOMAIN}`)"
-  #     - "traefik.http.routers.prometheus.entrypoints=web"
-  #     - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: avtoplaneta-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    networks:
+      - avtoplaneta_network
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus.${DOMAIN}`)"
+      - "traefik.http.routers.prometheus.entrypoints=websecure"
+      - "traefik.http.routers.prometheus.tls=true"
+      - "traefik.http.routers.prometheus.tls.certresolver=letsencrypt"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
 
-  # grafana:
-  #   image: grafana/grafana:latest
-  #   container_name: avtoplaneta-grafana
-  #   restart: unless-stopped
-  #   networks:
-  #     - avtoplaneta_network
-  #   volumes:
-  #     - grafana-data:/var/lib/grafana
-  #     - ./grafana/provisioning:/etc/grafana/provisioning:ro
-  #   environment:
-  #     - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
-  #     - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
-  #   labels:
-  #     - "traefik.enable=true"
-  #     - "traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)"
-  #     - "traefik.http.routers.grafana.entrypoints=web"
-  #     - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+  grafana:
+    image: grafana/grafana:latest
+    container_name: avtoplaneta-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    networks:
+      - avtoplaneta_network
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls=true"
+      - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
 
 networks:
   avtoplaneta_network:
@@ -259,5 +306,5 @@ volumes:
   redis-data:
   parts-uploads:
   messaging-uploads:
-  # prometheus-data:
-  # grafana-data:
+  prometheus-data:
+  grafana-data:

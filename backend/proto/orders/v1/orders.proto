@@ -1,0 +1,107 @@
+syntax = "proto3";
+package orders.v1;
+option go_package = "avtoplaneta/gen/orders/v1;ordersv1";
+
+import "google/protobuf/timestamp.proto";
+
+service OrdersService {
+  rpc CreateOrder(CreateOrderRequest) returns (Order);
+  rpc GetOrders(GetOrdersRequest) returns (OrderList);
+  rpc UpdateOrderStatus(UpdateOrderStatusRequest) returns (Order);
+  rpc CompleteOrder(CompleteOrderRequest) returns (Order);
+  rpc DeleteOrder(DeleteOrderRequest) returns (DeleteOrderResponse);
+  rpc AddOrderItem(AddOrderItemRequest) returns (Order);
+  rpc GetMonthlySales(GetMonthlySalesRequest) returns (MonthlySalesResponse);
+}
+
+// ─── Order Model ────────────────────────────────────────────────────────────
+
+message OrderItem {
+  uint32 id = 1;
+  uint32 order_id = 2;
+  uint32 part_id = 3;
+  int32 quantity = 4;
+  double price = 5;
+}
+
+message Order {
+  uint32 id = 1;
+  int32 customer_id = 2;
+  uint32 seller_id = 3;
+  string seller = 4;
+  string part = 5;
+  uint32 part_id = 6;
+  string location = 7;
+  string buyer_number = 8;
+  string status = 9;
+  string status_text = 10;
+  bool auto_deleted = 11;
+  google.protobuf.Timestamp created_at = 12;
+  string created_at_formatted = 13;
+  string time_ago = 14;
+  repeated OrderItem items = 15;
+}
+
+message OrderList {
+  repeated Order orders = 1;
+  int32 total = 2;
+}
+
+// ─── Requests ───────────────────────────────────────────────────────────────
+
+message CreateOrderItemInput {
+  uint32 part_id = 1;
+  int32 quantity = 2;
+}
+
+message CreateOrderRequest {
+  int32 customer_id = 1;
+  string part = 2;
+  uint32 part_id = 3;
+  string buyer_number = 4;
+  uint32 seller_id = 5;
+  repeated CreateOrderItemInput items = 6;
+}
+
+message GetOrdersRequest {
+  // Фильтры
+  string status = 1;
+  uint32 seller_id = 2;
+  int32 limit = 3;
+  int32 offset = 4;
+  bool admin = 5; // если true — возвращает все заказы
+}
+
+message UpdateOrderStatusRequest {
+  uint32 id = 1;
+  string status = 2;
+}
+
+message CompleteOrderRequest {
+  uint32 id = 1;
+}
+
+message DeleteOrderRequest {
+  uint32 id = 1;
+}
+
+message DeleteOrderResponse {}
+
+message AddOrderItemRequest {
+  uint32 order_id = 1;
+  uint32 part_id = 2;
+  int32 quantity = 3;
+}
+
+// ─── Monthly Sales ──────────────────────────────────────────────────────────
+
+message GetMonthlySalesRequest {}
+
+message MonthlySalesEntry {
+  string month = 1;
+  double sales = 2;
+}
+
+message MonthlySalesResponse {
+  repeated MonthlySalesEntry entries = 1;
+}

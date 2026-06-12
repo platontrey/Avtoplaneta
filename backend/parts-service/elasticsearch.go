@@ -40,7 +40,7 @@ func NewElasticsearchAdapter() ElasticsearchClient {
 }
 
 type ElasticsearchPart struct {
-	ID          uint     `json:"id"`
+	ID          int64    `json:"id"`
 	Name        string   `json:"name"`
 	Quantity    int      `json:"quantity"`
 	Description string   `json:"description"`
@@ -55,11 +55,12 @@ type ElasticsearchPart struct {
 }
 
 // InitElasticsearch initializes the Elasticsearch client
-func InitElasticsearch() error {
+func InitElasticsearch(url string) error {
+	if url == "" {
+		url = "http://localhost:9200"
+	}
 	cfg := elasticsearch.Config{
-		Addresses: []string{
-			"http://localhost:9200", // Default Elasticsearch address
-		},
+		Addresses: []string{url},
 	}
 
 	var err error
@@ -249,7 +250,7 @@ func IndexPart(part *Part) error {
 }
 
 // DeletePartFromIndex removes a part from the Elasticsearch index
-func DeletePartFromIndex(partID uint) error {
+func DeletePartFromIndex(partID int64) error {
 	req := esapi.DeleteRequest{
 		Index:      "parts",
 		DocumentID: fmt.Sprintf("%d", partID),
@@ -341,7 +342,7 @@ func (e *elasticsearchAdapter) IndexPart(part *Part) error {
 }
 
 // DeletePartFromIndex удаляет запчасть из индекса Elasticsearch
-func (e *elasticsearchAdapter) DeletePartFromIndex(partID uint) error {
+func (e *elasticsearchAdapter) DeletePartFromIndex(partID int64) error {
 	return DeletePartFromIndex(partID)
 }
 

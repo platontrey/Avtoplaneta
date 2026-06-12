@@ -11,41 +11,33 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// SessionStore определяет интерфейс для работы с сессиями
 type SessionStore interface {
 	Get(r *http.Request, name string) (*sessions.Session, error)
 	Save(r *http.Request, w http.ResponseWriter, s *sessions.Session) error
 }
 
-// RateLimiter определяет интерфейс для ограничения скорости
 type RateLimiter interface {
 	IsLimited(key string, limit int, window time.Duration) (bool, error)
 }
 
-// AuthService определяет интерфейс для бизнес-логики аутентификации
 type AuthService interface {
-	// AuthenticateUser Аутентификация
 	AuthenticateUser(email, password string) (*User, error)
 	CreateUserFromGoogle(email, name string) (*User, error)
-	GetCurrentUser(userID uint) (*User, error)
-	Logout(userID uint) error
+	GetCurrentUser(userID int64) (*User, error)
+	Logout(userID int64) error
 
-	// CreateUser Управление пользователями
 	CreateUser(req CreateUserRequest) (*User, error)
 	GetUsers() ([]User, error)
-	UpdateUser(userID uint, req UpdateUserRequest) (*User, error)
-	DeleteUser(userID uint) error
+	UpdateUser(userID int64, req UpdateUserRequest) (*User, error)
+	DeleteUser(userID int64) error
 	GetTotalUsersCount() (int, error)
 
-	// LogUserActivity Логи активности
-	LogUserActivity(user *User, action, resourceType string, resourceID *uint, details, ip, userAgent string) error
+	LogUserActivity(user *User, action, resourceType string, resourceID *int64, details, ip, userAgent string) error
 	GetUserActivityLogs(filters ActivityLogFilters) ([]UserActivityLog, error)
 
-	// GenerateCSRFToken CSRF токены
-	GenerateCSRFToken(userID *uint) (string, error)
+	GenerateCSRFToken(userID *int64) (string, error)
 }
 
-// CreateUserRequest запрос на создание пользователя
 type CreateUserRequest struct {
 	Email    string
 	Name     string
@@ -55,7 +47,6 @@ type CreateUserRequest struct {
 	Role     string
 }
 
-// UpdateUserRequest запрос на обновление пользователя
 type UpdateUserRequest struct {
 	Name     string
 	Email    string
@@ -64,7 +55,6 @@ type UpdateUserRequest struct {
 	Role     string
 }
 
-// authService реализует AuthService
 type authService struct {
 	userRepo     UserRepository
 	activityRepo ActivityLogRepository
@@ -72,7 +62,6 @@ type authService struct {
 	rateLimiter  RateLimiter
 }
 
-// NewAuthService создает новый сервис аутентификации
 func NewAuthService(userRepo UserRepository, activityRepo ActivityLogRepository, sessionStore SessionStore, rateLimiter RateLimiter) AuthService {
 	return &authService{
 		userRepo:     userRepo,
@@ -82,10 +71,8 @@ func NewAuthService(userRepo UserRepository, activityRepo ActivityLogRepository,
 	}
 }
 
-// AuthenticateUser аутентифицирует пользователя
 func (s *authService) AuthenticateUser(email, password string) (*User, error) {
-	// Проверка rate limiting (если rate limiter реализован)
-	clientIP := "unknown" // В реальности передавать из контекста
+	clientIP := "unknown"
 	if s.rateLimiter != nil {
 		if limited, _ := s.rateLimiter.IsLimited(clientIP+":user", 10, time.Minute); limited {
 			logrus.WithFields(logrus.Fields{
@@ -96,18 +83,16 @@ func (s *authService) AuthenticateUser(email, password string) (*User, error) {
 		}
 	}
 
-	// Поиск пользователя
 	user, err := s.userRepo.FindByEmailOrName(email)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"email": email,
 			"ip":    clientIP,
 		}).Warn("User not found during login")
-		time.Sleep(time.Second) // Искусственная задержка
+		time.Sleep(time.Second)
 		return nil, fmt.Errorf("неверные учетные данные")
 	}
 
-	// Проверка провайдера и пароля
 	if user.Provider != "local" || user.Password == "" {
 		logrus.WithFields(logrus.Fields{
 			"email": email,
@@ -117,7 +102,6 @@ func (s *authService) AuthenticateUser(email, password string) (*User, error) {
 		return nil, fmt.Errorf("неверные учетные данные")
 	}
 
-	// Проверка пароля
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		logrus.WithFields(logrus.Fields{
 			"email": email,
@@ -135,16 +119,13 @@ func (s *authService) AuthenticateUser(email, password string) (*User, error) {
 	return user, nil
 }
 
-// CreateUserFromGoogle создает пользователя из Google OAuth
 func (s *authService) CreateUserFromGoogle(email, name string) (*User, error) {
-	// Проверяем, существует ли пользователь
 	existing, err := s.userRepo.FindByEmailOrName(email)
 	if err == nil {
 		logrus.WithField("email", email).Info("Existing Google user found")
 		return existing, nil
 	}
 
-	// Создаем нового пользователя
 	user := &User{
 		Email:    email,
 		Name:     name,
@@ -152,7 +133,7 @@ func (s *authService) CreateUserFromGoogle(email, name string) (*User, error) {
 		Role:     "operator",
 	}
 
-	if err := s.userRepo.Create(user); err != nil {
+	if _, err := s.userRepo.Create(user); err != nil {
 		logrus.WithError(err).WithField("email", email).Error("Failed to create Google user")
 		return nil, err
 	}
@@ -161,23 +142,19 @@ func (s *authService) CreateUserFromGoogle(email, name string) (*User, error) {
 	return user, nil
 }
 
-// GetCurrentUser получает текущего пользователя
-func (s *authService) GetCurrentUser(userID uint) (*User, error) {
+func (s *authService) GetCurrentUser(userID int64) (*User, error) {
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil {
 		logrus.WithError(err).WithField("user_id", userID).Error("Failed to get current user")
 		return nil, err
 	}
 
-	// Не возвращаем пароль
 	user.Password = ""
 	return user, nil
 }
 
-// Logout выполняет выход пользователя
-func (s *authService) Logout(userID uint) error {
-	// Очистка CSRF токена
-	userIDStr := strconv.FormatUint(uint64(userID), 10)
+func (s *authService) Logout(userID int64) error {
+	userIDStr := strconv.FormatInt(userID, 10)
 	csrfMutex.Lock()
 	delete(csrfTokens, userIDStr)
 	csrfMutex.Unlock()
@@ -186,9 +163,7 @@ func (s *authService) Logout(userID uint) error {
 	return nil
 }
 
-// CreateUser создает нового пользователя
 func (s *authService) CreateUser(req CreateUserRequest) (*User, error) {
-	// Проверяем, существует ли пользователь
 	exists, err := s.userRepo.ExistsByEmailOrName(req.Email, req.Name)
 	if err != nil {
 		return nil, err
@@ -197,14 +172,12 @@ func (s *authService) CreateUser(req CreateUserRequest) (*User, error) {
 		return nil, fmt.Errorf("пользователь с таким email или именем уже существует")
 	}
 
-	// Хэшируем пароль
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to hash password")
 		return nil, fmt.Errorf("не удалось создать пользователя")
 	}
 
-	// Создаем пользователя
 	user := &User{
 		Email:    req.Email,
 		Name:     req.Name,
@@ -215,12 +188,11 @@ func (s *authService) CreateUser(req CreateUserRequest) (*User, error) {
 		Password: string(hashedPassword),
 	}
 
-	if err := s.userRepo.Create(user); err != nil {
+	if _, err := s.userRepo.Create(user); err != nil {
 		logrus.WithError(err).WithField("email", req.Email).Error("Failed to create user")
 		return nil, err
 	}
 
-	// Не возвращаем пароль в ответе
 	user.Password = ""
 
 	logrus.WithFields(logrus.Fields{
@@ -231,7 +203,6 @@ func (s *authService) CreateUser(req CreateUserRequest) (*User, error) {
 	return user, nil
 }
 
-// GetUsers получает список всех пользователей
 func (s *authService) GetUsers() ([]User, error) {
 	users, err := s.userRepo.FindAll()
 	if err != nil {
@@ -239,7 +210,6 @@ func (s *authService) GetUsers() ([]User, error) {
 		return nil, err
 	}
 
-	// Убираем пароли
 	for i := range users {
 		users[i].Password = ""
 	}
@@ -247,15 +217,12 @@ func (s *authService) GetUsers() ([]User, error) {
 	return users, nil
 }
 
-// UpdateUser обновляет пользователя
-func (s *authService) UpdateUser(userID uint, req UpdateUserRequest) (*User, error) {
-	// Проверяем существование
+func (s *authService) UpdateUser(userID int64, req UpdateUserRequest) (*User, error) {
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil {
 		return nil, fmt.Errorf("пользователь не найден")
 	}
 
-	// Проверяем уникальность email, если он изменяется
 	if req.Email != "" && req.Email != user.Email {
 		exists, err := s.userRepo.ExistsByEmailOrName(req.Email, "")
 		if err != nil {
@@ -266,36 +233,23 @@ func (s *authService) UpdateUser(userID uint, req UpdateUserRequest) (*User, err
 		}
 	}
 
-	// Собираем обновления
-	updates := make(map[string]interface{})
-	if req.Name != "" {
-		updates["name"] = req.Name
-	}
-	if req.Email != "" {
-		updates["email"] = req.Email
-	}
-	if req.Initials != "" {
-		updates["initials"] = req.Initials
-	}
-	if req.INN != "" {
-		updates["inn"] = req.INN
-	}
-	if req.Role != "" {
-		updates["role"] = req.Role
+	updateParams := UpdateUserParams{
+		Name:     req.Name,
+		Email:    req.Email,
+		Initials: req.Initials,
+		INN:      req.INN,
+		Role:     req.Role,
 	}
 
-	if len(updates) == 0 {
+	if updateParams.Name == "" && updateParams.Email == "" &&
+		updateParams.Initials == "" && updateParams.INN == "" &&
+		updateParams.Role == "" {
 		return nil, fmt.Errorf("нет полей для обновления")
 	}
 
-	if err := s.userRepo.Update(userID, updates); err != nil {
-		logrus.WithError(err).WithField("user_id", userID).Error("Failed to update user")
-		return nil, err
-	}
-
-	// Получаем обновленного пользователя
-	updatedUser, err := s.userRepo.FindByID(userID)
+	updatedUser, err := s.userRepo.Update(userID, updateParams)
 	if err != nil {
+		logrus.WithError(err).WithField("user_id", userID).Error("Failed to update user")
 		return nil, err
 	}
 
@@ -305,8 +259,7 @@ func (s *authService) UpdateUser(userID uint, req UpdateUserRequest) (*User, err
 	return updatedUser, nil
 }
 
-// DeleteUser удаляет пользователя
-func (s *authService) DeleteUser(userID uint) error {
+func (s *authService) DeleteUser(userID int64) error {
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil {
 		return fmt.Errorf("пользователь не найден")
@@ -321,8 +274,7 @@ func (s *authService) DeleteUser(userID uint) error {
 	return nil
 }
 
-// LogUserActivity логирует активность пользователя
-func (s *authService) LogUserActivity(user *User, action, resourceType string, resourceID *uint, details, ip, userAgent string) error {
+func (s *authService) LogUserActivity(user *User, action, resourceType string, resourceID *int64, details, ip, userAgent string) error {
 	logEntry := &UserActivityLog{
 		UserID:       user.ID,
 		UserName:     user.Name,
@@ -335,15 +287,13 @@ func (s *authService) LogUserActivity(user *User, action, resourceType string, r
 		UserAgent:    userAgent,
 	}
 
-	if err := s.activityRepo.Create(logEntry); err != nil {
+	if _, err := s.activityRepo.Create(logEntry); err != nil {
 		logrus.WithError(err).WithField("user_id", user.ID).Error("Failed to log user activity")
-		// Не возвращаем ошибку, чтобы не ломать пользовательский поток
 	}
 
 	return nil
 }
 
-// GetUserActivityLogs получает логи активности
 func (s *authService) GetUserActivityLogs(filters ActivityLogFilters) ([]UserActivityLog, error) {
 	logs, err := s.activityRepo.FindWithFilters(filters)
 	if err != nil {
@@ -354,18 +304,16 @@ func (s *authService) GetUserActivityLogs(filters ActivityLogFilters) ([]UserAct
 	return logs, nil
 }
 
-// GetTotalUsersCount получает общее количество пользователей
 func (s *authService) GetTotalUsersCount() (int, error) {
 	return s.userRepo.CountAll()
 }
 
-// GenerateCSRFToken генерирует CSRF токен
-func (s *authService) GenerateCSRFToken(userID *uint) (string, error) {
+func (s *authService) GenerateCSRFToken(userID *int64) (string, error) {
 	if userID == nil {
 		return generateCsrfToken(), nil
 	}
 
-	userIDStr := strconv.FormatUint(uint64(*userID), 10)
+	userIDStr := strconv.FormatInt(*userID, 10)
 
 	csrfMutex.Lock()
 	defer csrfMutex.Unlock()

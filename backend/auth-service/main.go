@@ -15,21 +15,20 @@ import (
 )
 
 func main() {
-	// Установка количества OS-тредов для оптимизации под доступное количество ядер
 	runtime.GOMAXPROCS(runtime.NumCPU())
-
-	// Установка режима Gin в Release для продакшена
 	gin.SetMode(gin.ReleaseMode)
 
 	config := LoadConfig()
 	InitDB(config)
+
+	userRepo := NewUserRepository(dbPool)
+	SetUserRepo(userRepo)
+
 	CreateDefaultUser()
 
-	// Создание контекста с отменой для graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Обработка сигналов для graceful shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
@@ -40,39 +39,41 @@ func main() {
 
 	InitAuth(ctx, config)
 
-	// Создаем зависимости
-	userRepo := NewUserRepository(db)
-	activityRepo := NewActivityLogRepository(db)
-	authService := NewAuthService(userRepo, activityRepo, store, nil) // Rate limiter пока не реализован
+	activityRepo := NewActivityLogRepository(dbPool)
+	authService := NewAuthService(userRepo, activityRepo, store, nil)
 	handler := NewHandler(authService, config)
 
 	log.Println("Сервис аутентификации готов к работе с пользователями.")
 
+	grpcPort := os.Getenv("GRPC_PORT")
+	if grpcPort == "" {
+		grpcPort = "9083"
+	}
+	go func() {
+		if err := StartGRPCServer(authService, config, grpcPort); err != nil {
+			log.Fatalf("gRPC server failed: %v", err)
+		}
+	}()
+
 	r := gin.Default()
 
-	// Установить доверенные прокси для безопасности
 	err := r.SetTrustedProxies([]string{"127.0.0.1"})
 	if err != nil {
 		log.Printf("Ошибка установки доверенных прокси: %v", err)
 	}
 
-	// Setup middleware
 	r.Use(CORSMiddleware(config))
 	r.Use(csrfMiddleware)
 
-	// Setup routes с dependency injection
 	SetupRoutes(r, handler)
 
-	// Создание HTTP сервера для graceful shutdown
 	srv := &http.Server{
 		Addr:    ":" + config.Port,
 		Handler: r,
 	}
 
-	// Канал для ошибок сервера
 	errChan := make(chan error, 1)
 
-	// Запуск сервера в goroutine
 	go func() {
 		log.Printf("Сервис аутентификации запускается на порту %s", config.Port)
 
@@ -103,7 +104,6 @@ func main() {
 		}
 	}()
 
-	// Ожидание сигнала отмены или ошибки
 	select {
 	case <-ctx.Done():
 		log.Println("Завершение работы сервиса аутентификации...")

@@ -2,44 +2,71 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
-	"runtime"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )
 
-// StartXMLGenerationScheduler запускает планировщик автоматической генерации XML прайс-листа каждые 14 дней
+// StartXMLGenerationScheduler запускает планировщик автоматической генерации XML прайс-листа
 func StartXMLGenerationScheduler(ctx context.Context) {
-	ticker := time.NewTicker(14 * 24 * time.Hour) // 14 дней
+	logrus.Info("Starting XML generation scheduler...")
+
+	// Запускаем первую проверку при старте в отдельной горутине
+	go checkAndGenerateXML(ctx)
+
+	// Проверяем статус каждые 1 час
+	ticker := time.NewTicker(1 * time.Hour)
 	defer ticker.Stop()
-
-	// Канал для worker pool (ограничение concurrency до 4 для использования многопроцессорности)
-	jobs := make(chan func(), 10)
-
-	// Worker goroutines (используем количество ядер для оптимальной производительности)
-	numWorkers := runtime.NumCPU()
-	for i := 0; i < numWorkers; i++ {
-		go func() {
-			for job := range jobs {
-				job()
-			}
-		}()
-	}
-
-	// Генерируем XML сразу при запуске
-	logrus.Info("Запуск начальной генерации XML прайс-листа...")
-	jobs <- generateXMLPriceList
 
 	for {
 		select {
 		case <-ctx.Done():
-			close(jobs)
-			logrus.Info("Остановка планировщика генерации XML")
+			logrus.Info("Stopping XML generation scheduler")
 			return
 		case <-ticker.C:
-			logrus.Info("Автоматическая генерация XML прайс-листа каждые 14 дней...")
-			jobs <- generateXMLPriceList
+			go checkAndGenerateXML(ctx)
+		}
+	}
+}
+
+// checkAndGenerateXML проверяет время последней генерации в Redis и при необходимости запускает новую
+func checkAndGenerateXML(ctx context.Context) {
+	if redisClient == nil {
+		logrus.Warn("Redis client not initialized, skipping XML scheduler check")
+		return
+	}
+
+	key := "xml_last_generated_at"
+	lastGenStr, err := redisClient.Get(ctx, key).Result()
+
+	var shouldGenerate bool
+	if errors.Is(err, redis.Nil) {
+		// Ключа еще нет в Redis — генерируем XML впервые
+		shouldGenerate = true
+	} else if err != nil {
+		logrus.WithError(err).Error("Failed to get last XML generation timestamp from Redis")
+		return
+	} else {
+		lastGenTime, parseErr := time.Parse(time.RFC3339, lastGenStr)
+		if parseErr != nil {
+			logrus.WithError(parseErr).Warn("Failed to parse last XML generation timestamp, forcing regeneration")
+			shouldGenerate = true
+		} else if time.Since(lastGenTime) >= 14*24*time.Hour {
+			shouldGenerate = true
+		}
+	}
+
+	if shouldGenerate {
+		logrus.Info("Time threshold exceeded. Starting XML price list generation...")
+		generateXMLPriceList()
+
+		// Обновляем метку времени в Redis
+		err := redisClient.Set(ctx, key, time.Now().Format(time.RFC3339), 0).Err()
+		if err != nil {
+			logrus.WithError(err).Error("Failed to save XML generation timestamp to Redis")
 		}
 	}
 }

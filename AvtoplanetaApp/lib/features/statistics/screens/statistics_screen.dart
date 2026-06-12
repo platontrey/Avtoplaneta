@@ -31,8 +31,19 @@ class StatisticsScreen extends ConsumerWidget {
         data: (data) {
           final totalParts = data['total_parts'] as int? ?? 0;
           final totalValue = (data['total_value'] as num?)?.toDouble() ?? 0;
-          final categories =
-              data['categories'] as Map<String, dynamic>? ?? {};
+          final categoriesRaw = data['categories'];
+          final Map<String, dynamic> categories = {};
+          if (categoriesRaw is List) {
+            for (final item in categoriesRaw) {
+              if (item is Map) {
+                final name = item['name']?.toString() ?? 'Неизвестно';
+                final count = item['count'] ?? 0;
+                categories[name] = count;
+              }
+            }
+          } else if (categoriesRaw is Map) {
+            categories.addAll(Map<String, dynamic>.from(categoriesRaw));
+          }
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),

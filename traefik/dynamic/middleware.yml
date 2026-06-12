@@ -21,11 +21,4 @@ http:
         burst: 50
         period: 1m
 
-  routers:
-    dashboard:
-      rule: "Host(`traefik.${DOMAIN:-localhost}`)"
-      entryPoints:
-        - web
-      middlewares:
-        - dashboard-auth
-      service: api@internal
+

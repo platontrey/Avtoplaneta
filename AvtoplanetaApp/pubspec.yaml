@@ -40,6 +40,15 @@ dependencies:
   # Утилиты
   intl: ^0.20.2
   timeago: ^3.7.0
+  google_sign_in: ^7.2.0
+  mobile_scanner: ^7.2.0
+  qr_flutter: ^4.1.0
+  image_cropper: ^12.2.1
+  web_socket_channel: ^3.0.3
+  crypto: ^3.0.7
+  hive_flutter: ^1.1.0
+  firebase_core: ^4.10.0
+  firebase_messaging: ^16.3.0
 
 dev_dependencies:
   flutter_test:

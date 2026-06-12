@@ -2,23 +2,20 @@ package main
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"time"
 )
 
-// JWTClaims содержит данные пользователя в JWT токене
 type JWTClaims struct {
-	UserID uint   `json:"user_id"`
+	UserID int64  `json:"user_id"`
 	Email  string `json:"email"`
 	Role   string `json:"role"`
 	Name   string `json:"name"`
 	jwt.RegisteredClaims
 }
 
-// GenerateJWTTokens генерирует пару access + refresh токенов для пользователя
 func GenerateJWTTokens(user *User, config *Config) (accessToken, refreshToken string, err error) {
-	// Access token — 15 минут
 	accessClaims := JWTClaims{
 		UserID: user.ID,
 		Email:  user.Email,
@@ -37,7 +34,6 @@ func GenerateJWTTokens(user *User, config *Config) (accessToken, refreshToken st
 		return "", "", fmt.Errorf("не удалось подписать access token: %w", err)
 	}
 
-	// Refresh token — 30 дней (только subject, без лишних данных)
 	refreshClaims := jwt.RegisteredClaims{
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(30 * 24 * time.Hour)),
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -53,7 +49,6 @@ func GenerateJWTTokens(user *User, config *Config) (accessToken, refreshToken st
 	return accessToken, refreshToken, nil
 }
 
-// ValidateJWTToken проверяет access token и возвращает claims
 func ValidateJWTToken(tokenString, secret string) (*JWTClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -74,8 +69,7 @@ func ValidateJWTToken(tokenString, secret string) (*JWTClaims, error) {
 	return claims, nil
 }
 
-// ValidateRefreshToken проверяет refresh token и возвращает userID
-func ValidateRefreshToken(tokenString, secret string) (uint, error) {
+func ValidateRefreshToken(tokenString, secret string) (int64, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("неожиданный алгоритм подписи: %v", token.Header["alg"])
@@ -92,7 +86,7 @@ func ValidateRefreshToken(tokenString, secret string) (uint, error) {
 		return 0, fmt.Errorf("невалидные claims в refresh token")
 	}
 
-	var userID uint
+	var userID int64
 	if _, err := fmt.Sscanf(claims.Subject, "%d", &userID); err != nil {
 		return 0, fmt.Errorf("невалидный subject в refresh token")
 	}

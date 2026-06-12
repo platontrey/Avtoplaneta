@@ -19,15 +19,21 @@ Avtoplaneta - это комплексная система управления 
 - **Документация**: [AvtoplanetaApp/README.md](AvtoplanetaApp/README.md)
 
 ### 🔧 Backend (Микросервисы)
-- **Технологии**: Go, Gin Framework, PostgreSQL, Elasticsearch
+- **Технологии**: Go, Gin Framework, gRPC, PostgreSQL, Elasticsearch
 - **Расположение**: `backend/`
 - **Документация**: [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md)
 
 #### Сервисы:
-- **API Gateway** (порт 8080) - основной шлюз и прокси
-- **Auth Service** (порт 8083) - аутентификация и управление пользователями
-- **Parts Service** (порт 8081) - управление инвентарем запчастей
-- **Orders Service** (порт 8082) - управление заказами
+- **API Gateway** (порт 8080) - основной шлюз, gRPC-клиент к auth-service
+- **Auth Service** (HTTP :8083, gRPC :9083) - аутентификация и управление пользователями
+- **Parts Service** (HTTP :8081, gRPC :9081) - управление инвентарем запчастей
+- **Orders Service** (HTTP :8082, gRPC :9082) - управление заказами
+- **Messaging Service** (HTTP :8084, gRPC :9084) - чаты, уведомления, интеграция с Drom.ru
+
+#### Коммуникация:
+- **REST/HTTP** (frontend → gateway) — для браузерных и мобильных клиентов
+- **gRPC** (gateway → services, service → service) — для внутренней межсервисной коммуникации
+- **Redis Streams** — для асинхронных событий между сервисами
 
 ## Производительность и оптимизации
 
@@ -110,7 +116,16 @@ docker-compose -f docker-compose.dev.yml up
 #### Backend
 ```bash
 cd backend
+
+# Генерация gRPC-кода из proto-файлов (требуется protoc + buf)
+make proto
+
+# Установка Go-зависимостей
 go mod download
+cd auth-service && go mod download && cd ..
+cd orders-service && go mod download && cd ..
+cd parts-service && go mod download && cd ..
+cd messaging-service && go mod download && cd ..
 
 # Настройте переменные окружения в .env файле
 cp .env.example .env
@@ -123,6 +138,7 @@ go run main.go
 cd auth-service && go run .
 cd orders-service && go run .
 cd parts-service && go run .
+cd messaging-service && go run .
 ```
 
 #### Frontend
@@ -181,22 +197,31 @@ VITE_GOOGLE_CLIENT_ID=your_google_client_id
 ### Структура проекта
 ```
 avtoplaneta/
-├── backend/                 # Микросервисы Go
-│   ├── main.go             # API Gateway
-│   ├── auth-service/       # Сервис аутентификации
-│   ├── orders-service/     # Сервис заказов
-│   ├── parts-service/      # Сервис запчастей
-│   └── ARCHITECTURE.md     # Документация архитектуры
-├── frontend/               # React приложение
+├── backend/                  # Микросервисы Go
+│   ├── main.go              # API Gateway
+│   ├── gateway.go           # gRPC-клиенты, маршрутизация
+│   ├── proto/               # Proto-определения (.proto)
+│   │   ├── auth/v1/         # Auth Service API
+│   │   ├── parts/v1/        # Parts Service API
+│   │   ├── orders/v1/       # Orders Service API
+│   │   └── messaging/v1/    # Messaging Service API
+│   ├── gen/                 # Сгенерированный Go-код из proto
+│   ├── auth-service/        # Сервис аутентификации
+│   ├── orders-service/      # Сервис заказов
+│   ├── parts-service/       # Сервис запчастей
+│   ├── messaging-service/   # Сервис сообщений/чатов
+│   ├── Makefile             # Proto-генерация и утилиты
+│   └── ARCHITECTURE.md      # Документация архитектуры
+├── frontend/                # React приложение
 │   ├── src/
 │   ├── package.json
 │   └── README.md
-├── AvtoplanetaApp/         # Android приложение
+├── AvtoplanetaApp/          # Android приложение
 │   ├── app/
 │   └── README.md
-├── scripts/                # Скрипты генерации данных
-├── docker-compose.yml      # Docker конфигурация
-└── README.md              # Этот файл
+├── scripts/                 # Скрипты генерации данных
+├── docker-compose.yml       # Docker конфигурация
+└── README.md               # Этот файл
 ```
 
 ### Скрипты

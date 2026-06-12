@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/part.dart';
+import '../../../core/storage/cache_storage.dart';
 
 // Параметры фильтрации
 class InventoryFilter {
@@ -49,16 +50,93 @@ final inventoryProvider =
     if (filter.brand.isNotEmpty) params['brand'] = filter.brand;
     if (filter.location.isNotEmpty) params['location'] = filter.location;
 
-    final response = await apiClient.dio.get(
-      '/api/inventory',
-      queryParameters: params,
-    );
-    return InventoryResponse.fromJson(response.data as Map<String, dynamic>);
+    try {
+      final response = await apiClient.dio.get(
+        '/api/inventory',
+        queryParameters: params,
+      );
+
+      final list = response.data is List ? response.data as List : [];
+      final parts = list
+          .map((e) => Part.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      final hasMore = parts.length == 20;
+      final total = hasMore ? (filter.page + 1) * 20 : (filter.page - 1) * 20 + parts.length;
+
+      return InventoryResponse(
+        parts: parts,
+        total: total,
+        page: filter.page,
+        limit: 20,
+        isOffline: false,
+      );
+    } catch (e) {
+      // Попытка взять данные из локального оффлайн-кэша
+      final cachedList = CacheStorage.getPartsCache();
+      if (cachedList != null) {
+        var filteredList = cachedList
+            .map((e) => Part.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList();
+
+        // Локальная фильтрация в кэше
+        if (filter.search.isNotEmpty) {
+          final query = filter.search.toLowerCase();
+          filteredList = filteredList.where((p) =>
+              p.name.toLowerCase().contains(query) ||
+              (p.brand != null && p.brand!.toLowerCase().contains(query)) ||
+              (p.model != null && p.model!.toLowerCase().contains(query)) ||
+              (p.oemCode != null && p.oemCode!.toLowerCase().contains(query))).toList();
+        }
+        if (filter.category.isNotEmpty) {
+          filteredList = filteredList.where((p) => p.category == filter.category).toList();
+        }
+        if (filter.brand.isNotEmpty) {
+          filteredList = filteredList.where((p) => p.brand == filter.brand).toList();
+        }
+        if (filter.location.isNotEmpty) {
+          filteredList = filteredList.where((p) => p.location == filter.location).toList();
+        }
+
+        // Локальная пагинация
+        final start = (filter.page - 1) * 20;
+        final end = start + 20;
+        final partsPage = filteredList.sublist(
+          start,
+          end > filteredList.length ? filteredList.length : end,
+        );
+
+        return InventoryResponse(
+          parts: partsPage,
+          total: filteredList.length,
+          page: filter.page,
+          limit: 20,
+          isOffline: true,
+        );
+      }
+      rethrow;
+    }
   },
 );
 
-// Провайдер для одной запчасти
+// Провайдер для одной запчасти с поддержкой локального поиска при оффлайне
 final partProvider = FutureProvider.family<Part, int>((ref, id) async {
-  final response = await apiClient.dio.get('/api/inventory/$id');
-  return Part.fromJson(response.data as Map<String, dynamic>);
+  try {
+    final response = await apiClient.dio.get('/api/inventory/$id');
+    return Part.fromJson(response.data as Map<String, dynamic>);
+  } catch (e) {
+    // В оффлайне пробуем найти деталь в сохраненном кэше
+    final cachedList = CacheStorage.getPartsCache();
+    if (cachedList != null) {
+      try {
+        final match = cachedList
+            .map((e) => Part.fromJson(Map<String, dynamic>.from(e as Map)))
+            .firstWhere((p) => p.id == id);
+        return match;
+      } catch (_) {
+        // не нашли деталь с таким id в кэше
+      }
+    }
+    rethrow;
+  }
 });

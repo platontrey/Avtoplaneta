@@ -1,61 +1,97 @@
 package main
 
 import (
+	"context"
+	"embed"
+	"io/fs"
 	"log"
-	"os"
+	"sort"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
-var db *gorm.DB
+//go:embed db/migrations/*.up.sql
+var migrationsFS embed.FS
 
-// InitDB инициализирует подключение к базе данных и выполняет миграцию
+var dbPool *pgxpool.Pool
+
 func InitDB(config *Config) {
-	var err error
+	poolConfig, err := pgxpool.ParseConfig(config.DatabaseURL)
+	if err != nil {
+		log.Fatal("Не удалось разобрать DatabaseURL:", err)
+	}
 
-	db, err = gorm.Open(postgres.Open(config.DatabaseURL), &gorm.Config{
-		Logger: logger.New(
-			log.New(os.Stdout, "\r\n", log.LstdFlags),
-			logger.Config{
-				SlowThreshold:             time.Millisecond * 200, // Логировать запросы медленнее 200ms
-				LogLevel:                  logger.Info,
-				IgnoreRecordNotFoundError: true,
-				Colorful:                  true,
-			},
-		),
-	})
+	poolConfig.MaxConns = 100
+	poolConfig.MinConns = 5
+	poolConfig.MaxConnLifetime = 30 * time.Minute
+	poolConfig.MaxConnIdleTime = 5 * time.Minute
+
+	dbPool, err = pgxpool.NewWithConfig(context.Background(), poolConfig)
 	if err != nil {
 		log.Fatal("Не удалось подключиться к базе данных:", err)
 	}
 
-	// Автоматическая миграция схемы пользователей и логов активности
-	if err := db.AutoMigrate(&User{}, &UserActivityLog{}); err != nil {
-		log.Fatal("Не удалось выполнить миграцию базы данных:", err)
+	if err := dbPool.Ping(context.Background()); err != nil {
+		log.Fatal("Не удалось проверить подключение к базе данных:", err)
+	}
+
+	log.Println("Подключение к базе данных установлено")
+
+	runMigrations()
+}
+
+func runMigrations() {
+	entries, err := fs.ReadDir(migrationsFS, "db/migrations")
+	if err != nil {
+		log.Fatal("Не удалось прочитать файлы миграций:", err)
+	}
+
+	var upFiles []string
+	for _, entry := range entries {
+		name := entry.Name()
+		if len(name) > 7 && name[len(name)-7:] == ".up.sql" {
+			upFiles = append(upFiles, name)
+		}
+	}
+	sort.Strings(upFiles)
+
+	for _, fileName := range upFiles {
+		data, err := migrationsFS.ReadFile("db/migrations/" + fileName)
+		if err != nil {
+			log.Fatalf("Не удалось прочитать миграцию %s: %v", fileName, err)
+		}
+
+		_, err = dbPool.Exec(context.Background(), string(data))
+		if err != nil {
+			log.Printf("Предупреждение при выполнении миграции %s: %v", fileName, err)
+		} else {
+			log.Printf("Миграция %s выполнена", fileName)
+		}
 	}
 }
 
-// CreateDefaultUser создает пользователя по умолчанию, если пользователей нет
 func CreateDefaultUser() {
-	// Проверить, есть ли уже пользователи
-	var count int64
-	db.Model(&User{}).Count(&count)
+	userRepo := NewUserRepository(dbPool)
+
+	count, err := userRepo.CountAll()
+	if err != nil {
+		log.Printf("Не удалось проверить количество пользователей: %v", err)
+		return
+	}
 	if count > 0 {
 		log.Println("Пользователи уже существуют, пропускаем создание default пользователя")
 		return
 	}
 
-	// Создать default пользователя
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("qewret123"), bcrypt.DefaultCost)
 	if err != nil {
 		log.Printf("Не удалось хэшировать пароль для default пользователя: %v", err)
 		return
 	}
 
-	defaultUser := User{
+	defaultUser := &User{
 		Email:    "bibidatrbib@gmail.com",
 		Name:     "Test User",
 		Provider: "local",
@@ -63,7 +99,7 @@ func CreateDefaultUser() {
 		Password: string(hashedPassword),
 	}
 
-	if err := db.Create(&defaultUser).Error; err != nil {
+	if _, err := userRepo.Create(defaultUser); err != nil {
 		log.Printf("Не удалось создать default пользователя: %v", err)
 		return
 	}

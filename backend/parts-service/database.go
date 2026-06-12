@@ -1,62 +1,113 @@
 package main
 
 import (
+	"context"
+	"embed"
 	"fmt"
+	"io/fs"
 	"log"
+	"sort"
+	"sync"
 	"time"
 
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var db *gorm.DB
+//go:embed db/migrations/*.up.sql
+var migrationsFS embed.FS
 
-// InitDB инициализирует подключение к базе данных и выполняет миграцию
+var dbPool *pgxpool.Pool
+
+// InitDB инициализирует подключение к базе данных и выполняет миграции
 func InitDB(config *Config) {
-	var err error
+	poolConfig, err := pgxpool.ParseConfig(config.DatabaseURL)
+	if err != nil {
+		log.Fatal("Не удалось разобрать DatabaseURL:", err)
+	}
 
-	db, err = gorm.Open(postgres.Open(config.DatabaseURL), &gorm.Config{})
+	poolConfig.MaxConns = 100
+	poolConfig.MinConns = 10
+	poolConfig.MaxConnLifetime = 30 * time.Minute
+	poolConfig.MaxConnIdleTime = 5 * time.Minute
+
+	dbPool, err = pgxpool.NewWithConfig(context.Background(), poolConfig)
 	if err != nil {
 		log.Fatal("Не удалось подключиться к базе данных:", err)
 	}
 
-	// Настройка connection pooling для оптимизации производительности
-	sqlDB, err := db.DB()
+	if err := dbPool.Ping(context.Background()); err != nil {
+		log.Fatal("Не удалось проверить подключение к базе данных:", err)
+	}
+
+	log.Println("Подключение к базе данных установлено")
+	log.Println("Connection pooling настроен: MinConns=10, MaxConns=100, MaxConnLifetime=30m")
+
+	runMigrations()
+}
+
+func runMigrations() {
+	entries, err := fs.ReadDir(migrationsFS, "db/migrations")
 	if err != nil {
-		log.Fatal("Не удалось получить SQL DB:", err)
+		log.Fatal("Не удалось прочитать файлы миграций:", err)
 	}
 
-	// Настройки пула соединений
-	sqlDB.SetMaxIdleConns(10)                 // Максимальное количество idle соединений
-	sqlDB.SetMaxOpenConns(100)                // Максимальное количество открытых соединений
-	sqlDB.SetConnMaxLifetime(30 * time.Minute) // Максимальное время жизни соединения
-
-	log.Println("Connection pooling настроен: MaxIdleConns=10, MaxOpenConns=100, ConnMaxLifetime=30m")
-
-	// Автоматическая миграция схемы запчастей и earnings
-	if err := db.AutoMigrate(&Part{}, &Earnings{}); err != nil {
-		log.Fatal("Не удалось выполнить миграцию:", err)
+	var upFiles []string
+	for _, entry := range entries {
+		name := entry.Name()
+		if len(name) > 7 && name[len(name)-7:] == ".up.sql" {
+			upFiles = append(upFiles, name)
+		}
 	}
+	sort.Strings(upFiles)
 
-	// Выполнение кастомных миграций
-	RunMigrations(db)
+	for _, fileName := range upFiles {
+		data, err := migrationsFS.ReadFile("db/migrations/" + fileName)
+		if err != nil {
+			log.Fatalf("Не удалось прочитать миграцию %s: %v", fileName, err)
+		}
+
+		_, err = dbPool.Exec(context.Background(), string(data))
+		if err != nil {
+			log.Printf("Предупреждение при выполнении миграции %s: %v", fileName, err)
+		} else {
+			log.Printf("Миграция %s выполнена", fileName)
+		}
+	}
 }
 
 // ReindexAllParts переиндексирует все существующие запчасти в Elasticsearch
 func ReindexAllParts() error {
-	var parts []Part
-	if err := db.Find(&parts).Error; err != nil {
+	repo := NewPartRepository(dbPool)
+	parts, err := repo.FindAll(context.Background())
+	if err != nil {
 		return fmt.Errorf("не удалось получить запчасти: %v", err)
 	}
 
 	fmt.Printf("Переиндексация %d запчастей...\n", len(parts))
+
+	// Используем пул воркеров для параллельной отправки запросов в Elasticsearch
+	numWorkers := 16
+	partsChan := make(chan Part, len(parts))
 	for _, part := range parts {
-		if err := IndexPart(&part); err != nil {
-			fmt.Printf("Предупреждение: Не удалось проиндексировать запчасть %d: %v\n", part.ID, err)
-		} else {
-			fmt.Printf("Успешно проиндексирована запчасть %d\n", part.ID)
-		}
+		partsChan <- part
 	}
+	close(partsChan)
+
+	var wg sync.WaitGroup
+	wg.Add(numWorkers)
+
+	for i := 0; i < numWorkers; i++ {
+		go func() {
+			defer wg.Done()
+			for part := range partsChan {
+				if err := IndexPart(&part); err != nil {
+					log.Printf("Предупреждение: Не удалось проиндексировать запчасть %d: %v\n", part.ID, err)
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
 	fmt.Println("Переиндексация завершена")
 	return nil
 }

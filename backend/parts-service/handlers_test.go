@@ -29,17 +29,17 @@ func (m *MockInventoryService) AddPart(ctx context.Context, part *Part) (*Part, 
 	return args.Get(0).(*Part), args.Error(1)
 }
 
-func (m *MockInventoryService) UpdatePart(ctx context.Context, id uint, updates map[string]interface{}) error {
+func (m *MockInventoryService) UpdatePart(ctx context.Context, id int64, updates map[string]interface{}) error {
 	args := m.Called(ctx, id, updates)
 	return args.Error(0)
 }
 
-func (m *MockInventoryService) DeletePart(ctx context.Context, id uint) error {
+func (m *MockInventoryService) DeletePart(ctx context.Context, id int64) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
 }
 
-func (m *MockInventoryService) MarkPartForDeletion(ctx context.Context, id uint) error {
+func (m *MockInventoryService) MarkPartForDeletion(ctx context.Context, id int64) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
 }
@@ -49,7 +49,7 @@ func (m *MockInventoryService) GetStatistics(ctx context.Context) (StatisticsRes
 	return args.Get(0).(StatisticsResponse), args.Error(1)
 }
 
-func (m *MockInventoryService) BulkDeleteParts(ctx context.Context, ids []uint) error {
+func (m *MockInventoryService) BulkDeleteParts(ctx context.Context, ids []int64) error {
 	args := m.Called(ctx, ids)
 	return args.Error(0)
 }
@@ -69,17 +69,17 @@ func (m *MockInventoryService) GetSupplierCodes(ctx context.Context) ([]string, 
 	return args.Get(0).([]string), args.Error(1)
 }
 
-func (m *MockInventoryService) UploadPartPhoto(ctx context.Context, id uint, c *gin.Context) (string, error) {
+func (m *MockInventoryService) UploadPartPhoto(ctx context.Context, id int64, c *gin.Context) (string, error) {
 	args := m.Called(ctx, id, c)
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockInventoryService) DeletePartPhoto(ctx context.Context, id uint, photoPath string) error {
+func (m *MockInventoryService) DeletePartPhoto(ctx context.Context, id int64, photoPath string) error {
 	args := m.Called(ctx, id, photoPath)
 	return args.Error(0)
 }
 
-func (m *MockInventoryService) GetPartByID(ctx context.Context, id uint) (*Part, error) {
+func (m *MockInventoryService) GetPartByID(ctx context.Context, id int64) (*Part, error) {
 	args := m.Called(ctx, id)
 	return args.Get(0).(*Part), args.Error(1)
 }
@@ -200,7 +200,7 @@ func (suite *HandlersTestSuite) TestUpdatePartHandler() {
 		"quantity": 20,
 	}
 
-	suite.mockService.On("UpdatePart", mock.Anything, uint(1), map[string]interface{}{"name": "Updated Name", "quantity": float64(20)}).Return(nil)
+	suite.mockService.On("UpdatePart", mock.Anything, int64(1), map[string]interface{}{"name": "Updated Name", "quantity": float64(20)}).Return(nil)
 
 	updatesJSON, _ := json.Marshal(updates)
 	req, _ := http.NewRequest("PUT", "/api/updatepart/1", bytes.NewBuffer(updatesJSON))
@@ -233,8 +233,8 @@ func (suite *HandlersTestSuite) TestUpdatePartHandler_InvalidID() {
 
 // TestDeletePartHandler - тест удаления запчасти
 func (suite *HandlersTestSuite) TestDeletePartHandler() {
-	suite.mockService.On("DeletePart", mock.Anything, uint(1)).Return(nil)
-	suite.mockService.On("GetPartByID", mock.Anything, uint(1)).Return(&Part{PartCore: PartCore{Name: "Test Part"}}, nil)
+	suite.mockService.On("DeletePart", mock.Anything, int64(1)).Return(nil)
+	suite.mockService.On("GetPartByID", mock.Anything, int64(1)).Return(&Part{PartCore: PartCore{Name: "Test Part"}}, nil)
 
 	req, _ := http.NewRequest("DELETE", "/api/deletepart/1", nil)
 	w := httptest.NewRecorder()
@@ -252,8 +252,8 @@ func (suite *HandlersTestSuite) TestDeletePartHandler() {
 // TestGetStatisticsHandler - тест получения статистики
 func (suite *HandlersTestSuite) TestGetStatisticsHandler() {
 	expectedStats := StatisticsResponse{
-		TotalParts:     10,
-		TotalQuantity:  50,
+		TotalParts:    10,
+		TotalQuantity: 50,
 		TotalValue:    1000.0,
 		TotalEarnings: 500.0,
 		Categories: []CategoryCount{
@@ -279,7 +279,7 @@ func (suite *HandlersTestSuite) TestGetStatisticsHandler() {
 
 // TestBulkDeletePartsHandler - тест массового удаления
 func (suite *HandlersTestSuite) TestBulkDeletePartsHandler() {
-	ids := []uint{1, 2, 3}
+	ids := []int64{1, 2, 3}
 
 	suite.mockService.On("BulkDeleteParts", mock.Anything, ids).Return(nil)
 
@@ -302,7 +302,7 @@ func (suite *HandlersTestSuite) TestBulkDeletePartsHandler() {
 
 // TestMarkPartForDeletionHandler - тест отметки для удаления
 func (suite *HandlersTestSuite) TestMarkPartForDeletionHandler() {
-	suite.mockService.On("MarkPartForDeletion", mock.Anything, uint(1)).Return(nil)
+	suite.mockService.On("MarkPartForDeletion", mock.Anything, int64(1)).Return(nil)
 
 	req, _ := http.NewRequest("POST", "/api/markpartfordeletion/1", nil)
 	w := httptest.NewRecorder()
@@ -319,8 +319,8 @@ func (suite *HandlersTestSuite) TestMarkPartForDeletionHandler() {
 
 // TestUploadPartPhotoHandler - тест загрузки фото
 func (suite *HandlersTestSuite) TestUploadPartPhotoHandler() {
-	suite.mockService.On("UploadPartPhoto", mock.Anything, uint(1), mock.Anything).Return("uploads/photo.jpg", nil)
-	suite.mockService.On("GetPartByID", mock.Anything, uint(1)).Return(&Part{PartCore: PartCore{Photos: []string{"uploads/photo.jpg"}}}, nil)
+	suite.mockService.On("UploadPartPhoto", mock.Anything, int64(1), mock.Anything).Return("uploads/photo.jpg", nil)
+	suite.mockService.On("GetPartByID", mock.Anything, int64(1)).Return(&Part{PartCore: PartCore{Photos: []string{"uploads/photo.jpg"}}}, nil)
 
 	req, _ := http.NewRequest("POST", "/api/uploadpartphoto/1", nil)
 	w := httptest.NewRecorder()
@@ -338,7 +338,7 @@ func (suite *HandlersTestSuite) TestUploadPartPhotoHandler() {
 
 // TestDeletePartPhotoHandler - тест удаления фото
 func (suite *HandlersTestSuite) TestDeletePartPhotoHandler() {
-	suite.mockService.On("DeletePartPhoto", mock.Anything, uint(1), "").Return(nil)
+	suite.mockService.On("DeletePartPhoto", mock.Anything, int64(1), "").Return(nil)
 
 	req, _ := http.NewRequest("DELETE", "/api/deletepartphoto/1", nil)
 	w := httptest.NewRecorder()

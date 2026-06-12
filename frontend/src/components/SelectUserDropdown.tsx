@@ -59,11 +59,14 @@ export default function SelectUserDropdown({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filteredUsers = users.filter(user =>
-    (user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.toLowerCase())) &&
-    (!currentUser || user.id !== currentUser.id)
-  );
+  const filteredUsers = users.filter(user => {
+    if (!user) return false;
+    const name = user.name || '';
+    const email = user.email || '';
+    return (name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      email.toLowerCase().includes(searchQuery.toLowerCase())) &&
+      (!currentUser || user.id !== currentUser.id);
+  });
 
   const handleUserToggle = (user: User) => {
     if (multiple) {
@@ -84,7 +87,7 @@ export default function SelectUserDropdown({
   };
 
   const displayText = selectedUsers.length > 0
-    ? selectedUsers.map(u => u.name).join(', ')
+    ? selectedUsers.map(u => u.name || u.email || 'Без имени').join(', ')
     : placeholder;
 
   return (
@@ -130,8 +133,8 @@ export default function SelectUserDropdown({
                       >
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="font-medium">{user.name}</div>
-                            <div className="text-sm text-gray-500">{user.email}</div>
+                            <div className="font-medium">{user.name || user.email || 'Без имени'}</div>
+                            <div className="text-sm text-gray-500">{user.email || ''}</div>
                           </div>
                           {isSelected && (
                             <span className="text-blue-600">✓</span>
@@ -154,7 +157,7 @@ export default function SelectUserDropdown({
               key={user.id}
               className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800"
             >
-              {user.name}
+              {user.name || user.email || 'Без имени'}
               <button
                 type="button"
                 onClick={() => handleRemoveUser(user.id)}

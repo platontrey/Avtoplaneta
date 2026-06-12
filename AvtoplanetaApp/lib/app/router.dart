@@ -6,6 +6,7 @@ import '../features/auth/screens/login_screen.dart';
 import '../features/inventory/screens/inventory_screen.dart';
 import '../features/inventory/screens/part_detail_screen.dart';
 import '../features/inventory/screens/add_part_screen.dart';
+import '../features/inventory/screens/defect_report_screen.dart';
 import '../features/orders/screens/orders_screen.dart';
 import '../features/statistics/screens/statistics_screen.dart';
 import '../features/messaging/screens/messaging_screen.dart';
@@ -47,6 +48,10 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'add',
                 builder: (context, state) => const AddPartScreen(),
+              ),
+              GoRoute(
+                path: 'defect-report',
+                builder: (context, state) => const DefectReportScreen(),
               ),
               GoRoute(
                 path: 'edit/:id',

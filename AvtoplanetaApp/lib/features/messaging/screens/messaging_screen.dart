@@ -1,10 +1,16 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../../core/api/api_client.dart';
+import '../../auth/providers/auth_provider.dart';
 
 final conversationsProvider = FutureProvider<List<dynamic>>((ref) async {
   final response = await apiClient.dio.get('/api/messaging/conversations');
   final data = response.data;
+  if (data is List) {
+    return data;
+  }
   if (data is Map && data['conversations'] != null) {
     return data['conversations'] as List<dynamic>;
   }
@@ -91,11 +97,64 @@ class _ChatScreenState extends ConsumerState<_ChatScreen> {
   final _msgCtrl = TextEditingController();
   List<dynamic> _messages = [];
   bool _loading = true;
+  WebSocketChannel? _channel;
+  bool _isDisposed = false;
 
   @override
   void initState() {
     super.initState();
     _loadMessages();
+    _connectWebSocket();
+  }
+
+  void _connectWebSocket() {
+    if (_isDisposed) return;
+    final user = ref.read(authProvider).valueOrNull;
+    if (user == null) return;
+
+    try {
+      final wsUrl = Uri.parse('ws://192.168.1.63:8084/api/messaging/ws?userId=${user.id}');
+      _channel = WebSocketChannel.connect(wsUrl);
+      _channel!.stream.listen((message) {
+        try {
+          final payload = jsonDecode(message as String);
+          if (payload['event'] == 'new_message') {
+            final msgData = payload['data'];
+            if (msgData['conversation_id'] == widget.convId) {
+              setState(() {
+                final id = msgData['id'];
+                if (!_messages.any((m) => m['id'] == id)) {
+                  _messages.add(msgData);
+                }
+              });
+            }
+          }
+        } catch (_) {}
+      }, onError: (err) {
+        _reconnect();
+      }, onDone: () {
+        _reconnect();
+      });
+    } catch (_) {
+      _reconnect();
+    }
+  }
+
+  void _reconnect() {
+    if (_isDisposed) return;
+    Future.delayed(const Duration(seconds: 3), () {
+      if (!_isDisposed) {
+        _connectWebSocket();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _channel?.sink.close();
+    _msgCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadMessages() async {

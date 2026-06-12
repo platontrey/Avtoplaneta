@@ -1,0 +1,283 @@
+syntax = "proto3";
+package messaging.v1;
+option go_package = "avtoplaneta/gen/messaging/v1;messagingv1";
+
+import "google/protobuf/timestamp.proto";
+
+service MessagingService {
+  // Conversations
+  rpc GetConversations(GetConversationsRequest) returns (ConversationList);
+  rpc CreateConversation(CreateConversationRequest) returns (Conversation);
+  rpc GetConversation(GetConversationRequest) returns (Conversation);
+  rpc UpdateConversation(UpdateConversationRequest) returns (Conversation);
+  rpc DeleteConversation(DeleteConversationRequest) returns (DeleteConversationResponse);
+  rpc RemoveParticipant(RemoveParticipantRequest) returns (RemoveParticipantResponse);
+
+  // Messages
+  rpc GetMessages(GetMessagesRequest) returns (MessageList);
+  rpc SendMessage(SendMessageRequest) returns (Message);
+  rpc SendVoiceMessage(stream SendVoiceMessageChunk) returns (Message);
+  rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
+  rpc MarkMessageRead(MarkMessageReadRequest) returns (MarkMessageReadResponse);
+
+  // Reactions
+  rpc AddReaction(AddReactionRequest) returns (Reaction);
+  rpc RemoveReaction(RemoveReactionRequest) returns (RemoveReactionResponse);
+
+  // Notifications
+  rpc GetNotifications(GetNotificationsRequest) returns (NotificationList);
+  rpc MarkNotificationRead(MarkNotificationReadRequest) returns (MarkNotificationReadResponse);
+  rpc MarkAllNotificationsRead(MarkAllNotificationsReadRequest) returns (MarkAllNotificationsReadResponse);
+
+  // User Status
+  rpc GetUserStatuses(GetUserStatusesRequest) returns (UserStatusList);
+  rpc UpdateUserStatus(UpdateUserStatusRequest) returns (UserStatus);
+
+  // Search
+  rpc SearchMessages(SearchMessagesRequest) returns (MessageList);
+
+  // Drom Integration
+  rpc GetDromDialogs(GetDromDialogsRequest) returns (DromDialogList);
+  rpc GetDromMessages(GetDromMessagesRequest) returns (DromMessageList);
+  rpc SendDromMessage(SendDromMessageRequest) returns (SendDromMessageResponse);
+}
+
+// ─── Conversation ───────────────────────────────────────────────────────────
+
+message Conversation {
+  int32 id = 1;
+  repeated int64 participants = 2;
+  string title = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp last_message_at = 5;
+  string last_message = 6;
+  int32 unread_count = 7;
+}
+
+message ConversationList {
+  repeated Conversation conversations = 1;
+}
+
+message GetConversationsRequest {
+  int32 user_id = 1;
+}
+
+message CreateConversationRequest {
+  repeated int32 participants = 1;
+  string title = 2;
+}
+
+message GetConversationRequest {
+  int32 id = 1;
+}
+
+message UpdateConversationRequest {
+  int32 id = 1;
+  string title = 2;
+}
+
+message DeleteConversationRequest {
+  int32 id = 1;
+}
+
+message DeleteConversationResponse {}
+
+message RemoveParticipantRequest {
+  int32 conversation_id = 1;
+  int32 user_id = 2;
+  int32 requester_id = 3; // кто удаляет
+}
+
+message RemoveParticipantResponse {}
+
+// ─── Message ────────────────────────────────────────────────────────────────
+
+message Mention {
+  int32 id = 1;
+  int32 message_id = 2;
+  string type = 3; // "part" or "order"
+  int32 resource_id = 4;
+  string text = 5;
+}
+
+message Reaction {
+  int32 id = 1;
+  int32 message_id = 2;
+  int32 user_id = 3;
+  string emoji = 4;
+}
+
+message Message {
+  int32 id = 1;
+  int32 conversation_id = 2;
+  int32 sender_id = 3;
+  string content = 4;
+  string message_type = 5; // "text", "voice"
+  string voice_url = 6;
+  google.protobuf.Timestamp created_at = 7;
+  repeated int64 read_by = 8;
+  repeated string attachments = 9;
+  repeated Mention mentions = 10;
+  repeated Reaction reactions = 11;
+}
+
+message MessageList {
+  repeated Message messages = 1;
+}
+
+message GetMessagesRequest {
+  int32 conversation_id = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+message SendMessageRequest {
+  int32 conversation_id = 1;
+  int32 sender_id = 2;
+  string content = 3;
+  repeated string attachments = 4;
+}
+
+message SendVoiceMessageChunk {
+  int32 conversation_id = 1;
+  int32 sender_id = 2;
+  string filename = 3;
+  string content_type = 4;
+  bytes data = 5;
+}
+
+message DeleteMessageRequest {
+  int32 id = 1;
+}
+
+message DeleteMessageResponse {}
+
+message MarkMessageReadRequest {
+  int32 message_id = 1;
+  int32 user_id = 2;
+}
+
+message MarkMessageReadResponse {}
+
+// ─── Reactions ──────────────────────────────────────────────────────────────
+
+message AddReactionRequest {
+  int32 message_id = 1;
+  int32 user_id = 2;
+  string emoji = 3;
+}
+
+message RemoveReactionRequest {
+  int32 reaction_id = 1;
+}
+
+message RemoveReactionResponse {}
+
+// ─── Notifications ──────────────────────────────────────────────────────────
+
+message Notification {
+  int32 id = 1;
+  int32 user_id = 2;
+  string type = 3; // "message", "mention", "reaction"
+  string message = 4;
+  bool read = 5;
+  google.protobuf.Timestamp created_at = 6;
+  int32 related_id = 7;
+}
+
+message NotificationList {
+  repeated Notification notifications = 1;
+}
+
+message GetNotificationsRequest {
+  int32 user_id = 1;
+}
+
+message MarkNotificationReadRequest {
+  int32 id = 1;
+}
+
+message MarkNotificationReadResponse {}
+
+message MarkAllNotificationsReadRequest {
+  int32 user_id = 1;
+}
+
+message MarkAllNotificationsReadResponse {}
+
+// ─── User Status ────────────────────────────────────────────────────────────
+
+message UserStatus {
+  int32 id = 1;
+  int32 user_id = 2;
+  bool is_online = 3;
+  google.protobuf.Timestamp last_seen = 4;
+}
+
+message UserStatusList {
+  repeated UserStatus statuses = 1;
+}
+
+message GetUserStatusesRequest {
+  repeated int32 user_ids = 1;
+}
+
+message UpdateUserStatusRequest {
+  int32 user_id = 1;
+  bool is_online = 2;
+}
+
+// ─── Search ─────────────────────────────────────────────────────────────────
+
+message SearchMessagesRequest {
+  string query = 1;
+  int32 user_id = 2;
+  int32 limit = 3;
+  int32 offset = 4;
+}
+
+// ─── Drom Integration ───────────────────────────────────────────────────────
+
+message DromDialog {
+  int32 id = 1;
+  string dialog_id = 2;
+  string interlocutor = 3;
+  string created_at = 4;
+  string last_message_at = 5;
+  string last_message = 6;
+}
+
+message DromDialogList {
+  repeated DromDialog dialogs = 1;
+}
+
+message DromMessage {
+  int32 id = 1;
+  string dialog_id = 2;
+  string message_id = 3;
+  string author = 4;
+  string direction = 5;
+  string time = 6;
+  string text = 7;
+  bool is_read = 8;
+  string created_at = 9;
+}
+
+message DromMessageList {
+  repeated DromMessage messages = 1;
+}
+
+message GetDromDialogsRequest {}
+
+message GetDromMessagesRequest {
+  string dialog_id = 1;
+}
+
+message SendDromMessageRequest {
+  string dialog_id = 1;
+  string content = 2;
+}
+
+message SendDromMessageResponse {
+  bool success = 1;
+}

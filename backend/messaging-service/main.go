@@ -29,6 +29,17 @@ func main() {
 	// Initialize Redis
 	InitRedis()
 
+	// Запуск gRPC-сервера в отдельной горутине
+	grpcPort := os.Getenv("GRPC_PORT")
+	if grpcPort == "" {
+		grpcPort = "9084"
+	}
+	go func() {
+		if err := StartGRPCServer(grpcPort); err != nil {
+			log.Fatalf("gRPC server failed: %v", err)
+		}
+	}()
+
 	// Создание контекста с отменой для graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -67,6 +78,9 @@ func main() {
 	} else {
 		os.Setenv("API_BASE_URL", "http://localhost:8084")
 	}
+
+	// Start WebSocket Hub
+	go globalHub.Run()
 
 	// Routes will be added here
 	setupRoutes(r)

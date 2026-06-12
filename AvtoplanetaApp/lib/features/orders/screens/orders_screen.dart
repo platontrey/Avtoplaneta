@@ -6,7 +6,16 @@ import '../../auth/providers/auth_provider.dart';
 
 final ordersProvider = FutureProvider<OrdersResponse>((ref) async {
   final response = await apiClient.dio.get('/orders');
-  return OrdersResponse.fromJson(response.data as Map<String, dynamic>);
+  final data = response.data;
+  if (data is List) {
+    final orders = data
+        .map((e) => Order.fromJson(e as Map<String, dynamic>))
+        .toList();
+    return OrdersResponse(orders: orders, total: orders.length);
+  } else if (data is Map) {
+    return OrdersResponse.fromJson(Map<String, dynamic>.from(data));
+  }
+  return const OrdersResponse(orders: [], total: 0);
 });
 
 class OrdersScreen extends ConsumerWidget {

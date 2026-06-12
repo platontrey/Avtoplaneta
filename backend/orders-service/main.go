@@ -46,12 +46,23 @@ func main() {
 	}()
 
 	// Создаем зависимости
-	orderRepo := NewOrderRepository(db)
-	partRepo := NewPartRepositoryForOrders(db)
+	orderRepo := NewOrderRepository(dbPool)
+	partRepo := NewPartRepositoryForOrders(dbPool)
 	cacheService := NewCacheService(redisClient)
 	eventPublisher := NewEventPublisher(redisClient)
 	ordersService := NewOrdersService(orderRepo, partRepo, cacheService, eventPublisher)
 	handler := NewHandler(ordersService, eventPublisher)
+
+	// Запуск gRPC-сервера в отдельной горутине
+	grpcPort := os.Getenv("GRPC_PORT")
+	if grpcPort == "" {
+		grpcPort = "9082"
+	}
+	go func() {
+		if err := StartGRPCServer(ordersService, eventPublisher, grpcPort); err != nil {
+			log.Fatalf("gRPC server failed: %v", err)
+		}
+	}()
 
 	r := gin.New()
 

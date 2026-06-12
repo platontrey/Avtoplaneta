@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // StringArray - кастомный тип для работы с JSONB массивами строк в PostgreSQL
@@ -43,9 +41,9 @@ func (a StringArray) Value() (driver.Value, error) {
 
 // PartCore содержит основные поля запчасти
 type PartCore struct {
-	ID          uint        `json:"id" gorm:"primaryKey"`
-	Name        string      `json:"name" gorm:"not null"`
-	Quantity    int         `json:"quantity" gorm:"not null"`
+	ID          int64       `json:"id"`
+	Name        string      `json:"name"`
+	Quantity    int         `json:"quantity"`
 	Description string      `json:"description,omitempty"`
 	Category    string      `json:"category,omitempty"`
 	Price       float64     `json:"price,omitempty"`
@@ -54,59 +52,59 @@ type PartCore struct {
 	Status      bool        `json:"status,omitempty"`
 	Brand       string      `json:"brand,omitempty"`
 	Model       string      `json:"model,omitempty"`
-	Photos      StringArray `json:"photos,omitempty" gorm:"type:jsonb"`
-	Photo       string      `json:"photo,omitempty" gorm:"-"` // Для обратной совместимости
-	SellerID    uint        `json:"seller_id,omitempty"`      // ID продавца из auth-service
-	ToDeleteAt  *time.Time  `json:"to_delete_at,omitempty" gorm:"default:null"`
-	VIN         string      `json:"vin,omitempty"` // VIN автомобиля
+	Photos      StringArray `json:"photos,omitempty"`
+	Photo       string      `json:"photo,omitempty"` // Для обратной совместимости
+	SellerID    int64       `json:"seller_id,omitempty"`
+	ToDeleteAt  *time.Time  `json:"to_delete_at,omitempty"`
+	VIN         string      `json:"vin,omitempty"`
 }
 
 // PartSpecifications содержит технические характеристики запчасти
 type PartSpecifications struct {
-	BodyBrand        string `json:"body_brand,omitempty"`        // Марка кузова
-	EngineBrand      string `json:"engine_brand,omitempty"`      // Марка двигателя
-	CarReleaseDate   string `json:"car_release_date,omitempty"`  // Дата выпуска автомобиля
-	FrontRear        string `json:"front_rear,omitempty"`        // Перед/зад
-	LeftRight        string `json:"left_right,omitempty"`        // Право/лево
-	TopBottom        string `json:"top_bottom,omitempty"`        // Верх/низ
-	Number           string `json:"number,omitempty"`            // Номер
-	Manufacturer     string `json:"manufacturer,omitempty"`      // Производитель
-	ManufacturerCode string `json:"manufacturer_code,omitempty"` // Код производителя
-	OEMCode          string `json:"oem_code,omitempty"`          // OEM код
-	Color            string `json:"color,omitempty"`             // Цвет
-	Condition        string `json:"condition,omitempty"`         // Состояние (Б/у или новый(-ая))
-	SupplierCode     string `json:"supplier_code,omitempty"`     // Код поставки
-	Defect           string `json:"defect,omitempty"`            // Дефект
-	Transmission     string `json:"transmission,omitempty"`      // Трансмиссия
-	Drive            string `json:"drive,omitempty"`             // Привод
-	WearPercentage   string `json:"wear_percentage,omitempty"`   // Процент износа (%)
+	BodyBrand        string `json:"body_brand,omitempty"`
+	EngineBrand      string `json:"engine_brand,omitempty"`
+	CarReleaseDate   string `json:"car_release_date,omitempty"`
+	FrontRear        string `json:"front_rear,omitempty"`
+	LeftRight        string `json:"left_right,omitempty"`
+	TopBottom        string `json:"top_bottom,omitempty"`
+	Number           string `json:"number,omitempty"`
+	Manufacturer     string `json:"manufacturer,omitempty"`
+	ManufacturerCode string `json:"manufacturer_code,omitempty"`
+	OEMCode          string `json:"oem_code,omitempty"`
+	Color            string `json:"color,omitempty"`
+	Condition        string `json:"condition,omitempty"`
+	SupplierCode     string `json:"supplier_code,omitempty"`
+	Defect           string `json:"defect,omitempty"`
+	Transmission     string `json:"transmission,omitempty"`
+	Drive            string `json:"drive,omitempty"`
+	WearPercentage   string `json:"wear_percentage,omitempty"`
 }
 
 // PartTireSpecifications содержит характеристики шин
 type PartTireSpecifications struct {
-	Season             string `json:"season,omitempty"`               // Сезон
-	Diameter           string `json:"diameter,omitempty"`             // Диаметр
-	Width              string `json:"width,omitempty"`                // Ширина
-	Profile            string `json:"profile,omitempty"`              // Профиль
-	TireQuantity       string `json:"tire_quantity,omitempty"`        // Количество
-	Drilling           string `json:"drilling,omitempty"`             // Сверловка
-	Offset             string `json:"offset,omitempty"`               // Вылет
-	CenterHoleDiameter string `json:"center_hole_diameter,omitempty"` // Диаметр ЦО
-	TireModel          string `json:"tire_model,omitempty"`           // Модель шины
+	Season             string `json:"season,omitempty"`
+	Diameter           string `json:"diameter,omitempty"`
+	Width              string `json:"width,omitempty"`
+	Profile            string `json:"profile,omitempty"`
+	TireQuantity       string `json:"tire_quantity,omitempty"`
+	Drilling           string `json:"drilling,omitempty"`
+	Offset             string `json:"offset,omitempty"`
+	CenterHoleDiameter string `json:"center_hole_diameter,omitempty"`
+	TireModel          string `json:"tire_model,omitempty"`
 }
 
 // PartDisplay содержит поля для отображения на фронтенде
 type PartDisplay struct {
-	ToDeleteAtFormatted string `json:"to_delete_at_formatted,omitempty"` // Форматированная дата удаления
-	TimeUntilDeletion   string `json:"time_until_deletion,omitempty"`    // Время до удаления (например, "через 3 дня")
+	ToDeleteAtFormatted string `json:"to_delete_at_formatted,omitempty"`
+	TimeUntilDeletion   string `json:"time_until_deletion,omitempty"`
 }
 
 // Part объединяет все части модели запчасти
 type Part struct {
-	PartCore               `gorm:"embedded"`
-	PartSpecifications     `gorm:"embedded"`
-	PartTireSpecifications `gorm:"embedded"`
-	PartDisplay            `gorm:"-"` // Не сохраняется в БД
+	PartCore
+	PartSpecifications
+	PartTireSpecifications
+	PartDisplay
 }
 
 // IsTire проверяет, является ли запчасть шиной
@@ -114,29 +112,10 @@ func (p *Part) IsTire() bool {
 	return p.Category == "Шины" || p.Category == "Tires"
 }
 
-// AfterFind синхронизирует поле Photo с первым элементом массива Photos для обратной совместимости
-func (p *Part) AfterFind(_ *gorm.DB) error {
-	if len(p.Photos) > 0 {
-		p.Photo = p.Photos[0]
-	}
-	return nil
-}
-
-// BeforeSave синхронизирует массив Photos с полем Photo для обратной совместимости
-func (p *Part) BeforeSave(_ *gorm.DB) error {
-	if p.Photo != "" && len(p.Photos) == 0 {
-		p.Photos = StringArray{p.Photo}
-	} else if len(p.Photos) > 0 {
-		p.Photo = p.Photos[0]
-	}
-	return nil
-}
-
 // GetFullSpecifications возвращает все характеристики в виде карты
 func (p *Part) GetFullSpecifications() map[string]interface{} {
 	specs := make(map[string]interface{})
 
-	// Основные характеристики
 	specFields := []struct {
 		key   string
 		value string
@@ -165,7 +144,6 @@ func (p *Part) GetFullSpecifications() map[string]interface{} {
 		}
 	}
 
-	// Характеристики шин (если применимо)
 	if p.IsTire() {
 		tireFields := []struct {
 			key   string
@@ -253,12 +231,12 @@ func (p *Part) SetSpecifications(specs map[string]interface{}) {
 }
 
 type StatisticsResponse struct {
-	TotalParts     int             `json:"total_parts"`
-	TotalQuantity  int             `json:"total_quantity"`
-	TotalValue     float64         `json:"total_value"`
-	TotalEarnings  float64         `json:"total_earnings" gorm:"-"`
-	Categories     []CategoryCount `json:"categories"`
-	MonthlySales   []MonthlySales  `json:"monthly_sales" gorm:"-"`
+	TotalParts    int             `json:"total_parts"`
+	TotalQuantity int             `json:"total_quantity"`
+	TotalValue    float64         `json:"total_value"`
+	TotalEarnings float64         `json:"total_earnings"`
+	Categories    []CategoryCount `json:"categories"`
+	MonthlySales  []MonthlySales  `json:"monthly_sales"`
 }
 
 type CategoryCount struct {
@@ -273,9 +251,7 @@ type MonthlySales struct {
 
 // Earnings хранит общий заработок системы
 type Earnings struct {
-	ID          uint      `json:"id" gorm:"primaryKey"`
-	TotalAmount float64   `json:"total_amount" gorm:"not null;default:0"`
-	UpdatedAt   time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	ID          int64     `json:"id"`
+	TotalAmount float64   `json:"total_amount"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
-
-// Модели PartSpecification и SpecificationTemplate больше не нужны - характеристики хранятся в основной таблице Part

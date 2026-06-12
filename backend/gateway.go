@@ -20,6 +20,10 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"golang.org/x/time/rate"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	authv1 "avtoplaneta/gen/auth/v1"
 )
 
 // User представляет пользователя в системе
@@ -42,6 +46,10 @@ type Gateway struct {
 	ordersServiceURL    string
 	messagingServiceURL string
 	allowedOrigins      []string
+
+	// gRPC clients (замена HTTP proxy)
+	authConn *grpc.ClientConn
+	authGRPC authv1.AuthServiceClient
 
 	// Resiliency patterns
 	authBreaker      *breaker.Breaker
@@ -88,6 +96,7 @@ func NewGateway() *Gateway {
 
 	g.loadServiceURLs()
 	g.initResiliencyPatterns()
+	g.initGRPCClients()
 	g.setupMiddleware()
 	g.setupRoutes()
 
@@ -121,6 +130,31 @@ func (g *Gateway) initResiliencyPatterns() {
 	g.partsSem = make(chan struct{}, 50)
 	g.ordersSem = make(chan struct{}, 50)
 	g.messagingSem = make(chan struct{}, 50)
+}
+
+// initGRPCClients инициализирует gRPC-соединения к сервисам
+func (g *Gateway) initGRPCClients() {
+	authGRPCAddr := getEnvOrDefault("AUTH_GRPC_ADDR", "localhost:9083")
+
+	var err error
+	g.authConn, err = grpc.NewClient(authGRPCAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		logrus.WithError(err).Error("Failed to create gRPC connection to auth-service")
+	} else {
+		g.authGRPC = authv1.NewAuthServiceClient(g.authConn)
+		logrus.WithField("addr", authGRPCAddr).Info("gRPC client connected to auth-service")
+	}
+}
+
+// Close закрывает все gRPC соединения
+func (g *Gateway) Close() {
+	if g.authConn != nil {
+		if err := g.authConn.Close(); err != nil {
+			logrus.WithError(err).Warn("Failed to close auth gRPC connection")
+		}
+	}
 }
 
 // setupMiddleware настраивает middleware для gateway
@@ -169,7 +203,7 @@ func (g *Gateway) setupRoutes() {
 	g.setupStaticRoutes()
 
 	// Add direct user route for messaging (temporarily without auth for debugging)
-	g.router.GET("/api/users", getUsersHandler)
+	g.router.GET("/api/users", g.getUsersHandler)
 
 	// AI agent
 	g.router.POST("/api/ai-agent/chat", handleAIAgentChat)
@@ -188,6 +222,7 @@ func (g *Gateway) setupAuthRoutes() {
 	authRoutes := []string{
 		"/auth/google",
 		"/auth/google/callback",
+		"/auth/google/mobile",
 		"/auth/admin",
 		"/auth/login",
 		"/auth/logout",
@@ -211,8 +246,8 @@ func (g *Gateway) setupAdminRoutes() {
 		"/admin/user-activity-logs",
 	}
 
-	for _, route := range adminRoutes {
-		g.router.Any(route, authMiddleware, requireRole("admin"), g.proxyToAuthService)
+		for _, route := range adminRoutes {
+		g.router.Any(route, g.authMiddleware, requireRole("admin"), g.proxyToAuthService)
 	}
 }
 
@@ -221,6 +256,7 @@ func (g *Gateway) setupPartsRoutes() {
 	// Public read routes
 	readRoutes := []string{
 		"/api/inventory",
+		"/api/inventory/:id",
 		"/api/statistics",
 	}
 
@@ -244,7 +280,7 @@ func (g *Gateway) setupPartsRoutes() {
 	}
 
 	for _, route := range writeRoutes {
-		g.router.Any(route, authMiddleware, requireRole("operator"), g.proxyToPartsService)
+		g.router.Any(route, g.authMiddleware, requireRole("operator"), g.proxyToPartsService)
 	}
 
 	// Uploads proxy
@@ -260,7 +296,7 @@ func (g *Gateway) setupOrdersRoutes() {
 	}
 
 	for _, route := range orderRoutes {
-		g.router.Any(route, authMiddleware, requireRole("operator"), g.proxyToOrdersService)
+		g.router.Any(route, g.authMiddleware, requireRole("operator"), g.proxyToOrdersService)
 	}
 }
 
@@ -543,6 +579,7 @@ func (g *Gateway) Run(ctx context.Context, port string) error {
 	select {
 	case <-ctx.Done():
 		logrus.Info("Shutting down API Gateway gracefully...")
+		defer g.Close()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		if err := srv.Shutdown(shutdownCtx); err != nil {
@@ -564,105 +601,106 @@ func getEnvOrDefault(key, defaultValue string) string {
 	return defaultValue
 }
 
-// authMiddleware проверяет аутентификацию пользователя через auth-service
-func authMiddleware(c *gin.Context) {
-	logrus.WithFields(logrus.Fields{
-		"method": c.Request.Method,
-		"path":   c.Request.URL.Path,
-		"ip":     c.ClientIP(),
-	}).Debug("Auth middleware called")
+// authMiddleware проверяет аутентификацию пользователя через gRPC (auth-service)
+func (g *Gateway) authMiddleware(c *gin.Context) {
+	if g.authGRPC == nil {
+		logrus.Warn("Auth middleware: gRPC client not initialized, using HTTP fallback")
+		g.authMiddlewareHTTP(c)
+		return
+	}
 
 	authHeader := c.GetHeader("Authorization")
-	logrus.WithFields(logrus.Fields{
-		"path":                c.Request.URL.Path,
-		"auth_header_present": authHeader != "",
-		"auth_header_length":  len(authHeader),
-	}).Info("Auth middleware: checking authentication")
 
-	// Создаем новый HTTP запрос к auth-service для проверки пользователя
-	authServiceURL := getEnvOrDefault("AUTH_SERVICE_URL", "http://localhost:8083")
-	logrus.WithField("auth_service_url", authServiceURL).Info("Auth middleware: auth service URL")
-
-	req, err := http.NewRequest("GET", authServiceURL+"/auth/me", nil)
-	if err != nil {
-		logrus.WithError(err).Error("Failed to create auth request")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Authentication error"})
-		c.Abort()
-		return
-	}
-
-	// Копируем все cookies из оригинального запроса
-	cookiesCount := len(c.Request.Cookies())
-	logrus.WithField("cookies_count", cookiesCount).Info("Auth middleware: copying cookies")
+	// Собираем session cookie для сессионной авторизации
+	var sessionCookie string
 	for _, cookie := range c.Request.Cookies() {
-		req.AddCookie(cookie)
+		if cookie.Name == "auth-session" {
+			sessionCookie = cookie.Value
+		}
 	}
+	cookieHeader := c.GetHeader("Cookie")
 
-	// Копируем заголовки аутентификации
-	if authHeader != "" {
-		req.Header.Set("Authorization", authHeader)
-		logrus.Info("Auth middleware: Authorization header set")
-	} else {
-		logrus.Warn("Auth middleware: No Authorization header found")
-	}
+	resp, err := g.authGRPC.ValidateSession(c.Request.Context(), &authv1.ValidateSessionRequest{
+		SessionCookie: cookieHeader,
+		Authorization: authHeader,
+	})
 
-	// Выполняем запрос к auth-service
-	client := &http.Client{Timeout: 5 * time.Second}
-	logrus.Info("Auth middleware: sending request to auth service")
-	resp, err := client.Do(req)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to connect to auth service")
+		logrus.WithError(err).Warn("Auth middleware: gRPC ValidateSession failed")
+		_ = sessionCookie // в gRPC передаётся полный Cookie header
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Authentication error"})
 		c.Abort()
 		return
 	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			logrus.WithError(err).Warn("Failed to close auth response body")
-		}
-	}()
 
-	logrus.WithField("status_code", resp.StatusCode).Info("Auth middleware: auth service response")
-
-	// Если auth-service вернул ошибку аутентификации
-	if resp.StatusCode == http.StatusUnauthorized {
-		// Прочитать тело ответа для логирования
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		logrus.WithFields(logrus.Fields{
-			"ip":            c.ClientIP(),
-			"response_body": string(bodyBytes),
-		}).Warn("User not authenticated, auth service response")
+	if !resp.Valid {
+		logrus.WithField("ip", c.ClientIP()).Warn("User not authenticated")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		c.Abort()
 		return
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		logrus.WithFields(logrus.Fields{
-			"status": resp.StatusCode,
-			"ip":     c.ClientIP(),
-		}).Error("Auth service error")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Authentication error"})
-		c.Abort()
-		return
-	}
-
-	// Парсим ответ от auth-service
-	var user User
-	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
-		logrus.WithError(err).Error("Failed to parse auth response")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Authentication error"})
-		c.Abort()
-		return
+	user := User{
+		ID:    uint(resp.User.Id),
+		Email: resp.User.Email,
+		Name:  resp.User.Name,
+		Role:  resp.User.Role,
 	}
 
 	logrus.WithFields(logrus.Fields{
 		"id":    user.ID,
 		"email": user.Email,
 		"role":  user.Role,
-	}).Debug("User authenticated successfully")
+	}).Debug("User authenticated successfully via gRPC")
 
-	// Сохранить пользователя в контексте для последующего использования
+	c.Set("user", user)
+	c.Set("user_email", user.Email)
+	c.Next()
+}
+
+// authMiddlewareHTTP — fallback HTTP-версия на случай, если gRPC не работает
+func (g *Gateway) authMiddlewareHTTP(c *gin.Context) {
+	authHeader := c.GetHeader("Authorization")
+
+	authServiceURL := getEnvOrDefault("AUTH_SERVICE_URL", "http://localhost:8083")
+
+	req, err := http.NewRequest("GET", authServiceURL+"/auth/me", nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Authentication error"})
+		c.Abort()
+		return
+	}
+
+	for _, cookie := range c.Request.Cookies() {
+		req.AddCookie(cookie)
+	}
+
+	if authHeader != "" {
+		req.Header.Set("Authorization", authHeader)
+	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Authentication error"})
+		c.Abort()
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		c.JSON(resp.StatusCode, gin.H{"error": "Authentication required"})
+		c.Abort()
+		return
+	}
+
+	var user User
+	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Authentication error"})
+		c.Abort()
+		return
+	}
+
 	c.Set("user", user)
 	c.Set("user_email", user.Email)
 	c.Next()
@@ -723,14 +761,34 @@ func handleAIAgentChat(c *gin.Context) {
 	})
 }
 
-// getUsersHandler возвращает список пользователей для messaging
-func getUsersHandler(c *gin.Context) {
-	// Get users from auth-service
-	authServiceURL := getEnvOrDefault("AUTH_SERVICE_URL", "http://localhost:8083")
+// getUsersHandler возвращает список пользователей для messaging (через gRPC)
+func (g *Gateway) getUsersHandler(c *gin.Context) {
+	if g.authGRPC != nil {
+		resp, err := g.authGRPC.GetUsers(c.Request.Context(), &authv1.GetUsersRequest{})
+		if err == nil {
+			users := make([]User, len(resp.Users))
+			for i, u := range resp.Users {
+				users[i] = User{
+					ID:       uint(u.Id),
+					Email:    u.Email,
+					Name:     u.Name,
+					Role:     u.Role,
+					Initials: u.Initials,
+					INN:      u.Inn,
+					Provider: u.Provider,
+				}
+			}
+			logrus.WithField("users_count", len(users)).Info("Fetched users from auth service via gRPC")
+			c.JSON(http.StatusOK, gin.H{"users": users})
+			return
+		}
+		logrus.WithError(err).Warn("gRPC GetUsers failed, falling back to HTTP")
+	}
 
+	// HTTP fallback
+	authServiceURL := getEnvOrDefault("AUTH_SERVICE_URL", "http://localhost:8083")
 	req, err := http.NewRequest("GET", authServiceURL+"/internal/users", nil)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to create auth service request")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request"})
 		return
 	}
@@ -738,31 +796,18 @@ func getUsersHandler(c *gin.Context) {
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to connect to auth service")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to auth service"})
 		return
 	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			logrus.WithError(err).Warn("Failed to close auth service response body")
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		logrus.WithField("status", resp.StatusCode).Error("Auth service returned error")
-		c.JSON(resp.StatusCode, gin.H{"error": "Failed to fetch users"})
-		return
-	}
+	defer resp.Body.Close()
 
 	var response struct {
 		Users []User `json:"users"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		logrus.WithError(err).Error("Failed to parse auth service response")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse response"})
 		return
 	}
 
-	logrus.WithField("users_count", len(response.Users)).Info("Fetched users from auth service")
 	c.JSON(http.StatusOK, gin.H{"users": response.Users})
 }

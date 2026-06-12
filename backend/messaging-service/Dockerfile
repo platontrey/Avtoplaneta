@@ -4,10 +4,10 @@ RUN apk add --no-cache git ca-certificates tzdata
 
 WORKDIR /app
 
-COPY go.mod go.sum ./
+COPY gen ../gen
+COPY messaging-service/go.mod messaging-service/go.sum ./
 RUN go mod download
-
-COPY . .
+COPY messaging-service/ .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /messaging-service .
 

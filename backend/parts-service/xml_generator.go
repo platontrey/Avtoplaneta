@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
@@ -12,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 // Offers представляет структуры XML для прайс-листа Drom
@@ -55,6 +57,17 @@ func GenerateXMLPriceList(parts []Part) ([]byte, error) {
 		Offers: make([]Offer, 0, len(parts)),
 	}
 
+	// Получаем ИНН всех продавцов одним запросом для оптимизации
+	sellerINNs := make(map[int64]string)
+	users, err := fetchAllUsers()
+	if err == nil {
+		for _, u := range users {
+			sellerINNs[u.ID] = u.INN
+		}
+	} else {
+		fmt.Printf("Предупреждение: Не удалось пакетно получить ИНН пользователей: %v. Будет использован fallback на одиночные запросы.\n", err)
+	}
+
 	for _, part := range parts {
 		// Пропускаем только запчасти помеченные для удаления
 		if part.ToDeleteAt != nil {
@@ -71,6 +84,14 @@ func GenerateXMLPriceList(parts []Part) ([]byte, error) {
 		condition := strings.TrimSpace(part.Condition)
 		if condition == "" {
 			condition = "Б/у"
+		}
+
+		// Получаем ИНН из кэша или fallback на одиночный запрос
+		supplierInn := ""
+		if inn, ok := sellerINNs[part.SellerID]; ok {
+			supplierInn = inn
+		} else {
+			supplierInn = getUserINN(part.SellerID)
 		}
 
 		offer := Offer{
@@ -97,7 +118,7 @@ func GenerateXMLPriceList(parts []Part) ([]byte, error) {
 			Ud:            strings.TrimSpace(part.TopBottom),
 			Color:         strings.TrimSpace(part.Color),
 			Supplier:      strings.TrimSpace(part.Salesman),
-			SupplierInn:   getUserINN(part.SellerID),
+			SupplierInn:   supplierInn,
 			Sklad:         strings.TrimSpace(part.Location),
 			SupplierArt:   strings.TrimSpace(part.SupplierCode),
 		}
@@ -117,12 +138,45 @@ func GenerateXMLPriceList(parts []Part) ([]byte, error) {
 	return xmlWithHeader, nil
 }
 
+// fetchAllUsers получает список всех пользователей с их ИНН из auth-service
+func fetchAllUsers() ([]struct {
+	ID  int64  `json:"id"`
+	INN string `json:"inn"`
+}, error) {
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get("http://localhost:8083/admin/users")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response struct {
+		Users []struct {
+			ID  int64  `json:"id"`
+			INN string `json:"inn"`
+		} `json:"users"`
+	}
+
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, err
+	}
+
+	return response.Users, nil
+}
+
 // GetPartsForXML получает все доступные запчасти для экспорта в XML
 func GetPartsForXML() ([]Part, error) {
-	var parts []Part
-
-	// Получаем все запчасти, которые не помечены для удаления и имеют quantity > 0
-	err := db.Where("to_delete_at IS NULL AND quantity > 0").Find(&parts).Error
+	repo := NewPartRepository(dbPool)
+	parts, err := repo.GetPartsForXML(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("ошибка получения частей из базы данных: %v", err)
 	}
@@ -131,7 +185,7 @@ func GetPartsForXML() ([]Part, error) {
 }
 
 // getUserINN получает ИНН пользователя по его ID из auth-service
-func getUserINN(sellerID uint) string {
+func getUserINN(sellerID int64) string {
 	if sellerID == 0 {
 		return ""
 	}

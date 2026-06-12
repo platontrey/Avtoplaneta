@@ -1,14 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 )
 
-// CreateDefectReportHandler создает дефектную ведомость и массово добавляет выбранные запчасти
+// CreateDefectReportHandler отправляет дефектную ведомость в Redis Streams для асинхронной обработки
 func (h *Handler) CreateDefectReportHandler(c *gin.Context) {
 	var defectReportData struct {
 		Brand         string `json:"brand"`
@@ -18,39 +19,38 @@ func (h *Handler) CreateDefectReportHandler(c *gin.Context) {
 		Mileage       int    `json:"mileage"`
 		Description   string `json:"description"`
 		SelectedParts []struct {
-			Name        string  `json:"name"`
-			Category    string  `json:"category"`
-			Description string  `json:"description"`
-			Quantity    int     `json:"quantity"`
-			Price       float64 `json:"price"`
-			// Характеристики запчасти
-			BodyBrand          string `json:"body_brand,omitempty"`
-			EngineBrand        string `json:"engine_brand,omitempty"`
-			CarReleaseDate     string `json:"car_release_date,omitempty"`
-			FrontRear          string `json:"front_rear,omitempty"`
-			LeftRight          string `json:"left_right,omitempty"`
-			TopBottom          string `json:"top_bottom,omitempty"`
-			Number             string `json:"number,omitempty"`
-			Manufacturer       string `json:"manufacturer,omitempty"`
-			ManufacturerCode   string `json:"manufacturer_code,omitempty"`
-			OEMCode            string `json:"oem_code,omitempty"`
-			Color              string `json:"color,omitempty"`
-			Condition          string `json:"condition,omitempty"`
-			SupplierCode       string `json:"supplier_code,omitempty"`
-			Defect             string `json:"defect,omitempty"`
-			Transmission       string `json:"transmission,omitempty"`
-			Drive              string `json:"drive,omitempty"`
-			WearPercentage     string `json:"wear_percentage,omitempty"`
-			Season             string `json:"season,omitempty"`
-			Diameter           string `json:"diameter,omitempty"`
-			Width              string `json:"width,omitempty"`
-			Profile            string `json:"profile,omitempty"`
-			TireQuantity       string `json:"tire_quantity,omitempty"`
-			Drilling           string `json:"drilling,omitempty"`
-			Offset             string `json:"offset,omitempty"`
-			CenterHoleDiameter string `json:"center_hole_diameter,omitempty"`
-			TireModel          string `json:"tire_model,omitempty"`
-			VIN                string `json:"vin,omitempty"`
+			Name               string  `json:"name"`
+			Category           string  `json:"category"`
+			Description        string  `json:"description"`
+			Quantity           int     `json:"quantity"`
+			Price              float64 `json:"price"`
+			BodyBrand          string  `json:"body_brand,omitempty"`
+			EngineBrand        string  `json:"engine_brand,omitempty"`
+			CarReleaseDate     string  `json:"car_release_date,omitempty"`
+			FrontRear          string  `json:"front_rear,omitempty"`
+			LeftRight          string  `json:"left_right,omitempty"`
+			TopBottom          string  `json:"top_bottom,omitempty"`
+			Number             string  `json:"number,omitempty"`
+			Manufacturer       string  `json:"manufacturer,omitempty"`
+			ManufacturerCode   string  `json:"manufacturer_code,omitempty"`
+			OEMCode            string  `json:"oem_code,omitempty"`
+			Color              string  `json:"color,omitempty"`
+			Condition          string  `json:"condition,omitempty"`
+			SupplierCode       string  `json:"supplier_code,omitempty"`
+			Defect             string  `json:"defect,omitempty"`
+			Transmission       string  `json:"transmission,omitempty"`
+			Drive              string  `json:"drive,omitempty"`
+			WearPercentage     string  `json:"wear_percentage,omitempty"`
+			Season             string  `json:"season,omitempty"`
+			Diameter           string  `json:"diameter,omitempty"`
+			Width              string  `json:"width,omitempty"`
+			Profile            string  `json:"profile,omitempty"`
+			TireQuantity       string  `json:"tire_quantity,omitempty"`
+			Drilling           string  `json:"drilling,omitempty"`
+			Offset             string  `json:"offset,omitempty"`
+			CenterHoleDiameter string  `json:"center_hole_diameter,omitempty"`
+			TireModel          string  `json:"tire_model,omitempty"`
+			VIN                string  `json:"vin,omitempty"`
 		} `json:"selectedParts"`
 	}
 
@@ -60,114 +60,32 @@ func (h *Handler) CreateDefectReportHandler(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("Creating defect report for %s %s %d with %d parts\n", defectReportData.Brand, defectReportData.Model, defectReportData.Year, len(defectReportData.SelectedParts))
+	fmt.Printf("Queueing defect report for %s %s %d with %d parts\n", defectReportData.Brand, defectReportData.Model, defectReportData.Year, len(defectReportData.SelectedParts))
 
-	// Получить первого пользователя как продавца по умолчанию
-	// Поскольку User модель из другого сервиса, используем простую структуру
-	type User struct {
-		ID   uint   `json:"id"`
-		Name string `json:"name"`
-	}
-
-	var defaultUser User
-	if err := db.Table("users").First(&defaultUser).Error; err != nil {
-		fmt.Printf("Error getting default user: %v\n", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось получить пользователя"})
+	payload, err := json.Marshal(defectReportData)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Ошибка сериализации данных"})
 		return
 	}
 
-	var createdParts []Part
-	var createdPartIDs []uint
-
-	// Создать запчасти массово
-	for _, selectedPart := range defectReportData.SelectedParts {
-		part := Part{
-			PartCore: PartCore{
-				Name:        selectedPart.Name,
-				Quantity:    selectedPart.Quantity,
-				Description: selectedPart.Description,
-				Category:    selectedPart.Category,
-				Price:       selectedPart.Price,
-				Salesman:    defaultUser.Name,
-				Location:    "", // Будет установлено позже
-				Status:      true,
-				Brand:       defectReportData.Brand,
-				Model:       defectReportData.Model,
-				Photo:       "",
-				SellerID:    defaultUser.ID,
-			},
-			PartSpecifications: PartSpecifications{
-				BodyBrand:        selectedPart.BodyBrand,
-				EngineBrand:      selectedPart.EngineBrand,
-				CarReleaseDate:   selectedPart.CarReleaseDate,
-				FrontRear:        selectedPart.FrontRear,
-				LeftRight:        selectedPart.LeftRight,
-				TopBottom:        selectedPart.TopBottom,
-				Number:           selectedPart.Number,
-				Manufacturer:     selectedPart.Manufacturer,
-				ManufacturerCode: selectedPart.ManufacturerCode,
-				OEMCode:          selectedPart.OEMCode,
-				Color:            selectedPart.Color,
-				Condition:        selectedPart.Condition,
-				SupplierCode:     selectedPart.SupplierCode,
-				Defect:           selectedPart.Defect,
-				Transmission:     selectedPart.Transmission,
-				Drive:            selectedPart.Drive,
-				WearPercentage:   selectedPart.WearPercentage,
-			},
-			PartTireSpecifications: PartTireSpecifications{
-				Season:             selectedPart.Season,
-				Diameter:           selectedPart.Diameter,
-				Width:              selectedPart.Width,
-				Profile:            selectedPart.Profile,
-				TireQuantity:       selectedPart.TireQuantity,
-				Drilling:           selectedPart.Drilling,
-				Offset:             selectedPart.Offset,
-				CenterHoleDiameter: selectedPart.CenterHoleDiameter,
-				TireModel:          selectedPart.TireModel,
-			},
-		}
-
-		// Санитизация
-		part.PartCore.Name = strings.TrimSpace(part.PartCore.Name)
-		part.PartCore.Description = strings.TrimSpace(part.PartCore.Description)
-		part.PartCore.Category = strings.TrimSpace(part.PartCore.Category)
-		part.PartCore.Salesman = strings.TrimSpace(part.PartCore.Salesman)
-		part.PartCore.Location = strings.TrimSpace(part.PartCore.Location)
-		part.PartCore.Brand = strings.TrimSpace(part.PartCore.Brand)
-		part.PartCore.Model = strings.TrimSpace(part.PartCore.Model)
-
-		if err := db.Create(&part).Error; err != nil {
-			fmt.Printf("Error creating part %s: %v\n", selectedPart.Name, err)
-			continue // Продолжить с другими запчастями
-		}
-
-		// Получить созданную запчасть для индексации
-		var createdPart Part
-		if err := db.Last(&createdPart).Error; err != nil {
-			fmt.Printf("Error getting created part: %v\n", err)
-			continue
-		}
-
-		createdParts = append(createdParts, createdPart)
-		createdPartIDs = append(createdPartIDs, createdPart.ID)
-
-		// Индексировать запчасть в Elasticsearch
-		if err := IndexPart(&createdPart); err != nil {
-			fmt.Printf("Warning: Failed to index part %d in Elasticsearch: %v\n", createdPart.ID, err)
-		} else {
-			fmt.Printf("Successfully indexed part %d in Elasticsearch\n", createdPart.ID)
-		}
+	// Отправляем дефектную ведомость в Redis Stream
+	err = redisClient.XAdd(c.Request.Context(), &redis.XAddArgs{
+		Stream: "events:orders",
+		Values: map[string]interface{}{
+			"type": "defect_report_created",
+			"data": string(payload),
+		},
+	}).Err()
+	if err != nil {
+		fmt.Printf("Failed to publish defect report event to Redis: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось отправить ведомость в очередь обработки"})
+		return
 	}
 
-	fmt.Printf("Successfully created %d parts for defect report\n", len(createdParts))
+	// Логируем активность пользователя
+	h.logUserActivity(c, "queue_defect_report", "part", fmt.Sprintf("Queued defect report with %d parts for %s %s %d", len(defectReportData.SelectedParts), defectReportData.Brand, defectReportData.Model, defectReportData.Year), nil)
 
-	// Логируем создание дефектной ведомости
-	h.logUserActivity(c, "create_defect_report", "part", fmt.Sprintf("Created defect report with %d parts for %s %s %d", len(createdParts), defectReportData.Brand, defectReportData.Model, defectReportData.Year), nil)
-
-	c.JSON(http.StatusCreated, gin.H{
-		"message":      "Дефектная ведомость создана успешно",
-		"createdParts": len(createdParts),
-		"partIDs":      createdPartIDs,
+	c.JSON(http.StatusAccepted, gin.H{
+		"message": "Дефектная ведомость отправлена в очередь обработки",
 	})
 }

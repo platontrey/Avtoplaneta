@@ -19,13 +19,17 @@ type csrfToken struct {
 	expiresAt time.Time
 }
 
-// CORSMiddleware добавляет CORS заголовки для кросс-доменных запросов
+var userRepo UserRepository
+
+func SetUserRepo(repo UserRepository) {
+	userRepo = repo
+}
+
 func CORSMiddleware(config *Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var allowedOrigins []string
 		if config.AllowedOrigins != "" {
 			allowedOrigins = strings.Split(config.AllowedOrigins, ",")
-			// Trim spaces
 			for i := range allowedOrigins {
 				allowedOrigins[i] = strings.TrimSpace(allowedOrigins[i])
 			}
@@ -61,17 +65,28 @@ func CORSMiddleware(config *Config) gin.HandlerFunc {
 	}
 }
 
-// generateCsrfToken генерирует криптографически безопасный токен CSRF
 func generateCsrfToken() string {
 	token, err := generateSecureCsrfToken()
 	if err != nil {
-		// Fallback to less secure method if crypto fails
 		return strconv.FormatInt(time.Now().UnixNano(), 36) + strconv.FormatInt(time.Now().Unix(), 36)
 	}
 	return token
 }
 
-// authMiddleware проверяет аутентификацию пользователя
+func getUserIDFromSessionValue(v interface{}) (int64, bool) {
+	switch id := v.(type) {
+	case int64:
+		return id, true
+	case int:
+		return int64(id), true
+	case uint:
+		return int64(id), true
+	case float64:
+		return int64(id), true
+	}
+	return 0, false
+}
+
 func authMiddleware(c *gin.Context) {
 	log.Printf("ОТЛАДКА: authMiddleware вызван для %s %s от %s", c.Request.Method, c.Request.URL.Path, c.ClientIP())
 
@@ -83,19 +98,26 @@ func authMiddleware(c *gin.Context) {
 		return
 	}
 
-	userID, ok := session.Values["user_id"]
-	log.Printf("ОТЛАДКА: userID из сессии: %v, ok: %v", userID, ok)
-	if !ok || userID == nil {
+	val, ok := session.Values["user_id"]
+	log.Printf("ОТЛАДКА: userID из сессии: %v, ok: %v", val, ok)
+	if !ok || val == nil {
 		log.Printf("ОТЛАДКА: userID отсутствует в сессии")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Требуется аутентификация"})
 		c.Abort()
 		return
 	}
 
-	// Проверить возраст сеанса
+	userID, ok := getUserIDFromSessionValue(val)
+	if !ok {
+		log.Printf("ОТЛАДКА: userID неверного типа")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Требуется аутентификация"})
+		c.Abort()
+		return
+	}
+
 	if loginTime, ok := session.Values["login_time"].(int64); ok {
 		log.Printf("ОТЛАДКА: loginTime из сессии: %d", loginTime)
-		if time.Now().Unix()-loginTime > 86400*30 { // 30 дней
+		if time.Now().Unix()-loginTime > 86400*30 {
 			log.Printf("БЕЗОПАСНОСТЬ: Истекший сеанс для пользователя ID %v от %s", userID, c.ClientIP())
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Сеанс истек, пожалуйста, войдите снова"})
 			c.Abort()
@@ -105,9 +127,8 @@ func authMiddleware(c *gin.Context) {
 		log.Printf("ОТЛАДКА: loginTime отсутствует в сессии")
 	}
 
-	// Проверить, существует ли пользователь
-	var user User
-	if err := db.First(&user, userID).Error; err != nil {
+	user, err := userRepo.FindByID(userID)
+	if err != nil {
 		log.Printf("БЕЗОПАСНОСТЬ: Пользователь не найден для сеанса %v от %s", userID, c.ClientIP())
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Неверный сеанс"})
 		c.Abort()
@@ -116,14 +137,12 @@ func authMiddleware(c *gin.Context) {
 
 	log.Printf("ОТЛАДКА: Пользователь найден: ID=%d, Email=%s, Role=%s", user.ID, user.Email, user.Role)
 
-	// Сохранить пользователя в контексте для последующего использования
-	c.Set("user", user)
-	c.Set("user_email", user.Email) // Для логирования
+	c.Set("user", *user)
+	c.Set("user_email", user.Email)
 	log.Printf("ОТЛАДКА: authMiddleware завершен успешно для пользователя %s", user.Email)
 	c.Next()
 }
 
-// internalOnlyMiddleware проверяет, что запрос приходит только от внутренних IP
 func internalOnlyMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		clientIP := c.ClientIP()
@@ -137,40 +156,35 @@ func internalOnlyMiddleware() gin.HandlerFunc {
 	}
 }
 
-// csrfMiddleware проверяет токены CSRF для защиты от атак
 func csrfMiddleware(c *gin.Context) {
 	log.Printf("ОТЛАДКА CSRF: Начало проверки CSRF для %s %s от %s", c.Request.Method, c.Request.URL.Path, c.ClientIP())
 
-	// Пропустить CSRF для GET запросов и предварительных OPTIONS
 	if c.Request.Method == "GET" || c.Request.Method == "OPTIONS" {
 		log.Printf("ОТЛАДКА CSRF: Пропуск CSRF для %s запроса", c.Request.Method)
 		c.Next()
 		return
 	}
 
-	// Пропустить проверку CSRF для endpoints входа
 	if c.Request.URL.Path == "/auth/login" ||
-		c.Request.URL.Path == "/auth/logout" {
-		log.Printf("ОТЛАДКА CSRF: Пропуск CSRF для endpoint входа: %s", c.Request.URL.Path)
+		c.Request.URL.Path == "/auth/logout" ||
+		c.Request.URL.Path == "/auth/refresh" {
+		log.Printf("ОТЛАДКА CSRF: Пропуск CSRF для endpoint входа/выхода/обновления: %s", c.Request.URL.Path)
 		c.Next()
 		return
 	}
 
-	// Пропустить проверку CSRF для внутренних endpoints
 	if strings.HasPrefix(c.Request.URL.Path, "/internal/") {
 		log.Printf("ОТЛАДКА CSRF: Пропуск CSRF для внутреннего endpoint: %s", c.Request.URL.Path)
 		c.Next()
 		return
 	}
 
-	// Пропустить проверку CSRF для внутренних запросов к логированию активности
 	if c.Request.URL.Path == "/admin/user-activity-logs" && (c.ClientIP() == "127.0.0.1" || c.ClientIP() == "::1" || c.ClientIP() == "[::1]") {
 		log.Printf("ОТЛАДКА CSRF: Пропуск CSRF для внутреннего логирования активности от %s", c.ClientIP())
 		c.Next()
 		return
 	}
 
-	// Проверить токен CSRF
 	token := c.GetHeader("X-CSRF-Token")
 	if token == "" {
 		token = c.PostForm("csrf_token")
@@ -190,15 +204,12 @@ func csrfMiddleware(c *gin.Context) {
 		return
 	}
 
-	// Получить сеанс для поиска пользователя
 	session, _ := store.Get(c.Request, "auth-session")
-	userID, ok := session.Values["user_id"]
+	val, ok := session.Values["user_id"]
 
-	log.Printf("ОТЛАДКА CSRF: user_id сеанса присутствует: %v, userID: %v", ok, userID)
-	log.Printf("ОТЛАДКА CSRF: Токен CSRF: %s", token)
+	log.Printf("ОТЛАДКА CSRF: user_id сеанса присутствует: %v, userID: %v", ok, val)
 
-	if !ok || userID == nil {
-		// Для не аутентифицированных запросов, проверить токен на основе сеанса
+	if !ok || val == nil {
 		sessionToken, exists := session.Values["csrf_token"]
 		log.Printf("ОТЛАДКА CSRF: Неаутентифицированный запрос, токен сеанса существует: %v, совпадает: %v", exists, sessionToken == token)
 		if !exists || sessionToken != token {
@@ -209,8 +220,8 @@ func csrfMiddleware(c *gin.Context) {
 			return
 		}
 	} else {
-		// Для аутентифицированных запросов, проверить специфичный для пользователя токен
-		userIDStr := strconv.FormatUint(uint64(userID.(uint)), 10)
+		userID, _ := getUserIDFromSessionValue(val)
+		userIDStr := strconv.FormatInt(userID, 10)
 		log.Printf("ОТЛАДКА CSRF: userIDStr: %s", userIDStr)
 
 		csrfMutex.RLock()
@@ -220,12 +231,6 @@ func csrfMiddleware(c *gin.Context) {
 		log.Printf("ОТЛАДКА CSRF: Аутентифицированный запрос для пользователя %s, токен существует: %v, токен совпадает: %v, истек: %v",
 			userIDStr, exists, exists && csrfToken.token == token, exists && time.Now().After(csrfToken.expiresAt))
 
-		if !exists {
-			log.Printf("ОТЛАДКА CSRF: Токен CSRF не существует для пользователя %s", userIDStr)
-		} else if csrfToken.token != token {
-			log.Printf("ОТЛАДКА CSRF: Токен CSRF не совпадает. Ожидалось: %s, Получено: %s", csrfToken.token, token)
-		}
-
 		if !exists || csrfToken.token != token {
 			log.Printf("БЕЗОПАСНОСТЬ: Неверный токен CSRF для пользователя %v от %s", userID, c.ClientIP())
 			c.JSON(http.StatusForbidden, gin.H{"error": "Неверный токен CSRF"})
@@ -233,7 +238,6 @@ func csrfMiddleware(c *gin.Context) {
 			return
 		}
 
-		// Проверить, истек ли токен
 		if time.Now().After(csrfToken.expiresAt) {
 			log.Printf("БЕЗОПАСНОСТЬ: Истекший токен CSRF для пользователя %v от %s", userID, c.ClientIP())
 			csrfMutex.Lock()
@@ -248,7 +252,6 @@ func csrfMiddleware(c *gin.Context) {
 	c.Next()
 }
 
-// requireRole проверяет, что пользователь имеет требуемую роль
 func requireRole(requiredRole string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		log.Printf("ОТЛАДКА: requireRole вызван для роли %s на пути %s", requiredRole, c.Request.URL.Path)
@@ -275,7 +278,6 @@ func requireRole(requiredRole string) gin.HandlerFunc {
 	}
 }
 
-// requireMinRole проверяет минимальную роль пользователя
 func requireMinRole(minRole string) gin.HandlerFunc {
 	roleHierarchy := map[string]int{
 		"operator": 1,

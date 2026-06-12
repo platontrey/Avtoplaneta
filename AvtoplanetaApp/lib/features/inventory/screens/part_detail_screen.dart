@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import '../../../core/api/api_client.dart';
+import '../../../core/utils/qr_signer.dart';
 import '../providers/inventory_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -13,7 +16,12 @@ class PartDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final partAsync = ref.watch(partProvider(id));
     final user = ref.watch(authProvider).valueOrNull;
-    const baseUrl = 'https://avtoplaneta.avtoplaneta.crazedns.ru';
+    final baseUrl = apiClient.dio.options.baseUrl;
+
+    // Читаем текущий оффлайн статус из фильтрованного списка
+    final filter = ref.watch(inventoryFilterProvider);
+    final inventoryAsync = ref.watch(inventoryProvider(filter));
+    final isOffline = inventoryAsync.valueOrNull?.isOffline ?? false;
 
     return Scaffold(
       appBar: AppBar(
@@ -22,7 +30,13 @@ class PartDetailScreen extends ConsumerWidget {
           if (user?.isOperator == true)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
-              onPressed: () => context.go('/inventory/edit/$id'),
+              onPressed: isOffline
+                  ? () => ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text(
+                                'В оффлайн-режиме редактирование недоступно')),
+                      )
+                  : () => context.go('/inventory/edit/$id'),
             ),
         ],
       ),
@@ -123,6 +137,29 @@ class PartDetailScreen extends ConsumerWidget {
                     ),
                   ),
                 ]),
+              _section('QR-код запчасти', [
+                Center(
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: QrImageView(
+                      data: QrSigner.generateQrData(partId: part.id, createdAt: part.createdAt),
+                      version: QrVersions.auto,
+                      size: 160.0,
+                    ),
+                  ),
+                ),
+                const Center(
+                  child: Text(
+                    'Отсканируйте код для быстрого поиска',
+                    style: TextStyle(color: Colors.white38, fontSize: 11),
+                  ),
+                ),
+              ]),
             ],
           ),
         ),

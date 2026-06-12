@@ -1,0 +1,355 @@
+syntax = "proto3";
+package parts.v1;
+option go_package = "avtoplaneta/gen/parts/v1;partsv1";
+
+import "google/protobuf/timestamp.proto";
+
+service PartsService {
+  // Инвентарь
+  rpc GetInventory(GetInventoryRequest) returns (InventoryResponse);
+  rpc AddPart(AddPartRequest) returns (Part);
+  rpc UpdatePart(UpdatePartRequest) returns (Part);
+  rpc DeletePart(DeletePartRequest) returns (DeletePartResponse);
+  rpc MarkPartForDeletion(MarkPartForDeletionRequest) returns (Part);
+
+  // Фото
+  rpc UploadPartPhoto(stream UploadPartPhotoChunk) returns (UploadPartPhotoResponse);
+  rpc DeletePartPhoto(DeletePartPhotoRequest) returns (DeletePartPhotoResponse);
+
+  // Статистика
+  rpc GetStatistics(GetStatisticsRequest) returns (StatisticsResponse);
+  rpc UpdateEarnings(UpdateEarningsRequest) returns (UpdateEarningsResponse);
+
+  // Дефект-отчёты
+  rpc CreateDefectReport(CreateDefectReportRequest) returns (CreateDefectReportResponse);
+
+  // Экспорт
+  rpc ExportXML(ExportXMLRequest) returns (ExportXMLResponse);
+  rpc SendPriceListToDrom(SendPriceListToDromRequest) returns (SendPriceListToDromResponse);
+
+  // Админ-операции
+  rpc BulkDeleteParts(BulkDeletePartsRequest) returns (BulkDeletePartsResponse);
+  rpc BulkUpdateParts(BulkUpdatePartsRequest) returns (BulkUpdatePartsResponse);
+  rpc GetSupplierCodes(GetSupplierCodesRequest) returns (SupplierCodesResponse);
+  rpc DeleteZeroQuantityParts(DeleteZeroQuantityPartsRequest) returns (DeleteZeroQuantityPartsResponse);
+}
+
+// ─── Part Model ─────────────────────────────────────────────────────────────
+
+message Part {
+  uint32 id = 1;
+  string name = 2;
+  int32 quantity = 3;
+  string description = 4;
+  string category = 5;
+  double price = 6;
+  string salesman = 7;
+  string location = 8;
+  bool status = 9;
+  string brand = 10;
+  string model = 11;
+  repeated string photos = 12;
+  uint32 seller_id = 13;
+  google.protobuf.Timestamp to_delete_at = 14;
+  string vin = 15;
+
+  // Specifications
+  string body_brand = 20;
+  string engine_brand = 21;
+  string car_release_date = 22;
+  string front_rear = 23;
+  string left_right = 24;
+  string top_bottom = 25;
+  string number = 26;
+  string manufacturer = 27;
+  string manufacturer_code = 28;
+  string oem_code = 29;
+  string color = 30;
+  string condition = 31;
+  string supplier_code = 32;
+  string defect = 33;
+  string transmission = 34;
+  string drive = 35;
+  string wear_percentage = 36;
+
+  // Tire specifications
+  string season = 40;
+  string diameter = 41;
+  string width = 42;
+  string profile = 43;
+  string tire_quantity = 44;
+  string drilling = 45;
+  string offset = 46;
+  string center_hole_diameter = 47;
+  string tire_model = 48;
+
+  // Display fields
+  string to_delete_at_formatted = 50;
+  string time_until_deletion = 51;
+}
+
+// ─── Inventory ──────────────────────────────────────────────────────────────
+
+message GetInventoryRequest {
+  string search = 1;
+  string category = 2;
+  string brand = 3;
+  string model = 4;
+  string location = 5;
+  string salesman = 6;
+  string status = 7;
+  string has_photo = 8;
+  int32 page = 9;
+  int32 limit = 10;
+}
+
+message InventoryResponse {
+  repeated Part parts = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 limit = 4;
+}
+
+// ─── Add/Update/Delete ──────────────────────────────────────────────────────
+
+message AddPartRequest {
+  string name = 1;
+  int32 quantity = 2;
+  string description = 3;
+  string category = 4;
+  double price = 5;
+  string salesman = 6;
+  string location = 7;
+  bool status = 8;
+  string brand = 9;
+  string model = 10;
+  uint32 seller_id = 11;
+  string vin = 12;
+
+  // Specifications
+  string body_brand = 20;
+  string engine_brand = 21;
+  string car_release_date = 22;
+  string front_rear = 23;
+  string left_right = 24;
+  string top_bottom = 25;
+  string number = 26;
+  string manufacturer = 27;
+  string manufacturer_code = 28;
+  string oem_code = 29;
+  string color = 30;
+  string condition = 31;
+  string supplier_code = 32;
+  string defect = 33;
+  string transmission = 34;
+  string drive = 35;
+  string wear_percentage = 36;
+
+  // Tire
+  string season = 40;
+  string diameter = 41;
+  string width = 42;
+  string profile = 43;
+  string tire_quantity = 44;
+  string drilling = 45;
+  string offset = 46;
+  string center_hole_diameter = 47;
+  string tire_model = 48;
+}
+
+message UpdatePartRequest {
+  uint32 id = 1;
+  // Все поля опциональные — обновляется только то, что передано
+  optional string name = 2;
+  optional int32 quantity = 3;
+  optional string description = 4;
+  optional string category = 5;
+  optional double price = 6;
+  optional string salesman = 7;
+  optional string location = 8;
+  optional bool status = 9;
+  optional string brand = 10;
+  optional string model = 11;
+  optional uint32 seller_id = 12;
+  optional string vin = 13;
+
+  optional string body_brand = 20;
+  optional string engine_brand = 21;
+  optional string car_release_date = 22;
+  optional string front_rear = 23;
+  optional string left_right = 24;
+  optional string top_bottom = 25;
+  optional string number = 26;
+  optional string manufacturer = 27;
+  optional string manufacturer_code = 28;
+  optional string oem_code = 29;
+  optional string color = 30;
+  optional string condition = 31;
+  optional string supplier_code = 32;
+  optional string defect = 33;
+  optional string transmission = 34;
+  optional string drive = 35;
+  optional string wear_percentage = 36;
+
+  optional string season = 40;
+  optional string diameter = 41;
+  optional string width = 42;
+  optional string profile = 43;
+  optional string tire_quantity = 44;
+  optional string drilling = 45;
+  optional string offset = 46;
+  optional string center_hole_diameter = 47;
+  optional string tire_model = 48;
+}
+
+message DeletePartRequest {
+  uint32 id = 1;
+}
+
+message DeletePartResponse {}
+
+message MarkPartForDeletionRequest {
+  uint32 id = 1;
+}
+
+// ─── Photos ─────────────────────────────────────────────────────────────────
+
+message UploadPartPhotoChunk {
+  uint32 part_id = 1;
+  string filename = 2;
+  string content_type = 3;
+  bytes data = 4;
+}
+
+message UploadPartPhotoResponse {
+  string photo_url = 1;
+  Part part = 2;
+}
+
+message DeletePartPhotoRequest {
+  uint32 part_id = 1;
+  string photo_url = 2;
+}
+
+message DeletePartPhotoResponse {}
+
+// ─── Statistics ─────────────────────────────────────────────────────────────
+
+message GetStatisticsRequest {}
+
+message CategoryCount {
+  string name = 1;
+  int32 count = 2;
+}
+
+message MonthlySales {
+  string month = 1;
+  double sales = 2;
+}
+
+message StatisticsResponse {
+  int32 total_parts = 1;
+  int32 total_quantity = 2;
+  double total_value = 3;
+  double total_earnings = 4;
+  repeated CategoryCount categories = 5;
+  repeated MonthlySales monthly_sales = 6;
+}
+
+message UpdateEarningsRequest {
+  double amount = 1;
+}
+
+message UpdateEarningsResponse {
+  double total_earnings = 1;
+}
+
+// ─── Defect Reports ─────────────────────────────────────────────────────────
+
+message DefectReportPart {
+  string name = 1;
+  string category = 2;
+  double price = 3;
+  int32 quantity = 4;
+  string description = 5;
+  string condition = 6;
+  string defect = 7;
+  string location = 8;
+  string front_rear = 9;
+  string left_right = 10;
+  string top_bottom = 11;
+  string number = 12;
+  string oem_code = 13;
+  string manufacturer = 14;
+  string color = 15;
+}
+
+message CreateDefectReportRequest {
+  string brand = 1;
+  string model = 2;
+  string year = 3;
+  string vin = 4;
+  string mileage = 5;
+  string description = 6;
+  string salesman = 7;
+  uint32 seller_id = 8;
+  repeated DefectReportPart selected_parts = 9;
+}
+
+message CreateDefectReportResponse {
+  int32 parts_created = 1;
+  repeated Part parts = 2;
+}
+
+// ─── Export ─────────────────────────────────────────────────────────────────
+
+message ExportXMLRequest {}
+
+message ExportXMLResponse {
+  bytes xml_data = 1;
+  string content_type = 2;
+}
+
+message SendPriceListToDromRequest {}
+
+message SendPriceListToDromResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// ─── Admin Bulk Operations ──────────────────────────────────────────────────
+
+message BulkDeletePartsRequest {
+  repeated uint32 ids = 1;
+}
+
+message BulkDeletePartsResponse {
+  int32 deleted_count = 1;
+}
+
+message BulkUpdatePartData {
+  uint32 id = 1;
+  map<string, string> fields = 2;
+}
+
+message BulkUpdatePartsRequest {
+  repeated BulkUpdatePartData parts = 1;
+}
+
+message BulkUpdatePartsResponse {
+  int32 updated_count = 1;
+}
+
+message GetSupplierCodesRequest {}
+
+message SupplierCodesResponse {
+  repeated string codes = 1;
+}
+
+message DeleteZeroQuantityPartsRequest {
+  string supplier_code = 1;
+}
+
+message DeleteZeroQuantityPartsResponse {
+  int32 deleted_count = 1;
+}

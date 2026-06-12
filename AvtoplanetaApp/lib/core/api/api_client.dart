@@ -2,8 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../storage/secure_storage.dart';
 
-const _baseUrl = 'https://avtoplaneta.avtoplaneta.crazedns.ru';
-// Для локальной разработки: 'http://192.168.1.63'
+const _baseUrl = 'http://192.168.1.63';
 
 class ApiClient {
   static final ApiClient _instance = ApiClient._internal();

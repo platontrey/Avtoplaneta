@@ -93,12 +93,14 @@ class InventoryResponse {
   final int total;
   final int page;
   final int limit;
+  final bool isOffline;
 
   const InventoryResponse({
     required this.parts,
     required this.total,
     required this.page,
     required this.limit,
+    this.isOffline = false,
   });
 
   factory InventoryResponse.fromJson(Map<String, dynamic> json) {
@@ -110,6 +112,7 @@ class InventoryResponse {
       total: json['total'] as int? ?? 0,
       page: json['page'] as int? ?? 1,
       limit: json['limit'] as int? ?? 20,
+      isOffline: json['is_offline'] as bool? ?? false,
     );
   }
 }

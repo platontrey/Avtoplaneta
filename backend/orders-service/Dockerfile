@@ -4,10 +4,10 @@ RUN apk add --no-cache git ca-certificates tzdata
 
 WORKDIR /app
 
-COPY go.mod go.sum ./
+COPY gen ../gen
+COPY orders-service/go.mod orders-service/go.sum ./
 RUN go mod download
-
-COPY . .
+COPY orders-service/ .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /orders-service .
 

@@ -1,6 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
 import '../../../core/api/api_client.dart';
 import '../providers/inventory_provider.dart';
 
@@ -31,6 +36,13 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
   final _locationCtrl = TextEditingController();
   final _salesmanCtrl = TextEditingController();
 
+  // Управление фото
+  final List<String> _existingPhotos = [];
+  final List<File> _newPhotos = [];
+  final List<String> _photosToDelete = [];
+
+  final ImagePicker _picker = ImagePicker();
+
   @override
   void initState() {
     super.initState();
@@ -57,6 +69,11 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
         _vinCtrl.text = data['vin'] ?? '';
         _locationCtrl.text = data['location'] ?? '';
         _salesmanCtrl.text = data['salesman'] ?? '';
+
+        final photosRaw = data['photos'];
+        if (photosRaw is List) {
+          _existingPhotos.addAll(photosRaw.map((e) => e.toString()));
+        }
       });
     } catch (_) {}
   }
@@ -71,6 +88,72 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       c.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: source,
+        imageQuality: 85,
+      );
+      if (image == null) return;
+
+      final cropped = await ImageCropper().cropImage(
+        sourcePath: image.path,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Редактор фото',
+            toolbarColor: const Color(0xFF1A1A2E),
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: true,
+          ),
+          IOSUiSettings(
+            title: 'Редактор фото',
+            aspectRatioLockEnabled: true,
+          ),
+        ],
+      );
+
+      if (cropped != null) {
+        setState(() {
+          _newPhotos.add(File(cropped.path));
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка при выборе фото: $e')),
+      );
+    }
+  }
+
+  void _showPhotoOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('Сделать снимок (Камера)'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Выбрать из галереи'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _submit() async {
@@ -94,10 +177,33 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
         'salesman': _salesmanCtrl.text.trim(),
       };
 
+      int partId;
       if (widget.editId != null) {
-        await apiClient.dio.put('/api/updatepart/${widget.editId}', data: data);
+        partId = widget.editId!;
+        await apiClient.dio.put('/api/updatepart/$partId', data: data);
+        
+        for (final photoPath in _photosToDelete) {
+          await apiClient.dio.delete(
+            '/api/deletepartphoto/$partId',
+            queryParameters: {'photo': photoPath},
+          );
+        }
       } else {
-        await apiClient.dio.post('/api/addpart', data: data);
+        final response = await apiClient.dio.post('/api/addpart', data: data);
+        partId = response.data['id'] as int;
+      }
+
+      for (final file in _newPhotos) {
+        final formData = FormData.fromMap({
+          'photo': await MultipartFile.fromFile(
+            file.path,
+            filename: file.path.split('/').last,
+          ),
+        });
+        await apiClient.dio.post(
+          '/api/uploadpartphoto/$partId',
+          data: formData,
+        );
       }
 
       ref.invalidate(inventoryProvider);
@@ -105,7 +211,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e')),
+          SnackBar(content: Text('Ошибка сохранения: $e')),
         );
       }
     } finally {
@@ -140,6 +246,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            _photoListSection(),
             _section('Основное'),
             _field(_nameCtrl, 'Название *', required: true),
             _field(_categoryCtrl, 'Категория *', required: true),
@@ -170,6 +277,139 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _photoListSection() {
+    final baseUrl = apiClient.dio.options.baseUrl;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _section('Фотографии'),
+        SizedBox(
+          height: 100,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              Card(
+                color: const Color(0xFF16213E),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: Colors.white24, width: 1),
+                ),
+                child: InkWell(
+                  onTap: _showPhotoOptions,
+                  borderRadius: BorderRadius.circular(12),
+                  child: const SizedBox(
+                    width: 100,
+                    height: 100,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_a_photo_outlined, color: Colors.white70),
+                        SizedBox(height: 4),
+                        Text('Добавить', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              ..._newPhotos.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final file = entry.value;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.file(
+                          file,
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        top: 2,
+                        right: 2,
+                        child: CircleAvatar(
+                          radius: 12,
+                          backgroundColor: Colors.black54,
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            icon: const Icon(Icons.close, size: 14, color: Colors.white),
+                            onPressed: () {
+                              setState(() {
+                                _newPhotos.removeAt(idx);
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+
+              ..._existingPhotos.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final path = entry.value;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: CachedNetworkImage(
+                          imageUrl: '$baseUrl$path',
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            width: 100,
+                            height: 100,
+                            color: const Color(0xFF16213E),
+                            child: const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            width: 100,
+                            height: 100,
+                            color: const Color(0xFF16213E),
+                            child: const Icon(Icons.broken_image_outlined, color: Colors.white24),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 2,
+                        right: 2,
+                        child: CircleAvatar(
+                          radius: 12,
+                          backgroundColor: Colors.black54,
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            icon: const Icon(Icons.close, size: 14, color: Colors.white),
+                            onPressed: () {
+                              setState(() {
+                                _photosToDelete.add(path);
+                                _existingPhotos.removeAt(idx);
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

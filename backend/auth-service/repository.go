@@ -1,101 +1,171 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"time"
 
-	"gorm.io/gorm"
+	sq "github.com/Masterminds/squirrel"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"auth-service/db/sqlc"
 )
 
-// UserRepository определяет интерфейс для работы с пользователями в базе данных
-type UserRepository interface {
-	// Create Основные операции CRUD
-	Create(user *User) error
-	FindByID(id uint) (*User, error)
-	FindByEmailOrName(identifier string) (*User, error)
-	Update(id uint, updates map[string]interface{}) error
-	Delete(id uint) error
+type UpdateUserParams struct {
+	Name     string
+	Email    string
+	Initials string
+	INN      string
+	Role     string
+}
 
-	// FindAll Специфические операции
+type UserRepository interface {
+	Create(user *User) (*User, error)
+	FindByID(id int64) (*User, error)
+	FindByEmailOrName(identifier string) (*User, error)
+	Update(id int64, params UpdateUserParams) (*User, error)
+	Delete(id int64) error
 	FindAll() ([]User, error)
 	ExistsByEmailOrName(email, name string) (bool, error)
 	CountAll() (int, error)
+	FindByEmail(email string) (*User, error)
 }
 
-// userRepository реализует UserRepository
 type userRepository struct {
-	db *gorm.DB
+	pool    *pgxpool.Pool
+	queries *sqlc.Queries
 }
 
-// NewUserRepository создает новый экземпляр репозитория пользователей
-func NewUserRepository(db *gorm.DB) UserRepository {
-	return &userRepository{db: db}
+func NewUserRepository(pool *pgxpool.Pool) UserRepository {
+	return &userRepository{
+		pool:    pool,
+		queries: sqlc.New(pool),
+	}
 }
 
-// Create создает нового пользователя
-func (r *userRepository) Create(user *User) error {
-	return r.db.Create(user).Error
-}
-
-// FindByID находит пользователя по ID
-func (r *userRepository) FindByID(id uint) (*User, error) {
-	var user User
-	err := r.db.First(&user, id).Error
+func (r *userRepository) Create(user *User) (*User, error) {
+	result, err := r.queries.CreateUser(context.Background(), sqlc.CreateUserParams{
+		Email:    user.Email,
+		Name:     user.Name,
+		Initials: user.Initials,
+		Inn:      user.INN,
+		Provider: user.Provider,
+		Role:     user.Role,
+		Password: user.Password,
+	})
 	if err != nil {
 		return nil, err
 	}
-	return &user, nil
+	user.ID = result.ID
+	return user, nil
 }
 
-// FindByEmailOrName находит пользователя по email или имени
+func (r *userRepository) FindByID(id int64) (*User, error) {
+	result, err := r.queries.GetUserByID(context.Background(), id)
+	if err != nil {
+		return nil, err
+	}
+	return sqlcUserToDomain(result), nil
+}
+
 func (r *userRepository) FindByEmailOrName(identifier string) (*User, error) {
-	var user User
-	err := r.db.Where("email = ? OR name = ?", identifier, identifier).First(&user).Error
+	result, err := r.queries.GetUserByEmailOrName(context.Background(), sqlc.GetUserByEmailOrNameParams{
+		Email: identifier,
+		Name:  identifier,
+	})
 	if err != nil {
 		return nil, err
 	}
-	return &user, nil
+	return sqlcUserToDomain(result), nil
 }
 
-// Update обновляет пользователя по ID
-func (r *userRepository) Update(id uint, updates map[string]interface{}) error {
-	return r.db.Model(&User{}).Where("id = ?", id).Updates(updates).Error
+func (r *userRepository) FindByEmail(email string) (*User, error) {
+	result, err := r.queries.GetUserByEmailOrName(context.Background(), sqlc.GetUserByEmailOrNameParams{
+		Email: email,
+		Name:  "",
+	})
+	if err != nil {
+		return nil, err
+	}
+	if result.Email != email {
+		return nil, sql.ErrNoRows
+	}
+	return sqlcUserToDomain(result), nil
 }
 
-// Delete удаляет пользователя по ID
-func (r *userRepository) Delete(id uint) error {
-	return r.db.Delete(&User{}, id).Error
+func (r *userRepository) Update(id int64, params UpdateUserParams) (*User, error) {
+	err := r.queries.UpdateUser(context.Background(), sqlc.UpdateUserParams{
+		ID:      id,
+		Column2: params.Name,
+		Column3: params.Email,
+		Column4: params.Initials,
+		Column5: params.INN,
+		Column6: params.Role,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return r.FindByID(id)
 }
 
-// FindAll находит всех пользователей
+func (r *userRepository) Delete(id int64) error {
+	return r.queries.DeleteUser(context.Background(), id)
+}
+
 func (r *userRepository) FindAll() ([]User, error) {
-	var users []User
-	err := r.db.Find(&users).Error
-	return users, err
+	results, err := r.queries.FindAllUsers(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	users := make([]User, len(results))
+	for i, u := range results {
+		users[i] = *sqlcUserToDomain(u)
+	}
+	return users, nil
 }
 
-// ExistsByEmailOrName проверяет, существует ли пользователь с таким email или именем
 func (r *userRepository) ExistsByEmailOrName(email, name string) (bool, error) {
-	var count int64
-	err := r.db.Model(&User{}).Where("email = ? OR name = ?", email, name).Count(&count).Error
-	return count > 0, err
+	if email != "" {
+		exists, err := r.queries.ExistsByEmail(context.Background(), email)
+		if err != nil {
+			return false, err
+		}
+		if exists {
+			return true, nil
+		}
+	}
+	if name != "" {
+		return r.queries.ExistsByName(context.Background(), name)
+	}
+	return false, nil
 }
 
-// CountAll возвращает общее количество пользователей
 func (r *userRepository) CountAll() (int, error) {
-	var count int64
-	err := r.db.Model(&User{}).Count(&count).Error
-	return int(count), err
+	count, err := r.queries.CountAllUsers(context.Background())
+	if err != nil {
+		return 0, err
+	}
+	return int(count), nil
 }
 
-// ActivityLogRepository определяет интерфейс для работы с логами активности
-type ActivityLogRepository interface {
-	Create(log *UserActivityLog) error
-	FindWithFilters(filters ActivityLogFilters) ([]UserActivityLog, error)
+func sqlcUserToDomain(u sqlc.User) *User {
+	return &User{
+		ID:       u.ID,
+		Email:    u.Email,
+		Name:     u.Name,
+		Initials: u.Initials,
+		INN:      u.Inn,
+		Provider: u.Provider,
+		Role:     u.Role,
+		Password: u.Password,
+	}
 }
 
-// ActivityLogFilters фильтры для поиска логов активности
+// ─── Activity Logs ──────────────────────────────────────────────────────────
+
 type ActivityLogFilters struct {
-	UserID       *uint
+	UserID       *int64
 	Action       string
 	ResourceType string
 	StartDate    *time.Time
@@ -104,42 +174,164 @@ type ActivityLogFilters struct {
 	Offset       int
 }
 
-// activityLogRepository реализует ActivityLogRepository
+type ActivityLogRepository interface {
+	Create(log *UserActivityLog) (*UserActivityLog, error)
+	FindWithFilters(filters ActivityLogFilters) ([]UserActivityLog, error)
+}
+
 type activityLogRepository struct {
-	db *gorm.DB
+	pool    *pgxpool.Pool
+	queries *sqlc.Queries
 }
 
-// NewActivityLogRepository создает новый репозиторий логов активности
-func NewActivityLogRepository(db *gorm.DB) ActivityLogRepository {
-	return &activityLogRepository{db: db}
+func NewActivityLogRepository(pool *pgxpool.Pool) ActivityLogRepository {
+	return &activityLogRepository{
+		pool:    pool,
+		queries: sqlc.New(pool),
+	}
 }
 
-// Create создает запись лога активности
-func (r *activityLogRepository) Create(log *UserActivityLog) error {
-	return r.db.Create(log).Error
+func (r *activityLogRepository) Create(log *UserActivityLog) (*UserActivityLog, error) {
+	var resourceID pgtype.Int8
+	if log.ResourceID != nil {
+		resourceID.Int64 = *log.ResourceID
+		resourceID.Valid = true
+	}
+
+	var details pgtype.Text
+	if log.Details != "" {
+		details.String = log.Details
+		details.Valid = true
+	}
+
+	var ipAddress pgtype.Text
+	if log.IPAddress != "" {
+		ipAddress.String = log.IPAddress
+		ipAddress.Valid = true
+	}
+
+	var userAgent pgtype.Text
+	if log.UserAgent != "" {
+		userAgent.String = log.UserAgent
+		userAgent.Valid = true
+	}
+
+	result, err := r.queries.CreateActivityLog(context.Background(), sqlc.CreateActivityLogParams{
+		UserID:       log.UserID,
+		UserName:     log.UserName,
+		UserEmail:    log.UserEmail,
+		Action:       log.Action,
+		ResourceType: log.ResourceType,
+		ResourceID:   resourceID,
+		Details:      details,
+		IpAddress:    ipAddress,
+		UserAgent:    userAgent,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	log.ID = result.ID
+	if result.CreatedAt.Valid {
+		log.CreatedAt = result.CreatedAt.Time
+	}
+	if result.ResourceID.Valid {
+		log.ResourceID = &result.ResourceID.Int64
+	}
+	if result.Details.Valid {
+		log.Details = result.Details.String
+	}
+	if result.IpAddress.Valid {
+		log.IPAddress = result.IpAddress.String
+	}
+	if result.UserAgent.Valid {
+		log.UserAgent = result.UserAgent.String
+	}
+
+	return log, nil
 }
 
-// FindWithFilters находит логи активности с фильтрами
 func (r *activityLogRepository) FindWithFilters(filters ActivityLogFilters) ([]UserActivityLog, error) {
-	query := r.db.Model(&UserActivityLog{}).Order("created_at DESC")
+	if filters.Limit == 0 {
+		filters.Limit = 100
+	}
+
+	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+
+	builder := psql.Select(
+		"id", "user_id", "user_name", "user_email", "action",
+		"resource_type", "resource_id", "details", "ip_address", "user_agent", "created_at",
+	).From("user_activity_logs")
 
 	if filters.UserID != nil {
-		query = query.Where("user_id = ?", *filters.UserID)
+		builder = builder.Where(sq.Eq{"user_id": *filters.UserID})
 	}
 	if filters.Action != "" {
-		query = query.Where("action = ?", filters.Action)
+		builder = builder.Where(sq.Eq{"action": filters.Action})
 	}
 	if filters.ResourceType != "" {
-		query = query.Where("resource_type = ?", filters.ResourceType)
+		builder = builder.Where(sq.Eq{"resource_type": filters.ResourceType})
 	}
 	if filters.StartDate != nil {
-		query = query.Where("created_at >= ?", *filters.StartDate)
+		builder = builder.Where(sq.GtOrEq{"created_at": *filters.StartDate})
 	}
 	if filters.EndDate != nil {
-		query = query.Where("created_at <= ?", *filters.EndDate)
+		builder = builder.Where(sq.LtOrEq{"created_at": *filters.EndDate})
 	}
 
+	query, args, err := builder.
+		OrderBy("created_at DESC").
+		Limit(uint64(filters.Limit)).
+		Offset(uint64(filters.Offset)).
+		ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := r.pool.Query(context.Background(), query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
 	var logs []UserActivityLog
-	err := query.Limit(filters.Limit).Offset(filters.Offset).Find(&logs).Error
-	return logs, err
+	for rows.Next() {
+		var l UserActivityLog
+		var resourceID pgtype.Int8
+		var details, ipAddress, userAgent pgtype.Text
+		var createdAt pgtype.Timestamptz
+
+		err := rows.Scan(
+			&l.ID, &l.UserID, &l.UserName, &l.UserEmail,
+			&l.Action, &l.ResourceType, &resourceID,
+			&details, &ipAddress, &userAgent, &createdAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if resourceID.Valid {
+			l.ResourceID = &resourceID.Int64
+		}
+		if details.Valid {
+			l.Details = details.String
+		}
+		if ipAddress.Valid {
+			l.IPAddress = ipAddress.String
+		}
+		if userAgent.Valid {
+			l.UserAgent = userAgent.String
+		}
+		if createdAt.Valid {
+			l.CreatedAt = createdAt.Time
+		}
+
+		logs = append(logs, l)
+	}
+
+	if logs == nil {
+		logs = []UserActivityLog{}
+	}
+
+	return logs, rows.Err()
 }

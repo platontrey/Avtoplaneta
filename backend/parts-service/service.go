@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"runtime"
 	"sync"
 	"time"
@@ -16,17 +14,17 @@ import (
 )
 
 const (
-	statisticsCacheKey            = "parts:statistics"
-	statisticsCacheTTL            = 5 * time.Minute
-	inventoryCacheKey             = "parts:inventory"
+	statisticsCacheKey             = "parts:statistics"
+	statisticsCacheTTL             = 5 * time.Minute
+	inventoryCacheKey              = "parts:inventory"
 	inventoryCacheKeyWithoutPhotos = "parts:inventory:without_photos"
-	inventoryCacheTTL             = 10 * time.Minute
+	inventoryCacheTTL              = 10 * time.Minute
 )
 
 // ElasticsearchClient определяет интерфейс для работы с Elasticsearch
 type ElasticsearchClient interface {
 	IndexPart(part *Part) error
-	DeletePartFromIndex(partID uint) error
+	DeletePartFromIndex(partID int64) error
 	SearchParts(query map[string]interface{}, from, size int) ([]ElasticsearchPart, int64, error)
 }
 
@@ -34,25 +32,25 @@ type ElasticsearchClient interface {
 // Содержит всю логику валидации, обработки и координации между репозиторием и внешними сервисами
 type InventoryService interface {
 	// GetInventory Основные операции с запчастями
-	GetInventory(ctx context.Context, params InventoryQueryParams) ([]Part, error) // Получает список запчастей с фильтрами
-	AddPart(ctx context.Context, part *Part) (*Part, error)                        // Добавляет новую запчасть
-	UpdatePart(ctx context.Context, id uint, updates map[string]interface{}) error // Обновляет существующую запчасть
-	DeletePart(ctx context.Context, id uint) error                                 // Удаляет запчасть
-	MarkPartForDeletion(ctx context.Context, id uint) error                        // Отмечает запчасть для отложенного удаления
-	GetStatistics(ctx context.Context) (StatisticsResponse, error)                 // Получает статистику по инвентарю
+	GetInventory(ctx context.Context, params InventoryQueryParams) ([]Part, error)  // Получает список запчастей с фильтрами
+	AddPart(ctx context.Context, part *Part) (*Part, error)                         // Добавляет новую запчасть
+	UpdatePart(ctx context.Context, id int64, updates map[string]interface{}) error // Обновляет существующую запчасть
+	DeletePart(ctx context.Context, id int64) error                                 // Удаляет запчасть
+	MarkPartForDeletion(ctx context.Context, id int64) error                        // Отмечает запчасть для отложенного удаления
+	GetStatistics(ctx context.Context) (StatisticsResponse, error)                  // Получает статистику по инвентарю
 
 	// BulkDeleteParts Админ операции
-	BulkDeleteParts(ctx context.Context, ids []uint) error                                     // Массовое удаление запчастей
+	BulkDeleteParts(ctx context.Context, ids []int64) error                                    // Массовое удаление запчастей
 	BulkUpdateParts(ctx context.Context, updates []map[string]interface{}) (int, error)        // Массовое обновление запчастей
 	DeleteZeroQuantityPartsBySupplier(ctx context.Context, supplierCode string) (int64, error) // Удаление по поставщику
 	GetSupplierCodes(ctx context.Context) ([]string, error)                                    // Получение кодов поставщиков
 
 	// UploadPartPhoto Фото операции
-	UploadPartPhoto(ctx context.Context, id uint, c *gin.Context) (string, error) // Загрузка фото запчасти
-	DeletePartPhoto(ctx context.Context, id uint, photoPath string) error         // Удаление фото запчасти (если photoPath пустой - удаляет все)
+	UploadPartPhoto(ctx context.Context, id int64, c *gin.Context) (string, error) // Загрузка фото запчасти
+	DeletePartPhoto(ctx context.Context, id int64, photoPath string) error         // Удаление фото запчасти (если photoPath пустой - удаляет все)
 
 	// GetPartByID Получение запчасти по ID
-	GetPartByID(ctx context.Context, id uint) (*Part, error)
+	GetPartByID(ctx context.Context, id int64) (*Part, error)
 
 	// UpdateEarnings Обновление общего заработка
 	UpdateEarnings(ctx context.Context, amount float64) error
@@ -185,7 +183,7 @@ func (s *inventoryService) getInventoryFromElasticsearch(ctx context.Context, pa
 
 	// Преобразуем и фильтруем
 	parts := make([]Part, 0, len(esParts))
-	partIDs := make([]uint, len(esParts))
+	partIDs := make([]int64, len(esParts))
 	for i, esPart := range esParts {
 		partIDs[i] = esPart.ID
 	}
@@ -201,7 +199,7 @@ func (s *inventoryService) getInventoryFromElasticsearch(ctx context.Context, pa
 		return nil, err
 	}
 
-	validIDs := make(map[uint]bool)
+	validIDs := make(map[int64]bool)
 	for _, part := range validParts {
 		validIDs[part.ID] = true
 	}
@@ -387,11 +385,16 @@ func (s *inventoryService) AddPart(ctx context.Context, part *Part) (*Part, erro
 		return nil, err
 	}
 
-	// Индексируем в Elasticsearch
-	if s.es != nil {
-		if err := s.es.IndexPart(createdPart); err != nil {
-			fmt.Printf("Warning: Failed to index part in Elasticsearch: %v\n", err)
-		}
+	// Отправляем событие индексации в Redis Stream
+	err = s.redis.XAdd(ctx, &redis.XAddArgs{
+		Stream: "events:orders",
+		Values: map[string]interface{}{
+			"type":    "part_index_requested",
+			"part_id": fmt.Sprintf("%d", createdPart.ID),
+		},
+	}).Err()
+	if err != nil {
+		logrus.WithError(err).Warn("Failed to publish part_index_requested to Redis")
 	}
 
 	// Инвалидируем кэш статистики
@@ -401,7 +404,7 @@ func (s *inventoryService) AddPart(ctx context.Context, part *Part) (*Part, erro
 }
 
 // UpdatePart обновляет запчасть
-func (s *inventoryService) UpdatePart(ctx context.Context, id uint, updates map[string]interface{}) error {
+func (s *inventoryService) UpdatePart(ctx context.Context, id int64, updates map[string]interface{}) error {
 	// Получаем существующую часть для обработки обновлений
 	existingPart, err := s.repo.FindByID(ctx, id)
 	if err != nil {
@@ -417,14 +420,16 @@ func (s *inventoryService) UpdatePart(ctx context.Context, id uint, updates map[
 		return err
 	}
 
-	// Переиндексируем в Elasticsearch
-	if s.es != nil {
-		updatedPart, err := s.repo.FindByID(ctx, id)
-		if err == nil {
-			if err := s.es.IndexPart(updatedPart); err != nil {
-				fmt.Printf("Warning: Failed to re-index part in Elasticsearch: %v\n", err)
-			}
-		}
+	// Отправляем событие индексации в Redis Stream
+	err = s.redis.XAdd(ctx, &redis.XAddArgs{
+		Stream: "events:orders",
+		Values: map[string]interface{}{
+			"type":    "part_index_requested",
+			"part_id": fmt.Sprintf("%d", id),
+		},
+	}).Err()
+	if err != nil {
+		logrus.WithError(err).Warn("Failed to publish part_index_requested (update) to Redis")
 	}
 
 	// Инвалидируем кэш статистики
@@ -434,7 +439,7 @@ func (s *inventoryService) UpdatePart(ctx context.Context, id uint, updates map[
 }
 
 // DeletePart удаляет запчасть
-func (s *inventoryService) DeletePart(ctx context.Context, id uint) error {
+func (s *inventoryService) DeletePart(ctx context.Context, id int64) error {
 	part, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return err
@@ -453,11 +458,16 @@ func (s *inventoryService) DeletePart(ctx context.Context, id uint) error {
 		return err
 	}
 
-	// Удаляем из Elasticsearch
-	if s.es != nil {
-		if err := s.es.DeletePartFromIndex(id); err != nil {
-			fmt.Printf("Warning: Failed to remove part from Elasticsearch index: %v\n", err)
-		}
+	// Отправляем событие удаления из индекса в Redis Stream
+	err = s.redis.XAdd(ctx, &redis.XAddArgs{
+		Stream: "events:orders",
+		Values: map[string]interface{}{
+			"type":    "part_delete_requested",
+			"part_id": fmt.Sprintf("%d", id),
+		},
+	}).Err()
+	if err != nil {
+		logrus.WithError(err).Warn("Failed to publish part_delete_requested to Redis")
 	}
 
 	// Инвалидируем кэш статистики
@@ -467,7 +477,7 @@ func (s *inventoryService) DeletePart(ctx context.Context, id uint) error {
 }
 
 // MarkPartForDeletion отмечает запчасть для удаления
-func (s *inventoryService) MarkPartForDeletion(ctx context.Context, id uint) error {
+func (s *inventoryService) MarkPartForDeletion(ctx context.Context, id int64) error {
 	fourteenDaysFromNow := time.Now().AddDate(0, 0, 14)
 	return s.repo.MarkForDeletion(ctx, id, fourteenDaysFromNow)
 }
@@ -518,35 +528,15 @@ func (s *inventoryService) GetStatistics(ctx context.Context) (StatisticsRespons
 	return stats, nil
 }
 
-// getMonthlySalesFromOrdersService получает месячные продажи из orders-service
+// getMonthlySalesFromOrdersService получает месячные продажи из orders-service через gRPC
 func (s *inventoryService) getMonthlySalesFromOrdersService(ctx context.Context) ([]MonthlySales, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", "http://localhost:8080/monthly-sales", nil)
-	if err != nil {
-		return nil, err
+	sales, err := getMonthlySalesGRPC(ctx)
+	if err == nil {
+		return sales, nil
 	}
 
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-
-		}
-	}(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("orders service returned status %d", resp.StatusCode)
-	}
-
-	var monthlySales []MonthlySales
-	if err := json.NewDecoder(resp.Body).Decode(&monthlySales); err != nil {
-		return nil, err
-	}
-
-	return monthlySales, nil
+	logrus.WithError(err).Warn("Failed to get monthly sales via gRPC, returning empty list")
+	return []MonthlySales{}, nil
 }
 
 // invalidateStatisticsCache инвалидирует кэш статистики
@@ -559,7 +549,7 @@ func (s *inventoryService) invalidateStatisticsCache(ctx context.Context) {
 }
 
 // BulkDeleteParts удаляет несколько запчастей с использованием worker pool для параллельной обработки
-func (s *inventoryService) BulkDeleteParts(ctx context.Context, ids []uint) error {
+func (s *inventoryService) BulkDeleteParts(ctx context.Context, ids []int64) error {
 	logrus.WithFields(logrus.Fields{
 		"ids":   ids,
 		"count": len(ids),
@@ -567,7 +557,7 @@ func (s *inventoryService) BulkDeleteParts(ctx context.Context, ids []uint) erro
 
 	// Worker pool для параллельной обработки удаления фото и ES индекса
 	numWorkers := runtime.NumCPU() // Используем все доступные ядра
-	jobs := make(chan uint, len(ids))
+	jobs := make(chan int64, len(ids))
 	var wg sync.WaitGroup
 
 	// Запуск воркеров
@@ -594,11 +584,16 @@ func (s *inventoryService) BulkDeleteParts(ctx context.Context, ids []uint) erro
 					}
 				}
 
-				// Удаляем из Elasticsearch
-				if s.es != nil {
-					if err := s.es.DeletePartFromIndex(id); err != nil {
-						logrus.WithError(err).WithField("id", id).Warn("InventoryService.BulkDeleteParts: Failed to remove part from Elasticsearch index")
-					}
+				// Отправляем событие удаления из индекса в Redis Stream
+				err = s.redis.XAdd(ctx, &redis.XAddArgs{
+					Stream: "events:orders",
+					Values: map[string]interface{}{
+						"type":    "part_delete_requested",
+						"part_id": fmt.Sprintf("%d", id),
+					},
+				}).Err()
+				if err != nil {
+					logrus.WithError(err).WithField("id", id).Warn("Failed to publish part_delete_requested to Redis")
 				}
 			}
 		}()
@@ -672,17 +667,17 @@ func (s *inventoryService) GetSupplierCodes(ctx context.Context) ([]string, erro
 }
 
 // UploadPartPhoto загружает фото
-func (s *inventoryService) UploadPartPhoto(ctx context.Context, id uint, c *gin.Context) (string, error) {
+func (s *inventoryService) UploadPartPhoto(ctx context.Context, id int64, c *gin.Context) (string, error) {
 	return HandlePhotoUpload(c, id)
 }
 
 // DeletePartPhoto удаляет фото
-func (s *inventoryService) DeletePartPhoto(ctx context.Context, id uint, photoPath string) error {
+func (s *inventoryService) DeletePartPhoto(ctx context.Context, id int64, photoPath string) error {
 	return DeletePhoto(id, photoPath)
 }
 
 // GetPartByID получает запчасть по ID
-func (s *inventoryService) GetPartByID(ctx context.Context, id uint) (*Part, error) {
+func (s *inventoryService) GetPartByID(ctx context.Context, id int64) (*Part, error) {
 	return s.repo.FindByID(ctx, id)
 }
 

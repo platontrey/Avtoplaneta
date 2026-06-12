@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import '../../../core/api/api_client.dart';
 import '../../../core/models/part.dart';
+import '../../../core/utils/qr_signer.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/inventory_provider.dart';
 
@@ -40,14 +43,26 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final inventoryAsync = ref.watch(inventoryProvider(filter));
     final user = ref.watch(authProvider).valueOrNull;
 
+    final isOffline = inventoryAsync.valueOrNull?.isOffline ?? false;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Инвентарь'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner_outlined),
+            onPressed: () => _openScanner(context),
+          ),
           if (user?.isOperator == true)
             IconButton(
               icon: const Icon(Icons.add),
-              onPressed: () => context.go('/inventory/add'),
+              onPressed: isOffline
+                  ? () => ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content:
+                                Text('В оффлайн-режиме добавление недоступно')),
+                      )
+                  : () => _showAddMenu(context),
             ),
           IconButton(
             icon: const Icon(Icons.person_outline),
@@ -100,6 +115,21 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         ),
         data: (data) => Column(
           children: [
+            if (data.isOffline)
+              Container(
+                color: Colors.amber.shade900,
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: const Text(
+                  'Оффлайн-режим (только просмотр)',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Row(
@@ -147,6 +177,36 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     );
   }
 
+  void _showAddMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF16213E),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.directions_car_outlined, color: Color(0xFF4F8EF7)),
+              title: const Text('Добавить одну запчасть', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                context.go('/inventory/add');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.receipt_long_outlined, color: Color(0xFF4F8EF7)),
+              title: const Text('Создать дефектную ведомость', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                context.go('/inventory/defect-report');
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showUserMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -167,6 +227,55 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       ),
     );
   }
+
+  void _openScanner(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.black,
+      builder: (ctx) => FractionallySizedBox(
+        heightFactor: 0.85,
+        child: _ScannerModal(
+          onScan: (code) {
+            Navigator.pop(ctx);
+            _handleScanResult(code);
+          },
+        ),
+      ),
+    );
+  }
+
+  void _handleScanResult(String code) {
+    if (code.startsWith('ap:')) {
+      final parts = code.split(':');
+      if (parts.length >= 4) {
+        final idStr = parts[1];
+        final tsStr = parts[2];
+        final hmacStr = parts[3];
+        
+        final id = int.tryParse(idStr);
+        final ts = int.tryParse(tsStr);
+        
+        if (id != null && ts != null) {
+          final isValid = QrSigner.verify(id, ts, hmacStr);
+          if (isValid) {
+            context.go('/inventory/part/$id');
+            return;
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Неверная подпись QR-кода запчасти'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
+        }
+      }
+    }
+    _searchCtrl.text = code;
+    _onSearch(code);
+  }
 }
 
 class _PartCard extends StatelessWidget {
@@ -175,7 +284,7 @@ class _PartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const baseUrl = 'https://avtoplaneta.avtoplaneta.crazedns.ru';
+    final baseUrl = apiClient.dio.options.baseUrl;
     final photoUrl = part.photos.isNotEmpty ? '$baseUrl${part.photos.first}' : null;
 
     return Card(
@@ -315,6 +424,111 @@ class _Pagination extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.chevron_right),
             onPressed: current < total ? () => onPage(current + 1) : null,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScannerModal extends StatefulWidget {
+  final void Function(String) onScan;
+  const _ScannerModal({required this.onScan});
+
+  @override
+  State<_ScannerModal> createState() => _ScannerModalState();
+}
+
+class _ScannerModalState extends State<_ScannerModal> {
+  final MobileScannerController _controller = MobileScannerController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        title: const Text('Сканирование кода', style: TextStyle(color: Colors.white)),
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        actions: [
+          IconButton(
+            icon: ValueListenableBuilder(
+              valueListenable: _controller,
+              builder: (context, state, child) {
+                switch (state.torchState) {
+                  case TorchState.off:
+                    return const Icon(Icons.flash_off, color: Colors.white54);
+                  case TorchState.on:
+                    return const Icon(Icons.flash_on, color: Colors.amber);
+                  default:
+                    return const Icon(Icons.flash_off, color: Colors.white54);
+                }
+              },
+            ),
+            onPressed: () => _controller.toggleTorch(),
+          ),
+          IconButton(
+            icon: ValueListenableBuilder(
+              valueListenable: _controller,
+              builder: (context, state, child) {
+                switch (state.cameraDirection) {
+                  case CameraFacing.front:
+                    return const Icon(Icons.camera_front, color: Colors.white);
+                  case CameraFacing.back:
+                    return const Icon(Icons.camera_rear, color: Colors.white);
+                  default:
+                    return const Icon(Icons.camera_rear, color: Colors.white);
+                }
+              },
+            ),
+            onPressed: () => _controller.switchCamera(),
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          MobileScanner(
+            controller: _controller,
+            onDetect: (capture) {
+              final List<Barcode> barcodes = capture.barcodes;
+              for (final barcode in barcodes) {
+                final String? rawValue = barcode.rawValue;
+                if (rawValue != null && rawValue.isNotEmpty) {
+                  widget.onScan(rawValue);
+                  break;
+                }
+              }
+            },
+          ),
+          Center(
+            child: Container(
+              width: 250,
+              height: 250,
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFF4F8EF7), width: 3),
+                borderRadius: BorderRadius.circular(16),
+                color: Colors.transparent,
+              ),
+            ),
+          ),
+          const Positioned(
+            bottom: 40,
+            left: 20,
+            right: 20,
+            child: Text(
+              'Поместите QR-код или штрих-код в рамку',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white70, fontSize: 14),
+            ),
           ),
         ],
       ),

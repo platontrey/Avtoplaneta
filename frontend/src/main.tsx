@@ -21,15 +21,25 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
-// Register service worker
+// Unregister service worker and clear cache to force updates
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js')
-    .then((registration) => {
-      console.log('Service Worker registered successfully:', registration);
-    })
-    .catch((error) => {
-      console.error('Service Worker registration failed:', error);
-    });
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const registration of registrations) {
+      registration.unregister().then((success) => {
+        if (success) console.log('Service Worker unregistered successfully');
+      });
+    }
+  });
+}
+
+if ('caches' in window) {
+  caches.keys().then((names) => {
+    for (const name of names) {
+      caches.delete(name).then(() => {
+        console.log('Cache cleared:', name);
+      });
+    }
+  });
 }
 
 // Initialize push notifications
