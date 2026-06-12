@@ -171,6 +171,7 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - SESSION_SECRET=${SESSION_SECRET}
       - REDIS_URL=redis:6379
+      - AUTH_SERVICE_URL=http://auth-service:8083
     depends_on:
       - postgres
       - redis
@@ -197,6 +198,7 @@ services:
       - GATEWAY_URL=http://gateway:8080
       - DROM_API_KEY=${DROM_API_KEY}
       - DROM_PACKET_ID=${DROM_PACKET_ID}
+      - MESSAGING_SERVICE_URL=https://${DOMAIN}/api/messaging
     depends_on:
       - postgres
       - redis

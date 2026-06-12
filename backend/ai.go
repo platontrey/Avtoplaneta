@@ -888,7 +888,11 @@ func getPartsFromDatabase() []map[string]interface{} {
 	// Делаем HTTP запрос к parts-service для получения списка запчастей
 	client := &http.Client{Timeout: 5 * time.Second}
 
-	req, err := http.NewRequest("GET", "http://localhost:8081/api/inventory", nil)
+	partsServiceURL := os.Getenv("PARTS_SERVICE_URL")
+	if partsServiceURL == "" {
+		partsServiceURL = "http://localhost:8081"
+	}
+	req, err := http.NewRequest("GET", partsServiceURL+"/api/inventory", nil)
 	if err != nil {
 		log.Printf("Ошибка создания запроса к БД: %v", err)
 		return []map[string]interface{}{}

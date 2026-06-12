@@ -71,6 +71,7 @@ func main() {
 
 	// Static file serving for uploads
 	r.Static("/uploads", "./uploads")
+	r.Static("/api/messaging/uploads", "./uploads")
 
 	// Set API_BASE_URL
 	if os.Getenv("MESSAGING_SERVICE_URL") != "" {

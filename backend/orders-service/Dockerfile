@@ -9,7 +9,9 @@ COPY orders-service/go.mod orders-service/go.sum ./
 RUN go mod download
 COPY orders-service/ .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /orders-service .
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /orders-service .
 
 FROM alpine:3.19
 

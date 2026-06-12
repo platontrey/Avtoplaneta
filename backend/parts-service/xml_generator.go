@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/sha512"
 	"encoding/hex"
-	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -14,6 +13,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	authv1 "avtoplaneta/gen/auth/v1"
 )
 
 // Offers представляет структуры XML для прайс-листа Drom
@@ -91,7 +92,9 @@ func GenerateXMLPriceList(parts []Part) ([]byte, error) {
 		if inn, ok := sellerINNs[part.SellerID]; ok {
 			supplierInn = inn
 		} else {
-			supplierInn = getUserINN(part.SellerID)
+			if inn, err := getUserINNGRPC(context.Background(), uint32(part.SellerID)); err == nil {
+				supplierInn = inn
+			}
 		}
 
 		offer := Offer{
@@ -138,39 +141,39 @@ func GenerateXMLPriceList(parts []Part) ([]byte, error) {
 	return xmlWithHeader, nil
 }
 
-// fetchAllUsers получает список всех пользователей с их ИНН из auth-service
+// fetchAllUsers получает список всех пользователей с их ИНН из auth-service через gRPC
 func fetchAllUsers() ([]struct {
 	ID  int64  `json:"id"`
 	INN string `json:"inn"`
 }, error) {
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Get("http://localhost:8083/admin/users")
+	if authGRPCClient == nil {
+		return nil, fmt.Errorf("auth gRPC client not initialized")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp, err := authGRPCClient.GetUsers(ctx, &authv1.GetUsersRequest{})
 	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status: %d", resp.StatusCode)
+		return nil, fmt.Errorf("gRPC error: %w", err)
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
+	result := make([]struct {
+		ID  int64  `json:"id"`
+		INN string `json:"inn"`
+	}, len(resp.Users))
 
-	var response struct {
-		Users []struct {
+	for i, u := range resp.Users {
+		result[i] = struct {
 			ID  int64  `json:"id"`
 			INN string `json:"inn"`
-		} `json:"users"`
+		}{
+			ID:  int64(u.Id),
+			INN: u.Inn,
+		}
 	}
 
-	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, err
-	}
-
-	return response.Users, nil
+	return result, nil
 }
 
 // GetPartsForXML получает все доступные запчасти для экспорта в XML
@@ -182,63 +185,6 @@ func GetPartsForXML() ([]Part, error) {
 	}
 
 	return parts, nil
-}
-
-// getUserINN получает ИНН пользователя по его ID из auth-service
-func getUserINN(sellerID int64) string {
-	if sellerID == 0 {
-		return ""
-	}
-
-	// Создаем HTTP клиент для запроса к auth-service
-	client := &http.Client{}
-
-	// Формируем URL для получения данных пользователя
-	url := fmt.Sprintf("http://localhost:8083/admin/users/%d", sellerID)
-
-	// Создаем запрос
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		fmt.Printf("Ошибка создания запроса для получения ИНН пользователя %d: %v\n", sellerID, err)
-		return ""
-	}
-
-	// Выполняем запрос
-	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Printf("Ошибка выполнения запроса для получения ИНН пользователя %d: %v\n", sellerID, err)
-		return ""
-	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			fmt.Printf("Ошибка закрытия тела ответа для пользователя %d: %v\n", sellerID, closeErr)
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Ошибка получения данных пользователя %d: статус %d\n", sellerID, resp.StatusCode)
-		return ""
-	}
-
-	// Читаем тело ответа
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Printf("Ошибка чтения ответа для пользователя %d: %v\n", sellerID, err)
-		return ""
-	}
-
-	// Парсим JSON ответ
-	var userData struct {
-		INN string `json:"inn"`
-	}
-
-	if err := json.Unmarshal(body, &userData); err != nil {
-		fmt.Printf("Ошибка парсинга JSON для пользователя %d: %v\n", sellerID, err)
-		return ""
-	}
-
-	fmt.Printf("Получен ИНН для пользователя %d: %s\n", sellerID, userData.INN)
-	return userData.INN
 }
 
 // sendToDromAPI отправляет XML прайс-лист на API Drom.ru

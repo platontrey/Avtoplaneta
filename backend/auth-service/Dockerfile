@@ -9,7 +9,9 @@ COPY auth-service/go.mod auth-service/go.sum ./
 RUN go mod download
 COPY auth-service/ .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /auth-service .
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /auth-service .
 
 FROM alpine:3.19
 
