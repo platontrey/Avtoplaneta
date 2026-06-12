@@ -1,61 +1,59 @@
-import '../lib/core/utils/qr_signer.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:avtoplaneta_app/core/utils/qr_signer.dart';
 
 void main() {
-  print('Running QrSigner self-contained unit tests...');
-  
-  final testPartId = 12345;
-  final testCreatedAt = DateTime.fromMillisecondsSinceEpoch(1771653694000);
+  group('QrSigner Tests', () {
+    final testPartId = 12345;
+    final testCreatedAt = DateTime.fromMillisecondsSinceEpoch(1771653694000);
 
-  // Test 1: format
-  final qrData = QrSigner.generateQrData(partId: testPartId, createdAt: testCreatedAt);
-  if (!qrData.startsWith('ap:')) {
-    throw Exception('Test 1 failed: does not start with ap:');
-  }
-  final parts = qrData.split(':');
-  if (parts.length != 4) {
-    throw Exception('Test 1 failed: split length is not 4');
-  }
-  if (parts[1] != '12345') {
-    throw Exception('Test 1 failed: wrong partId');
-  }
-  if (parts[2] != '1771653694') {
-    throw Exception('Test 1 failed: wrong timestamp');
-  }
-  print('✓ Test 1 passed: correct format');
+    test('generate QR data format', () {
+      final qrData = QrSigner.generateQrData(partId: testPartId, createdAt: testCreatedAt);
+      expect(qrData.startsWith('ap:'), true);
+      
+      final parts = qrData.split(':');
+      expect(parts.length, 4);
+      expect(parts[1], '12345');
+      expect(parts[2], '1771653694');
+    });
 
-  // Test 2: verification success
-  final id = int.parse(parts[1]);
-  final ts = int.parse(parts[2]);
-  final hmac = parts[3];
-  final isValid = QrSigner.verify(id, ts, hmac);
-  if (!isValid) {
-    throw Exception('Test 2 failed: valid signature not verified');
-  }
-  print('✓ Test 2 passed: verification success');
+    test('verification success', () {
+      final qrData = QrSigner.generateQrData(partId: testPartId, createdAt: testCreatedAt);
+      final parts = qrData.split(':');
+      final id = int.parse(parts[1]);
+      final ts = int.parse(parts[2]);
+      final hmac = parts[3];
 
-  // Test 3: altered signature
-  final alteredHmac = hmac.replaceFirst(hmac[0], hmac[0] == 'a' ? 'b' : 'a');
-  final isValidAltered = QrSigner.verify(id, ts, alteredHmac);
-  if (isValidAltered) {
-    throw Exception('Test 3 failed: altered signature verified');
-  }
-  print('✓ Test 3 passed: altered signature rejected');
+      final isValid = QrSigner.verify(id, ts, hmac);
+      expect(isValid, true);
+    });
 
-  // Test 4: altered parameters
-  if (QrSigner.verify(id + 1, ts, hmac)) {
-    throw Exception('Test 4 failed: altered id verified');
-  }
-  if (QrSigner.verify(id, ts - 1, hmac)) {
-    throw Exception('Test 4 failed: altered timestamp verified');
-  }
-  print('✓ Test 4 passed: altered parameters rejected');
+    test('altered signature rejected', () {
+      final qrData = QrSigner.generateQrData(partId: testPartId, createdAt: testCreatedAt);
+      final parts = qrData.split(':');
+      final id = int.parse(parts[1]);
+      final ts = int.parse(parts[2]);
+      final hmac = parts[3];
 
-  // Test 5: determinism
-  final qrData2 = QrSigner.generateQrData(partId: testPartId, createdAt: testCreatedAt);
-  if (qrData != qrData2) {
-    throw Exception('Test 5 failed: non-deterministic output');
-  }
-  print('✓ Test 5 passed: deterministic output');
+      final alteredHmac = hmac.replaceFirst(hmac[0], hmac[0] == 'a' ? 'b' : 'a');
+      final isValidAltered = QrSigner.verify(id, ts, alteredHmac);
+      expect(isValidAltered, false);
+    });
 
-  print('\nAll QrSigner unit tests passed successfully!');
+    test('altered parameters rejected', () {
+      final qrData = QrSigner.generateQrData(partId: testPartId, createdAt: testCreatedAt);
+      final parts = qrData.split(':');
+      final id = int.parse(parts[1]);
+      final ts = int.parse(parts[2]);
+      final hmac = parts[3];
+
+      expect(QrSigner.verify(id + 1, ts, hmac), false);
+      expect(QrSigner.verify(id, ts - 1, hmac), false);
+    });
+
+    test('determinism check', () {
+      final qrData1 = QrSigner.generateQrData(partId: testPartId, createdAt: testCreatedAt);
+      final qrData2 = QrSigner.generateQrData(partId: testPartId, createdAt: testCreatedAt);
+      expect(qrData1, qrData2);
+    });
+  });
 }
