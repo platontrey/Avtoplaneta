@@ -36,6 +36,20 @@ build-services:
 	cd messaging-service && go build -o /dev/null ./...
 	@echo "All services build OK"
 
+# Сборка бинарников для запуска в контейнерах (без компиляции внутри Docker)
+build-binaries:
+	@echo "Building gateway static binary..."
+	mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o bin/gateway .
+	@echo "Building auth-service static binary..."
+	cd auth-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o bin/auth-service .
+	@echo "Building parts-service static binary..."
+	cd parts-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o bin/parts-service .
+	@echo "Building orders-service static binary..."
+	cd orders-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o bin/orders-service .
+	@echo "Building messaging-service static binary..."
+	cd messaging-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o bin/messaging-service .
+	@echo "All static binaries built successfully."
+
 # Установка всех Go-зависимостей
 deps:
 	go mod download
