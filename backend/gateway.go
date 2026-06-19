@@ -15,6 +15,7 @@ import (
 	"github.com/eapache/go-resiliency/breaker"
 	"github.com/eapache/go-resiliency/retrier"
 	"github.com/gin-contrib/cors"
+	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	swaggerFiles "github.com/swaggo/files"
@@ -215,6 +216,10 @@ func (g *Gateway) setupRoutes() {
 	g.router.GET("/health", HealthCheckHandler)
 	g.router.GET("/ready", ReadinessHandler)
 	g.router.GET("/metrics", MetricsHandler())
+
+	// Профилирование (только для админов)
+	adminDebugGroup := g.router.Group("/admin/debug", g.authMiddleware, requireRole("admin"))
+	pprof.RouteRegister(adminDebugGroup, "pprof")
 }
 
 // setupAuthRoutes настраивает маршруты аутентификации

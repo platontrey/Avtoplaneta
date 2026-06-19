@@ -12,7 +12,9 @@
       "Bash(/home/platontrey/snap/flutter/common/flutter/bin/flutter build:*)",
       "Bash(/home/platontrey/snap/flutter/common/flutter/bin/flutter doctor:*)",
       "Bash(export ANDROID_HOME=/home/platontrey/Android/Sdk)",
-      "Bash(export PATH=\"$PATH:/home/platontrey/snap/flutter/common/flutter/bin:/home/platontrey/Android/Sdk/platform-tools\")"
+      "Bash(export PATH=\"$PATH:/home/platontrey/snap/flutter/common/flutter/bin:/home/platontrey/Android/Sdk/platform-tools\")",
+      "Bash(python3 tools/count_loc.py)",
+      "Bash(python3 tools/count_loc.py .)"
     ],
     "additionalDirectories": [
       "/media/platontrey/01D740DD76155AA0/Projects/Avtoplaneta/avtoplaneta_app"

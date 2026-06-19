@@ -376,7 +376,7 @@ func (q *Queries) GetPartByID(ctx context.Context, id int64) (GetPartByIDRow, er
 
 const IncreasePartQuantity = `-- name: IncreasePartQuantity :exec
 UPDATE parts
-SET quantity = quantity + $1::integer
+SET quantity = CASE WHEN quantity = -1 THEN $1::integer ELSE quantity + $1::integer END
 WHERE id = $2
 `
 

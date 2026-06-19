@@ -83,7 +83,7 @@ WHERE id = sqlc.arg(id);
 
 -- name: IncreasePartQuantity :exec
 UPDATE parts
-SET quantity = quantity + sqlc.arg(amount)::integer
+SET quantity = CASE WHEN quantity = -1 THEN sqlc.arg(amount)::integer ELSE quantity + sqlc.arg(amount)::integer END
 WHERE id = sqlc.arg(id);
 
 -- name: DeletePart :exec

@@ -109,7 +109,7 @@ type Part struct {
 
 // IsTire проверяет, является ли запчасть шиной
 func (p *Part) IsTire() bool {
-	return p.Category == "Шины" || p.Category == "Tires"
+	return p.Category == "Шины" || p.Category == "Tires" || p.Category == "Шины и диски"
 }
 
 // GetFullSpecifications возвращает все характеристики в виде карты

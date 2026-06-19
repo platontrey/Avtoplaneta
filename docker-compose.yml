@@ -92,6 +92,8 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - FORWARDED_ALLOW_IPS=*
+      - GOMEMLIMIT=400MiB
+      - GOGC=400
     depends_on:
       - auth-service
       - parts-service
@@ -123,6 +125,8 @@ services:
       - GOOGLE_CALLBACK_URL=https://${DOMAIN}/auth/google/callback
       - ALLOWED_ORIGINS=https://${DOMAIN},http://${DOMAIN}
       - PARTS_SERVICE_URL=http://parts-service:8081
+      - GOMEMLIMIT=400MiB
+      - GOGC=400
     depends_on:
       - postgres
       - redis
@@ -149,6 +153,8 @@ services:
       - REDIS_URL=redis:6379
       - AUTH_GRPC_ADDR=auth-service:9083
       - ORDERS_GRPC_ADDR=orders-service:9082
+      - GOMEMLIMIT=400MiB
+      - GOGC=400
     depends_on:
       - postgres
       - redis
@@ -172,6 +178,8 @@ services:
       - SESSION_SECRET=${SESSION_SECRET}
       - REDIS_URL=redis:6379
       - AUTH_SERVICE_URL=http://auth-service:8083
+      - GOMEMLIMIT=400MiB
+      - GOGC=400
     depends_on:
       - postgres
       - redis
@@ -199,6 +207,8 @@ services:
       - DROM_API_KEY=${DROM_API_KEY}
       - DROM_PACKET_ID=${DROM_PACKET_ID}
       - MESSAGING_SERVICE_URL=https://${DOMAIN}/api/messaging
+      - GOMEMLIMIT=400MiB
+      - GOGC=400
     depends_on:
       - postgres
       - redis

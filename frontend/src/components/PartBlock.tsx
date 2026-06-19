@@ -1,4 +1,4 @@
-﻿/*
+/*
 * Copyright (c) 2025 Avtoplaneta. All rights reserved.
 */
 
@@ -835,7 +835,7 @@ function PartBlock({
                                             </>
                                         )}
 
-                                        {(part.category === 'Кузов' || part.category === 'Интерьер') && (
+                                        {(part.category === 'Кузов' || part.category === 'Кузов снаружи' || part.category === 'Интерьер') && (
                                             <>
                                                 {part.body_brand && (
                                                     <motion.div
