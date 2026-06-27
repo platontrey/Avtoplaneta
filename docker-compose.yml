@@ -2,6 +2,7 @@ services:
   traefik:
     image: traefik:latest
     container_name: traefik
+    cpuset: "20-39,60-79"
     restart: unless-stopped
     command:
       - "--configFile=/etc/traefik/traefik.yml"
@@ -49,6 +50,7 @@ services:
       args:
         - VITE_API_BASE_URL=https://${DOMAIN}
     container_name: avtoplaneta-frontend
+    cpuset: "20-39,60-79"
     restart: unless-stopped
     networks:
       - avtoplaneta_network
@@ -69,6 +71,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: avtoplaneta-gateway
+    cpuset: "20-39,60-79"
     restart: unless-stopped
     networks:
       - avtoplaneta_network
@@ -92,8 +95,9 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - FORWARDED_ALLOW_IPS=*
-      - GOMEMLIMIT=400MiB
+      - GOMEMLIMIT=1024MiB
       - GOGC=400
+      - GOMAXPROCS=8
     depends_on:
       - auth-service
       - parts-service
@@ -107,6 +111,7 @@ services:
       context: ./backend
       dockerfile: auth-service/Dockerfile
     container_name: avtoplaneta-auth
+    cpuset: "20-39,60-79"
     restart: unless-stopped
     networks:
       - avtoplaneta_network
@@ -125,8 +130,9 @@ services:
       - GOOGLE_CALLBACK_URL=https://${DOMAIN}/auth/google/callback
       - ALLOWED_ORIGINS=https://${DOMAIN},http://${DOMAIN}
       - PARTS_SERVICE_URL=http://parts-service:8081
-      - GOMEMLIMIT=400MiB
+      - GOMEMLIMIT=1024MiB
       - GOGC=400
+      - GOMAXPROCS=8
     depends_on:
       - postgres
       - redis
@@ -136,6 +142,7 @@ services:
       context: ./backend
       dockerfile: parts-service/Dockerfile
     container_name: avtoplaneta-parts
+    cpuset: "20-39,60-79"
     restart: unless-stopped
     networks:
       - avtoplaneta_network
@@ -153,8 +160,9 @@ services:
       - REDIS_URL=redis:6379
       - AUTH_GRPC_ADDR=auth-service:9083
       - ORDERS_GRPC_ADDR=orders-service:9082
-      - GOMEMLIMIT=400MiB
+      - GOMEMLIMIT=1024MiB
       - GOGC=400
+      - GOMAXPROCS=8
     depends_on:
       - postgres
       - redis
@@ -164,6 +172,7 @@ services:
       context: ./backend
       dockerfile: orders-service/Dockerfile
     container_name: avtoplaneta-orders
+    cpuset: "20-39,60-79"
     restart: unless-stopped
     networks:
       - avtoplaneta_network
@@ -178,8 +187,9 @@ services:
       - SESSION_SECRET=${SESSION_SECRET}
       - REDIS_URL=redis:6379
       - AUTH_SERVICE_URL=http://auth-service:8083
-      - GOMEMLIMIT=400MiB
+      - GOMEMLIMIT=1024MiB
       - GOGC=400
+      - GOMAXPROCS=8
     depends_on:
       - postgres
       - redis
@@ -189,6 +199,7 @@ services:
       context: ./backend
       dockerfile: messaging-service/Dockerfile
     container_name: avtoplaneta-messaging
+    cpuset: "20-39,60-79"
     restart: unless-stopped
     networks:
       - avtoplaneta_network
@@ -207,8 +218,9 @@ services:
       - DROM_API_KEY=${DROM_API_KEY}
       - DROM_PACKET_ID=${DROM_PACKET_ID}
       - MESSAGING_SERVICE_URL=https://${DOMAIN}/api/messaging
-      - GOMEMLIMIT=400MiB
+      - GOMEMLIMIT=1024MiB
       - GOGC=400
+      - GOMAXPROCS=8
     depends_on:
       - postgres
       - redis
@@ -216,6 +228,7 @@ services:
   postgres:
     image: postgres:latest
     container_name: avtoplaneta-postgres
+    cpuset: "0-19,40-59"
     restart: unless-stopped
     networks:
       - avtoplaneta_network
@@ -225,6 +238,38 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_DB=${POSTGRES_DB:-avtoplaneta}
+    command: 
+      - "postgres"
+      - "-c"
+      - "shared_buffers=4GB"
+      - "-c"
+      - "effective_cache_size=12GB"
+      - "-c"
+      - "maintenance_work_mem=1GB"
+      - "-c"
+      - "checkpoint_completion_target=0.9"
+      - "-c"
+      - "wal_buffers=16MB"
+      - "-c"
+      - "default_statistics_target=100"
+      - "-c"
+      - "random_page_cost=1.1"
+      - "-c"
+      - "effective_io_concurrency=200"
+      - "-c"
+      - "work_mem=32MB"
+      - "-c"
+      - "min_wal_size=2GB"
+      - "-c"
+      - "max_wal_size=8GB"
+      - "-c"
+      - "max_worker_processes=16"
+      - "-c"
+      - "max_parallel_workers_per_gather=4"
+      - "-c"
+      - "max_parallel_workers=16"
+      - "-c"
+      - "max_parallel_maintenance_workers=2"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
@@ -234,6 +279,7 @@ services:
   redis:
     image: redis:latest
     container_name: avtoplaneta-redis
+    cpuset: "0-19,40-59"
     restart: unless-stopped
     networks:
       - avtoplaneta_network
@@ -267,6 +313,7 @@ services:
   prometheus:
     image: prom/prometheus:latest
     container_name: avtoplaneta-prometheus
+    cpuset: "20-39,60-79"
     restart: unless-stopped
     ports:
       - "9090:9090"
@@ -289,6 +336,7 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: avtoplaneta-grafana
+    cpuset: "20-39,60-79"
     restart: unless-stopped
     ports:
       - "3000:3000"
