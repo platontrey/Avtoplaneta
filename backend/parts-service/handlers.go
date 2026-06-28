@@ -94,7 +94,8 @@ func (h *Handler) GetInventoryHandler(c *gin.Context) {
 	ctx := c.Request.Context()
 	parts, err := h.inventoryService.GetInventory(ctx, queryParams)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось получить инвентарь"})
+		fmt.Printf("GetInventory FAILED with error: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось получить инвентарь: " + err.Error()})
 		return
 	}
 
