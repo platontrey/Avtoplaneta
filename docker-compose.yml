@@ -164,8 +164,12 @@ services:
       - GOGC=400
       - GOMAXPROCS=8
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
 
   orders-service:
     build:
