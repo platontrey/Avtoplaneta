@@ -283,8 +283,45 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 		}
 	}
 
-	// Аналогично для других фильтров...
+	if params.Brand != "" {
+		must = append(must, map[string]interface{}{
+			"match": map[string]interface{}{
+				"brand": params.Brand,
+			},
+		})
+	}
 
+	if params.Model != "" {
+		must = append(must, map[string]interface{}{
+			"match": map[string]interface{}{
+				"model": params.Model,
+			},
+		})
+	}
+
+	if params.Location != "" {
+		must = append(must, map[string]interface{}{
+			"match": map[string]interface{}{
+				"location": params.Location,
+			},
+		})
+	}
+
+	if params.Salesman != "" {
+		must = append(must, map[string]interface{}{
+			"match": map[string]interface{}{
+				"salesman": params.Salesman,
+			},
+		})
+	}
+
+	if params.Status != "" {
+		must = append(must, map[string]interface{}{
+			"match": map[string]interface{}{
+				"status": params.Status,
+			},
+		})
+	}
 	query["bool"].(map[string]interface{})["must"] = must
 	return query
 }
