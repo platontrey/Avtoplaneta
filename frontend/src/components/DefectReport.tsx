@@ -9,16 +9,9 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import FormRow from "./FormRow";
 import { Textarea } from "@/components/ui/textarea";
 import { ClearableSelect } from "@/components/ClearableSelect";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SelectItem } from "@/components/ui/select";
 import { Save, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getAuthHeaders } from "@/lib/csrf";
