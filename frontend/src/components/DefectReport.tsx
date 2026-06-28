@@ -1,4 +1,4 @@
-﻿/*
+/*
 * Copyright (c) 2025 Avtoplaneta. All rights reserved.
 */
 
@@ -1767,6 +1767,30 @@ export default function DefectReport() {
 
             <div className="space-y-4">
               <div>
+                <Label htmlFor="body-brand">Марка кузова</Label>
+                <Input
+                  id="body-brand"
+                  {...register("body_brand")}
+                  type="text"
+                  placeholder="Например: Toyota Corolla"
+                  className="h-10"
+                  autoComplete="off"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="engine-brand">Марка двигателя</Label>
+                <Input
+                  id="engine-brand"
+                  {...register("engine_brand")}
+                  type="text"
+                  placeholder="Например: Toyota 1NZ-FE"
+                  className="h-10"
+                  autoComplete="off"
+                />
+              </div>
+
+              <div>
                 <Label htmlFor="transmission-select">Тип трансмиссии</Label>
                 <Select value={watch("transmission") || ""} onValueChange={(value) => setValue("transmission", value)}>
                   <SelectTrigger id="transmission-select" className="h-10 w-full">
@@ -1787,25 +1811,18 @@ export default function DefectReport() {
               </div>
 
               <div>
-                <Label htmlFor="engine-brand">Марка двигателя</Label>
-                <Input
-                  id="engine-brand"
-                  {...register("engine_brand")}
-                  type="text"
-                  placeholder="Например: Toyota 1NZ-FE"
-                  className="h-10"
-                  autoComplete="off"
+                <Label htmlFor="body-color-select">Цвет кузовных деталей</Label>
+                <SearchableSelect
+                  value={watch("body_color") || ""}
+                  onValueChange={(value) => setValue("body_color", value)}
+                  options={availableColors.map((color) => ({ value: color, label: color }))}
+                  placeholder="Выберите цвет кузовных деталей"
+                  searchPlaceholder="Поиск цвета..."
+                  className="h-10 w-full"
                 />
-              </div>
-
-              <div>
-                <Label htmlFor="body-brand">Марка кузова</Label>
-                <Input
-                  id="body-brand"
-                  {...register("body_brand")}
-                  type="text"
-                  placeholder="Например: Toyota Corolla"
-                  className="h-10"
+                <input
+                  type="hidden"
+                  {...register("body_color")}
                   autoComplete="off"
                 />
               </div>
@@ -1823,23 +1840,6 @@ export default function DefectReport() {
                 <input
                   type="hidden"
                   {...register("interior_color")}
-                  autoComplete="off"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="body-color-select">Цвет кузовных деталей</Label>
-                <SearchableSelect
-                  value={watch("body_color") || ""}
-                  onValueChange={(value) => setValue("body_color", value)}
-                  options={availableColors.map((color) => ({ value: color, label: color }))}
-                  placeholder="Выберите цвет кузовных деталей"
-                  searchPlaceholder="Поиск цвета..."
-                  className="h-10 w-full"
-                />
-                <input
-                  type="hidden"
-                  {...register("body_color")}
                   autoComplete="off"
                 />
               </div>
