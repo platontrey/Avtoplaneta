@@ -17,4 +17,5 @@ jobs:
           git reset --hard origin/OptimizedBackend
           docker compose down
           docker compose up -d --build
+          docker compose restart gateway traefik
           docker image prune -f
