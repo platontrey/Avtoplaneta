@@ -15,7 +15,6 @@ jobs:
           cd /opt/avtoplaneta
           git fetch --all
           git reset --hard origin/OptimizedBackend
-          docker compose down
-          docker compose up -d --build
-          docker compose restart gateway traefik
+          docker compose build --pull
+          docker compose up -d --remove-orphans
           docker image prune -f
