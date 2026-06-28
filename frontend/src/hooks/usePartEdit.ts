@@ -22,6 +22,7 @@ export interface UsePartEditReturn {
     category: string;
     price: string;
     salesman: string;
+    seller_id?: number;
     location: string;
     status: boolean;
     brand: string;
@@ -59,7 +60,7 @@ export interface UsePartEditReturn {
   isEditing: boolean;
   setIsEditing: (editing: boolean) => void;
   handleEdit: () => Promise<void>;
-  updateFormField: (field: keyof UsePartEditReturn['editForm'], value: string | boolean) => void;
+  updateFormField: (field: keyof UsePartEditReturn['editForm'], value: string | boolean | number | undefined) => void;
   isLoading: boolean;
   photoUpload: ReturnType<typeof usePhotoUpload>;
   uploadPhoto?: (partId: number) => Promise<string | null>;
@@ -83,6 +84,7 @@ export function usePartEdit(options: UsePartEditOptions): UsePartEditReturn {
     category: initialPart.category || '',
     price: (initialPart.price || 0).toString(),
     salesman: initialPart.salesman || '',
+    seller_id: initialPart.seller_id,
     location: initialPart.location || '',
     status: initialPart.status ?? true,
     brand: initialPart.brand || '',
@@ -127,6 +129,7 @@ export function usePartEdit(options: UsePartEditOptions): UsePartEditReturn {
       category: initialPart.category || '',
       price: (initialPart.price || 0).toString(),
       salesman: initialPart.salesman || '',
+      seller_id: initialPart.seller_id,
       location: initialPart.location || '',
       status: initialPart.status ?? true,
       brand: initialPart.brand || '',
@@ -177,7 +180,7 @@ export function usePartEdit(options: UsePartEditOptions): UsePartEditReturn {
   /**
    * Updates a specific form field
    */
-  const updateFormField = useCallback((field: keyof UsePartEditReturn['editForm'], value: string | boolean) => {
+  const updateFormField = useCallback((field: keyof UsePartEditReturn['editForm'], value: string | boolean | number | undefined) => {
     setEditForm(prev => ({
       ...prev,
       [field]: value
@@ -235,6 +238,7 @@ export function usePartEdit(options: UsePartEditOptions): UsePartEditReturn {
         category: editForm.category,
         price: parseFloat(editForm.price) || 0,
         salesman: editForm.salesman,
+        seller_id: editForm.seller_id,
         location: editForm.location,
         status: editForm.status,
         brand: editForm.brand,

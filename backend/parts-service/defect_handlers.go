@@ -18,6 +18,8 @@ func (h *Handler) CreateDefectReportHandler(c *gin.Context) {
 		VIN           string `json:"vin"`
 		Mileage       int    `json:"mileage"`
 		Description   string `json:"description"`
+		SellerID      int64  `json:"seller_id"`
+		SellerName    string `json:"seller_name"`
 		SelectedParts []struct {
 			Name               string  `json:"name"`
 			Category           string  `json:"category"`
@@ -60,7 +62,18 @@ func (h *Handler) CreateDefectReportHandler(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("Queueing defect report for %s %s %d with %d parts\n", defectReportData.Brand, defectReportData.Model, defectReportData.Year, len(defectReportData.SelectedParts))
+	userIDStr := c.GetHeader("X-User-ID")
+	if userIDStr != "" {
+		fmt.Sscanf(userIDStr, "%d", &defectReportData.SellerID)
+	}
+	defectReportData.SellerName = c.GetHeader("X-User-Name")
+
+	if defectReportData.SellerName == "" {
+		defectReportData.SellerName = "System"
+		defectReportData.SellerID = 1
+	}
+
+	fmt.Printf("Queueing defect report for %s %s %d with %d parts (Seller: %s)\n", defectReportData.Brand, defectReportData.Model, defectReportData.Year, len(defectReportData.SelectedParts), defectReportData.SellerName)
 
 	payload, err := json.Marshal(defectReportData)
 	if err != nil {

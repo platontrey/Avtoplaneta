@@ -312,6 +312,8 @@ func (c *RedisEventConsumer) handleDefectReportCreated(ctx context.Context, msg 
 		VIN           string `json:"vin"`
 		Mileage       int    `json:"mileage"`
 		Description   string `json:"description"`
+		SellerID      int64  `json:"seller_id"`
+		SellerName    string `json:"seller_name"`
 		SelectedParts []struct {
 			Name               string  `json:"name"`
 			Category           string  `json:"category"`
@@ -353,9 +355,16 @@ func (c *RedisEventConsumer) handleDefectReportCreated(ctx context.Context, msg 
 		return err
 	}
 
-	// Use a default system user for defect reports
+	// Use a default system user for defect reports as fallback
 	var defaultUserID int64 = 1
 	var defaultUserName string = "System"
+
+	if defectReportData.SellerID > 0 {
+		defaultUserID = defectReportData.SellerID
+	}
+	if defectReportData.SellerName != "" {
+		defaultUserName = defectReportData.SellerName
+	}
 
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, 10) // Ограничиваем параллелизм до 10 горутин

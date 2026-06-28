@@ -15,6 +15,8 @@ import { Upload } from "lucide-react";
 import type { UsePartEditReturn } from "@/hooks/usePartEdit";
 import type { Part } from "@/features/parts/types";
 import { API_BASE_URL } from "@/lib/api";
+import SelectUserDropdown from "./SelectUserDropdown";
+import type { User } from "@/features/messaging/types";
 
 interface EditPartDialogProps {
     partEdit: UsePartEditReturn;
@@ -231,13 +233,27 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                     <Label htmlFor="salesman-select" className="sm:text-right text-sm">
                                         Продавец
                                     </Label>
-                                    <Input
-                                        id="salesman"
-                                        autoComplete="off"
-                                        value={partEdit.editForm.salesman}
-                                        onChange={(e) => partEdit.updateFormField('salesman', e.target.value)}
-                                        className="sm:col-span-3"
-                                    />
+                                    <div className="sm:col-span-3">
+                                        <SelectUserDropdown
+                                            selectedUsers={
+                                                partEdit.editForm.seller_id
+                                                ? [{ id: partEdit.editForm.seller_id, name: partEdit.editForm.salesman, email: '' } as User]
+                                                : (partEdit.editForm.salesman ? [{ id: 0, name: partEdit.editForm.salesman, email: '' } as User] : [])
+                                            }
+                                            onSelectionChange={(users) => {
+                                                if (users.length > 0) {
+                                                    partEdit.updateFormField('seller_id', users[0].id);
+                                                    partEdit.updateFormField('salesman', users[0].name || users[0].email || 'Без имени');
+                                                } else {
+                                                    partEdit.updateFormField('seller_id', undefined);
+                                                    partEdit.updateFormField('salesman', '');
+                                                }
+                                            }}
+                                            placeholder="Выберите продавца"
+                                            multiple={false}
+                                            label=""
+                                        />
+                                    </div>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
                                     <Label htmlFor="manufacturer" className="sm:text-right text-sm">

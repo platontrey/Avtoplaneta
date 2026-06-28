@@ -10,6 +10,7 @@ export interface Part {
   category?: string;
   price?: number;
   salesman?: string;
+  seller_id?: number;
   location?: string;
   status?: boolean;
   brand?: string;
@@ -54,6 +55,7 @@ export interface PartFormData {
    category: string;
    price: string;
    salesman: string;
+   seller_id?: number;
    location: string;
    status: boolean;
    photos?: string[];

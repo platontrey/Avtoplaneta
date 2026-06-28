@@ -15,6 +15,7 @@ interface SelectUserDropdownProps {
   placeholder?: string;
   multiple?: boolean;
   currentUser?: User;
+  label?: string;
 }
 
 export default function SelectUserDropdown({
@@ -22,7 +23,8 @@ export default function SelectUserDropdown({
   onSelectionChange,
   placeholder = "Выберите пользователей",
   multiple = true,
-  currentUser
+  currentUser,
+  label = "Участники"
 }: SelectUserDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -92,7 +94,7 @@ export default function SelectUserDropdown({
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <Label htmlFor="user-select">Участники</Label>
+      {label && <Label htmlFor="user-select">{label}</Label>}
       <div className="relative">
         <Button
           type="button"
