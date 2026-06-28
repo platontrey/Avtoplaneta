@@ -9,7 +9,9 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import FormRow from "./FormRow";
 import { Textarea } from "@/components/ui/textarea";
+import { ClearableSelect } from "@/components/ClearableSelect";
 import {
     Select,
     SelectContent,
@@ -526,18 +528,7 @@ export default function AddPart() {
                                                 emptyMessage="Бренд не найден"
                                                 className="h-10"
                                             />
-                                            {brand && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setValue("brand", "")}
-                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
-                                                    title="Очистить"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                    </svg>
-                                                </button>
-                                            )}
+                                            
                                         </div>
                                         <input
                                             type="hidden"
@@ -563,12 +554,12 @@ export default function AddPart() {
                                     <div>
                                         <Label htmlFor="category-select" className="min-w-[120px] mb-1">Категория</Label>
                                         <div className="relative">
-                                            <Select value={category || ""} onValueChange={(value) => setValue("category", value)}>
-                                                <SelectTrigger id="category-select" className="h-10 w-full">
-                                                    <SelectValue placeholder="Выберите категорию" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="Тормоза">Тормоза</SelectItem>
+                                            <ClearableSelect
+    value={category || ""}
+    onValueChange={(value) => setValue("category", value)}
+    placeholder="Выберите категорию" id="category-select" className="h-10 w-full"
+>
+    <SelectItem value="Тормоза">Тормоза</SelectItem>
                                                     <SelectItem value="Двигатель">Двигатель</SelectItem>
                                                     <SelectItem value="Подвеска">Подвеска</SelectItem>
                                                     <SelectItem value="Подвеска ДВС/КПП">Подвеска ДВС/КПП</SelectItem>
@@ -588,20 +579,8 @@ export default function AddPart() {
                                                     <SelectItem value="Автохимия и масла">Автохимия и масла</SelectItem>
                                                     <SelectItem value="Аксессуары и тюннинг">Аксессуары и тюннинг</SelectItem>
                                                     <SelectItem value="Другое">Другое</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            {category && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setValue("category", "")}
-                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
-                                                    title="Очистить"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                    </svg>
-                                                </button>
-                                            )}
+</ClearableSelect>
+                                            
                                         </div>
                                         <input
                                             type="hidden"
@@ -693,18 +672,7 @@ export default function AddPart() {
                                                     ))}
                                                 </SelectContent>
                                             </Select>
-                                            {sellerId && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setValue("seller_id", undefined)}
-                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
-                                                    title="Очистить"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                    </svg>
-                                                </button>
-                                            )}
+                                            
                                         </div>
                                         <input
                                             type="hidden"
@@ -878,27 +846,15 @@ export default function AddPart() {
                                         <div>
                                             <Label htmlFor="front_rear-select" className="mb-1">Перед/зад</Label>
                                             <div className="relative">
-                                                <Select value={watch("front_rear") || ""} onValueChange={(value) => setValue("front_rear", value)}>
-                                                    <SelectTrigger id="front_rear-select" className="h-10 w-full">
-                                                        <SelectValue placeholder="Выберите" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="F">F (Перед)</SelectItem>
+                                                <ClearableSelect
+    value={watch("front_rear") || ""}
+    onValueChange={(value) => setValue("front_rear", value)}
+    placeholder="Выберите" id="front_rear-select" className="h-10 w-full"
+>
+    <SelectItem value="F">F (Перед)</SelectItem>
                                                         <SelectItem value="R">R (Зад)</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                {watch("front_rear") && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setValue("front_rear", "")}
-                                                        className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
-                                                        title="Очистить"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                        </svg>
-                                                    </button>
-                                                )}
+</ClearableSelect>
+                                                
                                             </div>
                                             <input
                                                 type="hidden"
@@ -912,27 +868,15 @@ export default function AddPart() {
                                         <div>
                                             <Label htmlFor="left_right-select" className="mb-1">Право/лево</Label>
                                             <div className="relative">
-                                                <Select value={watch("left_right") || ""} onValueChange={(value) => setValue("left_right", value)}>
-                                                    <SelectTrigger id="left_right-select" className="h-10 w-full">
-                                                        <SelectValue placeholder="Выберите" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="L">L (Лево)</SelectItem>
+                                                <ClearableSelect
+    value={watch("left_right") || ""}
+    onValueChange={(value) => setValue("left_right", value)}
+    placeholder="Выберите" id="left_right-select" className="h-10 w-full"
+>
+    <SelectItem value="L">L (Лево)</SelectItem>
                                                         <SelectItem value="R">R (Право)</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                {watch("left_right") && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setValue("left_right", "")}
-                                                        className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
-                                                        title="Очистить"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                        </svg>
-                                                    </button>
-                                                )}
+</ClearableSelect>
+                                                
                                             </div>
                                             <input
                                                 type="hidden"
@@ -946,28 +890,16 @@ export default function AddPart() {
                                         <div>
                                             <Label htmlFor="top_bottom-select" className="mb-1">Верх/низ</Label>
                                             <div className="relative">
-                                                <Select value={watch("top_bottom") || ""} onValueChange={(value) => setValue("top_bottom", value)}>
-                                                    <SelectTrigger id="top_bottom-select" className="h-10 w-full">
-                                                        <SelectValue placeholder="Выберите" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="Верх">Верх</SelectItem>
+                                                <ClearableSelect
+    value={watch("top_bottom") || ""}
+    onValueChange={(value) => setValue("top_bottom", value)}
+    placeholder="Выберите" id="top_bottom-select" className="h-10 w-full"
+>
+    <SelectItem value="Верх">Верх</SelectItem>
                                                         <SelectItem value="Низ">Низ</SelectItem>
                                                         <SelectItem value="Середина">Середина</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                {watch("top_bottom") && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setValue("top_bottom", "")}
-                                                        className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
-                                                        title="Очистить"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                        </svg>
-                                                    </button>
-                                                )}
+</ClearableSelect>
+                                                
                                             </div>
                                             <input
                                                 type="hidden"
@@ -1073,29 +1005,17 @@ export default function AddPart() {
                                         <div>
                                             <Label htmlFor="transmission-select" className="mb-1">Трансмиссия</Label>
                                             <div className="relative">
-                                                <Select value={watch("transmission") || ""} onValueChange={(value) => setValue("transmission", value)}>
-                                                    <SelectTrigger id="transmission-select" className="h-10 w-full">
-                                                        <SelectValue placeholder="Выберите тип трансмиссии" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="МКПП">МКПП</SelectItem>
+                                                <ClearableSelect
+    value={watch("transmission") || ""}
+    onValueChange={(value) => setValue("transmission", value)}
+    placeholder="Выберите тип трансмиссии" id="transmission-select" className="h-10 w-full"
+>
+    <SelectItem value="МКПП">МКПП</SelectItem>
                                                         <SelectItem value="АКПП">АКПП</SelectItem>
                                                         <SelectItem value="Роботизированная">Роботизированная</SelectItem>
                                                         <SelectItem value="Вариатор">Вариатор</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                {watch("transmission") && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setValue("transmission", "")}
-                                                        className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
-                                                        title="Очистить"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                        </svg>
-                                                    </button>
-                                                )}
+</ClearableSelect>
+                                                
                                             </div>
                                             <input
                                                 type="hidden"

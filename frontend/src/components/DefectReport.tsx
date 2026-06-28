@@ -9,7 +9,9 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import FormRow from "./FormRow";
 import { Textarea } from "@/components/ui/textarea";
+import { ClearableSelect } from "@/components/ClearableSelect";
 import {
   Select,
   SelectContent,
@@ -1691,20 +1693,19 @@ export default function DefectReport() {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="brand-select">Бренд *</Label>
-                <Select value={brand || ""} onValueChange={(value) => setValue("brand", value)}>
-                  <SelectTrigger id="brand-select" className="h-10 w-full">
-                    <SelectValue placeholder="Выберите бренд" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="BMW">BMW</SelectItem>
+                <ClearableSelect
+    value={brand || ""}
+    onValueChange={(value) => setValue("brand", value)}
+    placeholder="Выберите бренд" id="brand-select" className="h-10 w-full"
+>
+    <SelectItem value="BMW">BMW</SelectItem>
                     <SelectItem value="Audi">Audi</SelectItem>
                     <SelectItem value="Mercedes">Mercedes</SelectItem>
                     <SelectItem value="Toyota">Toyota</SelectItem>
                     <SelectItem value="Volkswagen">Volkswagen</SelectItem>
                     <SelectItem value="Honda">Honda</SelectItem>
                     <SelectItem value="Ford">Ford</SelectItem>
-                  </SelectContent>
-                </Select>
+</ClearableSelect>
                 <input
                   type="hidden"
                   {...register("brand")}
@@ -1792,17 +1793,16 @@ export default function DefectReport() {
 
               <div>
                 <Label htmlFor="transmission-select">Тип трансмиссии</Label>
-                <Select value={watch("transmission") || ""} onValueChange={(value) => setValue("transmission", value)}>
-                  <SelectTrigger id="transmission-select" className="h-10 w-full">
-                    <SelectValue placeholder="Выберите тип трансмиссии" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="МКПП">МКПП</SelectItem>
+                <ClearableSelect
+    value={watch("transmission") || ""}
+    onValueChange={(value) => setValue("transmission", value)}
+    placeholder="Выберите тип трансмиссии" id="transmission-select" className="h-10 w-full"
+>
+    <SelectItem value="МКПП">МКПП</SelectItem>
                     <SelectItem value="АКПП">АКПП</SelectItem>
                     <SelectItem value="Роботизированная">Роботизированная</SelectItem>
                     <SelectItem value="Вариатор">Вариатор</SelectItem>
-                  </SelectContent>
-                </Select>
+</ClearableSelect>
                 <input
                   type="hidden"
                   {...register("transmission")}
