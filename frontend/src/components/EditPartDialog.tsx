@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import FormRow from "./FormRow";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -59,23 +60,17 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
 
                         <TabsContent value="basic" className="space-y-4 mt-4">
                             <div className="grid gap-3 sm:gap-4 py-4">
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="name" className="sm:text-right text-sm">
-                                        Название
-                                    </Label>
+                                <FormRow label="Название" htmlFor="name">
                                     <Input
                                         id="name"
                                         autoComplete="name"
                                         value={partEdit.editForm.name}
                                         onChange={(e) => partEdit.updateFormField('name', e.target.value)}
-                                        className="sm:col-span-3"
+                                        
                                     />
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="brand-select" className="sm:text-right text-sm">
-                                        Бренд
-                                    </Label>
-                                    <div className="relative sm:col-span-3">
+                                </FormRow>
+                                <FormRow label="Бренд" htmlFor="brand-select">
+                                    <div className="relative">
                                         <Select value={partEdit.editForm.brand || ""} onValueChange={(value) => partEdit.updateFormField('brand', value)}>
                                             <SelectTrigger id="brand-select" className="w-full">
                                                 <SelectValue placeholder="Выберите бренд" />
@@ -103,61 +98,46 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                             </button>
                                         )}
                                     </div>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="model" className="sm:text-right text-sm">
-                                        Модель
-                                    </Label>
+                                </FormRow>
+                                <FormRow label="Модель" htmlFor="model">
                                     <Input
                                         id="model"
                                         autoComplete="off"
                                         value={partEdit.editForm.model || ''}
                                         onChange={(e) => partEdit.updateFormField('model', e.target.value)}
-                                        className="sm:col-span-3"
+                                        
                                     />
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="vin" className="sm:text-right text-sm">
-                                        VIN
-                                    </Label>
+                                </FormRow>
+                                <FormRow label="VIN" htmlFor="vin">
                                     <Input
                                         id="vin"
                                         autoComplete="off"
                                         value={partEdit.editForm.vin || ''}
                                         onChange={(e) => partEdit.updateFormField('vin', e.target.value)}
-                                        className="sm:col-span-3"
+                                        
                                     />
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="quantity" className="sm:text-right text-sm">
-                                        Количество
-                                    </Label>
+                                </FormRow>
+                                <FormRow label="Количество" htmlFor="quantity">
                                     <Input
                                         id="quantity"
                                         type="number"
                                         autoComplete="off"
                                         value={partEdit.editForm.quantity}
                                         onChange={(e) => partEdit.updateFormField('quantity', e.target.value)}
-                                        className="sm:col-span-3"
+                                        
                                     />
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="description" className="sm:text-right text-sm">
-                                        Описание
-                                    </Label>
+                                </FormRow>
+                                <FormRow label="Описание" htmlFor="description">
                                     <Textarea
                                         id="description"
                                         autoComplete="off"
                                         value={partEdit.editForm.description}
                                         onChange={(e) => partEdit.updateFormField('description', e.target.value)}
-                                        className="sm:col-span-3"
+                                        
                                     />
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="category" className="sm:text-right text-sm">
-                                        Категория
-                                    </Label>
-                                    <div className="sm:col-span-3">
+                                </FormRow>
+                                <FormRow label="Категория" htmlFor="category">
+                                    <div >
                                         <Select value={partEdit.editForm.category || ""} onValueChange={(value) => { console.log('Category select changed:', value); partEdit.updateFormField('category', value); }} onOpenChange={(open) => console.log('Category select open state:', open)}>
                                             <SelectTrigger id="category" className="w-full">
                                                 <SelectValue placeholder="Выберите категорию" />
@@ -186,11 +166,8 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="price" className="sm:text-right text-sm">
-                                        Цена (₽)
-                                    </Label>
+                                </FormRow>
+                                <FormRow label="Цена (₽)" htmlFor="price">
                                     <Input
                                         id="price"
                                         type="number"
@@ -198,26 +175,20 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                         autoComplete="off"
                                         value={partEdit.editForm.price}
                                         onChange={(e) => partEdit.updateFormField('price', e.target.value)}
-                                        className="sm:col-span-3"
+                                        
                                     />
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="location" className="sm:text-right text-sm">
-                                        Местоположение
-                                    </Label>
+                                </FormRow>
+                                <FormRow label="Местоположение" htmlFor="location">
                                     <Input
                                         id="location"
                                         autoComplete="address-line1"
                                         value={partEdit.editForm.location}
                                         onChange={(e) => partEdit.updateFormField('location', e.target.value)}
-                                        className="sm:col-span-3"
+                                        
                                     />
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="status" className="sm:text-right text-sm">
-                                        Статус
-                                    </Label>
-                                    <div className="sm:col-span-3">
+                                </FormRow>
+                                <FormRow label="Статус" htmlFor="status">
+                                    <div >
                                         <Select value={partEdit.editForm.status ? "active" : "inactive"} onValueChange={(value) => { console.log('Status select changed:', value); partEdit.updateFormField('status', value === "active"); }} onOpenChange={(open) => console.log('Status select open state:', open)}>
                                             <SelectTrigger id="status" className="w-full">
                                                 <SelectValue />
@@ -228,12 +199,9 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="salesman-select" className="sm:text-right text-sm">
-                                        Продавец
-                                    </Label>
-                                    <div className="sm:col-span-3">
+                                </FormRow>
+                                <FormRow label="Продавец" htmlFor="salesman-select">
+                                    <div >
                                         <SelectUserDropdown
                                             selectedUsers={
                                                 partEdit.editForm.seller_id
@@ -254,77 +222,56 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                             label=""
                                         />
                                     </div>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="manufacturer" className="sm:text-right text-sm">
-                                        Производитель
-                                    </Label>
+                                </FormRow>
+                                <FormRow label="Производитель" htmlFor="manufacturer">
                                     <Input
                                         id="manufacturer"
                                         value={partEdit.editForm.manufacturer || ''}
                                         onChange={(e) => partEdit.updateFormField('manufacturer', e.target.value)}
-                                        className="sm:col-span-3"
+                                        
                                     />
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="manufacturer_code" className="sm:text-right text-sm">
-                                        Код производителя
-                                    </Label>
+                                </FormRow>
+                                <FormRow label="Код производителя" htmlFor="manufacturer_code">
                                     <Input
                                         id="manufacturer_code"
                                         value={partEdit.editForm.manufacturer_code || ''}
                                         onChange={(e) => partEdit.updateFormField('manufacturer_code', e.target.value)}
-                                        className="sm:col-span-3"
+                                        
                                     />
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="oem_code" className="sm:text-right text-sm">
-                                        OEM код
-                                    </Label>
+                                </FormRow>
+                                <FormRow label="OEM код" htmlFor="oem_code">
                                     <Input
                                         id="oem_code"
                                         value={partEdit.editForm.oem_code || ''}
                                         onChange={(e) => partEdit.updateFormField('oem_code', e.target.value)}
-                                        className="sm:col-span-3"
+                                        
                                     />
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="supplier_code" className="sm:text-right text-sm">
-                                        Код поставки
-                                    </Label>
+                                </FormRow>
+                                <FormRow label="Код поставки" htmlFor="supplier_code">
                                     <Input
                                         id="supplier_code"
                                         value={partEdit.editForm.supplier_code || ''}
                                         onChange={(e) => partEdit.updateFormField('supplier_code', e.target.value)}
-                                        className="sm:col-span-3"
+                                        
                                     />
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="condition" className="sm:text-right text-sm">
-                                        Состояние
-                                    </Label>
+                                </FormRow>
+                                <FormRow label="Состояние" htmlFor="condition">
                                     <Input
                                         id="condition"
                                         value={partEdit.editForm.condition || ''}
                                         onChange={(e) => partEdit.updateFormField('condition', e.target.value)}
-                                        className="sm:col-span-3"
+                                        
                                     />
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="wear_percentage" className="sm:text-right text-sm">
-                                        Процент износа (%)
-                                    </Label>
+                                </FormRow>
+                                <FormRow label="Процент износа (%)" htmlFor="wear_percentage">
                                     <Input
                                         id="wear_percentage"
                                         value={partEdit.editForm.wear_percentage || ''}
                                         onChange={(e) => partEdit.updateFormField('wear_percentage', e.target.value)}
-                                        className="sm:col-span-3"
+                                        
                                     />
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                    <Label htmlFor="photo" className="sm:text-right text-sm">
-                                        Фото
-                                    </Label>
+                                </FormRow>
+                                <FormRow label="Фото" htmlFor="photo">
                                     <div className="sm:col-span-3 flex flex-col space-y-2">
                                         <input
                                             type="file"
@@ -392,7 +339,7 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                             </div>
                                         )}
                                     </div>
-                                </div>
+                                </FormRow>
                             </div>
                         </TabsContent>
 
@@ -401,22 +348,16 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                 {/* Category-specific fields */}
                                 {(partEdit.editForm.category === 'Двигатель' || partEdit.editForm.category === 'Трансмиссия') && (
                                     <>
-                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                            <Label htmlFor="engine_brand" className="sm:text-right text-sm">
-                                                Марка двигателя
-                                            </Label>
+                                        <FormRow label="Марка двигателя" htmlFor="engine_brand">
                                             <Input
                                                 id="engine_brand"
                                                 value={partEdit.editForm.engine_brand || ''}
                                                 onChange={(e) => partEdit.updateFormField('engine_brand', e.target.value)}
-                                                className="sm:col-span-3"
+                                                
                                             />
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                            <Label htmlFor="transmission" className="sm:text-right text-sm">
-                                                Трансмиссия
-                                            </Label>
-                                            <div className="relative sm:col-span-3">
+                                        </FormRow>
+                                        <FormRow label="Трансмиссия" htmlFor="transmission">
+                                            <div className="relative">
                                                 <Select value={partEdit.editForm.transmission || ""} onValueChange={(value) => partEdit.updateFormField('transmission', value)}>
                                                     <SelectTrigger className="w-full">
                                                         <SelectValue placeholder="Выберите тип трансмиссии" />
@@ -441,160 +382,121 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                                     </button>
                                                 )}
                                             </div>
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                            <Label htmlFor="drive" className="sm:text-right text-sm">
-                                                Привод
-                                            </Label>
+                                        </FormRow>
+                                        <FormRow label="Привод" htmlFor="drive">
                                             <Input
                                                 id="drive"
                                                 value={partEdit.editForm.drive || ''}
                                                 onChange={(e) => partEdit.updateFormField('drive', e.target.value)}
-                                                className="sm:col-span-3"
+                                                
                                             />
-                                        </div>
+                                        </FormRow>
                                     </>
                                 )}
 
                                 {(partEdit.editForm.category === 'Кузов' || partEdit.editForm.category === 'Кузов снаружи' || partEdit.editForm.category === 'Интерьер') && (
                                     <>
-                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                            <Label htmlFor="body_brand" className="sm:text-right text-sm">
-                                                Марка кузова
-                                            </Label>
+                                        <FormRow label="Марка кузова" htmlFor="body_brand">
                                             <Input
                                                 id="body_brand"
                                                 value={partEdit.editForm.body_brand || ''}
                                                 onChange={(e) => partEdit.updateFormField('body_brand', e.target.value)}
-                                                className="sm:col-span-3"
+                                                
                                             />
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                            <Label htmlFor="color" className="sm:text-right text-sm">
-                                                Цвет
-                                            </Label>
+                                        </FormRow>
+                                        <FormRow label="Цвет" htmlFor="color">
                                             <Input
                                                 id="color"
                                                 value={partEdit.editForm.color || ''}
                                                 onChange={(e) => partEdit.updateFormField('color', e.target.value)}
-                                                className="sm:col-span-3"
+                                                
                                             />
-                                        </div>
+                                        </FormRow>
                                     </>
                                 )}
 
                                 {partEdit.editForm.category === 'Шины и диски' && (
                                     <>
-                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                            <Label htmlFor="diameter" className="sm:text-right text-sm">
-                                                Диаметр
-                                            </Label>
+                                        <FormRow label="Диаметр" htmlFor="diameter">
                                             <Input
                                                 id="diameter"
                                                 value={partEdit.editForm.diameter || ''}
                                                 onChange={(e) => partEdit.updateFormField('diameter', e.target.value)}
-                                                className="sm:col-span-3"
+                                                
                                             />
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                            <Label htmlFor="width" className="sm:text-right text-sm">
-                                                Ширина
-                                            </Label>
+                                        </FormRow>
+                                        <FormRow label="Ширина" htmlFor="width">
                                             <Input
                                                 id="width"
                                                 value={partEdit.editForm.width || ''}
                                                 onChange={(e) => partEdit.updateFormField('width', e.target.value)}
-                                                className="sm:col-span-3"
+                                                
                                             />
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                            <Label htmlFor="profile" className="sm:text-right text-sm">
-                                                Профиль
-                                            </Label>
+                                        </FormRow>
+                                        <FormRow label="Профиль" htmlFor="profile">
                                             <Input
                                                 id="profile"
                                                 value={partEdit.editForm.profile || ''}
                                                 onChange={(e) => partEdit.updateFormField('profile', e.target.value)}
-                                                className="sm:col-span-3"
+                                                
                                             />
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                            <Label htmlFor="tire_quantity" className="sm:text-right text-sm">
-                                                Количество
-                                            </Label>
+                                        </FormRow>
+                                        <FormRow label="Количество" htmlFor="tire_quantity">
                                             <Input
                                                 id="tire_quantity"
                                                 value={partEdit.editForm.tire_quantity || ''}
                                                 onChange={(e) => partEdit.updateFormField('tire_quantity', e.target.value)}
-                                                className="sm:col-span-3"
+                                                
                                             />
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                            <Label htmlFor="drilling" className="sm:text-right text-sm">
-                                                Сверловка
-                                            </Label>
+                                        </FormRow>
+                                        <FormRow label="Сверловка" htmlFor="drilling">
                                             <Input
                                                 id="drilling"
                                                 value={partEdit.editForm.drilling || ''}
                                                 onChange={(e) => partEdit.updateFormField('drilling', e.target.value)}
-                                                className="sm:col-span-3"
+                                                
                                             />
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                            <Label htmlFor="offset" className="sm:text-right text-sm">
-                                                Вылет
-                                            </Label>
+                                        </FormRow>
+                                        <FormRow label="Вылет" htmlFor="offset">
                                             <Input
                                                 id="offset"
                                                 value={partEdit.editForm.offset || ''}
                                                 onChange={(e) => partEdit.updateFormField('offset', e.target.value)}
-                                                className="sm:col-span-3"
+                                                
                                             />
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                            <Label htmlFor="center_hole_diameter" className="sm:text-right text-sm">
-                                                Диаметр ЦО
-                                            </Label>
+                                        </FormRow>
+                                        <FormRow label="Диаметр ЦО" htmlFor="center_hole_diameter">
                                             <Input
                                                 id="center_hole_diameter"
                                                 value={partEdit.editForm.center_hole_diameter || ''}
                                                 onChange={(e) => partEdit.updateFormField('center_hole_diameter', e.target.value)}
-                                                className="sm:col-span-3"
+                                                
                                             />
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                            <Label htmlFor="tire_model" className="sm:text-right text-sm">
-                                                Модель шины
-                                            </Label>
+                                        </FormRow>
+                                        <FormRow label="Модель шины" htmlFor="tire_model">
                                             <Input
                                                 id="tire_model"
                                                 value={partEdit.editForm.tire_model || ''}
                                                 onChange={(e) => partEdit.updateFormField('tire_model', e.target.value)}
-                                                className="sm:col-span-3"
+                                                
                                             />
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                            <Label htmlFor="season" className="sm:text-right text-sm">
-                                                Сезон
-                                            </Label>
+                                        </FormRow>
+                                        <FormRow label="Сезон" htmlFor="season">
                                             <Input
                                                 id="season"
                                                 value={partEdit.editForm.season || ''}
                                                 onChange={(e) => partEdit.updateFormField('season', e.target.value)}
-                                                className="sm:col-span-3"
+                                                
                                             />
-                                        </div>
+                                        </FormRow>
                                     </>
                                 )}
 
                                 {/* Position fields for most categories */}
                                 {(partEdit.editForm.category !== 'Автохимия и масла' && partEdit.editForm.category !== 'Аксессуары и тюннинг' && partEdit.editForm.category !== 'Другое') && (
                                     <>
-                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                            <Label htmlFor="front_rear" className="sm:text-right text-sm">
-                                                Перед/зад
-                                            </Label>
-                                            <div className="relative sm:col-span-3">
+                                        <FormRow label="Перед/зад" htmlFor="front_rear">
+                                            <div className="relative">
                                                 <Select value={partEdit.editForm.front_rear || ""} onValueChange={(value) => partEdit.updateFormField('front_rear', value)}>
                                                     <SelectTrigger className="w-full">
                                                         <SelectValue placeholder="Выберите" />
@@ -617,12 +519,9 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                                     </button>
                                                 )}
                                             </div>
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                            <Label htmlFor="left_right" className="sm:text-right text-sm">
-                                                Право/лево
-                                            </Label>
-                                            <div className="relative sm:col-span-3">
+                                        </FormRow>
+                                        <FormRow label="Право/лево" htmlFor="left_right">
+                                            <div className="relative">
                                                 <Select value={partEdit.editForm.left_right || ""} onValueChange={(value) => partEdit.updateFormField('left_right', value)}>
                                                     <SelectTrigger className="w-full">
                                                         <SelectValue placeholder="Выберите" />
@@ -645,12 +544,9 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                                     </button>
                                                 )}
                                             </div>
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                            <Label htmlFor="top_bottom" className="sm:text-right text-sm">
-                                                Верх/низ
-                                            </Label>
-                                            <div className="relative sm:col-span-3">
+                                        </FormRow>
+                                        <FormRow label="Верх/низ" htmlFor="top_bottom">
+                                            <div className="relative">
                                                 <Select value={partEdit.editForm.top_bottom || ""} onValueChange={(value) => partEdit.updateFormField('top_bottom', value)}>
                                                     <SelectTrigger className="w-full">
                                                         <SelectValue placeholder="Выберите" />
@@ -674,49 +570,40 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                                     </button>
                                                 )}
                                             </div>
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                            <Label htmlFor="number" className="sm:text-right text-sm">
-                                                Номер
-                                            </Label>
+                                        </FormRow>
+                                        <FormRow label="Номер" htmlFor="number">
                                             <Input
                                                 id="number"
                                                 value={partEdit.editForm.number || ''}
                                                 onChange={(e) => partEdit.updateFormField('number', e.target.value)}
-                                                className="sm:col-span-3"
+                                                
                                             />
-                                        </div>
+                                        </FormRow>
                                     </>
                                 )}
 
                                 {/* Defect field for most categories */}
                                 {(partEdit.editForm.category !== 'Автохимия и масла' && partEdit.editForm.category !== 'Аксессуары и тюннинг') && (
-                                    <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                        <Label htmlFor="defect" className="sm:text-right text-sm">
-                                            Дефект
-                                        </Label>
+                                    <FormRow label="Дефект" htmlFor="defect">
                                         <Input
                                             id="defect"
                                             value={partEdit.editForm.defect || ''}
                                             onChange={(e) => partEdit.updateFormField('defect', e.target.value)}
-                                            className="sm:col-span-3"
+                                            
                                         />
-                                    </div>
+                                    </FormRow>
                                 )}
 
                                 {/* Car release date for most categories */}
                                 {(partEdit.editForm.category !== 'Автохимия и масла' && partEdit.editForm.category !== 'Аксессуары и тюннинг' && partEdit.editForm.category !== 'Другое') && (
-                                    <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                                        <Label htmlFor="car_release_date" className="sm:text-right text-sm">
-                                            Дата выпуска автомобиля
-                                        </Label>
+                                    <FormRow label="Дата выпуска автомобиля" htmlFor="car_release_date">
                                         <Input
                                             id="car_release_date"
                                             value={partEdit.editForm.car_release_date || ''}
                                             onChange={(e) => partEdit.updateFormField('car_release_date', e.target.value)}
-                                            className="sm:col-span-3"
+                                            
                                         />
-                                    </div>
+                                    </FormRow>
                                 )}
                             </div>
                         </TabsContent>

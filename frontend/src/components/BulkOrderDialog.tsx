@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import FormRow from "./FormRow";
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createOrder } from '@/features/orders/api/ordersApi';
@@ -125,33 +126,27 @@ export default function BulkOrderDialog({ isOpen, onClose, selectedParts, onSucc
         <div className="space-y-4 py-4">
           {/* Общие поля заказа */}
           <div className="grid gap-4">
-            <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-              <Label htmlFor="customer_id" className="sm:text-right text-sm">
-                ID клиента *
-              </Label>
+            <FormRow label="ID клиента *" htmlFor="customer_id">
               <Input
                 id="customer_id"
                 type="number"
                 value={customerId}
                 onChange={(e) => handleCustomerIdChange(e.target.value)}
-                className="sm:col-span-3"
+                
                 placeholder="Введите ID клиента"
                 maxLength={INPUT_LIMITS.CUSTOMER_ID_MAX_LENGTH}
               />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-              <Label htmlFor="buyer_number" className="sm:text-right text-sm">
-                № покупателя *
-              </Label>
+            </FormRow>
+            <FormRow label="№ покупателя *" htmlFor="buyer_number">
               <Input
                 id="buyer_number"
                 value={buyerNumber}
                 onChange={(e) => handleBuyerNumberChange(e.target.value)}
-                className="sm:col-span-3"
+                
                 placeholder="Введите номер покупателя"
                 maxLength={INPUT_LIMITS.TEXT_MAX_LENGTH}
               />
-            </div>
+            </FormRow>
           </div>
 
           {/* Список запчастей с количествами */}

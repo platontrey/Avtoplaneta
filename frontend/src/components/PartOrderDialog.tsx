@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import FormRow from "./FormRow";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, ShoppingCart } from "lucide-react";
 import { useOrderDialog } from "@/hooks/useOrderDialog";
@@ -101,37 +102,28 @@ function PartOrderDialog({ part, isOpen, onOpenChange }: PartOrderDialogProps) {
         ) : orderChoice === 'new' ? (
           <>
             <div className="grid gap-3 sm:gap-4 py-4">
-              <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                <Label htmlFor="customer_id" className="sm:text-right text-sm">
-                  ID клиента
-                </Label>
+              <FormRow label="ID клиента" htmlFor="customer_id">
                 <Input
                   id="customer_id"
                   type="number"
                   value={orderForm.customer_id}
                   onChange={(e) => handleFormUpdate('customer_id', e.target.value)}
-                  className="sm:col-span-3"
+                  
                   placeholder="Введите ID клиента"
                   maxLength={INPUT_LIMITS.CUSTOMER_ID_MAX_LENGTH}
                 />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                <Label htmlFor="buyer_number" className="sm:text-right text-sm">
-                  № покупателя
-                </Label>
+              </FormRow>
+              <FormRow label="№ покупателя" htmlFor="buyer_number">
                 <Input
                   id="buyer_number"
                   value={orderForm.buyer_number}
                   onChange={(e) => handleFormUpdate('buyer_number', e.target.value)}
-                  className="sm:col-span-3"
+                  
                   placeholder="Введите номер покупателя"
                   maxLength={INPUT_LIMITS.TEXT_MAX_LENGTH}
                 />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                <Label htmlFor="quantity" className="sm:text-right text-sm">
-                  Количество
-                </Label>
+              </FormRow>
+              <FormRow label="Количество" htmlFor="quantity">
                 <Input
                   id="quantity"
                   type="number"
@@ -139,9 +131,9 @@ function PartOrderDialog({ part, isOpen, onOpenChange }: PartOrderDialogProps) {
                   max={INPUT_LIMITS.QUANTITY_MAX}
                   value={orderForm.quantity}
                   onChange={(e) => handleFormUpdate('quantity', e.target.value)}
-                  className="sm:col-span-3"
+                  
                 />
-              </div>
+              </FormRow>
             </div>
             <DialogFooter>
               <Button
@@ -183,10 +175,7 @@ function PartOrderDialog({ part, isOpen, onOpenChange }: PartOrderDialogProps) {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                <Label htmlFor="add_quantity" className="sm:text-right text-sm">
-                  Количество
-                </Label>
+              <FormRow label="Количество" htmlFor="add_quantity">
                 <Input
                   id="add_quantity"
                   type="number"
@@ -194,9 +183,9 @@ function PartOrderDialog({ part, isOpen, onOpenChange }: PartOrderDialogProps) {
                   max={INPUT_LIMITS.QUANTITY_MAX}
                   value={orderForm.quantity}
                   onChange={(e) => handleFormUpdate('quantity', e.target.value)}
-                  className="sm:col-span-3"
+                  
                 />
-              </div>
+              </FormRow>
             </div>
             <DialogFooter>
               <Button

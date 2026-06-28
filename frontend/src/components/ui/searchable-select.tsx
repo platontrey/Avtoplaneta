@@ -186,6 +186,7 @@ interface SearchableSelectProps {
     emptyMessage?: string
     disabled?: boolean
     className?: string
+    clearable?: boolean
 }
 
 function SearchableSelect({
@@ -197,6 +198,7 @@ function SearchableSelect({
     emptyMessage = "Ничего не найдено.",
     disabled = false,
     className,
+    clearable = true,
 }: SearchableSelectProps) {
     const [search, setSearch] = React.useState("")
     const [open, setOpen] = React.useState(false)
@@ -215,32 +217,49 @@ function SearchableSelect({
     }, [open])
 
     return (
-        <Select value={value} onValueChange={onValueChange} disabled={disabled} open={open} onOpenChange={setOpen}>
-            <SelectTrigger className={cn("flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-black font-normal whitespace-pre-wrap", className)}>
-                {selectedOption ? selectedOption.label : placeholder}
-            </SelectTrigger>
-            <SelectContent>
-                <div className="p-2">
-                    <Input
-                        ref={inputRef}
-                        placeholder={searchPlaceholder}
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        onKeyDown={(e) => e.stopPropagation()}
-                        className="text-black border-gray-300"
-                    />
-                </div>
-                {filteredOptions.length === 0 ? (
-                    <div className="py-2 px-3 text-sm text-black">{emptyMessage}</div>
-                ) : (
-                    filteredOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                        </SelectItem>
-                    ))
-                )}
-            </SelectContent>
-        </Select>
+        <div className="relative w-full">
+            <Select value={value} onValueChange={onValueChange} disabled={disabled} open={open} onOpenChange={setOpen}>
+                <SelectTrigger className={cn("flex h-10 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-black font-normal whitespace-pre-wrap", className)}>
+                    {selectedOption ? selectedOption.label : placeholder}
+                </SelectTrigger>
+                <SelectContent>
+                    <div className="p-2">
+                        <Input
+                            ref={inputRef}
+                            placeholder={searchPlaceholder}
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            onKeyDown={(e) => e.stopPropagation()}
+                            className="text-black border-gray-300"
+                        />
+                    </div>
+                    {filteredOptions.length === 0 ? (
+                        <div className="py-2 px-3 text-sm text-black">{emptyMessage}</div>
+                    ) : (
+                        filteredOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                            </SelectItem>
+                        ))
+                    )}
+                </SelectContent>
+            </Select>
+            {clearable && value && (
+                <button
+                    type="button"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onValueChange("");
+                    }}
+                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
+                    title="Очистить"
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            )}
+        </div>
     )
 }
 
