@@ -104,6 +104,9 @@ func ProcessPartUpdates(updates map[string]interface{}, part *Part) (map[string]
 			} else {
 				processedUpdates[key] = value
 			}
+		case "id", "created_at", "updated_at", "deleted_at", "to_delete_at_formatted", "time_until_deletion", "toDeleteAtFormatted", "timeUntilDeletion", "photoPreview":
+			// Игнорируем поля, которые не должны обновляться напрямую или существуют только на фронтенде
+			continue
 		default:
 			processedUpdates[key] = value
 		}
