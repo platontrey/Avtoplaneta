@@ -39,7 +39,7 @@ func NewEventConsumer(client *redis.Client, service InventoryService) EventConsu
 	}
 }
 
-// Start запускает обработку событий
+// Start запускает  обработку событий
 func (c *RedisEventConsumer) Start(ctx context.Context) error {
 	// Создаем consumer group, если не существует
 	err := c.client.XGroupCreateMkStream(ctx, c.stream, c.group, "$").Err()
@@ -367,7 +367,7 @@ func (c *RedisEventConsumer) handleDefectReportCreated(ctx context.Context, msg 
 	for _, sp := range defectReportData.SelectedParts {
 		selectedPart := sp // Захватываем переменную для горутины
 		wg.Add(1)
-		
+
 		go func() {
 			defer wg.Done()
 			sem <- struct{}{}        // Занимаем слот
