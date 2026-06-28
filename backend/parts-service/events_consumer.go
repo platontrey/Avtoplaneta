@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -360,67 +361,80 @@ func (c *RedisEventConsumer) handleDefectReportCreated(ctx context.Context, msg 
 		return err
 	}
 
-	for _, selectedPart := range defectReportData.SelectedParts {
-		part := Part{
-			PartCore: PartCore{
-				Name:        selectedPart.Name,
-				Quantity:    selectedPart.Quantity,
-				Description: selectedPart.Description,
-				Category:    selectedPart.Category,
-				Price:       selectedPart.Price,
-				Salesman:    defaultUserName,
-				Location:    "",
-				Status:      true,
-				Brand:       defectReportData.Brand,
-				Model:       defectReportData.Model,
-				Photo:       "",
-				SellerID:    defaultUserID,
-			},
-			PartSpecifications: PartSpecifications{
-				BodyBrand:        selectedPart.BodyBrand,
-				EngineBrand:      selectedPart.EngineBrand,
-				CarReleaseDate:   selectedPart.CarReleaseDate,
-				FrontRear:        selectedPart.FrontRear,
-				LeftRight:        selectedPart.LeftRight,
-				TopBottom:        selectedPart.TopBottom,
-				Number:           selectedPart.Number,
-				Manufacturer:     selectedPart.Manufacturer,
-				ManufacturerCode: selectedPart.ManufacturerCode,
-				OEMCode:          selectedPart.OEMCode,
-				Color:            selectedPart.Color,
-				Condition:        selectedPart.Condition,
-				SupplierCode:     selectedPart.SupplierCode,
-				Defect:           selectedPart.Defect,
-				Transmission:     selectedPart.Transmission,
-				Drive:            selectedPart.Drive,
-				WearPercentage:   selectedPart.WearPercentage,
-			},
-			PartTireSpecifications: PartTireSpecifications{
-				Season:             selectedPart.Season,
-				Diameter:           selectedPart.Diameter,
-				Width:              selectedPart.Width,
-				Profile:            selectedPart.Profile,
-				TireQuantity:       selectedPart.TireQuantity,
-				Drilling:           selectedPart.Drilling,
-				Offset:             selectedPart.Offset,
-				CenterHoleDiameter: selectedPart.CenterHoleDiameter,
-				TireModel:          selectedPart.TireModel,
-			},
-		}
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 10) // Ограничиваем параллелизм до 10 горутин
 
-		part.PartCore.Name = strings.TrimSpace(part.PartCore.Name)
-		part.PartCore.Description = strings.TrimSpace(part.PartCore.Description)
-		part.PartCore.Category = strings.TrimSpace(part.PartCore.Category)
-		part.PartCore.Salesman = strings.TrimSpace(part.PartCore.Salesman)
-		part.PartCore.Location = strings.TrimSpace(part.PartCore.Location)
-		part.PartCore.Brand = strings.TrimSpace(part.PartCore.Brand)
-		part.PartCore.Model = strings.TrimSpace(part.PartCore.Model)
+	for _, sp := range defectReportData.SelectedParts {
+		selectedPart := sp // Захватываем переменную для горутины
+		wg.Add(1)
+		
+		go func() {
+			defer wg.Done()
+			sem <- struct{}{}        // Занимаем слот
+			defer func() { <-sem }() // Освобождаем слот
 
-		if _, err := c.service.AddPart(ctx, &part); err != nil {
-			logrus.WithError(err).WithField("part_name", part.PartCore.Name).Error("Failed to add part from defect report")
-			continue
-		}
+			part := Part{
+				PartCore: PartCore{
+					Name:        selectedPart.Name,
+					Quantity:    selectedPart.Quantity,
+					Description: selectedPart.Description,
+					Category:    selectedPart.Category,
+					Price:       selectedPart.Price,
+					Salesman:    defaultUserName,
+					Location:    "",
+					Status:      true,
+					Brand:       defectReportData.Brand,
+					Model:       defectReportData.Model,
+					Photo:       "",
+					SellerID:    defaultUserID,
+				},
+				PartSpecifications: PartSpecifications{
+					BodyBrand:        selectedPart.BodyBrand,
+					EngineBrand:      selectedPart.EngineBrand,
+					CarReleaseDate:   selectedPart.CarReleaseDate,
+					FrontRear:        selectedPart.FrontRear,
+					LeftRight:        selectedPart.LeftRight,
+					TopBottom:        selectedPart.TopBottom,
+					Number:           selectedPart.Number,
+					Manufacturer:     selectedPart.Manufacturer,
+					ManufacturerCode: selectedPart.ManufacturerCode,
+					OEMCode:          selectedPart.OEMCode,
+					Color:            selectedPart.Color,
+					Condition:        selectedPart.Condition,
+					SupplierCode:     selectedPart.SupplierCode,
+					Defect:           selectedPart.Defect,
+					Transmission:     selectedPart.Transmission,
+					Drive:            selectedPart.Drive,
+					WearPercentage:   selectedPart.WearPercentage,
+				},
+				PartTireSpecifications: PartTireSpecifications{
+					Season:             selectedPart.Season,
+					Diameter:           selectedPart.Diameter,
+					Width:              selectedPart.Width,
+					Profile:            selectedPart.Profile,
+					TireQuantity:       selectedPart.TireQuantity,
+					Drilling:           selectedPart.Drilling,
+					Offset:             selectedPart.Offset,
+					CenterHoleDiameter: selectedPart.CenterHoleDiameter,
+					TireModel:          selectedPart.TireModel,
+				},
+			}
+
+			part.PartCore.Name = strings.TrimSpace(part.PartCore.Name)
+			part.PartCore.Description = strings.TrimSpace(part.PartCore.Description)
+			part.PartCore.Category = strings.TrimSpace(part.PartCore.Category)
+			part.PartCore.Salesman = strings.TrimSpace(part.PartCore.Salesman)
+			part.PartCore.Location = strings.TrimSpace(part.PartCore.Location)
+			part.PartCore.Brand = strings.TrimSpace(part.PartCore.Brand)
+			part.PartCore.Model = strings.TrimSpace(part.PartCore.Model)
+
+			if _, err := c.service.AddPart(ctx, &part); err != nil {
+				logrus.WithError(err).WithField("part_name", part.PartCore.Name).Error("Failed to add part from defect report")
+			}
+		}()
 	}
+
+	wg.Wait()
 
 	logrus.WithFields(logrus.Fields{
 		"brand": defectReportData.Brand,

@@ -32,7 +32,7 @@ function Inventory() {
           status: ''
       });
 
-      const [displayLimit, setDisplayLimit] = useState<number | undefined>(20);
+      const [displayLimit, setDisplayLimit] = useState<number | undefined>(undefined);
       const [allParts, setAllParts] = useState<Part[]>([]);
   
       // Pull to refresh functionality

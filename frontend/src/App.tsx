@@ -7,7 +7,6 @@ import { lazy, Suspense, useState } from 'react';
 import Header from './components/Header';
 import ErrorBoundary from './components/ErrorBoundary';
 import AIAgent from './components/AIAgent';
-import PWAInstallPrompt from './components/PWAInstallPrompt';
 import MobileBottomNav from './components/MobileBottomNav';
 import { useAuth } from './features/auth/hooks/useAuth';
 
@@ -51,8 +50,6 @@ function App() {
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-background pb-20 md:pb-4">
-        {/* Предложение установки PWA сверху */}
-        <PWAInstallPrompt />
 
         <Header user={user} onLogout={logout} />
         <Suspense fallback={<LoadingSpinner />}>
