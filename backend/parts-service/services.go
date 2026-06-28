@@ -20,8 +20,8 @@ func ValidatePart(part *Part) error {
 	if len(part.Description) > 1000 {
 		return fmt.Errorf("описание слишком длинное")
 	}
-	if part.Quantity < 0 {
-		return fmt.Errorf("количество должно быть не менее 0")
+	if part.Quantity < 1 {
+		return fmt.Errorf("количество должно быть не менее 1")
 	}
 	if part.Price < 0 {
 		return fmt.Errorf("цена не может быть отрицательной")
