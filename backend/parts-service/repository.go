@@ -586,7 +586,7 @@ func (r *partRepository) UpdatePartPhotos(ctx context.Context, id int64, photos 
 }
 
 func (r *partRepository) GetPartsForXML(ctx context.Context) ([]Part, error) {
-	sql := fmt.Sprintf("SELECT %s FROM parts WHERE to_delete_at IS NULL AND quantity > 0 AND deleted_at IS NULL ORDER BY id", partColumns)
+	sql := fmt.Sprintf("SELECT %s FROM parts WHERE to_delete_at IS NULL AND quantity >= 0 AND deleted_at IS NULL ORDER BY id", partColumns)
 	rows, err := r.pool.Query(ctx, sql)
 	if err != nil {
 		return nil, err

@@ -52,7 +52,7 @@ ORDER BY supplier_code;
 SELECT * FROM parts WHERE deleted_at IS NULL ORDER BY id;
 
 -- name: GetPartsForXML :many
-SELECT * FROM parts WHERE to_delete_at IS NULL AND quantity > 0 AND deleted_at IS NULL ORDER BY id;
+SELECT * FROM parts WHERE to_delete_at IS NULL AND quantity >= 0 AND deleted_at IS NULL ORDER BY id;
 
 -- name: GetLastCreatedPart :one
 SELECT * FROM parts WHERE deleted_at IS NULL ORDER BY id DESC LIMIT 1;

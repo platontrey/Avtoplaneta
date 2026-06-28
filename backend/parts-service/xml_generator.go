@@ -99,7 +99,7 @@ func GenerateXMLPriceList(parts []Part) ([]byte, error) {
 
 		offer := Offer{
 			Name:          strings.TrimSpace(part.Name),
-			Available:     part.Status && part.Quantity > 0,
+			Available:     part.Status && part.Quantity >= 0,
 			Description:   strings.TrimSpace(part.Description),
 			Price:         part.Price,
 			CurrencyId:    "RUR",
