@@ -335,6 +335,7 @@ func (s *messagingGRPCServer) GetDromDialogs(ctx context.Context, req *msgv1.Get
 			Id:           int32(d.DialogID),
 			DialogId:     strconv.Itoa(d.DialogID),
 			Interlocutor: d.Interlocutor,
+			IsUnread:     d.IsUnread,
 		}
 	}
 

@@ -1974,6 +1974,7 @@ type DromDialog struct {
 	CreatedAt     string                 `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	LastMessageAt string                 `protobuf:"bytes,5,opt,name=last_message_at,json=lastMessageAt,proto3" json:"last_message_at,omitempty"`
 	LastMessage   string                 `protobuf:"bytes,6,opt,name=last_message,json=lastMessage,proto3" json:"last_message,omitempty"`
+	IsUnread      bool                   `protobuf:"varint,7,opt,name=is_unread,json=isUnread,proto3" json:"is_unread,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2048,6 +2049,13 @@ func (x *DromDialog) GetLastMessage() string {
 		return x.LastMessage
 	}
 	return ""
+}
+
+func (x *DromDialog) GetIsUnread() bool {
+	if x != nil {
+		return x.IsUnread
+	}
+	return false
 }
 
 type DromDialogList struct {
@@ -2555,7 +2563,7 @@ const file_messaging_v1_messaging_proto_rawDesc = "" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x05R\x06userId\x12\x14\n" +
 	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06offset\x18\x04 \x01(\x05R\x06offset\"\xc7\x01\n" +
+	"\x06offset\x18\x04 \x01(\x05R\x06offset\"\xe4\x01\n" +
 	"\n" +
 	"DromDialog\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1b\n" +
@@ -2564,7 +2572,8 @@ const file_messaging_v1_messaging_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x04 \x01(\tR\tcreatedAt\x12&\n" +
 	"\x0flast_message_at\x18\x05 \x01(\tR\rlastMessageAt\x12!\n" +
-	"\flast_message\x18\x06 \x01(\tR\vlastMessage\"D\n" +
+	"\flast_message\x18\x06 \x01(\tR\vlastMessage\x12\x1b\n" +
+	"\tis_unread\x18\a \x01(\bR\bisUnread\"D\n" +
 	"\x0eDromDialogList\x122\n" +
 	"\adialogs\x18\x01 \x03(\v2\x18.messaging.v1.DromDialogR\adialogs\"\xef\x01\n" +
 	"\vDromMessage\x12\x0e\n" +

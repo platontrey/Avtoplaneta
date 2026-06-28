@@ -70,6 +70,7 @@ export interface DromDialog {
   created_at: string;
   last_message_at: string;
   last_message?: string;
+  is_unread?: boolean;
 }
 
 export interface DromMessage {

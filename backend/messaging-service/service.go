@@ -412,6 +412,7 @@ type DromMessage struct {
 type InboxBrief struct {
 	DialogID     int    `json:"dialogId"`
 	Interlocutor string `json:"interlocutor"`
+	IsUnread     bool   `json:"isUnread"`
 }
 
 type InboxListResponse struct {

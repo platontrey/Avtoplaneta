@@ -87,6 +87,9 @@ export default function MessagesPage() {
     try {
       const data = await messagingApi.getDromDialogs();
       setDromDialogs(data);
+      if (data.some((d: DromDialog) => d.is_unread)) {
+        setHasNewDromMessages(true);
+      }
     } catch (error) {
       console.error('Failed to load Drom dialogs:', error);
     } finally {
@@ -311,7 +314,12 @@ export default function MessagesPage() {
                         }`}
                         onClick={() => handleSelectDromDialog(dialog)}
                       >
-                        <div className="font-medium">{dialog.interlocutor}</div>
+                        <div className="font-medium flex items-center justify-between">
+                          <span>{dialog.interlocutor}</span>
+                          {dialog.is_unread && (
+                            <div className="w-2 h-2 bg-red-500 rounded-full" title="Новое сообщение"></div>
+                          )}
+                        </div>
                         <div className="text-sm text-muted-foreground truncate">
                           {dialog.last_message || 'Нет сообщений'}
                         </div>

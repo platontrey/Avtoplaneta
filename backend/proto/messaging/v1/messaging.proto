@@ -245,6 +245,7 @@ message DromDialog {
   string created_at = 4;
   string last_message_at = 5;
   string last_message = 6;
+  bool is_unread = 7;
 }
 
 message DromDialogList {
