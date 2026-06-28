@@ -1,4 +1,4 @@
-﻿/*
+/*
 * Copyright (c) 2025 Avtoplaneta. All rights reserved.
 */
 
@@ -75,7 +75,7 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                     </Label>
                                     <div className="relative sm:col-span-3">
                                         <Select value={partEdit.editForm.brand || ""} onValueChange={(value) => partEdit.updateFormField('brand', value)}>
-                                            <SelectTrigger id="brand-select" className="h-10 w-full">
+                                            <SelectTrigger id="brand-select" className="w-full">
                                                 <SelectValue placeholder="Выберите бренд" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -155,33 +155,35 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                     <Label htmlFor="category" className="sm:text-right text-sm">
                                         Категория
                                     </Label>
-                                    <Select value={partEdit.editForm.category || ""} onValueChange={(value) => { console.log('Category select changed:', value); partEdit.updateFormField('category', value); }} onOpenChange={(open) => console.log('Category select open state:', open)}>
-                                        <SelectTrigger id="category" className="sm:col-span-3">
-                                            <SelectValue placeholder="Выберите категорию" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Тормоза">Тормоза</SelectItem>
-                                            <SelectItem value="Двигатель">Двигатель</SelectItem>
-                                            <SelectItem value="Подвеска">Подвеска</SelectItem>
-                                            <SelectItem value="Подвеска ДВС/КПП">Подвеска ДВС/КПП</SelectItem>
-                                            <SelectItem value="Подвеска передних колес">Подвеска передних колес</SelectItem>
-                                            <SelectItem value="Подвеска задних колес">Подвеска задних колес</SelectItem>
-                                            <SelectItem value="Электрика">Электрика</SelectItem>
-                                            <SelectItem value="Кузов">Кузов</SelectItem>
-                                            <SelectItem value="Кузов снаружи">Кузов снаружи</SelectItem>
-                                            <SelectItem value="Интерьер">Интерьер</SelectItem>
-                                            <SelectItem value="Трансмиссия">Трансмиссия</SelectItem>
-                                            <SelectItem value="Система охлаждения и отопления">Система охлаждения и отопления</SelectItem>
-                                            <SelectItem value="Система выхлопа (Глушитель)">Система выхлопа (Глушитель)</SelectItem>
-                                            <SelectItem value="Система рулевого управления">Система рулевого управления</SelectItem>
-                                            <SelectItem value="Рулевое управление">Рулевое управление</SelectItem>
-                                            <SelectItem value="Система фильтрации (Фильтры)">Система фильтрации (Фильтры)</SelectItem>
-                                            <SelectItem value="Шины и диски">Шины и диски</SelectItem>
-                                            <SelectItem value="Автохимия и масла">Автохимия и масла</SelectItem>
-                                            <SelectItem value="Аксессуары и тюннинг">Аксессуары и тюннинг</SelectItem>
-                                            <SelectItem value="Другое">Другое</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <div className="sm:col-span-3">
+                                        <Select value={partEdit.editForm.category || ""} onValueChange={(value) => { console.log('Category select changed:', value); partEdit.updateFormField('category', value); }} onOpenChange={(open) => console.log('Category select open state:', open)}>
+                                            <SelectTrigger id="category" className="w-full">
+                                                <SelectValue placeholder="Выберите категорию" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Тормоза">Тормоза</SelectItem>
+                                                <SelectItem value="Двигатель">Двигатель</SelectItem>
+                                                <SelectItem value="Подвеска">Подвеска</SelectItem>
+                                                <SelectItem value="Подвеска ДВС/КПП">Подвеска ДВС/КПП</SelectItem>
+                                                <SelectItem value="Подвеска передних колес">Подвеска передних колес</SelectItem>
+                                                <SelectItem value="Подвеска задних колес">Подвеска задних колес</SelectItem>
+                                                <SelectItem value="Электрика">Электрика</SelectItem>
+                                                <SelectItem value="Кузов">Кузов</SelectItem>
+                                                <SelectItem value="Кузов снаружи">Кузов снаружи</SelectItem>
+                                                <SelectItem value="Интерьер">Интерьер</SelectItem>
+                                                <SelectItem value="Трансмиссия">Трансмиссия</SelectItem>
+                                                <SelectItem value="Система охлаждения и отопления">Система охлаждения и отопления</SelectItem>
+                                                <SelectItem value="Система выхлопа (Глушитель)">Система выхлопа (Глушитель)</SelectItem>
+                                                <SelectItem value="Система рулевого управления">Система рулевого управления</SelectItem>
+                                                <SelectItem value="Рулевое управление">Рулевое управление</SelectItem>
+                                                <SelectItem value="Система фильтрации (Фильтры)">Система фильтрации (Фильтры)</SelectItem>
+                                                <SelectItem value="Шины и диски">Шины и диски</SelectItem>
+                                                <SelectItem value="Автохимия и масла">Автохимия и масла</SelectItem>
+                                                <SelectItem value="Аксессуары и тюннинг">Аксессуары и тюннинг</SelectItem>
+                                                <SelectItem value="Другое">Другое</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
                                     <Label htmlFor="price" className="sm:text-right text-sm">
@@ -213,15 +215,17 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                     <Label htmlFor="status" className="sm:text-right text-sm">
                                         Статус
                                     </Label>
-                                    <Select value={partEdit.editForm.status ? "active" : "inactive"} onValueChange={(value) => { console.log('Status select changed:', value); partEdit.updateFormField('status', value === "active"); }} onOpenChange={(open) => console.log('Status select open state:', open)}>
-                                        <SelectTrigger id="status" className="sm:col-span-3">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="active">Активный</SelectItem>
-                                            <SelectItem value="inactive">Неактивный</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <div className="sm:col-span-3">
+                                        <Select value={partEdit.editForm.status ? "active" : "inactive"} onValueChange={(value) => { console.log('Status select changed:', value); partEdit.updateFormField('status', value === "active"); }} onOpenChange={(open) => console.log('Status select open state:', open)}>
+                                            <SelectTrigger id="status" className="w-full">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="active">Активный</SelectItem>
+                                                <SelectItem value="inactive">Неактивный</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
                                     <Label htmlFor="salesman-select" className="sm:text-right text-sm">
@@ -398,7 +402,7 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                             </Label>
                                             <div className="relative sm:col-span-3">
                                                 <Select value={partEdit.editForm.transmission || ""} onValueChange={(value) => partEdit.updateFormField('transmission', value)}>
-                                                    <SelectTrigger className="h-10 w-full">
+                                                    <SelectTrigger className="w-full">
                                                         <SelectValue placeholder="Выберите тип трансмиссии" />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -576,7 +580,7 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                             </Label>
                                             <div className="relative sm:col-span-3">
                                                 <Select value={partEdit.editForm.front_rear || ""} onValueChange={(value) => partEdit.updateFormField('front_rear', value)}>
-                                                    <SelectTrigger className="h-10 w-full">
+                                                    <SelectTrigger className="w-full">
                                                         <SelectValue placeholder="Выберите" />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -604,7 +608,7 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                             </Label>
                                             <div className="relative sm:col-span-3">
                                                 <Select value={partEdit.editForm.left_right || ""} onValueChange={(value) => partEdit.updateFormField('left_right', value)}>
-                                                    <SelectTrigger className="h-10 w-full">
+                                                    <SelectTrigger className="w-full">
                                                         <SelectValue placeholder="Выберите" />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -632,7 +636,7 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                             </Label>
                                             <div className="relative sm:col-span-3">
                                                 <Select value={partEdit.editForm.top_bottom || ""} onValueChange={(value) => partEdit.updateFormField('top_bottom', value)}>
-                                                    <SelectTrigger className="h-10 w-full">
+                                                    <SelectTrigger className="w-full">
                                                         <SelectValue placeholder="Выберите" />
                                                     </SelectTrigger>
                                                     <SelectContent>
