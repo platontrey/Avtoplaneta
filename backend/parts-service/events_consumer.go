@@ -353,13 +353,9 @@ func (c *RedisEventConsumer) handleDefectReportCreated(ctx context.Context, msg 
 		return err
 	}
 
-	var defaultUserID int64
-	var defaultUserName string
-	err := dbPool.QueryRow(ctx, "SELECT id, name FROM users ORDER BY id LIMIT 1").Scan(&defaultUserID, &defaultUserName)
-	if err != nil {
-		logrus.WithError(err).Error("Error getting default user for defect report")
-		return err
-	}
+	// Use a default system user for defect reports
+	var defaultUserID int64 = 1
+	var defaultUserName string = "System"
 
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, 10) // Ограничиваем параллелизм до 10 горутин

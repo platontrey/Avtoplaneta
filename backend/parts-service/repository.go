@@ -274,6 +274,8 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 		}
 	}
 
+	builder = builder.OrderBy("id DESC")
+
 	if limit > 0 {
 		builder = builder.Limit(uint64(limit)).Offset(uint64(offset))
 	}
