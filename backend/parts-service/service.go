@@ -264,39 +264,16 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 					"field": "photos",
 				},
 			})
+		} else if params.HasPhoto == "without" {
 			must = append(must, map[string]interface{}{
 				"bool": map[string]interface{}{
 					"must_not": []map[string]interface{}{
 						{
-							"term": map[string]interface{}{
-								"photos": []string{},
+							"exists": map[string]interface{}{
+								"field": "photos",
 							},
 						},
 					},
-				},
-			})
-		} else if params.HasPhoto == "without" {
-			must = append(must, map[string]interface{}{
-				"bool": map[string]interface{}{
-					"should": []map[string]interface{}{
-						{
-							"bool": map[string]interface{}{
-								"must_not": []map[string]interface{}{
-									{
-										"exists": map[string]interface{}{
-											"field": "photos",
-										},
-									},
-								},
-							},
-						},
-						{
-							"term": map[string]interface{}{
-								"photos": []string{},
-							},
-						},
-					},
-					"minimum_should_match": 1,
 				},
 			})
 		}
