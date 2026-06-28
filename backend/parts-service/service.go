@@ -182,6 +182,10 @@ func (s *inventoryService) getInventoryFromElasticsearch(ctx context.Context, pa
 	}
 
 	// Преобразуем и фильтруем
+	if len(esParts) == 0 {
+		return []Part{}, nil
+	}
+
 	parts := make([]Part, 0, len(esParts))
 	partIDs := make([]int64, len(esParts))
 	for i, esPart := range esParts {
