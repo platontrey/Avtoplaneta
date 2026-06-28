@@ -213,6 +213,8 @@ func (r *partRepository) Update(ctx context.Context, id int64, updates map[strin
 			} else {
 				builder = builder.Set(key, value)
 			}
+		} else if key == "offset" {
+			builder = builder.Set("\"offset\"", value)
 		} else {
 			builder = builder.Set(key, value)
 		}

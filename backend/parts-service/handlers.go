@@ -150,6 +150,7 @@ func (h *Handler) UpdatePartHandler(c *gin.Context) {
 
 	ctx := c.Request.Context()
 	if err := h.inventoryService.UpdatePart(ctx, int64(partID), updateData); err != nil {
+		fmt.Printf("UpdatePart FAILED with error: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Не удалось обновить часть: %v", err)})
 		return
 	}
