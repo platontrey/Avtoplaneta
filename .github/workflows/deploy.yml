@@ -15,5 +15,6 @@ jobs:
           cd /opt/avtoplaneta
           git fetch --all
           git reset --hard origin/OptimizedBackend
+          docker compose down
           docker compose up -d --build
           docker image prune -f
