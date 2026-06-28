@@ -292,23 +292,23 @@ services:
       timeout: 5s
       retries: 5
 
-#   elasticsearch:
-#     image: elasticsearch:9.3.3
-#     container_name: avtoplaneta-elasticsearch
-#     restart: unless-stopped
-#     networks:
-#       - avtoplaneta_network
-#     ports:
-#       - "9200:9200"
-#     environment:
-#       - discovery.type=single-node
-#       - xpack.security.enabled=false
-#       - ES_JAVA_OPTS=-Xms2g -Xmx2g
-#     healthcheck:
-#       test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
-#       interval: 30s
-#       timeout: 10s
-#       retries: 5
+  elasticsearch:
+    image: elasticsearch:9.3.3
+    container_name: avtoplaneta-elasticsearch
+    restart: unless-stopped
+    networks:
+      - avtoplaneta_network
+    ports:
+      - "9200:9200"
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms2g -Xmx2g
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   prometheus:
     image: prom/prometheus:latest
