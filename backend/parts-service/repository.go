@@ -262,9 +262,9 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 			builder = builder.Where(squirrel.Eq{"status": value})
 		case "has_photo":
 			if value.(bool) {
-				builder = builder.Where("photos IS NOT NULL AND jsonb_array_length(photos) > 0")
+				builder = builder.Where("photos IS NOT NULL AND CASE WHEN jsonb_typeof(photos) = 'array' THEN jsonb_array_length(photos) > 0 ELSE false END")
 			} else {
-				builder = builder.Where("(photos IS NULL OR jsonb_array_length(photos) = 0)")
+				builder = builder.Where("(photos IS NULL OR CASE WHEN jsonb_typeof(photos) = 'array' THEN jsonb_array_length(photos) = 0 ELSE true END)")
 			}
 		case "search":
 			searchTerm := "%" + value.(string) + "%"
