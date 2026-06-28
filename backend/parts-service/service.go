@@ -256,7 +256,7 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 	if params.Category != "" {
 		must = append(must, map[string]interface{}{
 			"match": map[string]interface{}{
-				"category": params.Category,
+				"category.text": params.Category,
 			},
 		})
 	}
@@ -286,7 +286,7 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 	if params.Brand != "" {
 		must = append(must, map[string]interface{}{
 			"match": map[string]interface{}{
-				"brand": params.Brand,
+				"brand.text": params.Brand,
 			},
 		})
 	}
@@ -294,7 +294,7 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 	if params.Model != "" {
 		must = append(must, map[string]interface{}{
 			"match": map[string]interface{}{
-				"model": params.Model,
+				"model.text": params.Model,
 			},
 		})
 	}
@@ -302,7 +302,7 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 	if params.Location != "" {
 		must = append(must, map[string]interface{}{
 			"match": map[string]interface{}{
-				"location": params.Location,
+				"location.text": params.Location,
 			},
 		})
 	}
@@ -310,15 +310,16 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 	if params.Salesman != "" {
 		must = append(must, map[string]interface{}{
 			"match": map[string]interface{}{
-				"salesman": params.Salesman,
+				"salesman.text": params.Salesman,
 			},
 		})
 	}
 
 	if params.Status != "" {
+		statusBool := params.Status == "true" || params.Status == "active" || params.Status == "1"
 		must = append(must, map[string]interface{}{
 			"match": map[string]interface{}{
-				"status": params.Status,
+				"status": statusBool,
 			},
 		})
 	}
@@ -357,19 +358,19 @@ func (s *inventoryService) buildDatabaseFilters(params InventoryQueryParams) map
 		filters["search"] = params.Search
 	}
 	if params.Category != "" {
-		filters["category"] = params.Category
+		filters["category_ilike"] = params.Category
 	}
 	if params.Brand != "" {
-		filters["brand"] = params.Brand
+		filters["brand_ilike"] = params.Brand
 	}
 	if params.Model != "" {
-		filters["model"] = params.Model
+		filters["model_ilike"] = params.Model
 	}
 	if params.Location != "" {
-		filters["location"] = params.Location
+		filters["location_ilike"] = params.Location
 	}
 	if params.Salesman != "" {
-		filters["salesman"] = params.Salesman
+		filters["salesman_ilike"] = params.Salesman
 	}
 	if params.Status != "" {
 		filters["status"] = params.Status
