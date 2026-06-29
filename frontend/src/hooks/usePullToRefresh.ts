@@ -17,7 +17,7 @@ export const usePullToRefresh = (config: PullToRefreshConfig) => {
   const handleTouchStart = useCallback((e: TouchEvent) => {
     if (disabled || isRefreshingRef.current) return;
 
-    const scrollTop = containerRef.current?.scrollTop || 0;
+    const scrollTop = window.scrollY || containerRef.current?.scrollTop || 0;
     if (scrollTop > 0) return; // Only allow pull when at top
 
     startYRef.current = e.touches[0].clientY;
