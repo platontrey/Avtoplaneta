@@ -71,7 +71,7 @@ function Statistics() {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-6 py-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
         <div className="space-y-8">
           {/* Header skeleton */}
           <div className="space-y-2">

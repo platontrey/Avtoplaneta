@@ -337,6 +337,37 @@ services:
       - "traefik.http.routers.prometheus.tls.certresolver=letsencrypt"
       - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
 
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: avtoplaneta-node-exporter
+    restart: unless-stopped
+    pid: host
+    networks:
+      - avtoplaneta_network
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: avtoplaneta-cadvisor
+    restart: unless-stopped
+    privileged: true
+    networks:
+      - avtoplaneta_network
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+
   grafana:
     image: grafana/grafana:latest
     container_name: avtoplaneta-grafana

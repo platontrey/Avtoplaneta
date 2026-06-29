@@ -406,7 +406,7 @@ function PartBlock({
                                             transition={{ duration: 0.1 }}
                                         />
                                     </DialogTrigger>
-                                    <DialogContent className="max-w-4xl" onClick={(e) => e.stopPropagation()}>
+                                    <DialogContent className="max-w-4xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                                         <DialogTitle>{part.name}</DialogTitle>
                                         <DialogDescription>Изображения детали</DialogDescription>
                                         {(part.photos && part.photos.length > 0) ? (
@@ -449,7 +449,7 @@ function PartBlock({
                                     {part.brand && part.model ? `${part.brand} ${part.model}` : part.brand || part.model}
                                 </span>
                             )}
-                            <div className="flex gap-2 mt-1">
+                            <div className="flex flex-wrap gap-2 mt-1">
                                 {part.category && (
                                     <span className="text-sm bg-white border border-border px-3 py-1 rounded-md font-medium">{part.category}</span>
                                 )}

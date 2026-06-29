@@ -142,10 +142,124 @@ const Orders = () => {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Таблица статусов заказов</CardTitle>
+                    <CardTitle>Статусы заказов</CardTitle>
                 </CardHeader>
-                <CardContent>
-                    <div className="rounded-md border">
+                <CardContent className="p-0 sm:p-6">
+
+                    {/* Мобильный вид: карточки */}
+                    <div className="sm:hidden divide-y divide-border">
+                        {!orders || orders.length === 0 ? (
+                            <p className="text-center py-8 text-muted-foreground px-4">
+                                Заказов пока нет. Создайте первый заказ выше!
+                            </p>
+                        ) : orders.map((order: Order) => (
+                            <div key={order.id} className="p-4 space-y-3">
+                                <div className="flex items-start justify-between gap-2">
+                                    <div>
+                                        <span className="font-semibold">Заказ #{order.id}</span>
+                                        <div className="text-xs text-muted-foreground mt-0.5">{order.created_at_formatted} · {order.time_ago}</div>
+                                    </div>
+                                    <Badge variant={
+                                        order.status === 'red' ? 'destructive' :
+                                            order.status === 'green' ? 'default' : 'secondary'
+                                    }>
+                                        {order.status_text}
+                                    </Badge>
+                                </div>
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                                    <div className="text-muted-foreground">Продавец</div>
+                                    <div className="font-medium">{order.seller}</div>
+                                    <div className="text-muted-foreground">Запчасть</div>
+                                    <div className="font-medium">
+                                        {order.items && order.items.length > 0
+                                            ? order.items.map(item => `${item.quantity}x ${order.part}`).join(', ')
+                                            : order.part || 'Нет деталей'}
+                                    </div>
+                                    <div className="text-muted-foreground">Местоположение</div>
+                                    <div className="font-medium">{order.location || 'Неизвестно'}</div>
+                                    <div className="text-muted-foreground">№ покупателя</div>
+                                    <div className="font-medium">{order.buyer_number}</div>
+                                </div>
+                                <Select
+                                    value={order.status}
+                                    onValueChange={(value) => updateStatusMutation.mutate({ orderId: order.id, status: value })}
+                                    disabled={updateStatusMutation.isPending}
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="red">🔴 Нужен транспорт</SelectItem>
+                                        <SelectItem value="brown">🟤 Ожидание ответа</SelectItem>
+                                        <SelectItem value="yellow">🟡 Нужна доставка</SelectItem>
+                                        <SelectItem value="green">🟢 Доставлено</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <div className="flex gap-2">
+                                    <AlertDialog open={completeDialogOpen && orderToComplete?.id === order.id} onOpenChange={setCompleteDialogOpen}>
+                                        <AlertDialogTrigger asChild>
+                                            <Button
+                                                variant="default"
+                                                size="sm"
+                                                className="flex-1"
+                                                onClick={() => { setOrderToComplete(order); setCompleteDialogOpen(true); }}
+                                                disabled={completeOrderMutation.isPending}
+                                            >
+                                                {completeOrderMutation.isPending ? 'Завершение...' : 'Завершить'}
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Подтверждение завершения продажи</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Вы уверены, что хотите завершить продажу по заказу {orderToComplete?.id}? Заказ будет отмечен как проданный и учтён в статистике продаж.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel onClick={() => setCompleteDialogOpen(false)}>Отмена</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => { if (orderToComplete) completeOrderMutation.mutate(orderToComplete.id); }}>
+                                                    Завершить продажу
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                    <AlertDialog open={deleteDialogOpen && orderToDelete?.id === order.id} onOpenChange={setDeleteDialogOpen}>
+                                        <AlertDialogTrigger asChild>
+                                            <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                className="flex-1"
+                                                onClick={() => { setOrderToDelete(order); setDeleteDialogOpen(true); }}
+                                                disabled={deleteOrderMutation.isPending}
+                                            >
+                                                {deleteOrderMutation.isPending ? 'Удаление...' : 'Удалить'}
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Подтверждение удаления</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Вы уверены, что хотите удалить заказ {orderToDelete?.id}? Количество запчастей будет восстановлено.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel onClick={() => setDeleteDialogOpen(false)}>Отмена</AlertDialogCancel>
+                                                <AlertDialogAction
+                                                    onClick={() => { if (orderToDelete) deleteOrderMutation.mutate(orderToDelete.id); }}
+                                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                >
+                                                    Удалить
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Десктопный вид: таблица */}
+                    <div className="hidden sm:block rounded-md border overflow-x-auto">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -162,7 +276,7 @@ const Orders = () => {
                             <TableBody>
                                 {!orders || orders.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                                             Заказов пока нет. Создайте первый заказ выше!
                                         </TableCell>
                                     </TableRow>

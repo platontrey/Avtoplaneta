@@ -3,7 +3,7 @@
 */
 
 import { useState, useEffect } from 'react';
-import { MessageCircle, RefreshCw, Settings } from 'lucide-react';
+import { MessageCircle, RefreshCw, Settings, ArrowLeft } from 'lucide-react';
 import type { Conversation, DromDialog, DromMessage } from '../features/messaging/types';
 import { useAuth } from '../features/auth/hooks/useAuth';
 import { messagingApi } from '../features/messaging/api/messagingApi';
@@ -36,13 +36,16 @@ export default function MessagesPage() {
    const [dromFetching, setDromFetching] = useState(false);
    const [hasNewDromMessages, setHasNewDromMessages] = useState(false);
    const [previousMessageCount, setPreviousMessageCount] = useState(0);
+   const [mobileShowChat, setMobileShowChat] = useState(false);
 
   const handleSelectConversation = (conversation: Conversation) => {
     setSelectedConversation(conversation);
+    setMobileShowChat(true);
   };
 
   const handleCloseChat = () => {
     setSelectedConversation(null);
+    setMobileShowChat(false);
   };
 
   const handleCreateNewChat = () => {
@@ -115,6 +118,7 @@ export default function MessagesPage() {
 
   const handleSelectDromDialog = (dialog: DromDialog) => {
     setSelectedDromDialog(dialog);
+    setMobileShowChat(true);
     setHasNewDromMessages(false);
   };
 
@@ -246,12 +250,12 @@ export default function MessagesPage() {
         </button>
       </div>
 
-      <div className="bg-card rounded-lg border shadow-sm h-[calc(100vh-200px)] overflow-hidden">
+      <div className="bg-card rounded-lg border shadow-sm h-[calc(100vh-200px)] sm:h-[calc(100vh-220px)] overflow-hidden">
         <div className="flex h-full">
           {activeTab === 'messages' ? (
             <>
-              {/* Sidebar with chat list */}
-              <div className="w-1/3 border-r border-border">
+              {/* Sidebar — скрыт на мобильном когда открыт чат */}
+              <div className={`${mobileShowChat ? 'hidden' : 'flex'} sm:flex flex-col w-full sm:w-1/3 border-r border-border`}>
                 <ChatList
                   onSelectConversation={handleSelectConversation}
                   selectedConversationId={selectedConversation?.id}
@@ -262,16 +266,27 @@ export default function MessagesPage() {
                 />
               </div>
 
-              {/* Chat window */}
-              <div className="flex-1">
+              {/* Chat window — скрыт на мобильном когда открыт список */}
+              <div className={`${mobileShowChat ? 'flex' : 'hidden'} sm:flex flex-col flex-1`}>
                 {selectedConversation ? (
-                  <ChatWindow
-                    conversation={selectedConversation}
-                    currentUser={currentUser}
-                    onClose={handleCloseChat}
-                  />
+                  <>
+                    {/* Кнопка назад на мобильном */}
+                    <div className="sm:hidden flex items-center gap-2 p-3 border-b border-border">
+                      <Button variant="ghost" size="sm" onClick={handleCloseChat} className="p-1">
+                        <ArrowLeft className="w-5 h-5" />
+                      </Button>
+                      <span className="font-medium text-sm truncate">{selectedConversation.name}</span>
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                      <ChatWindow
+                        conversation={selectedConversation}
+                        currentUser={currentUser}
+                        onClose={handleCloseChat}
+                      />
+                    </div>
+                  </>
                 ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="hidden sm:flex items-center justify-center h-full text-muted-foreground">
                     <div className="text-center">
                       <MessageCircle className="w-16 h-16 mx-auto mb-4 opacity-50" />
                       <h3 className="text-lg font-medium mb-2">Выберите чат</h3>
@@ -283,8 +298,8 @@ export default function MessagesPage() {
             </>
           ) : activeTab === 'drom' ? (
             <>
-              {/* Drom Sidebar */}
-              <div className="w-1/3 border-r border-border flex flex-col">
+              {/* Drom Sidebar — скрыт на мобильном когда открыт диалог */}
+              <div className={`${mobileShowChat ? 'hidden' : 'flex'} sm:flex flex-col w-full sm:w-1/3 border-r border-border`}>
                 <div className="p-4 border-b border-border">
                   <div className="flex items-center justify-between">
                     <h3 className="font-medium">Drom диалоги</h3>
@@ -337,11 +352,14 @@ export default function MessagesPage() {
               </div>
 
               {/* Drom Chat window */}
-              <div className="flex-1 flex flex-col">
+              <div className={`${mobileShowChat ? 'flex' : 'hidden'} sm:flex flex-col flex-1`}>
                 {selectedDromDialog ? (
                   <>
-                    <div className="p-4 border-b border-border">
-                      <h3 className="font-medium">{selectedDromDialog.interlocutor}</h3>
+                    <div className="p-4 border-b border-border flex items-center gap-2">
+                      <Button variant="ghost" size="sm" className="sm:hidden p-1" onClick={() => { setSelectedDromDialog(null); setMobileShowChat(false); }}>
+                        <ArrowLeft className="w-5 h-5" />
+                      </Button>
+                      <h3 className="font-medium truncate">{selectedDromDialog.interlocutor}</h3>
                     </div>
                     <div className="flex-1 overflow-y-auto p-4 space-y-4">
                       {dromMessagesLoading ? (
@@ -357,7 +375,7 @@ export default function MessagesPage() {
                             className={`flex ${message.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}
                           >
                             <div
-                              className={`group relative max-w-xs px-3 py-2 rounded-lg text-sm ${
+                              className={`group relative max-w-[80%] sm:max-w-xs px-3 py-2 rounded-lg text-sm ${
                                 message.direction === 'outgoing'
                                   ? 'bg-primary text-primary-foreground'
                                   : 'bg-muted'
@@ -401,7 +419,7 @@ export default function MessagesPage() {
                     </div>
                   </>
                 ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="hidden sm:flex items-center justify-center h-full text-muted-foreground">
                     <div className="text-center">
                       <MessageCircle className="w-16 h-16 mx-auto mb-4 opacity-50" />
                       <h3 className="text-lg font-medium mb-2">Выберите диалог</h3>
@@ -412,7 +430,7 @@ export default function MessagesPage() {
               </div>
             </>
           ) : activeTab === 'settings' ? (
-            <div className="w-full">
+            <div className="w-full overflow-y-auto">
               <ChatSettings onSettingsChange={handleSettingsChange} />
             </div>
           ) : null}
