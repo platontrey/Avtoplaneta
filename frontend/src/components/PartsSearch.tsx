@@ -705,22 +705,6 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                                 <Card className="bg-transparent border border-gray-300">
                                     <CardContent className="pt-6">
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                            {/* Категория */}
-                                            <div>
-                                                <Label htmlFor="category-filter">Категория</Label>
-                                                <div className="mt-1.5">
-                                                    <SearchableSelect
-                                                        value={category}
-                                                        onValueChange={(value) => setCategory(value)}
-                                                        options={categoryOptions}
-                                                        placeholder="Все категории"
-                                                        searchPlaceholder="Поиск категории..."
-                                                        emptyMessage="Категория не найдена"
-                                                        className="bg-transparent border border-gray-300"
-                                                    />
-                                                </div>
-                                            </div>
-
                                             {/* Бренд */}
                                             <div>
                                                 <Label htmlFor="brand-filter">Бренд</Label>
@@ -748,6 +732,22 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                                                     placeholder="E90, A4..."
                                                     className="mt-1.5 bg-transparent border border-gray-300"
                                                 />
+                                            </div>
+
+                                            {/* Категория */}
+                                            <div>
+                                                <Label htmlFor="category-filter">Категория</Label>
+                                                <div className="mt-1.5">
+                                                    <SearchableSelect
+                                                        value={category}
+                                                        onValueChange={(value) => setCategory(value)}
+                                                        options={categoryOptions}
+                                                        placeholder="Все категории"
+                                                        searchPlaceholder="Поиск категории..."
+                                                        emptyMessage="Категория не найдена"
+                                                        className="bg-transparent border border-gray-300"
+                                                    />
+                                                </div>
                                             </div>
 
                                             {/* Местоположение */}
