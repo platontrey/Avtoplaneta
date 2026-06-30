@@ -444,14 +444,16 @@ function PartBlock({
                         </AnimatePresence>
                         <div className="flex flex-col min-w-0 flex-1">
                             <span className="truncate text-sm sm:text-base font-semibold">{part.name || 'Unnamed Part'}</span>
-                            {(part.brand || part.model) && (
+                            {part.category && (
                                 <span className="text-xs sm:text-sm text-muted-foreground truncate">
-                                    {part.brand && part.model ? `${part.brand} ${part.model}` : part.brand || part.model}
+                                    {part.category}
                                 </span>
                             )}
                             <div className="flex flex-wrap gap-2 mt-1">
-                                {part.category && (
-                                    <span className="text-sm bg-white border border-border px-3 py-1 rounded-md font-medium">{part.category}</span>
+                                {(part.brand || part.model) && (
+                                    <span className="text-sm bg-white border border-border px-3 py-1 rounded-md font-medium">
+                                        {part.brand && part.model ? `${part.brand} ${part.model}` : part.brand || part.model}
+                                    </span>
                                 )}
                                 <span className="text-sm bg-white border border-border px-3 py-1 rounded-md font-medium">Кол: {part.quantity ?? 0}</span>
                                 <span className="text-sm bg-primary text-primary-foreground px-3 py-1 rounded-md font-medium">Цена: {part.price ? `₽${part.price}` : 'TBD'}</span>
@@ -641,11 +643,22 @@ function PartBlock({
                                 <div className="space-y-3">
                                     <h4 className="font-semibold text-sm text-muted-foreground mb-3">ХАРАКТЕРИСТИКИ:</h4>
                                     <div className="grid grid-cols-1 gap-3">
-                                        {part.brand && (
+                                        {part.category && (
                                             <motion.div
                                                 initial={{ opacity: 0, x: -20 }}
                                                 animate={{ opacity: 1, x: 0 }}
                                                 transition={{ delay: 0.15, duration: 0.3 }}
+                                                className="text-sm"
+                                            >
+                                                <div className="font-medium text-gray-600">Категория</div>
+                                                <div>{part.category}</div>
+                                            </motion.div>
+                                        )}
+                                        {part.brand && (
+                                            <motion.div
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: 0.2, duration: 0.3 }}
                                                 className="text-sm"
                                             >
                                                 <div className="font-medium text-muted-foreground">Бренд</div>
@@ -656,7 +669,7 @@ function PartBlock({
                                             <motion.div
                                                 initial={{ opacity: 0, x: -20 }}
                                                 animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: 0.2, duration: 0.3 }}
+                                                transition={{ delay: 0.25, duration: 0.3 }}
                                                 className="text-sm"
                                             >
                                                 <div className="font-medium text-gray-600">Модель</div>
@@ -667,7 +680,7 @@ function PartBlock({
                                             <motion.div
                                                 initial={{ opacity: 0, x: -20 }}
                                                 animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: 0.25, duration: 0.3 }}
+                                                transition={{ delay: 0.3, duration: 0.3 }}
                                                 className="text-sm"
                                             >
                                                 <div className="font-medium text-gray-600">VIN</div>
@@ -677,7 +690,7 @@ function PartBlock({
                                         <motion.div
                                             initial={{ opacity: 0, x: -20 }}
                                             animate={{ opacity: 1, x: 0 }}
-                                            transition={{ delay: 0.3, duration: 0.3 }}
+                                            transition={{ delay: 0.35, duration: 0.3 }}
                                             className="text-sm"
                                         >
                                             <div className="font-medium text-gray-600">Количество</div>
@@ -687,22 +700,11 @@ function PartBlock({
                                             <motion.div
                                                 initial={{ opacity: 0, x: -20 }}
                                                 animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: 0.35, duration: 0.3 }}
+                                                transition={{ delay: 0.4, duration: 0.3 }}
                                                 className="text-sm"
                                             >
                                                 <div className="font-medium text-gray-600">Описание</div>
                                                 <div>{part.description}</div>
-                                            </motion.div>
-                                        )}
-                                        {part.category && (
-                                            <motion.div
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: 0.4, duration: 0.3 }}
-                                                className="text-sm"
-                                            >
-                                                <div className="font-medium text-gray-600">Категория</div>
-                                                <div>{part.category}</div>
                                             </motion.div>
                                         )}
                                         {part.location && (

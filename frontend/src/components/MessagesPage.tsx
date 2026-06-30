@@ -275,7 +275,7 @@ export default function MessagesPage() {
                       <Button variant="ghost" size="sm" onClick={handleCloseChat} className="p-1">
                         <ArrowLeft className="w-5 h-5" />
                       </Button>
-                      <span className="font-medium text-sm truncate">{selectedConversation.name}</span>
+                      <span className="font-medium text-sm truncate">{selectedConversation.title || `Чат #${selectedConversation.id}`}</span>
                     </div>
                     <div className="flex-1 overflow-hidden">
                       <ChatWindow
