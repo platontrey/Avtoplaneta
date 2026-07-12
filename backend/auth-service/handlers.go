@@ -479,6 +479,11 @@ func (h *Handler) GetUserActivityLogsHandler(c *gin.Context) {
 	if resourceType := c.Query("resource_type"); resourceType != "" {
 		filters.ResourceType = resourceType
 	}
+	if usefulOnlyStr := c.Query("useful_only"); usefulOnlyStr != "" {
+		if usefulOnly, err := strconv.ParseBool(usefulOnlyStr); err == nil {
+			filters.UsefulOnly = usefulOnly
+		}
+	}
 	if startDateStr := c.Query("start_date"); startDateStr != "" {
 		if startDate, err := time.Parse(time.RFC3339, startDateStr); err == nil {
 			filters.StartDate = &startDate

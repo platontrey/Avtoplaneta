@@ -170,8 +170,21 @@ type ActivityLogFilters struct {
 	ResourceType string
 	StartDate    *time.Time
 	EndDate      *time.Time
-	Limit        int
-	Offset       int
+	// UsefulOnly скрывает навигационный шум (просмотры, доступ к админке,
+	// просмотр логов), оставляя только полезные действия — мутации и вход/выход.
+	UsefulOnly bool
+	Limit      int
+	Offset     int
+}
+
+// nonUsefulActions — действия, генерирующие навигационный шум.
+// Скрыты, когда фильтр "полезные данные" включён.
+var nonUsefulActions = []string{
+	"access_admin_panel",
+	"view_activity_logs",
+	"view_users",
+	"view_part",
+	"search_parts",
 }
 
 type ActivityLogRepository interface {
@@ -271,6 +284,9 @@ func (r *activityLogRepository) FindWithFilters(filters ActivityLogFilters) ([]U
 	}
 	if filters.ResourceType != "" {
 		builder = builder.Where(sq.Eq{"resource_type": filters.ResourceType})
+	}
+	if filters.UsefulOnly {
+		builder = builder.Where(sq.NotEq{"action": nonUsefulActions})
 	}
 	if filters.StartDate != nil {
 		builder = builder.Where(sq.GtOrEq{"created_at": *filters.StartDate})

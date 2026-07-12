@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Trash2, UserPlus, Users, Server, FileText, Edit, Activity, Package, Bell, Image } from "lucide-react";
 import ImageEditor from "./ImageEditor";
@@ -64,6 +65,9 @@ interface ActivityFilters {
   resource_type?: UserActivityResourceType;
   start_date?: string;
   end_date?: string;
+  // Скрывает навигационный шум (просмотры, доступ к админке), оставляя
+  // только полезные действия — мутации и вход/выход.
+  useful_only?: boolean;
 }
 
 export default function AdminPanel() {
@@ -94,7 +98,10 @@ export default function AdminPanel() {
   });
   const [activityLogs, setActivityLogs] = useState<UserActivityLog[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
-  const [activityFilters, setActivityFilters] = useState<ActivityFilters>({});
+  // По умолчанию показываем только полезные данные (мутации + вход/выход),
+  // скрывая навигационный шум (просмотры, доступ к админке, просмотр логов).
+  const [activityFilters, setActivityFilters] = useState<ActivityFilters>({ useful_only: true });
+  const [usefulOnly, setUsefulOnly] = useState(true);
   const [selectedUser, setSelectedUser] = useState<string>('');
   const [selectedAction, setSelectedAction] = useState<string>('');
   const [selectedResourceType, setSelectedResourceType] = useState<string>('');
@@ -247,6 +254,7 @@ export default function AdminPanel() {
     if (selectedResourceType && selectedResourceType !== 'all') filters.resource_type = selectedResourceType as UserActivityResourceType;
     if (startDate) filters.start_date = startDate;
     if (endDate) filters.end_date = endDate;
+    if (usefulOnly) filters.useful_only = true;
 
     setActivityFilters(filters);
     fetchActivityLogs();
@@ -266,7 +274,9 @@ export default function AdminPanel() {
     setSelectedResourceType('');
     setStartDate('');
     setEndDate('');
-    setActivityFilters({});
+    // Сбрасываем к фильтру по умолчанию — только полезные данные.
+    setUsefulOnly(true);
+    setActivityFilters({ useful_only: true });
     fetchActivityLogs();
   };
 
@@ -838,13 +848,20 @@ export default function AdminPanel() {
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <Button onClick={applyActivityFilters} disabled={activityLoading}>
                 {activityLoading ? 'Применение...' : 'Применить фильтры'}
               </Button>
               <Button variant="outline" onClick={clearActivityFilters}>
                 Очистить
               </Button>
+              <label className="flex items-center gap-2 ml-auto text-sm text-gray-600 cursor-pointer select-none">
+                <Checkbox
+                  checked={usefulOnly}
+                  onCheckedChange={(checked) => setUsefulOnly(checked === true)}
+                />
+                Только полезные данные
+              </label>
             </div>
           </div>
 

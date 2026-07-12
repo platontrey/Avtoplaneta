@@ -12,6 +12,8 @@ export const getUserActivityLogs = async (params?: {
   offset?: number;
   start_date?: string;
   end_date?: string;
+  // Скрывает навигационный шум, оставляя только полезные действия (мутации + вход/выход).
+  useful_only?: boolean;
 }): Promise<UserActivityLog[]> => {
   const url = new URL(`${ADMIN_API_URL}/admin/user-activity-logs`);
   if (params) {
