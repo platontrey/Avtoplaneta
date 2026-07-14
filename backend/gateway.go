@@ -67,6 +67,8 @@ type Gateway struct {
 	partsSem     chan struct{} // bulkhead for parts service
 	ordersSem    chan struct{} // bulkhead for orders service
 	messagingSem chan struct{} // bulkhead for messaging service
+
+	authCache *AuthCache
 }
 
 // NewGateway создает новый экземпляр Gateway
@@ -78,6 +80,7 @@ func NewGateway() *Gateway {
 
 	g := &Gateway{
 		router: gin.Default(),
+		authCache: NewAuthCache(5 * time.Minute), // Кэшируем авторизацию на 5 минут
 		allowedOrigins: []string{
 			"http://localhost:5173",
 			"http://localhost:5174",
@@ -624,6 +627,28 @@ func (g *Gateway) authMiddleware(c *gin.Context) {
 		}
 	}
 	cookieHeader := c.GetHeader("Cookie")
+	
+	// Create a unique cache key based on token or session
+	cacheKey := authHeader
+	if cacheKey == "" {
+		cacheKey = sessionCookie
+	}
+	
+	// Check cache first if we have a key
+	if cacheKey != "" {
+		if cachedUser, ok := g.authCache.Get(cacheKey); ok {
+			logrus.WithFields(logrus.Fields{
+				"id":    cachedUser.ID,
+				"email": cachedUser.Email,
+				"role":  cachedUser.Role,
+			}).Debug("User authenticated successfully via CACHE")
+			
+			c.Set("user", cachedUser)
+			c.Set("user_email", cachedUser.Email)
+			c.Next()
+			return
+		}
+	}
 
 	resp, err := g.authGRPC.ValidateSession(c.Request.Context(), &authv1.ValidateSessionRequest{
 		SessionCookie: cookieHeader,
@@ -650,6 +675,11 @@ func (g *Gateway) authMiddleware(c *gin.Context) {
 		Email: resp.User.Email,
 		Name:  resp.User.Name,
 		Role:  resp.User.Role,
+	}
+	
+	// Save to cache
+	if cacheKey != "" {
+		g.authCache.Set(cacheKey, user)
 	}
 
 	logrus.WithFields(logrus.Fields{
