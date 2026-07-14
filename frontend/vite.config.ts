@@ -125,16 +125,7 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          ui: ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-accordion', '@radix-ui/react-select', '@radix-ui/react-tabs'],
-          query: ['@tanstack/react-query'],
-          forms: ['react-hook-form', 'zod'],
-          utils: ['clsx', 'tailwind-merge', 'styled-components'],
-          // auth: ['js-cookie'], // Commented out as js-cookie is not used
-        },
-      },
+      // Использован стандартный сплиттинг Vite для правильного tree-shaking lucide-react
     },
     chunkSizeWarningLimit: 1000,
   },
