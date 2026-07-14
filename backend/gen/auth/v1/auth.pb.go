@@ -7,6 +7,7 @@
 package authv1
 
 import (
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -1298,7 +1299,7 @@ var File_auth_v1_auth_proto protoreflect.FileDescriptor
 
 const file_auth_v1_auth_proto_rawDesc = "" +
 	"\n" +
-	"\x12auth/v1/auth.proto\x12\aauth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"e\n" +
+	"\x12auth/v1/auth.proto\x12\aauth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/api/annotations.proto\"e\n" +
 	"\x16ValidateSessionRequest\x12%\n" +
 	"\x0esession_cookie\x18\x01 \x01(\tR\rsessionCookie\x12$\n" +
 	"\rauthorization\x18\x02 \x01(\tR\rauthorization\"R\n" +
@@ -1402,21 +1403,21 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x12\x16\n" +
 	"\x06source\x18\x04 \x01(\tR\x06source\"<\n" +
 	"\x12ServerLogsResponse\x12&\n" +
-	"\x04logs\x18\x01 \x03(\v2\x12.auth.v1.ServerLogR\x04logs2\xb8\x05\n" +
-	"\vAuthService\x12T\n" +
-	"\x0fValidateSession\x12\x1f.auth.v1.ValidateSessionRequest\x1a .auth.v1.ValidateSessionResponse\x121\n" +
-	"\aGetUser\x12\x17.auth.v1.GetUserRequest\x1a\r.auth.v1.User\x127\n" +
-	"\bGetUsers\x12\x18.auth.v1.GetUsersRequest\x1a\x11.auth.v1.UserList\x127\n" +
+	"\x04logs\x18\x01 \x03(\v2\x12.auth.v1.ServerLogR\x04logs2\xd3\a\n" +
+	"\vAuthService\x12v\n" +
+	"\x0fValidateSession\x12\x1f.auth.v1.ValidateSessionRequest\x1a .auth.v1.ValidateSessionResponse\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/api/v1/auth/validate\x12M\n" +
+	"\aGetUser\x12\x17.auth.v1.GetUserRequest\x1a\r.auth.v1.User\"\x1a\x82\xd3\xe4\x93\x02\x14\x12\x12/api/v1/users/{id}\x12N\n" +
+	"\bGetUsers\x12\x18.auth.v1.GetUsersRequest\x1a\x11.auth.v1.UserList\"\x15\x82\xd3\xe4\x93\x02\x0f\x12\r/api/v1/users\x12Q\n" +
 	"\n" +
-	"CreateUser\x12\x1a.auth.v1.CreateUserRequest\x1a\r.auth.v1.User\x127\n" +
+	"CreateUser\x12\x1a.auth.v1.CreateUserRequest\x1a\r.auth.v1.User\"\x18\x82\xd3\xe4\x93\x02\x12:\x01*\"\r/api/v1/users\x12V\n" +
 	"\n" +
-	"UpdateUser\x12\x1a.auth.v1.UpdateUserRequest\x1a\r.auth.v1.User\x12E\n" +
+	"UpdateUser\x12\x1a.auth.v1.UpdateUserRequest\x1a\r.auth.v1.User\"\x1d\x82\xd3\xe4\x93\x02\x17:\x01*\x1a\x12/api/v1/users/{id}\x12a\n" +
 	"\n" +
-	"DeleteUser\x12\x1a.auth.v1.DeleteUserRequest\x1a\x1b.auth.v1.DeleteUserResponse\x12H\n" +
-	"\vLogActivity\x12\x1b.auth.v1.LogActivityRequest\x1a\x1c.auth.v1.LogActivityResponse\x12L\n" +
-	"\x0fGetActivityLogs\x12\x1f.auth.v1.GetActivityLogsRequest\x1a\x18.auth.v1.ActivityLogList\x12I\n" +
-	"\x0fGetServerStatus\x12\x1f.auth.v1.GetServerStatusRequest\x1a\x15.auth.v1.ServerStatus\x12K\n" +
-	"\rGetServerLogs\x12\x1d.auth.v1.GetServerLogsRequest\x1a\x1b.auth.v1.ServerLogsResponseB Z\x1eavtoplaneta/gen/auth/v1;authv1b\x06proto3"
+	"DeleteUser\x12\x1a.auth.v1.DeleteUserRequest\x1a\x1b.auth.v1.DeleteUserResponse\"\x1a\x82\xd3\xe4\x93\x02\x14*\x12/api/v1/users/{id}\x12e\n" +
+	"\vLogActivity\x12\x1b.auth.v1.LogActivityRequest\x1a\x1c.auth.v1.LogActivityResponse\"\x1b\x82\xd3\xe4\x93\x02\x15:\x01*\"\x10/api/v1/activity\x12f\n" +
+	"\x0fGetActivityLogs\x12\x1f.auth.v1.GetActivityLogsRequest\x1a\x18.auth.v1.ActivityLogList\"\x18\x82\xd3\xe4\x93\x02\x12\x12\x10/api/v1/activity\x12g\n" +
+	"\x0fGetServerStatus\x12\x1f.auth.v1.GetServerStatusRequest\x1a\x15.auth.v1.ServerStatus\"\x1c\x82\xd3\xe4\x93\x02\x16\x12\x14/api/v1/admin/status\x12g\n" +
+	"\rGetServerLogs\x12\x1d.auth.v1.GetServerLogsRequest\x1a\x1b.auth.v1.ServerLogsResponse\"\x1a\x82\xd3\xe4\x93\x02\x14\x12\x12/api/v1/admin/logsB Z\x1eavtoplaneta/gen/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_auth_proto_rawDescOnce sync.Once

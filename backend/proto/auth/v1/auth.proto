@@ -3,25 +3,76 @@ package auth.v1;
 option go_package = "avtoplaneta/gen/auth/v1;authv1";
 
 import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
 
 service AuthService {
   // Валидация сессии — горячий путь, вызывается на каждый защищённый запрос
-  rpc ValidateSession(ValidateSessionRequest) returns (ValidateSessionResponse);
+  rpc ValidateSession(ValidateSessionRequest) returns (ValidateSessionResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/validate"
+      body: "*"
+    };
+  }
 
   // CRUD пользователей
-  rpc GetUser(GetUserRequest) returns (User);
-  rpc GetUsers(GetUsersRequest) returns (UserList);
-  rpc CreateUser(CreateUserRequest) returns (User);
-  rpc UpdateUser(UpdateUserRequest) returns (User);
-  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  rpc GetUser(GetUserRequest) returns (User) {
+    option (google.api.http) = {
+      get: "/api/v1/users/{id}"
+    };
+  }
+  
+  rpc GetUsers(GetUsersRequest) returns (UserList) {
+    option (google.api.http) = {
+      get: "/api/v1/users"
+    };
+  }
+  
+  rpc CreateUser(CreateUserRequest) returns (User) {
+    option (google.api.http) = {
+      post: "/api/v1/users"
+      body: "*"
+    };
+  }
+  
+  rpc UpdateUser(UpdateUserRequest) returns (User) {
+    option (google.api.http) = {
+      put: "/api/v1/users/{id}"
+      body: "*"
+    };
+  }
+  
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/users/{id}"
+    };
+  }
 
   // Активность
-  rpc LogActivity(LogActivityRequest) returns (LogActivityResponse);
-  rpc GetActivityLogs(GetActivityLogsRequest) returns (ActivityLogList);
+  rpc LogActivity(LogActivityRequest) returns (LogActivityResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/activity"
+      body: "*"
+    };
+  }
+  
+  rpc GetActivityLogs(GetActivityLogsRequest) returns (ActivityLogList) {
+    option (google.api.http) = {
+      get: "/api/v1/activity"
+    };
+  }
 
   // Админ
-  rpc GetServerStatus(GetServerStatusRequest) returns (ServerStatus);
-  rpc GetServerLogs(GetServerLogsRequest) returns (ServerLogsResponse);
+  rpc GetServerStatus(GetServerStatusRequest) returns (ServerStatus) {
+    option (google.api.http) = {
+      get: "/api/v1/admin/status"
+    };
+  }
+  
+  rpc GetServerLogs(GetServerLogsRequest) returns (ServerLogsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/admin/logs"
+    };
+  }
 }
 
 // ─── Auth ───────────────────────────────────────────────────────────────────
