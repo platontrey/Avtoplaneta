@@ -23,6 +23,7 @@ import (
 	"golang.org/x/time/rate"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 
 	authv1 "avtoplaneta/gen/auth/v1"
 )
@@ -223,6 +224,39 @@ func (g *Gateway) setupRoutes() {
 	// Профилирование (только для админов)
 	adminDebugGroup := g.router.Group("/admin/debug", g.authMiddleware, requireRole("admin"))
 	pprof.RouteRegister(adminDebugGroup, "pprof")
+
+	// Настройка grpc-gateway
+	g.setupGRPCGatewayRoutes()
+}
+
+// setupGRPCGatewayRoutes настраивает маршрутизацию для grpc-gateway
+func (g *Gateway) setupGRPCGatewayRoutes() {
+	if g.authConn == nil {
+		logrus.Warn("Cannot setup grpc-gateway: auth gRPC connection is nil")
+		return
+	}
+
+	// Создаем мультиплексор grpc-gateway
+	gwmux := runtime.NewServeMux(
+		// Маппинг заголовков HTTP -> gRPC metadata (например для Cookie и Authorization)
+		runtime.WithIncomingHeaderMatcher(func(key string) (string, bool) {
+			if strings.ToLower(key) == "cookie" || strings.ToLower(key) == "authorization" {
+				return key, true
+			}
+			return runtime.DefaultHeaderMatcher(key)
+		}),
+	)
+
+	// Регистрируем auth-service хендлеры в grpc-gateway
+	err := authv1.RegisterAuthServiceHandler(context.Background(), gwmux, g.authConn)
+	if err != nil {
+		logrus.WithError(err).Fatal("Failed to register auth service handler in grpc-gateway")
+	}
+
+	// Монтируем grpc-gateway внутри Gin-движка по пути /api/v1/*
+	// Мы оборачиваем его в authMiddleware для защищенных маршрутов, или оставляем публичным,
+	// но grpc-gateway сам проксирует заголовки, поэтому auth-service сможет валидировать их внутри.
+	g.router.Any("/api/v1/*any", gin.WrapH(gwmux))
 }
 
 // setupAuthRoutes настраивает маршруты аутентификации
