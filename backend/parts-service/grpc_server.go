@@ -70,6 +70,43 @@ func (s *partsGRPCServer) GetInventory(ctx context.Context, req *partsv1.GetInve
 	}, nil
 }
 
+// GetPart возвращает запчасть по ID
+func (s *partsGRPCServer) GetPart(ctx context.Context, req *partsv1.GetPartRequest) (*partsv1.Part, error) {
+	part, err := s.service.GetPartByID(ctx, int64(req.Id))
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "запчасть не найдена: %v", err)
+	}
+	return partToProto(part), nil
+}
+
+// DecreasePartQuantity уменьшает количество запчастей
+func (s *partsGRPCServer) DecreasePartQuantity(ctx context.Context, req *partsv1.ChangePartQuantityRequest) (*partsv1.ChangePartQuantityResponse, error) {
+	err := s.service.DecreasePartQuantity(ctx, int64(req.Id), int(req.Amount))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "ошибка уменьшения количества: %v", err)
+	}
+
+	part, err := s.service.GetPartByID(ctx, int64(req.Id))
+	if err != nil {
+		return &partsv1.ChangePartQuantityResponse{Success: true}, nil
+	}
+	return &partsv1.ChangePartQuantityResponse{Success: true, NewQuantity: int32(part.Quantity)}, nil
+}
+
+// IncreasePartQuantity увеличивает количество запчастей
+func (s *partsGRPCServer) IncreasePartQuantity(ctx context.Context, req *partsv1.ChangePartQuantityRequest) (*partsv1.ChangePartQuantityResponse, error) {
+	err := s.service.IncreasePartQuantity(ctx, int64(req.Id), int(req.Amount))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "ошибка увеличения количества: %v", err)
+	}
+
+	part, err := s.service.GetPartByID(ctx, int64(req.Id))
+	if err != nil {
+		return &partsv1.ChangePartQuantityResponse{Success: true}, nil
+	}
+	return &partsv1.ChangePartQuantityResponse{Success: true, NewQuantity: int32(part.Quantity)}, nil
+}
+
 // AddPart добавляет новую запчасть
 func (s *partsGRPCServer) AddPart(ctx context.Context, req *partsv1.AddPartRequest) (*partsv1.Part, error) {
 	part := &Part{

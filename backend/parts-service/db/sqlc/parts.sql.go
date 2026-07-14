@@ -188,6 +188,22 @@ func (q *Queries) CreatePart(ctx context.Context, arg CreatePartParams) (Part, e
 	return i, err
 }
 
+const DecreasePartQuantity = `-- name: DecreasePartQuantity :exec
+UPDATE parts
+SET quantity = CASE WHEN quantity - $1::integer <= 0 THEN -1 ELSE quantity - $1::integer END
+WHERE id = $2
+`
+
+type DecreasePartQuantityParams struct {
+	Amount int32 `json:"amount"`
+	ID     int64 `json:"id"`
+}
+
+func (q *Queries) DecreasePartQuantity(ctx context.Context, arg DecreasePartQuantityParams) error {
+	_, err := q.db.Exec(ctx, DecreasePartQuantity, arg.Amount, arg.ID)
+	return err
+}
+
 const DeleteExpiredParts = `-- name: DeleteExpiredParts :execrows
 DELETE FROM parts WHERE to_delete_at IS NOT NULL AND to_delete_at <= $1
 `
@@ -551,6 +567,22 @@ func (q *Queries) GetSupplierCodes(ctx context.Context) ([]string, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const IncreasePartQuantity = `-- name: IncreasePartQuantity :exec
+UPDATE parts
+SET quantity = CASE WHEN quantity = -1 THEN $1::integer ELSE quantity + $1::integer END
+WHERE id = $2
+`
+
+type IncreasePartQuantityParams struct {
+	Amount int32 `json:"amount"`
+	ID     int64 `json:"id"`
+}
+
+func (q *Queries) IncreasePartQuantity(ctx context.Context, arg IncreasePartQuantityParams) error {
+	_, err := q.db.Exec(ctx, IncreasePartQuantity, arg.Amount, arg.ID)
+	return err
 }
 
 const MarkForDeletion = `-- name: MarkForDeletion :exec

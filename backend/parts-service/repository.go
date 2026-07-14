@@ -22,6 +22,9 @@ type PartRepository interface {
 	Update(ctx context.Context, id int64, updates map[string]interface{}) error
 	Delete(ctx context.Context, id int64) error
 
+	DecreaseQuantity(ctx context.Context, id int64, amount int) error
+	IncreaseQuantity(ctx context.Context, id int64, amount int) error
+
 	FindWithFilters(ctx context.Context, filters map[string]interface{}, offset, limit int) ([]Part, error)
 
 	MarkForDeletion(ctx context.Context, id int64, deleteAt time.Time) error
@@ -204,7 +207,8 @@ func (r *partRepository) Update(ctx context.Context, id int64, updates map[strin
 		return nil
 	}
 
-	builder := r.psq.Update("parts").Where(squirrel.Eq{"id": id})
+
+	builder := r.psq.Update("parts").Where(squirrel.Eq{"id": id, "deleted_at": nil})
 	for key, value := range updates {
 		if key == "photos" {
 			if arr, ok := value.(StringArray); ok {
@@ -228,6 +232,20 @@ func (r *partRepository) Update(ctx context.Context, id int64, updates map[strin
 
 	_, err = r.pool.Exec(ctx, sql, args...)
 	return err
+}
+
+func (r *partRepository) DecreaseQuantity(ctx context.Context, id int64, amount int) error {
+	return r.queries.DecreasePartQuantity(ctx, sqlc.DecreasePartQuantityParams{
+		ID:     id,
+		Amount: int32(amount),
+	})
+}
+
+func (r *partRepository) IncreaseQuantity(ctx context.Context, id int64, amount int) error {
+	return r.queries.IncreasePartQuantity(ctx, sqlc.IncreasePartQuantityParams{
+		ID:     id,
+		Amount: int32(amount),
+	})
 }
 
 func (r *partRepository) Delete(ctx context.Context, id int64) error {

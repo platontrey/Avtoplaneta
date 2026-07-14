@@ -191,12 +191,14 @@ services:
       - SESSION_SECRET=${SESSION_SECRET}
       - REDIS_URL=redis:6379
       - AUTH_SERVICE_URL=http://auth-service:8083
+      - PARTS_SERVICE_GRPC_URL=parts-service:9081
       - GOMEMLIMIT=1024MiB
       - GOGC=400
       - GOMAXPROCS=8
     depends_on:
       - postgres
       - redis
+      - parts-service
 
   messaging-service:
     build:

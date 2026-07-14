@@ -24,6 +24,9 @@ const (
 	PartsService_UpdatePart_FullMethodName              = "/parts.v1.PartsService/UpdatePart"
 	PartsService_DeletePart_FullMethodName              = "/parts.v1.PartsService/DeletePart"
 	PartsService_MarkPartForDeletion_FullMethodName     = "/parts.v1.PartsService/MarkPartForDeletion"
+	PartsService_GetPart_FullMethodName                 = "/parts.v1.PartsService/GetPart"
+	PartsService_DecreasePartQuantity_FullMethodName    = "/parts.v1.PartsService/DecreasePartQuantity"
+	PartsService_IncreasePartQuantity_FullMethodName    = "/parts.v1.PartsService/IncreasePartQuantity"
 	PartsService_UploadPartPhoto_FullMethodName         = "/parts.v1.PartsService/UploadPartPhoto"
 	PartsService_DeletePartPhoto_FullMethodName         = "/parts.v1.PartsService/DeletePartPhoto"
 	PartsService_GetStatistics_FullMethodName           = "/parts.v1.PartsService/GetStatistics"
@@ -47,6 +50,10 @@ type PartsServiceClient interface {
 	UpdatePart(ctx context.Context, in *UpdatePartRequest, opts ...grpc.CallOption) (*Part, error)
 	DeletePart(ctx context.Context, in *DeletePartRequest, opts ...grpc.CallOption) (*DeletePartResponse, error)
 	MarkPartForDeletion(ctx context.Context, in *MarkPartForDeletionRequest, opts ...grpc.CallOption) (*Part, error)
+	GetPart(ctx context.Context, in *GetPartRequest, opts ...grpc.CallOption) (*Part, error)
+	// Изменение количества
+	DecreasePartQuantity(ctx context.Context, in *ChangePartQuantityRequest, opts ...grpc.CallOption) (*ChangePartQuantityResponse, error)
+	IncreasePartQuantity(ctx context.Context, in *ChangePartQuantityRequest, opts ...grpc.CallOption) (*ChangePartQuantityResponse, error)
 	// Фото
 	UploadPartPhoto(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadPartPhotoChunk, UploadPartPhotoResponse], error)
 	DeletePartPhoto(ctx context.Context, in *DeletePartPhotoRequest, opts ...grpc.CallOption) (*DeletePartPhotoResponse, error)
@@ -117,6 +124,36 @@ func (c *partsServiceClient) MarkPartForDeletion(ctx context.Context, in *MarkPa
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(Part)
 	err := c.cc.Invoke(ctx, PartsService_MarkPartForDeletion_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *partsServiceClient) GetPart(ctx context.Context, in *GetPartRequest, opts ...grpc.CallOption) (*Part, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Part)
+	err := c.cc.Invoke(ctx, PartsService_GetPart_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *partsServiceClient) DecreasePartQuantity(ctx context.Context, in *ChangePartQuantityRequest, opts ...grpc.CallOption) (*ChangePartQuantityResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ChangePartQuantityResponse)
+	err := c.cc.Invoke(ctx, PartsService_DecreasePartQuantity_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *partsServiceClient) IncreasePartQuantity(ctx context.Context, in *ChangePartQuantityRequest, opts ...grpc.CallOption) (*ChangePartQuantityResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ChangePartQuantityResponse)
+	err := c.cc.Invoke(ctx, PartsService_IncreasePartQuantity_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -246,6 +283,10 @@ type PartsServiceServer interface {
 	UpdatePart(context.Context, *UpdatePartRequest) (*Part, error)
 	DeletePart(context.Context, *DeletePartRequest) (*DeletePartResponse, error)
 	MarkPartForDeletion(context.Context, *MarkPartForDeletionRequest) (*Part, error)
+	GetPart(context.Context, *GetPartRequest) (*Part, error)
+	// Изменение количества
+	DecreasePartQuantity(context.Context, *ChangePartQuantityRequest) (*ChangePartQuantityResponse, error)
+	IncreasePartQuantity(context.Context, *ChangePartQuantityRequest) (*ChangePartQuantityResponse, error)
 	// Фото
 	UploadPartPhoto(grpc.ClientStreamingServer[UploadPartPhotoChunk, UploadPartPhotoResponse]) error
 	DeletePartPhoto(context.Context, *DeletePartPhotoRequest) (*DeletePartPhotoResponse, error)
@@ -286,6 +327,15 @@ func (UnimplementedPartsServiceServer) DeletePart(context.Context, *DeletePartRe
 }
 func (UnimplementedPartsServiceServer) MarkPartForDeletion(context.Context, *MarkPartForDeletionRequest) (*Part, error) {
 	return nil, status.Error(codes.Unimplemented, "method MarkPartForDeletion not implemented")
+}
+func (UnimplementedPartsServiceServer) GetPart(context.Context, *GetPartRequest) (*Part, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetPart not implemented")
+}
+func (UnimplementedPartsServiceServer) DecreasePartQuantity(context.Context, *ChangePartQuantityRequest) (*ChangePartQuantityResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DecreasePartQuantity not implemented")
+}
+func (UnimplementedPartsServiceServer) IncreasePartQuantity(context.Context, *ChangePartQuantityRequest) (*ChangePartQuantityResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method IncreasePartQuantity not implemented")
 }
 func (UnimplementedPartsServiceServer) UploadPartPhoto(grpc.ClientStreamingServer[UploadPartPhotoChunk, UploadPartPhotoResponse]) error {
 	return status.Error(codes.Unimplemented, "method UploadPartPhoto not implemented")
@@ -427,6 +477,60 @@ func _PartsService_MarkPartForDeletion_Handler(srv interface{}, ctx context.Cont
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(PartsServiceServer).MarkPartForDeletion(ctx, req.(*MarkPartForDeletionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PartsService_GetPart_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPartRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PartsServiceServer).GetPart(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PartsService_GetPart_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PartsServiceServer).GetPart(ctx, req.(*GetPartRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PartsService_DecreasePartQuantity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChangePartQuantityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PartsServiceServer).DecreasePartQuantity(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PartsService_DecreasePartQuantity_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PartsServiceServer).DecreasePartQuantity(ctx, req.(*ChangePartQuantityRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PartsService_IncreasePartQuantity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChangePartQuantityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PartsServiceServer).IncreasePartQuantity(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PartsService_IncreasePartQuantity_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PartsServiceServer).IncreasePartQuantity(ctx, req.(*ChangePartQuantityRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -644,6 +748,18 @@ var PartsService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "MarkPartForDeletion",
 			Handler:    _PartsService_MarkPartForDeletion_Handler,
+		},
+		{
+			MethodName: "GetPart",
+			Handler:    _PartsService_GetPart_Handler,
+		},
+		{
+			MethodName: "DecreasePartQuantity",
+			Handler:    _PartsService_DecreasePartQuantity_Handler,
+		},
+		{
+			MethodName: "IncreasePartQuantity",
+			Handler:    _PartsService_IncreasePartQuantity_Handler,
 		},
 		{
 			MethodName: "DeletePartPhoto",

@@ -14,3 +14,4 @@ drom-test/
 elasticsearch-9.2.3/
 start-production.bat
 start-production.sh
+migration/

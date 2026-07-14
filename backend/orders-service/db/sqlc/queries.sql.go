@@ -118,22 +118,6 @@ func (q *Queries) CreateSalesHistory(ctx context.Context, arg CreateSalesHistory
 	return i, err
 }
 
-const DecreasePartQuantity = `-- name: DecreasePartQuantity :exec
-UPDATE parts
-SET quantity = CASE WHEN quantity - $1::integer <= 0 THEN -1 ELSE quantity - $1::integer END
-WHERE id = $2
-`
-
-type DecreasePartQuantityParams struct {
-	Amount int32 `json:"amount"`
-	ID     int64 `json:"id"`
-}
-
-func (q *Queries) DecreasePartQuantity(ctx context.Context, arg DecreasePartQuantityParams) error {
-	_, err := q.db.Exec(ctx, DecreasePartQuantity, arg.Amount, arg.ID)
-	return err
-}
-
 const DeleteOrder = `-- name: DeleteOrder :exec
 DELETE FROM orders
 WHERE id = $1
@@ -151,16 +135,6 @@ WHERE order_id = $1
 
 func (q *Queries) DeleteOrderItemsByOrderID(ctx context.Context, orderID int64) error {
 	_, err := q.db.Exec(ctx, DeleteOrderItemsByOrderID, orderID)
-	return err
-}
-
-const DeletePart = `-- name: DeletePart :exec
-DELETE FROM parts
-WHERE id = $1
-`
-
-func (q *Queries) DeletePart(ctx context.Context, id int64) error {
-	_, err := q.db.Exec(ctx, DeletePart, id)
 	return err
 }
 
@@ -348,48 +322,6 @@ func (q *Queries) GetOrderItemsByOrderIDs(ctx context.Context, dollar_1 []int64)
 	return items, nil
 }
 
-const GetPartByID = `-- name: GetPartByID :one
-SELECT id, quantity, price, location, photos FROM parts
-WHERE id = $1
-`
-
-type GetPartByIDRow struct {
-	ID       int64   `json:"id"`
-	Quantity int32   `json:"quantity"`
-	Price    float64 `json:"price"`
-	Location string  `json:"location"`
-	Photos   []byte  `json:"photos"`
-}
-
-func (q *Queries) GetPartByID(ctx context.Context, id int64) (GetPartByIDRow, error) {
-	row := q.db.QueryRow(ctx, GetPartByID, id)
-	var i GetPartByIDRow
-	err := row.Scan(
-		&i.ID,
-		&i.Quantity,
-		&i.Price,
-		&i.Location,
-		&i.Photos,
-	)
-	return i, err
-}
-
-const IncreasePartQuantity = `-- name: IncreasePartQuantity :exec
-UPDATE parts
-SET quantity = CASE WHEN quantity = -1 THEN $1::integer ELSE quantity + $1::integer END
-WHERE id = $2
-`
-
-type IncreasePartQuantityParams struct {
-	Amount int32 `json:"amount"`
-	ID     int64 `json:"id"`
-}
-
-func (q *Queries) IncreasePartQuantity(ctx context.Context, arg IncreasePartQuantityParams) error {
-	_, err := q.db.Exec(ctx, IncreasePartQuantity, arg.Amount, arg.ID)
-	return err
-}
-
 const MarkExpiredAsAutoDeleted = `-- name: MarkExpiredAsAutoDeleted :exec
 UPDATE orders
 SET auto_deleted = TRUE
@@ -432,21 +364,5 @@ type UpdateOrderStatusParams struct {
 
 func (q *Queries) UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) error {
 	_, err := q.db.Exec(ctx, UpdateOrderStatus, arg.ID, arg.Status)
-	return err
-}
-
-const UpdatePartQuantity = `-- name: UpdatePartQuantity :exec
-UPDATE parts
-SET quantity = $2
-WHERE id = $1
-`
-
-type UpdatePartQuantityParams struct {
-	ID       int64 `json:"id"`
-	Quantity int32 `json:"quantity"`
-}
-
-func (q *Queries) UpdatePartQuantity(ctx context.Context, arg UpdatePartQuantityParams) error {
-	_, err := q.db.Exec(ctx, UpdatePartQuantity, arg.ID, arg.Quantity)
 	return err
 }

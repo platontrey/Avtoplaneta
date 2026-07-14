@@ -24,3 +24,6 @@ Thumbs.db
 
 # Go binaries
 **/bin/
+
+# Backend migration scripts
+backend/migration/

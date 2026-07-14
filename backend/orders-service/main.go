@@ -47,7 +47,13 @@ func main() {
 
 	// Создаем зависимости
 	orderRepo := NewOrderRepository(dbPool)
-	partRepo := NewPartRepositoryForOrders(dbPool)
+	partsClient, err := NewPartsGRPCClient(config.PartsServiceGRPCURL)
+	if err != nil {
+		log.Fatalf("failed to connect to parts service via gRPC: %v", err)
+	}
+	defer partsClient.Close()
+	
+	partRepo := NewPartRepositoryForOrders(partsClient)
 	cacheService := NewCacheService(redisClient)
 	eventPublisher := NewEventPublisher(redisClient)
 	ordersService := NewOrdersService(orderRepo, partRepo, cacheService, eventPublisher)

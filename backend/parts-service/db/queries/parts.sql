@@ -74,3 +74,13 @@ FROM parts
 WHERE to_delete_at IS NULL AND quantity >= 1 AND deleted_at IS NULL AND category != ''
 GROUP BY category
 ORDER BY count DESC;
+
+-- name: DecreasePartQuantity :exec
+UPDATE parts
+SET quantity = CASE WHEN quantity - sqlc.arg(amount)::integer <= 0 THEN -1 ELSE quantity - sqlc.arg(amount)::integer END
+WHERE id = sqlc.arg(id);
+
+-- name: IncreasePartQuantity :exec
+UPDATE parts
+SET quantity = CASE WHEN quantity = -1 THEN sqlc.arg(amount)::integer ELSE quantity + sqlc.arg(amount)::integer END
+WHERE id = sqlc.arg(id);

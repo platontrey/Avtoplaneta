@@ -67,25 +67,3 @@ WHERE orders.status = 'green' AND orders.auto_deleted = TRUE
 GROUP BY TO_CHAR(orders.created_at, 'YYYY-MM')
 ORDER BY month DESC;
 
--- name: GetPartByID :one
-SELECT id, quantity, price, location, photos FROM parts
-WHERE id = $1;
-
--- name: UpdatePartQuantity :exec
-UPDATE parts
-SET quantity = $2
-WHERE id = $1;
-
--- name: DecreasePartQuantity :exec
-UPDATE parts
-SET quantity = CASE WHEN quantity - sqlc.arg(amount)::integer <= 0 THEN -1 ELSE quantity - sqlc.arg(amount)::integer END
-WHERE id = sqlc.arg(id);
-
--- name: IncreasePartQuantity :exec
-UPDATE parts
-SET quantity = CASE WHEN quantity = -1 THEN sqlc.arg(amount)::integer ELSE quantity + sqlc.arg(amount)::integer END
-WHERE id = sqlc.arg(id);
-
--- name: DeletePart :exec
-DELETE FROM parts
-WHERE id = $1;

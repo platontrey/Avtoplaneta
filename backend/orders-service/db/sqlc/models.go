@@ -31,53 +31,6 @@ type OrderItem struct {
 	Price    float64 `json:"price"`
 }
 
-type Part struct {
-	ID                 int64              `json:"id"`
-	Name               string             `json:"name"`
-	Quantity           int32              `json:"quantity"`
-	Description        string             `json:"description"`
-	Category           string             `json:"category"`
-	Price              float64            `json:"price"`
-	Salesman           string             `json:"salesman"`
-	Location           string             `json:"location"`
-	Status             bool               `json:"status"`
-	Brand              string             `json:"brand"`
-	Model              string             `json:"model"`
-	Photos             []byte             `json:"photos"`
-	SellerID           int64              `json:"seller_id"`
-	ToDeleteAt         pgtype.Timestamptz `json:"to_delete_at"`
-	Vin                string             `json:"vin"`
-	BodyBrand          string             `json:"body_brand"`
-	EngineBrand        string             `json:"engine_brand"`
-	CarReleaseDate     string             `json:"car_release_date"`
-	FrontRear          string             `json:"front_rear"`
-	LeftRight          string             `json:"left_right"`
-	TopBottom          string             `json:"top_bottom"`
-	Number             string             `json:"number"`
-	Manufacturer       string             `json:"manufacturer"`
-	ManufacturerCode   string             `json:"manufacturer_code"`
-	OemCode            string             `json:"oem_code"`
-	Color              string             `json:"color"`
-	Condition          string             `json:"condition"`
-	SupplierCode       string             `json:"supplier_code"`
-	Defect             string             `json:"defect"`
-	Transmission       string             `json:"transmission"`
-	Drive              string             `json:"drive"`
-	WearPercentage     string             `json:"wear_percentage"`
-	Season             string             `json:"season"`
-	Diameter           string             `json:"diameter"`
-	Width              string             `json:"width"`
-	Profile            string             `json:"profile"`
-	TireQuantity       string             `json:"tire_quantity"`
-	Drilling           string             `json:"drilling"`
-	Offset             string             `json:"offset"`
-	CenterHoleDiameter string             `json:"center_hole_diameter"`
-	TireModel          string             `json:"tire_model"`
-	CreatedAt          pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt          pgtype.Timestamptz `json:"deleted_at"`
-}
-
 type SalesHistory struct {
 	ID        int64              `json:"id"`
 	Month     string             `json:"month"`

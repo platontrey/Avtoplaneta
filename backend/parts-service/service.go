@@ -52,6 +52,9 @@ type InventoryService interface {
 	// GetPartByID Получение запчасти по ID
 	GetPartByID(ctx context.Context, id int64) (*Part, error)
 
+	DecreasePartQuantity(ctx context.Context, id int64, amount int) error
+	IncreasePartQuantity(ctx context.Context, id int64, amount int) error
+
 	// UpdateEarnings Обновление общего заработка
 	UpdateEarnings(ctx context.Context, amount float64) error
 }
@@ -698,6 +701,44 @@ func (s *inventoryService) DeletePartPhoto(ctx context.Context, id int64, photoP
 // GetPartByID получает запчасть по ID
 func (s *inventoryService) GetPartByID(ctx context.Context, id int64) (*Part, error) {
 	return s.repo.FindByID(ctx, id)
+}
+
+func (s *inventoryService) DecreasePartQuantity(ctx context.Context, id int64, amount int) error {
+	// Сброс кэша
+	s.redis.Del(ctx, inventoryCacheKey)
+	s.redis.Del(ctx, inventoryCacheKeyWithoutPhotos)
+	s.redis.Del(ctx, statisticsCacheKey)
+
+	err := s.repo.DecreaseQuantity(ctx, id, amount)
+	if err != nil {
+		return err
+	}
+
+	part, err := s.GetPartByID(ctx, id)
+	if err == nil && s.es != nil {
+		s.es.IndexPart(part)
+	}
+
+	return nil
+}
+
+func (s *inventoryService) IncreasePartQuantity(ctx context.Context, id int64, amount int) error {
+	// Сброс кэша
+	s.redis.Del(ctx, inventoryCacheKey)
+	s.redis.Del(ctx, inventoryCacheKeyWithoutPhotos)
+	s.redis.Del(ctx, statisticsCacheKey)
+
+	err := s.repo.IncreaseQuantity(ctx, id, amount)
+	if err != nil {
+		return err
+	}
+
+	part, err := s.GetPartByID(ctx, id)
+	if err == nil && s.es != nil {
+		s.es.IndexPart(part)
+	}
+
+	return nil
 }
 
 // UpdateEarnings обновляет общий заработок
