@@ -15,6 +15,11 @@ jobs:
           cd /opt/avtoplaneta
           git fetch --all
           git reset --hard origin/OptimizedBackend
+          
+          # Отключаем Docker BuildKit, так как его агрессивный ввод/вывод вызывает Kernel Panic в драйвере overlayfs
+          export DOCKER_BUILDKIT=0
+          export COMPOSE_DOCKER_CLI_BUILD=0
+          
           # Сборка сервисов последовательно для предотвращения kernel panic и снижения нагрузки на overlayfs/CPU
           docker compose build --pull frontend
           docker compose build --pull auth-service
