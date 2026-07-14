@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"syscall"
 
+	"avtoplaneta/pkg/tracing"
+
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 )
@@ -49,6 +51,17 @@ func main() {
 	} else {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
+
+	// Initialize OpenTelemetry Tracer
+	tp, err := tracing.InitTracer("api-gateway")
+	if err != nil {
+		logrus.WithError(err).Fatal("failed to initialize tracer")
+	}
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			logrus.WithError(err).Error("failed to shutdown tracer")
+		}
+	}()
 
 	// Создание контекста с отменой для graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())

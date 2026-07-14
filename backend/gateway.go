@@ -21,6 +21,8 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"golang.org/x/time/rate"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -149,6 +151,7 @@ func (g *Gateway) initGRPCClients() {
 	var err error
 	g.authConn, err = grpc.NewClient(authGRPCAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 	)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to create gRPC connection to auth-service")
@@ -159,6 +162,7 @@ func (g *Gateway) initGRPCClients() {
 
 	g.partsConn, err = grpc.NewClient(partsGRPCAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 	)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to create gRPC connection to parts-service")
@@ -205,6 +209,7 @@ func (g *Gateway) setupMiddleware() {
 	g.router.Use(g.loggingMiddleware())
 	g.router.Use(g.rateLimitingMiddleware())
 	g.router.Use(MetricsMiddleware())
+	g.router.Use(otelgin.Middleware("api-gateway"))
 }
 
 // setupRoutes настраивает все маршруты

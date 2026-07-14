@@ -15,6 +15,12 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"avtoplaneta/pkg/tracing"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 var redisClient *redis.Client
@@ -22,6 +28,17 @@ var redisClient *redis.Client
 func main() {
 	// Установка количества OS-тредов для оптимизации под доступное количество ядер
 	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	// Initialize OpenTelemetry Tracer
+	tp, err := tracing.InitTracer("parts-service")
+	if err != nil {
+		logrus.WithError(err).Fatal("failed to initialize tracer")
+	}
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			logrus.WithError(err).Error("failed to shutdown tracer")
+		}
+	}()
 
 	// Установка режима Gin в Release для продакшена
 	gin.SetMode(gin.ReleaseMode)
@@ -59,6 +76,11 @@ func main() {
 	}
 
 	// Создание зависимостей с dependency injection
+	// Настройка gRPC сервера с OpenTelemetry
+	grpcServer := grpc.NewServer(
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+	)
+	partsServiceServer := server.NewPartsServiceServer(dbPool, esClient, redisClient)
 	repo := NewPartRepository(dbPool)
 	service := NewInventoryService(repo, esClient, config)
 	handler := NewHandler(service)
@@ -98,6 +120,7 @@ func main() {
 	go StartXMLGenerationScheduler(ctx)
 
 	r := gin.Default()
+	r.Use(otelgin.Middleware("parts-service"))
 
 	// CORS middleware для кросс-доменных запросов
 	r.Use(CORSMiddleware())

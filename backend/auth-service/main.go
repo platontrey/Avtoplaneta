@@ -12,10 +12,28 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
+
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"avtoplaneta/pkg/tracing"
+	"google.golang.org/grpc"
 )
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	// Initialize OpenTelemetry Tracer
+	tp, err := tracing.InitTracer("auth-service")
+	if err != nil {
+		logrus.WithError(err).Fatal("failed to initialize tracer")
+	}
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			logrus.WithError(err).Error("failed to shutdown tracer")
+		}
+	}()
+
 	gin.SetMode(gin.ReleaseMode)
 
 	config := LoadConfig()
@@ -56,6 +74,7 @@ func main() {
 	}()
 
 	r := gin.Default()
+	r.Use(otelgin.Middleware("auth-service"))
 
 	err := r.SetTrustedProxies([]string{"127.0.0.1"})
 	if err != nil {
