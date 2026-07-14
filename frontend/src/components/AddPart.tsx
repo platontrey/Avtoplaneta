@@ -404,7 +404,7 @@ export default function AddPart() {
 
         try {
             // Сначала добавить запчасть
-            const response = await fetch(`${API_BASE_URL}/api/addpart`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/parts`, {
                 method: "POST",
                 headers: getAuthHeaders(),
                 credentials: 'include', // Include cookies in the request

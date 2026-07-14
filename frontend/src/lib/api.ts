@@ -13,7 +13,7 @@ export const ORDERS_API_URL = import.meta.env.VITE_API_BASE_URL || '';
 export const partsApi = {
   // Get all parts
   getAll: async (): Promise<Part[]> => {
-    const response = await fetch(`${API_BASE_URL}/api/inventory`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/parts/inventory`, {
       credentials: 'include',
     });
 
@@ -27,8 +27,8 @@ export const partsApi = {
 
   // Add new part
   create: async (partData: Omit<Part, 'id'>): Promise<Part> => {
-    console.log('partsApi.create: Отправка запроса на', `${API_BASE_URL}/api/addpart`, 'с данными:', partData);
-    const response = await fetch(`${API_BASE_URL}/api/addpart`, {
+    console.log('partsApi.create: Отправка запроса на', `${API_BASE_URL}/api/v1/parts`, 'с данными:', partData);
+    const response = await fetch(`${API_BASE_URL}/api/v1/parts`, {
       method: 'POST',
       headers: getAuthHeaders(),
       credentials: 'include',
@@ -49,7 +49,7 @@ export const partsApi = {
 
   // Update part
   update: async (id: number, partData: Partial<Part>): Promise<void> => {
-    const response = await fetch(`${API_BASE_URL}/api/updatepart/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/parts/${id}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       credentials: 'include',
@@ -65,7 +65,7 @@ export const partsApi = {
   // Delete part
   delete: async (id: number): Promise<void> => {
     console.log(`partsApi.delete: Deleting part with id ${id}`);
-    const response = await fetch(`${API_BASE_URL}/api/deletepart/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/parts/${id}`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
       credentials: 'include',
@@ -115,7 +115,7 @@ export const partsApi = {
 // Statistics API
 export const statisticsApi = {
   get: async (): Promise<StatisticsResponse> => {
-    const response = await fetch(`${API_BASE_URL}/api/statistics`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/statistics`, {
       credentials: 'include',
     });
 
