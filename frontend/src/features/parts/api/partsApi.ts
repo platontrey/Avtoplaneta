@@ -39,7 +39,7 @@ export const partsApi = {
       params.append('page', filters.page.toString());
     }
 
-    const url = `${API_BASE_URL}/api/inventory${params.toString() ? '?' + params.toString() : ''}`;
+    const url = `${API_BASE_URL}/api/v1/parts/inventory${params.toString() ? '?' + params.toString() : ''}`;
     console.log('partsApi.getAll: Fetching URL:', url);
 
     const response = await fetch(url, {
@@ -52,8 +52,8 @@ export const partsApi = {
     }
 
     const data = await response.json();
-    // Backend returns array directly, not wrapped in {parts: [...]}
-    return Array.isArray(data) ? data : [];
+    // grpc-gateway returns { "parts": [...] }
+    return data.parts || [];
   },
 
   // Add new part
@@ -61,7 +61,7 @@ export const partsApi = {
     console.log('partsApi.create: Attempting to create part');
     const headers = getAuthHeaders();
     console.log('partsApi.create: Headers being sent:', headers);
-    const response = await fetch(`${API_BASE_URL}/api/addpart`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/parts`, {
       method: 'POST',
       headers,
       credentials: 'include',
@@ -91,7 +91,7 @@ export const partsApi = {
 
   // Update part
   update: async (id: number, partData: Partial<Part>): Promise<Part> => {
-    const response = await fetch(`${API_BASE_URL}/api/updatepart/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/parts/${id}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       credentials: 'include',
@@ -125,7 +125,7 @@ export const partsApi = {
   // Delete part
   delete: async (id: number): Promise<void> => {
     console.log(`partsApi.delete: Deleting part with id ${id}`);
-    const response = await fetch(`${API_BASE_URL}/api/deletepart/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/parts/${id}`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
       credentials: 'include',

@@ -28,8 +28,8 @@ export default function BulkDeleteDialog({ isOpen, onClose, selectedPartIds, onS
 
     try {
       // Отправляем запрос на массовое удаление
-      const response = await fetch(`${API_BASE_URL}/api/admin/bulk-delete-parts`, {
-        method: 'DELETE',
+      const response = await fetch(`${API_BASE_URL}/api/v1/admin/parts/bulk-delete`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-CSRF-Token': getAuthHeaders()['X-CSRF-Token'] || '',

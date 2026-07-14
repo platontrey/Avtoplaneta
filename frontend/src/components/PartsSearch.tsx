@@ -233,7 +233,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         setIsSearching(true);
 
         try {
-            const url = `${API_BASE_URL}/api/inventory?search=${encodeURIComponent(query)}&limit=10`;
+            const url = `${API_BASE_URL}/api/v1/parts/inventory?search=${encodeURIComponent(query)}&limit=10`;
             const response = await fetch(url, {
                 credentials: 'include',
                 signal: abortControllerRef.current.signal

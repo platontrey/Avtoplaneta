@@ -234,7 +234,7 @@ function PartBlock({
 
         console.log('PartBlock handleDeletePhoto: START - photoPath:', photoPath);
         try {
-            const response = await fetch(`${API_BASE_URL}/api/deletepartphoto/${part.id}?photo=${encodeURIComponent(photoPath)}`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/parts/${part.id}/photo?photo_url=${encodeURIComponent(photoPath)}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders(),
                 credentials: 'include',
@@ -1093,7 +1093,7 @@ function PartBlock({
                     }
 
                     try {
-                        const deleteUrl = `${API_BASE_URL}/api/deletepartphoto/${part.id}?photo=${encodeURIComponent(photoToDelete)}`;
+                        const deleteUrl = `${API_BASE_URL}/api/v1/parts/${part.id}/photo?photo_url=${encodeURIComponent(photoToDelete)}`;
                         console.log('Отправка запроса на удаление:', deleteUrl);
 
                         const response = await fetch(deleteUrl, {

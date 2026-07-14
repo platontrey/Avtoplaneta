@@ -1,4 +1,4 @@
-﻿/*
+/*
 * Copyright (c) 2025 Avtoplaneta. All rights reserved.
 */
 
@@ -103,8 +103,8 @@ export default function BulkEditDialog({ isOpen, onClose, selectedPartIds, onSuc
       }));
 
       // Отправляем запрос на массовое обновление
-      const response = await fetch(`${API_BASE_URL}/api/admin/bulk-update-parts`, {
-        method: 'PUT',
+      const response = await fetch(`${API_BASE_URL}/api/v1/admin/parts/bulk-update`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-CSRF-Token': getAuthHeaders()['X-CSRF-Token'] || '',

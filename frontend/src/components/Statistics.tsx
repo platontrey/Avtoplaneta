@@ -41,7 +41,7 @@ function Statistics() {
 
   const fetchData = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/statistics`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/statistics`, {
         credentials: 'include', // Include cookies in the request
       });
       if (!response.ok) {

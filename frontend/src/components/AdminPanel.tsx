@@ -147,7 +147,7 @@ export default function AdminPanel() {
 
   const fetchSupplierCodes = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/supplier-codes`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/admin/supplier-codes`, {
         credentials: 'include',
       });
 
@@ -157,7 +157,7 @@ export default function AdminPanel() {
       }
 
       const data = await response.json();
-      setSupplierCodes(data.supplier_codes || []);
+      setSupplierCodes(data.codes || []);
     } catch (err) {
       console.error('Failed to fetch supplier codes:', err);
     }
@@ -426,10 +426,14 @@ export default function AdminPanel() {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/delete-zero-quantity-parts/${encodeURIComponent(selectedSupplierCode)}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
+      const response = await fetch(`${API_BASE_URL}/api/v1/admin/parts/zero-quantity`, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json'
+        },
         credentials: 'include',
+        body: JSON.stringify({ supplier_code: selectedSupplierCode })
       });
 
       if (!response.ok) {

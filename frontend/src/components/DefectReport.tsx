@@ -1637,7 +1637,7 @@ export default function DefectReport() {
         }),
       };
 
-      const response = await fetch(`${API_BASE_URL}/api/defect-reports`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/defect-reports`, {
         method: "POST",
         headers: getAuthHeaders(),
         credentials: 'include',

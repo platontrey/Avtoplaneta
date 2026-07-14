@@ -55,8 +55,9 @@ function PartSelector({ value, onChange, placeholder = "Выберите зап�
         setIsSearching(true);
 
         try {
-            const url = `${API_BASE_URL}/api/inventory?search=${encodeURIComponent(query)}&limit=20`;
+            const url = `${API_BASE_URL}/api/v1/parts/inventory?search=${encodeURIComponent(query)}&limit=20`;
             const response = await fetch(url, {
+                headers: getAuthHeaders(),
                 credentials: 'include',
                 signal: abortControllerRef.current.signal
             });
@@ -125,7 +126,8 @@ function PartSelector({ value, onChange, placeholder = "Выберите зап�
     useEffect(() => {
         const loadPopularParts = async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/inventory?limit=5`, {
+                const response = await fetch(`${API_BASE_URL}/api/v1/parts/inventory?limit=5`, {
+                    headers: getAuthHeaders(),
                     credentials: 'include'
                 });
                 if (response.ok) {
@@ -160,7 +162,8 @@ function PartSelector({ value, onChange, placeholder = "Выберите зап�
             // Загружаем информацию о выбранной запчасти
             const loadSelectedPart = async () => {
                 try {
-                    const response = await fetch(`${API_BASE_URL}/api/inventory/${value}`, {
+                    const response = await fetch(`${API_BASE_URL}/api/v1/parts/${value}`, {
+                        headers: getAuthHeaders(),
                         credentials: 'include'
                     });
                     if (response.ok) {
