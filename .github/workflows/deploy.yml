@@ -15,6 +15,12 @@ jobs:
           cd /opt/avtoplaneta
           git fetch --all
           git reset --hard origin/OptimizedBackend
-          docker compose build --pull
+          # Сборка сервисов последовательно для предотвращения kernel panic и снижения нагрузки на overlayfs/CPU
+          docker compose build --pull frontend
+          docker compose build --pull auth-service
+          docker compose build --pull parts-service
+          docker compose build --pull orders-service
+          docker compose build --pull messaging-service
+          docker compose build --pull gateway
           docker compose up -d --remove-orphans
           docker image prune -f
