@@ -5,6 +5,7 @@ RUN apk add --no-cache git ca-certificates tzdata
 WORKDIR /app
 
 COPY gen ../gen
+COPY pkg ../pkg
 COPY parts-service/go.mod parts-service/go.sum ./
 RUN go mod download
 COPY parts-service/ .

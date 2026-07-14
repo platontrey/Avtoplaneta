@@ -5,6 +5,7 @@ RUN apk add --no-cache git ca-certificates tzdata
 WORKDIR /app
 
 COPY gen ../gen
+COPY pkg ../pkg
 COPY messaging-service/go.mod messaging-service/go.sum ./
 RUN go mod download
 COPY messaging-service/ .
