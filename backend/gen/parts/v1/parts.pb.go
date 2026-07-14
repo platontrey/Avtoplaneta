@@ -7,6 +7,7 @@
 package partsv1
 
 import (
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -2964,7 +2965,7 @@ var File_parts_v1_parts_proto protoreflect.FileDescriptor
 
 const file_parts_v1_parts_proto_rawDesc = "" +
 	"\n" +
-	"\x14parts/v1/parts.proto\x12\bparts.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xaf\n" +
+	"\x14parts/v1/parts.proto\x12\bparts.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/api/annotations.proto\"\xaf\n" +
 	"\n" +
 	"\x04Part\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x12\n" +
@@ -3275,29 +3276,29 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x1eDeleteZeroQuantityPartsRequest\x12#\n" +
 	"\rsupplier_code\x18\x01 \x01(\tR\fsupplierCode\"F\n" +
 	"\x1fDeleteZeroQuantityPartsResponse\x12#\n" +
-	"\rdeleted_count\x18\x01 \x01(\x05R\fdeletedCount2\xb2\f\n" +
-	"\fPartsService\x12J\n" +
-	"\fGetInventory\x12\x1d.parts.v1.GetInventoryRequest\x1a\x1b.parts.v1.InventoryResponse\x123\n" +
-	"\aAddPart\x12\x18.parts.v1.AddPartRequest\x1a\x0e.parts.v1.Part\x129\n" +
+	"\rdeleted_count\x18\x01 \x01(\x05R\fdeletedCount2\xc0\x11\n" +
+	"\fPartsService\x12k\n" +
+	"\fGetInventory\x12\x1d.parts.v1.GetInventoryRequest\x1a\x1b.parts.v1.InventoryResponse\"\x1f\x82\xd3\xe4\x93\x02\x19\x12\x17/api/v1/parts/inventory\x12M\n" +
+	"\aAddPart\x12\x18.parts.v1.AddPartRequest\x1a\x0e.parts.v1.Part\"\x18\x82\xd3\xe4\x93\x02\x12:\x01*\"\r/api/v1/parts\x12X\n" +
 	"\n" +
-	"UpdatePart\x12\x1b.parts.v1.UpdatePartRequest\x1a\x0e.parts.v1.Part\x12G\n" +
+	"UpdatePart\x12\x1b.parts.v1.UpdatePartRequest\x1a\x0e.parts.v1.Part\"\x1d\x82\xd3\xe4\x93\x02\x17:\x01*\x1a\x12/api/v1/parts/{id}\x12c\n" +
 	"\n" +
-	"DeletePart\x12\x1b.parts.v1.DeletePartRequest\x1a\x1c.parts.v1.DeletePartResponse\x12K\n" +
-	"\x13MarkPartForDeletion\x12$.parts.v1.MarkPartForDeletionRequest\x1a\x0e.parts.v1.Part\x123\n" +
-	"\aGetPart\x12\x18.parts.v1.GetPartRequest\x1a\x0e.parts.v1.Part\x12a\n" +
-	"\x14DecreasePartQuantity\x12#.parts.v1.ChangePartQuantityRequest\x1a$.parts.v1.ChangePartQuantityResponse\x12a\n" +
-	"\x14IncreasePartQuantity\x12#.parts.v1.ChangePartQuantityRequest\x1a$.parts.v1.ChangePartQuantityResponse\x12V\n" +
-	"\x0fUploadPartPhoto\x12\x1e.parts.v1.UploadPartPhotoChunk\x1a!.parts.v1.UploadPartPhotoResponse(\x01\x12V\n" +
-	"\x0fDeletePartPhoto\x12 .parts.v1.DeletePartPhotoRequest\x1a!.parts.v1.DeletePartPhotoResponse\x12M\n" +
-	"\rGetStatistics\x12\x1e.parts.v1.GetStatisticsRequest\x1a\x1c.parts.v1.StatisticsResponse\x12S\n" +
-	"\x0eUpdateEarnings\x12\x1f.parts.v1.UpdateEarningsRequest\x1a .parts.v1.UpdateEarningsResponse\x12_\n" +
-	"\x12CreateDefectReport\x12#.parts.v1.CreateDefectReportRequest\x1a$.parts.v1.CreateDefectReportResponse\x12D\n" +
-	"\tExportXML\x12\x1a.parts.v1.ExportXMLRequest\x1a\x1b.parts.v1.ExportXMLResponse\x12b\n" +
-	"\x13SendPriceListToDrom\x12$.parts.v1.SendPriceListToDromRequest\x1a%.parts.v1.SendPriceListToDromResponse\x12V\n" +
-	"\x0fBulkDeleteParts\x12 .parts.v1.BulkDeletePartsRequest\x1a!.parts.v1.BulkDeletePartsResponse\x12V\n" +
-	"\x0fBulkUpdateParts\x12 .parts.v1.BulkUpdatePartsRequest\x1a!.parts.v1.BulkUpdatePartsResponse\x12V\n" +
-	"\x10GetSupplierCodes\x12!.parts.v1.GetSupplierCodesRequest\x1a\x1f.parts.v1.SupplierCodesResponse\x12n\n" +
-	"\x17DeleteZeroQuantityParts\x12(.parts.v1.DeleteZeroQuantityPartsRequest\x1a).parts.v1.DeleteZeroQuantityPartsResponseB\"Z avtoplaneta/gen/parts/v1;partsv1b\x06proto3"
+	"DeletePart\x12\x1b.parts.v1.DeletePartRequest\x1a\x1c.parts.v1.DeletePartResponse\"\x1a\x82\xd3\xe4\x93\x02\x14*\x12/api/v1/parts/{id}\x12x\n" +
+	"\x13MarkPartForDeletion\x12$.parts.v1.MarkPartForDeletionRequest\x1a\x0e.parts.v1.Part\"+\x82\xd3\xe4\x93\x02%:\x01*\" /api/v1/parts/{id}/mark-deletion\x12O\n" +
+	"\aGetPart\x12\x18.parts.v1.GetPartRequest\x1a\x0e.parts.v1.Part\"\x1a\x82\xd3\xe4\x93\x02\x14\x12\x12/api/v1/parts/{id}\x12\x89\x01\n" +
+	"\x14DecreasePartQuantity\x12#.parts.v1.ChangePartQuantityRequest\x1a$.parts.v1.ChangePartQuantityResponse\"&\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/api/v1/parts/{id}/decrease\x12\x89\x01\n" +
+	"\x14IncreasePartQuantity\x12#.parts.v1.ChangePartQuantityRequest\x1a$.parts.v1.ChangePartQuantityResponse\"&\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/api/v1/parts/{id}/increase\x12X\n" +
+	"\x0fUploadPartPhoto\x12\x1e.parts.v1.UploadPartPhotoChunk\x1a!.parts.v1.UploadPartPhotoResponse\"\x00(\x01\x12}\n" +
+	"\x0fDeletePartPhoto\x12 .parts.v1.DeletePartPhotoRequest\x1a!.parts.v1.DeletePartPhotoResponse\"%\x82\xd3\xe4\x93\x02\x1f*\x1d/api/v1/parts/{part_id}/photo\x12i\n" +
+	"\rGetStatistics\x12\x1e.parts.v1.GetStatisticsRequest\x1a\x1c.parts.v1.StatisticsResponse\"\x1a\x82\xd3\xe4\x93\x02\x14\x12\x12/api/v1/statistics\x12{\n" +
+	"\x0eUpdateEarnings\x12\x1f.parts.v1.UpdateEarningsRequest\x1a .parts.v1.UpdateEarningsResponse\"&\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/api/v1/statistics/earnings\x12\x82\x01\n" +
+	"\x12CreateDefectReport\x12#.parts.v1.CreateDefectReportRequest\x1a$.parts.v1.CreateDefectReportResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/api/v1/defect-reports\x12`\n" +
+	"\tExportXML\x12\x1a.parts.v1.ExportXMLRequest\x1a\x1b.parts.v1.ExportXMLResponse\"\x1a\x82\xd3\xe4\x93\x02\x14\x12\x12/api/v1/export/xml\x12\x82\x01\n" +
+	"\x13SendPriceListToDrom\x12$.parts.v1.SendPriceListToDromRequest\x1a%.parts.v1.SendPriceListToDromResponse\"\x1e\x82\xd3\xe4\x93\x02\x18:\x01*\"\x13/api/v1/export/drom\x12\x82\x01\n" +
+	"\x0fBulkDeleteParts\x12 .parts.v1.BulkDeletePartsRequest\x1a!.parts.v1.BulkDeletePartsResponse\"*\x82\xd3\xe4\x93\x02$:\x01*\"\x1f/api/v1/admin/parts/bulk-delete\x12\x82\x01\n" +
+	"\x0fBulkUpdateParts\x12 .parts.v1.BulkUpdatePartsRequest\x1a!.parts.v1.BulkUpdatePartsResponse\"*\x82\xd3\xe4\x93\x02$:\x01*\"\x1f/api/v1/admin/parts/bulk-update\x12|\n" +
+	"\x10GetSupplierCodes\x12!.parts.v1.GetSupplierCodesRequest\x1a\x1f.parts.v1.SupplierCodesResponse\"$\x82\xd3\xe4\x93\x02\x1e\x12\x1c/api/v1/admin/supplier-codes\x12\x9c\x01\n" +
+	"\x17DeleteZeroQuantityParts\x12(.parts.v1.DeleteZeroQuantityPartsRequest\x1a).parts.v1.DeleteZeroQuantityPartsResponse\",\x82\xd3\xe4\x93\x02&:\x01*\"!/api/v1/admin/parts/zero-quantityB\"Z avtoplaneta/gen/parts/v1;partsv1b\x06proto3"
 
 var (
 	file_parts_v1_parts_proto_rawDescOnce sync.Once

@@ -54,7 +54,7 @@ type PartsServiceClient interface {
 	// Изменение количества
 	DecreasePartQuantity(ctx context.Context, in *ChangePartQuantityRequest, opts ...grpc.CallOption) (*ChangePartQuantityResponse, error)
 	IncreasePartQuantity(ctx context.Context, in *ChangePartQuantityRequest, opts ...grpc.CallOption) (*ChangePartQuantityResponse, error)
-	// Фото
+	// Фото - note: multipart streams are tricky via grpc-gateway, better to use HTTP handler directly, but we map them anyway
 	UploadPartPhoto(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadPartPhotoChunk, UploadPartPhotoResponse], error)
 	DeletePartPhoto(ctx context.Context, in *DeletePartPhotoRequest, opts ...grpc.CallOption) (*DeletePartPhotoResponse, error)
 	// Статистика
@@ -287,7 +287,7 @@ type PartsServiceServer interface {
 	// Изменение количества
 	DecreasePartQuantity(context.Context, *ChangePartQuantityRequest) (*ChangePartQuantityResponse, error)
 	IncreasePartQuantity(context.Context, *ChangePartQuantityRequest) (*ChangePartQuantityResponse, error)
-	// Фото
+	// Фото - note: multipart streams are tricky via grpc-gateway, better to use HTTP handler directly, but we map them anyway
 	UploadPartPhoto(grpc.ClientStreamingServer[UploadPartPhotoChunk, UploadPartPhotoResponse]) error
 	DeletePartPhoto(context.Context, *DeletePartPhotoRequest) (*DeletePartPhotoResponse, error)
 	// Статистика

@@ -35,16 +35,21 @@ var (
 	_ = metadata.Join
 )
 
+var filter_PartsService_GetInventory_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+
 func request_PartsService_GetInventory_0(ctx context.Context, marshaler runtime.Marshaler, client PartsServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
 		protoReq GetInventoryRequest
 		metadata runtime.ServerMetadata
 	)
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
 	if req.Body != nil {
 		_, _ = io.Copy(io.Discard, req.Body)
+	}
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_PartsService_GetInventory_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 	msg, err := client.GetInventory(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
@@ -55,7 +60,10 @@ func local_request_PartsService_GetInventory_0(ctx context.Context, marshaler ru
 		protoReq GetInventoryRequest
 		metadata runtime.ServerMetadata
 	)
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_PartsService_GetInventory_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 	msg, err := server.GetInventory(ctx, &protoReq)
@@ -93,12 +101,21 @@ func request_PartsService_UpdatePart_0(ctx context.Context, marshaler runtime.Ma
 	var (
 		protoReq UpdatePartRequest
 		metadata runtime.ServerMetadata
+		err      error
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 	if req.Body != nil {
 		_, _ = io.Copy(io.Discard, req.Body)
+	}
+	val, ok := pathParams["id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id")
+	}
+	protoReq.Id, err = runtime.Uint32(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id", err)
 	}
 	msg, err := client.UpdatePart(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
@@ -108,9 +125,18 @@ func local_request_PartsService_UpdatePart_0(ctx context.Context, marshaler runt
 	var (
 		protoReq UpdatePartRequest
 		metadata runtime.ServerMetadata
+		err      error
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	val, ok := pathParams["id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id")
+	}
+	protoReq.Id, err = runtime.Uint32(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id", err)
 	}
 	msg, err := server.UpdatePart(ctx, &protoReq)
 	return msg, metadata, err
@@ -120,12 +146,18 @@ func request_PartsService_DeletePart_0(ctx context.Context, marshaler runtime.Ma
 	var (
 		protoReq DeletePartRequest
 		metadata runtime.ServerMetadata
+		err      error
 	)
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
 	if req.Body != nil {
 		_, _ = io.Copy(io.Discard, req.Body)
+	}
+	val, ok := pathParams["id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id")
+	}
+	protoReq.Id, err = runtime.Uint32(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id", err)
 	}
 	msg, err := client.DeletePart(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
@@ -135,9 +167,15 @@ func local_request_PartsService_DeletePart_0(ctx context.Context, marshaler runt
 	var (
 		protoReq DeletePartRequest
 		metadata runtime.ServerMetadata
+		err      error
 	)
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	val, ok := pathParams["id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id")
+	}
+	protoReq.Id, err = runtime.Uint32(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id", err)
 	}
 	msg, err := server.DeletePart(ctx, &protoReq)
 	return msg, metadata, err
@@ -147,12 +185,21 @@ func request_PartsService_MarkPartForDeletion_0(ctx context.Context, marshaler r
 	var (
 		protoReq MarkPartForDeletionRequest
 		metadata runtime.ServerMetadata
+		err      error
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 	if req.Body != nil {
 		_, _ = io.Copy(io.Discard, req.Body)
+	}
+	val, ok := pathParams["id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id")
+	}
+	protoReq.Id, err = runtime.Uint32(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id", err)
 	}
 	msg, err := client.MarkPartForDeletion(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
@@ -162,9 +209,18 @@ func local_request_PartsService_MarkPartForDeletion_0(ctx context.Context, marsh
 	var (
 		protoReq MarkPartForDeletionRequest
 		metadata runtime.ServerMetadata
+		err      error
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	val, ok := pathParams["id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id")
+	}
+	protoReq.Id, err = runtime.Uint32(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id", err)
 	}
 	msg, err := server.MarkPartForDeletion(ctx, &protoReq)
 	return msg, metadata, err
@@ -174,12 +230,18 @@ func request_PartsService_GetPart_0(ctx context.Context, marshaler runtime.Marsh
 	var (
 		protoReq GetPartRequest
 		metadata runtime.ServerMetadata
+		err      error
 	)
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
 	if req.Body != nil {
 		_, _ = io.Copy(io.Discard, req.Body)
+	}
+	val, ok := pathParams["id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id")
+	}
+	protoReq.Id, err = runtime.Uint32(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id", err)
 	}
 	msg, err := client.GetPart(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
@@ -189,9 +251,15 @@ func local_request_PartsService_GetPart_0(ctx context.Context, marshaler runtime
 	var (
 		protoReq GetPartRequest
 		metadata runtime.ServerMetadata
+		err      error
 	)
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	val, ok := pathParams["id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id")
+	}
+	protoReq.Id, err = runtime.Uint32(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id", err)
 	}
 	msg, err := server.GetPart(ctx, &protoReq)
 	return msg, metadata, err
@@ -201,12 +269,21 @@ func request_PartsService_DecreasePartQuantity_0(ctx context.Context, marshaler 
 	var (
 		protoReq ChangePartQuantityRequest
 		metadata runtime.ServerMetadata
+		err      error
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 	if req.Body != nil {
 		_, _ = io.Copy(io.Discard, req.Body)
+	}
+	val, ok := pathParams["id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id")
+	}
+	protoReq.Id, err = runtime.Uint32(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id", err)
 	}
 	msg, err := client.DecreasePartQuantity(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
@@ -216,9 +293,18 @@ func local_request_PartsService_DecreasePartQuantity_0(ctx context.Context, mars
 	var (
 		protoReq ChangePartQuantityRequest
 		metadata runtime.ServerMetadata
+		err      error
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	val, ok := pathParams["id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id")
+	}
+	protoReq.Id, err = runtime.Uint32(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id", err)
 	}
 	msg, err := server.DecreasePartQuantity(ctx, &protoReq)
 	return msg, metadata, err
@@ -228,12 +314,21 @@ func request_PartsService_IncreasePartQuantity_0(ctx context.Context, marshaler 
 	var (
 		protoReq ChangePartQuantityRequest
 		metadata runtime.ServerMetadata
+		err      error
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 	if req.Body != nil {
 		_, _ = io.Copy(io.Discard, req.Body)
+	}
+	val, ok := pathParams["id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id")
+	}
+	protoReq.Id, err = runtime.Uint32(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id", err)
 	}
 	msg, err := client.IncreasePartQuantity(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
@@ -243,9 +338,18 @@ func local_request_PartsService_IncreasePartQuantity_0(ctx context.Context, mars
 	var (
 		protoReq ChangePartQuantityRequest
 		metadata runtime.ServerMetadata
+		err      error
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	val, ok := pathParams["id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id")
+	}
+	protoReq.Id, err = runtime.Uint32(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id", err)
 	}
 	msg, err := server.IncreasePartQuantity(ctx, &protoReq)
 	return msg, metadata, err
@@ -292,16 +396,30 @@ func request_PartsService_UploadPartPhoto_0(ctx context.Context, marshaler runti
 	return msg, metadata, err
 }
 
+var filter_PartsService_DeletePartPhoto_0 = &utilities.DoubleArray{Encoding: map[string]int{"part_id": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+
 func request_PartsService_DeletePartPhoto_0(ctx context.Context, marshaler runtime.Marshaler, client PartsServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
 		protoReq DeletePartPhotoRequest
 		metadata runtime.ServerMetadata
+		err      error
 	)
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
 	if req.Body != nil {
 		_, _ = io.Copy(io.Discard, req.Body)
+	}
+	val, ok := pathParams["part_id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "part_id")
+	}
+	protoReq.PartId, err = runtime.Uint32(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "part_id", err)
+	}
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_PartsService_DeletePartPhoto_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 	msg, err := client.DeletePartPhoto(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
@@ -311,8 +429,20 @@ func local_request_PartsService_DeletePartPhoto_0(ctx context.Context, marshaler
 	var (
 		protoReq DeletePartPhotoRequest
 		metadata runtime.ServerMetadata
+		err      error
 	)
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
+	val, ok := pathParams["part_id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "part_id")
+	}
+	protoReq.PartId, err = runtime.Uint32(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "part_id", err)
+	}
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_PartsService_DeletePartPhoto_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 	msg, err := server.DeletePartPhoto(ctx, &protoReq)
@@ -324,9 +454,6 @@ func request_PartsService_GetStatistics_0(ctx context.Context, marshaler runtime
 		protoReq GetStatisticsRequest
 		metadata runtime.ServerMetadata
 	)
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
 	if req.Body != nil {
 		_, _ = io.Copy(io.Discard, req.Body)
 	}
@@ -339,9 +466,6 @@ func local_request_PartsService_GetStatistics_0(ctx context.Context, marshaler r
 		protoReq GetStatisticsRequest
 		metadata runtime.ServerMetadata
 	)
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
 	msg, err := server.GetStatistics(ctx, &protoReq)
 	return msg, metadata, err
 }
@@ -405,9 +529,6 @@ func request_PartsService_ExportXML_0(ctx context.Context, marshaler runtime.Mar
 		protoReq ExportXMLRequest
 		metadata runtime.ServerMetadata
 	)
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
 	if req.Body != nil {
 		_, _ = io.Copy(io.Discard, req.Body)
 	}
@@ -420,9 +541,6 @@ func local_request_PartsService_ExportXML_0(ctx context.Context, marshaler runti
 		protoReq ExportXMLRequest
 		metadata runtime.ServerMetadata
 	)
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
 	msg, err := server.ExportXML(ctx, &protoReq)
 	return msg, metadata, err
 }
@@ -513,9 +631,6 @@ func request_PartsService_GetSupplierCodes_0(ctx context.Context, marshaler runt
 		protoReq GetSupplierCodesRequest
 		metadata runtime.ServerMetadata
 	)
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
 	if req.Body != nil {
 		_, _ = io.Copy(io.Discard, req.Body)
 	}
@@ -528,9 +643,6 @@ func local_request_PartsService_GetSupplierCodes_0(ctx context.Context, marshale
 		protoReq GetSupplierCodesRequest
 		metadata runtime.ServerMetadata
 	)
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
 	msg, err := server.GetSupplierCodes(ctx, &protoReq)
 	return msg, metadata, err
 }
@@ -568,13 +680,13 @@ func local_request_PartsService_DeleteZeroQuantityParts_0(ctx context.Context, m
 // Note that using this registration option will cause many gRPC library features to stop working. Consider using RegisterPartsServiceHandlerFromEndpoint instead.
 // GRPC interceptors will not work for this type of registration. To use interceptors, you must use the "runtime.WithMiddlewares" option in the "runtime.NewServeMux" call.
 func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux, server PartsServiceServer) error {
-	mux.Handle(http.MethodPost, pattern_PartsService_GetInventory_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodGet, pattern_PartsService_GetInventory_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/GetInventory", runtime.WithHTTPPathPattern("/parts.v1.PartsService/GetInventory"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/GetInventory", runtime.WithHTTPPathPattern("/api/v1/parts/inventory"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -594,7 +706,7 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/AddPart", runtime.WithHTTPPathPattern("/parts.v1.PartsService/AddPart"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/AddPart", runtime.WithHTTPPathPattern("/api/v1/parts"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -608,13 +720,13 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 		}
 		forward_PartsService_AddPart_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
-	mux.Handle(http.MethodPost, pattern_PartsService_UpdatePart_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodPut, pattern_PartsService_UpdatePart_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/UpdatePart", runtime.WithHTTPPathPattern("/parts.v1.PartsService/UpdatePart"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/UpdatePart", runtime.WithHTTPPathPattern("/api/v1/parts/{id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -628,13 +740,13 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 		}
 		forward_PartsService_UpdatePart_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
-	mux.Handle(http.MethodPost, pattern_PartsService_DeletePart_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodDelete, pattern_PartsService_DeletePart_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/DeletePart", runtime.WithHTTPPathPattern("/parts.v1.PartsService/DeletePart"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/DeletePart", runtime.WithHTTPPathPattern("/api/v1/parts/{id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -654,7 +766,7 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/MarkPartForDeletion", runtime.WithHTTPPathPattern("/parts.v1.PartsService/MarkPartForDeletion"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/MarkPartForDeletion", runtime.WithHTTPPathPattern("/api/v1/parts/{id}/mark-deletion"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -668,13 +780,13 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 		}
 		forward_PartsService_MarkPartForDeletion_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
-	mux.Handle(http.MethodPost, pattern_PartsService_GetPart_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodGet, pattern_PartsService_GetPart_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/GetPart", runtime.WithHTTPPathPattern("/parts.v1.PartsService/GetPart"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/GetPart", runtime.WithHTTPPathPattern("/api/v1/parts/{id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -694,7 +806,7 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/DecreasePartQuantity", runtime.WithHTTPPathPattern("/parts.v1.PartsService/DecreasePartQuantity"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/DecreasePartQuantity", runtime.WithHTTPPathPattern("/api/v1/parts/{id}/decrease"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -714,7 +826,7 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/IncreasePartQuantity", runtime.WithHTTPPathPattern("/parts.v1.PartsService/IncreasePartQuantity"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/IncreasePartQuantity", runtime.WithHTTPPathPattern("/api/v1/parts/{id}/increase"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -735,13 +847,13 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 		runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 		return
 	})
-	mux.Handle(http.MethodPost, pattern_PartsService_DeletePartPhoto_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodDelete, pattern_PartsService_DeletePartPhoto_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/DeletePartPhoto", runtime.WithHTTPPathPattern("/parts.v1.PartsService/DeletePartPhoto"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/DeletePartPhoto", runtime.WithHTTPPathPattern("/api/v1/parts/{part_id}/photo"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -755,13 +867,13 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 		}
 		forward_PartsService_DeletePartPhoto_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
-	mux.Handle(http.MethodPost, pattern_PartsService_GetStatistics_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodGet, pattern_PartsService_GetStatistics_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/GetStatistics", runtime.WithHTTPPathPattern("/parts.v1.PartsService/GetStatistics"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/GetStatistics", runtime.WithHTTPPathPattern("/api/v1/statistics"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -781,7 +893,7 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/UpdateEarnings", runtime.WithHTTPPathPattern("/parts.v1.PartsService/UpdateEarnings"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/UpdateEarnings", runtime.WithHTTPPathPattern("/api/v1/statistics/earnings"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -801,7 +913,7 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/CreateDefectReport", runtime.WithHTTPPathPattern("/parts.v1.PartsService/CreateDefectReport"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/CreateDefectReport", runtime.WithHTTPPathPattern("/api/v1/defect-reports"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -815,13 +927,13 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 		}
 		forward_PartsService_CreateDefectReport_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
-	mux.Handle(http.MethodPost, pattern_PartsService_ExportXML_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodGet, pattern_PartsService_ExportXML_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/ExportXML", runtime.WithHTTPPathPattern("/parts.v1.PartsService/ExportXML"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/ExportXML", runtime.WithHTTPPathPattern("/api/v1/export/xml"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -841,7 +953,7 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/SendPriceListToDrom", runtime.WithHTTPPathPattern("/parts.v1.PartsService/SendPriceListToDrom"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/SendPriceListToDrom", runtime.WithHTTPPathPattern("/api/v1/export/drom"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -861,7 +973,7 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/BulkDeleteParts", runtime.WithHTTPPathPattern("/parts.v1.PartsService/BulkDeleteParts"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/BulkDeleteParts", runtime.WithHTTPPathPattern("/api/v1/admin/parts/bulk-delete"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -881,7 +993,7 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/BulkUpdateParts", runtime.WithHTTPPathPattern("/parts.v1.PartsService/BulkUpdateParts"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/BulkUpdateParts", runtime.WithHTTPPathPattern("/api/v1/admin/parts/bulk-update"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -895,13 +1007,13 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 		}
 		forward_PartsService_BulkUpdateParts_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
-	mux.Handle(http.MethodPost, pattern_PartsService_GetSupplierCodes_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodGet, pattern_PartsService_GetSupplierCodes_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/GetSupplierCodes", runtime.WithHTTPPathPattern("/parts.v1.PartsService/GetSupplierCodes"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/GetSupplierCodes", runtime.WithHTTPPathPattern("/api/v1/admin/supplier-codes"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -921,7 +1033,7 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/DeleteZeroQuantityParts", runtime.WithHTTPPathPattern("/parts.v1.PartsService/DeleteZeroQuantityParts"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/DeleteZeroQuantityParts", runtime.WithHTTPPathPattern("/api/v1/admin/parts/zero-quantity"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -975,11 +1087,11 @@ func RegisterPartsServiceHandler(ctx context.Context, mux *runtime.ServeMux, con
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
 // "PartsServiceClient" to call the correct interceptors. This client ignores the HTTP middlewares.
 func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux, client PartsServiceClient) error {
-	mux.Handle(http.MethodPost, pattern_PartsService_GetInventory_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodGet, pattern_PartsService_GetInventory_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/GetInventory", runtime.WithHTTPPathPattern("/parts.v1.PartsService/GetInventory"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/GetInventory", runtime.WithHTTPPathPattern("/api/v1/parts/inventory"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -996,7 +1108,7 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/AddPart", runtime.WithHTTPPathPattern("/parts.v1.PartsService/AddPart"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/AddPart", runtime.WithHTTPPathPattern("/api/v1/parts"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1009,11 +1121,11 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 		}
 		forward_PartsService_AddPart_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
-	mux.Handle(http.MethodPost, pattern_PartsService_UpdatePart_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodPut, pattern_PartsService_UpdatePart_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/UpdatePart", runtime.WithHTTPPathPattern("/parts.v1.PartsService/UpdatePart"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/UpdatePart", runtime.WithHTTPPathPattern("/api/v1/parts/{id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1026,11 +1138,11 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 		}
 		forward_PartsService_UpdatePart_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
-	mux.Handle(http.MethodPost, pattern_PartsService_DeletePart_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodDelete, pattern_PartsService_DeletePart_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/DeletePart", runtime.WithHTTPPathPattern("/parts.v1.PartsService/DeletePart"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/DeletePart", runtime.WithHTTPPathPattern("/api/v1/parts/{id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1047,7 +1159,7 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/MarkPartForDeletion", runtime.WithHTTPPathPattern("/parts.v1.PartsService/MarkPartForDeletion"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/MarkPartForDeletion", runtime.WithHTTPPathPattern("/api/v1/parts/{id}/mark-deletion"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1060,11 +1172,11 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 		}
 		forward_PartsService_MarkPartForDeletion_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
-	mux.Handle(http.MethodPost, pattern_PartsService_GetPart_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodGet, pattern_PartsService_GetPart_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/GetPart", runtime.WithHTTPPathPattern("/parts.v1.PartsService/GetPart"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/GetPart", runtime.WithHTTPPathPattern("/api/v1/parts/{id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1081,7 +1193,7 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/DecreasePartQuantity", runtime.WithHTTPPathPattern("/parts.v1.PartsService/DecreasePartQuantity"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/DecreasePartQuantity", runtime.WithHTTPPathPattern("/api/v1/parts/{id}/decrease"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1098,7 +1210,7 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/IncreasePartQuantity", runtime.WithHTTPPathPattern("/parts.v1.PartsService/IncreasePartQuantity"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/IncreasePartQuantity", runtime.WithHTTPPathPattern("/api/v1/parts/{id}/increase"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1128,11 +1240,11 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 		}
 		forward_PartsService_UploadPartPhoto_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
-	mux.Handle(http.MethodPost, pattern_PartsService_DeletePartPhoto_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodDelete, pattern_PartsService_DeletePartPhoto_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/DeletePartPhoto", runtime.WithHTTPPathPattern("/parts.v1.PartsService/DeletePartPhoto"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/DeletePartPhoto", runtime.WithHTTPPathPattern("/api/v1/parts/{part_id}/photo"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1145,11 +1257,11 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 		}
 		forward_PartsService_DeletePartPhoto_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
-	mux.Handle(http.MethodPost, pattern_PartsService_GetStatistics_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodGet, pattern_PartsService_GetStatistics_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/GetStatistics", runtime.WithHTTPPathPattern("/parts.v1.PartsService/GetStatistics"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/GetStatistics", runtime.WithHTTPPathPattern("/api/v1/statistics"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1166,7 +1278,7 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/UpdateEarnings", runtime.WithHTTPPathPattern("/parts.v1.PartsService/UpdateEarnings"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/UpdateEarnings", runtime.WithHTTPPathPattern("/api/v1/statistics/earnings"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1183,7 +1295,7 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/CreateDefectReport", runtime.WithHTTPPathPattern("/parts.v1.PartsService/CreateDefectReport"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/CreateDefectReport", runtime.WithHTTPPathPattern("/api/v1/defect-reports"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1196,11 +1308,11 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 		}
 		forward_PartsService_CreateDefectReport_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
-	mux.Handle(http.MethodPost, pattern_PartsService_ExportXML_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodGet, pattern_PartsService_ExportXML_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/ExportXML", runtime.WithHTTPPathPattern("/parts.v1.PartsService/ExportXML"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/ExportXML", runtime.WithHTTPPathPattern("/api/v1/export/xml"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1217,7 +1329,7 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/SendPriceListToDrom", runtime.WithHTTPPathPattern("/parts.v1.PartsService/SendPriceListToDrom"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/SendPriceListToDrom", runtime.WithHTTPPathPattern("/api/v1/export/drom"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1234,7 +1346,7 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/BulkDeleteParts", runtime.WithHTTPPathPattern("/parts.v1.PartsService/BulkDeleteParts"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/BulkDeleteParts", runtime.WithHTTPPathPattern("/api/v1/admin/parts/bulk-delete"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1251,7 +1363,7 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/BulkUpdateParts", runtime.WithHTTPPathPattern("/parts.v1.PartsService/BulkUpdateParts"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/BulkUpdateParts", runtime.WithHTTPPathPattern("/api/v1/admin/parts/bulk-update"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1264,11 +1376,11 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 		}
 		forward_PartsService_BulkUpdateParts_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
-	mux.Handle(http.MethodPost, pattern_PartsService_GetSupplierCodes_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodGet, pattern_PartsService_GetSupplierCodes_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/GetSupplierCodes", runtime.WithHTTPPathPattern("/parts.v1.PartsService/GetSupplierCodes"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/GetSupplierCodes", runtime.WithHTTPPathPattern("/api/v1/admin/supplier-codes"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1285,7 +1397,7 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/DeleteZeroQuantityParts", runtime.WithHTTPPathPattern("/parts.v1.PartsService/DeleteZeroQuantityParts"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/DeleteZeroQuantityParts", runtime.WithHTTPPathPattern("/api/v1/admin/parts/zero-quantity"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1302,25 +1414,25 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 }
 
 var (
-	pattern_PartsService_GetInventory_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"parts.v1.PartsService", "GetInventory"}, ""))
-	pattern_PartsService_AddPart_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"parts.v1.PartsService", "AddPart"}, ""))
-	pattern_PartsService_UpdatePart_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"parts.v1.PartsService", "UpdatePart"}, ""))
-	pattern_PartsService_DeletePart_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"parts.v1.PartsService", "DeletePart"}, ""))
-	pattern_PartsService_MarkPartForDeletion_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"parts.v1.PartsService", "MarkPartForDeletion"}, ""))
-	pattern_PartsService_GetPart_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"parts.v1.PartsService", "GetPart"}, ""))
-	pattern_PartsService_DecreasePartQuantity_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"parts.v1.PartsService", "DecreasePartQuantity"}, ""))
-	pattern_PartsService_IncreasePartQuantity_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"parts.v1.PartsService", "IncreasePartQuantity"}, ""))
+	pattern_PartsService_GetInventory_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "parts", "inventory"}, ""))
+	pattern_PartsService_AddPart_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "parts"}, ""))
+	pattern_PartsService_UpdatePart_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "parts", "id"}, ""))
+	pattern_PartsService_DeletePart_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "parts", "id"}, ""))
+	pattern_PartsService_MarkPartForDeletion_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "parts", "id", "mark-deletion"}, ""))
+	pattern_PartsService_GetPart_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "parts", "id"}, ""))
+	pattern_PartsService_DecreasePartQuantity_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "parts", "id", "decrease"}, ""))
+	pattern_PartsService_IncreasePartQuantity_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "parts", "id", "increase"}, ""))
 	pattern_PartsService_UploadPartPhoto_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"parts.v1.PartsService", "UploadPartPhoto"}, ""))
-	pattern_PartsService_DeletePartPhoto_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"parts.v1.PartsService", "DeletePartPhoto"}, ""))
-	pattern_PartsService_GetStatistics_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"parts.v1.PartsService", "GetStatistics"}, ""))
-	pattern_PartsService_UpdateEarnings_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"parts.v1.PartsService", "UpdateEarnings"}, ""))
-	pattern_PartsService_CreateDefectReport_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"parts.v1.PartsService", "CreateDefectReport"}, ""))
-	pattern_PartsService_ExportXML_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"parts.v1.PartsService", "ExportXML"}, ""))
-	pattern_PartsService_SendPriceListToDrom_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"parts.v1.PartsService", "SendPriceListToDrom"}, ""))
-	pattern_PartsService_BulkDeleteParts_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"parts.v1.PartsService", "BulkDeleteParts"}, ""))
-	pattern_PartsService_BulkUpdateParts_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"parts.v1.PartsService", "BulkUpdateParts"}, ""))
-	pattern_PartsService_GetSupplierCodes_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"parts.v1.PartsService", "GetSupplierCodes"}, ""))
-	pattern_PartsService_DeleteZeroQuantityParts_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"parts.v1.PartsService", "DeleteZeroQuantityParts"}, ""))
+	pattern_PartsService_DeletePartPhoto_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "parts", "part_id", "photo"}, ""))
+	pattern_PartsService_GetStatistics_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "statistics"}, ""))
+	pattern_PartsService_UpdateEarnings_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "statistics", "earnings"}, ""))
+	pattern_PartsService_CreateDefectReport_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "defect-reports"}, ""))
+	pattern_PartsService_ExportXML_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "export", "xml"}, ""))
+	pattern_PartsService_SendPriceListToDrom_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "export", "drom"}, ""))
+	pattern_PartsService_BulkDeleteParts_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "admin", "parts", "bulk-delete"}, ""))
+	pattern_PartsService_BulkUpdateParts_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "admin", "parts", "bulk-update"}, ""))
+	pattern_PartsService_GetSupplierCodes_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "admin", "supplier-codes"}, ""))
+	pattern_PartsService_DeleteZeroQuantityParts_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "admin", "parts", "zero-quantity"}, ""))
 )
 
 var (

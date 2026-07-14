@@ -3,40 +3,126 @@ package parts.v1;
 option go_package = "avtoplaneta/gen/parts/v1;partsv1";
 
 import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
 
 service PartsService {
   // Инвентарь
-  rpc GetInventory(GetInventoryRequest) returns (InventoryResponse);
-  rpc AddPart(AddPartRequest) returns (Part);
-  rpc UpdatePart(UpdatePartRequest) returns (Part);
-  rpc DeletePart(DeletePartRequest) returns (DeletePartResponse);
-  rpc MarkPartForDeletion(MarkPartForDeletionRequest) returns (Part);
-  rpc GetPart(GetPartRequest) returns (Part);
+  rpc GetInventory(GetInventoryRequest) returns (InventoryResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/parts/inventory"
+    };
+  }
+  rpc AddPart(AddPartRequest) returns (Part) {
+    option (google.api.http) = {
+      post: "/api/v1/parts"
+      body: "*"
+    };
+  }
+  rpc UpdatePart(UpdatePartRequest) returns (Part) {
+    option (google.api.http) = {
+      put: "/api/v1/parts/{id}"
+      body: "*"
+    };
+  }
+  rpc DeletePart(DeletePartRequest) returns (DeletePartResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/parts/{id}"
+    };
+  }
+  rpc MarkPartForDeletion(MarkPartForDeletionRequest) returns (Part) {
+    option (google.api.http) = {
+      post: "/api/v1/parts/{id}/mark-deletion"
+      body: "*"
+    };
+  }
+  rpc GetPart(GetPartRequest) returns (Part) {
+    option (google.api.http) = {
+      get: "/api/v1/parts/{id}"
+    };
+  }
 
   // Изменение количества
-  rpc DecreasePartQuantity(ChangePartQuantityRequest) returns (ChangePartQuantityResponse);
-  rpc IncreasePartQuantity(ChangePartQuantityRequest) returns (ChangePartQuantityResponse);
+  rpc DecreasePartQuantity(ChangePartQuantityRequest) returns (ChangePartQuantityResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/parts/{id}/decrease"
+      body: "*"
+    };
+  }
+  rpc IncreasePartQuantity(ChangePartQuantityRequest) returns (ChangePartQuantityResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/parts/{id}/increase"
+      body: "*"
+    };
+  }
 
-  // Фото
-  rpc UploadPartPhoto(stream UploadPartPhotoChunk) returns (UploadPartPhotoResponse);
-  rpc DeletePartPhoto(DeletePartPhotoRequest) returns (DeletePartPhotoResponse);
+  // Фото - note: multipart streams are tricky via grpc-gateway, better to use HTTP handler directly, but we map them anyway
+  rpc UploadPartPhoto(stream UploadPartPhotoChunk) returns (UploadPartPhotoResponse) {
+    // Cannot easily map streaming request body in standard way
+  }
+  rpc DeletePartPhoto(DeletePartPhotoRequest) returns (DeletePartPhotoResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/parts/{part_id}/photo"
+    };
+  }
 
   // Статистика
-  rpc GetStatistics(GetStatisticsRequest) returns (StatisticsResponse);
-  rpc UpdateEarnings(UpdateEarningsRequest) returns (UpdateEarningsResponse);
+  rpc GetStatistics(GetStatisticsRequest) returns (StatisticsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/statistics"
+    };
+  }
+  rpc UpdateEarnings(UpdateEarningsRequest) returns (UpdateEarningsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/statistics/earnings"
+      body: "*"
+    };
+  }
 
   // Дефект-отчёты
-  rpc CreateDefectReport(CreateDefectReportRequest) returns (CreateDefectReportResponse);
+  rpc CreateDefectReport(CreateDefectReportRequest) returns (CreateDefectReportResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/defect-reports"
+      body: "*"
+    };
+  }
 
   // Экспорт
-  rpc ExportXML(ExportXMLRequest) returns (ExportXMLResponse);
-  rpc SendPriceListToDrom(SendPriceListToDromRequest) returns (SendPriceListToDromResponse);
+  rpc ExportXML(ExportXMLRequest) returns (ExportXMLResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/export/xml"
+    };
+  }
+  rpc SendPriceListToDrom(SendPriceListToDromRequest) returns (SendPriceListToDromResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/export/drom"
+      body: "*"
+    };
+  }
 
   // Админ-операции
-  rpc BulkDeleteParts(BulkDeletePartsRequest) returns (BulkDeletePartsResponse);
-  rpc BulkUpdateParts(BulkUpdatePartsRequest) returns (BulkUpdatePartsResponse);
-  rpc GetSupplierCodes(GetSupplierCodesRequest) returns (SupplierCodesResponse);
-  rpc DeleteZeroQuantityParts(DeleteZeroQuantityPartsRequest) returns (DeleteZeroQuantityPartsResponse);
+  rpc BulkDeleteParts(BulkDeletePartsRequest) returns (BulkDeletePartsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/admin/parts/bulk-delete"
+      body: "*"
+    };
+  }
+  rpc BulkUpdateParts(BulkUpdatePartsRequest) returns (BulkUpdatePartsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/admin/parts/bulk-update"
+      body: "*"
+    };
+  }
+  rpc GetSupplierCodes(GetSupplierCodesRequest) returns (SupplierCodesResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/admin/supplier-codes"
+    };
+  }
+  rpc DeleteZeroQuantityParts(DeleteZeroQuantityPartsRequest) returns (DeleteZeroQuantityPartsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/admin/parts/zero-quantity"
+      body: "*"
+    };
+  }
 }
 
 // ─── Part Model ─────────────────────────────────────────────────────────────

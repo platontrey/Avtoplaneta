@@ -26,6 +26,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 
 	authv1 "avtoplaneta/gen/auth/v1"
+	partsv1 "avtoplaneta/gen/parts/v1"
 )
 
 // User представляет пользователя в системе
@@ -52,6 +53,9 @@ type Gateway struct {
 	// gRPC clients (замена HTTP proxy)
 	authConn *grpc.ClientConn
 	authGRPC authv1.AuthServiceClient
+	
+	partsConn *grpc.ClientConn
+	partsGRPC partsv1.PartsServiceClient
 
 	// Resiliency patterns
 	authBreaker      *breaker.Breaker
@@ -140,6 +144,7 @@ func (g *Gateway) initResiliencyPatterns() {
 // initGRPCClients инициализирует gRPC-соединения к сервисам
 func (g *Gateway) initGRPCClients() {
 	authGRPCAddr := getEnvOrDefault("AUTH_GRPC_ADDR", "localhost:9083")
+	partsGRPCAddr := getEnvOrDefault("PARTS_GRPC_ADDR", "localhost:9081")
 
 	var err error
 	g.authConn, err = grpc.NewClient(authGRPCAddr,
@@ -151,6 +156,16 @@ func (g *Gateway) initGRPCClients() {
 		g.authGRPC = authv1.NewAuthServiceClient(g.authConn)
 		logrus.WithField("addr", authGRPCAddr).Info("gRPC client connected to auth-service")
 	}
+
+	g.partsConn, err = grpc.NewClient(partsGRPCAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		logrus.WithError(err).Error("Failed to create gRPC connection to parts-service")
+	} else {
+		g.partsGRPC = partsv1.NewPartsServiceClient(g.partsConn)
+		logrus.WithField("addr", partsGRPCAddr).Info("gRPC client connected to parts-service")
+	}
 }
 
 // Close закрывает все gRPC соединения
@@ -158,6 +173,11 @@ func (g *Gateway) Close() {
 	if g.authConn != nil {
 		if err := g.authConn.Close(); err != nil {
 			logrus.WithError(err).Warn("Failed to close auth gRPC connection")
+		}
+	}
+	if g.partsConn != nil {
+		if err := g.partsConn.Close(); err != nil {
+			logrus.WithError(err).Warn("Failed to close parts gRPC connection")
 		}
 	}
 }
@@ -251,6 +271,16 @@ func (g *Gateway) setupGRPCGatewayRoutes() {
 	err := authv1.RegisterAuthServiceHandler(context.Background(), gwmux, g.authConn)
 	if err != nil {
 		logrus.WithError(err).Fatal("Failed to register auth service handler in grpc-gateway")
+	}
+
+	// Регистрируем parts-service хендлеры в grpc-gateway
+	if g.partsConn != nil {
+		err = partsv1.RegisterPartsServiceHandler(context.Background(), gwmux, g.partsConn)
+		if err != nil {
+			logrus.WithError(err).Fatal("Failed to register parts service handler in grpc-gateway")
+		}
+	} else {
+		logrus.Warn("Cannot register parts service in grpc-gateway: partsConn is nil")
 	}
 
 	// Монтируем grpc-gateway внутри Gin-движка по пути /api/v1/*
