@@ -15,9 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"avtoplaneta/pkg/tracing"
-	"google.golang.org/grpc"
 )
 
 func main() {
@@ -76,7 +74,7 @@ func main() {
 	r := gin.Default()
 	r.Use(otelgin.Middleware("auth-service"))
 
-	err := r.SetTrustedProxies([]string{"127.0.0.1"})
+	err = r.SetTrustedProxies([]string{"127.0.0.1"})
 	if err != nil {
 		log.Printf("Ошибка установки доверенных прокси: %v", err)
 	}

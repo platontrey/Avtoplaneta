@@ -17,10 +17,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"avtoplaneta/pkg/tracing"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
 
 var redisClient *redis.Client
@@ -76,11 +73,6 @@ func main() {
 	}
 
 	// Создание зависимостей с dependency injection
-	// Настройка gRPC сервера с OpenTelemetry
-	grpcServer := grpc.NewServer(
-		grpc.StatsHandler(otelgrpc.NewServerHandler()),
-	)
-	partsServiceServer := server.NewPartsServiceServer(dbPool, esClient, redisClient)
 	repo := NewPartRepository(dbPool)
 	service := NewInventoryService(repo, esClient, config)
 	handler := NewHandler(service)
