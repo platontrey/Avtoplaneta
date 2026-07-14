@@ -10,6 +10,7 @@ import { Label } from './ui/label';
 import { Button } from './ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_BASE_URL } from '@/lib/api';
+import { getAuthHeaders } from '@/lib/csrf';
 
 interface PartSelectorProps {
     value?: string;
