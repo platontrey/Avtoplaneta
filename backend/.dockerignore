@@ -36,18 +36,18 @@ main
 main.exe
 avtoplaneta-backend
 gateway
-**/auth-service
-**/auth-service.exe
-**/auth-service-test
-**/parts-service
-**/parts-service.exe
-**/parts-service-test
-**/orders-service
-**/orders-service.exe
-**/orders-service-test
-**/messaging-service
-**/messaging-service.exe
-**/messaging-service-test
+auth-service/auth-service
+auth-service/auth-service.exe
+auth-service/auth-service-test
+parts-service/parts-service
+parts-service/parts-service.exe
+parts-service/parts-service-test
+orders-service/orders-service
+orders-service/orders-service.exe
+orders-service/orders-service-test
+messaging-service/messaging-service
+messaging-service/messaging-service.exe
+messaging-service/messaging-service-test
 
 # Прочие артефакты сборки Go
 *.test
