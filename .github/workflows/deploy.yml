@@ -15,17 +15,11 @@ jobs:
           cd /opt/avtoplaneta
           git fetch --all
           git reset --hard origin/OptimizedBackend
-          
-          # Отключаем Docker BuildKit, так как его агрессивный ввод/вывод вызывает Kernel Panic в драйвере overlayfs
-          export DOCKER_BUILDKIT=0
-          export COMPOSE_DOCKER_CLI_BUILD=0
-          
-          # Сборка сервисов последовательно для предотвращения kernel panic и снижения нагрузки на overlayfs/CPU
-          docker compose build --pull frontend
-          docker compose build --pull auth-service
-          docker compose build --pull parts-service
-          docker compose build --pull orders-service
-          docker compose build --pull messaging-service
-          docker compose build --pull gateway
+
+          # BuildKit включён: с узким build context (.dockerignore отсекает ~430M
+          # скомпилированных бинарников) и достаточным объёмом памяти (128G) он безопасен
+          # и даёт параллелизм + инкрементальный кэш слоёв.
+          # Одна команда build вместо шести раздельных — кэш и base images переиспользуются.
+          docker compose build frontend auth-service parts-service orders-service messaging-service gateway
           docker compose up -d --remove-orphans
           docker image prune -f

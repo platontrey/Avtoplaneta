@@ -25,5 +25,22 @@ Thumbs.db
 # Go binaries
 **/bin/
 
+# Скомпилированные бинарники микросервисов (мусор от локальных сборок)
+/backend/main
+/backend/main.exe
+/backend/avtoplaneta-backend
+/backend/gateway
+/backend/auth-service/auth-service
+/backend/auth-service/auth-service.exe
+/backend/parts-service/parts-service
+/backend/parts-service/parts-service.exe
+/backend/orders-service/orders-service
+/backend/orders-service/orders-service.exe
+/backend/messaging-service/messaging-service
+/backend/messaging-service/messaging-service.exe
+*-test
+*.test
+*.exe
+
 # Backend migration scripts
 backend/migration/

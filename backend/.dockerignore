@@ -1,17 +1,56 @@
-**/node_modules
+# VCS / IDE
 .git
-.env
-.env.*
-*.md
+.gitignore
 .idea
 .vscode
-bin/
+*.swp
+*.swo
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Docs / scripts
+*.md
+docs/
+start-production.bat
+start-production.sh
+
+# Dependencies
+**/node_modules
+**/vendor
+
+# Тяжёлые данные миграций (256M+ json + sql) — не нужны для сборки образов
+migration/
+drom-test/
+elasticsearch-9.2.3/
+robots.txt
+sitemap.xml
+
+# Скомпилированные Go-бинарники (мусор от локальных сборок, ~430M)
+# Исключаем по именам сервисов в подкаталогах и общие имена в корне.
+**/bin/
 main
 main.exe
 avtoplaneta-backend
 gateway
-drom-test/
-elasticsearch-9.2.3/
-start-production.bat
-start-production.sh
-migration/
+**/auth-service
+**/auth-service.exe
+**/auth-service-test
+**/parts-service
+**/parts-service.exe
+**/parts-service-test
+**/orders-service
+**/orders-service.exe
+**/orders-service-test
+**/messaging-service
+**/messaging-service.exe
+**/messaging-service-test
+
+# Прочие артефакты сборки Go
+*.test
+*.out
+coverage.txt
+coverage.html
