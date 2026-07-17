@@ -16,10 +16,12 @@ jobs:
           git fetch --all
           git reset --hard origin/OptimizedBackend
 
-          # BuildKit включён: с узким build context (.dockerignore отсекает ~430M
-          # скомпилированных бинарников) и достаточным объёмом памяти (128G) он безопасен
-          # и даёт параллелизм + инкрементальный кэш слоёв.
-          # Одна команда build вместо шести раздельных — кэш и base images переиспользуются.
-          docker compose build frontend auth-service parts-service orders-service messaging-service gateway
+          # Разделили сборку на последовательные шаги, чтобы избежать нехватки памяти (OOM) и перезагрузок сервера
+          docker compose build auth-service
+          docker compose build parts-service
+          docker compose build orders-service
+          docker compose build messaging-service
+          docker compose build gateway
+          docker compose build frontend
           docker compose up -d --remove-orphans
           docker image prune -f
