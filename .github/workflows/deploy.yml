@@ -16,7 +16,13 @@ jobs:
           git fetch --all
           git reset --hard origin/OptimizedBackend
 
-          # Сборка всех сервисов выполняется параллельно (ограничение памяти GOMAXPROCS=16 позволяет это делать безопасно)
-          docker compose build
+          # КРИТИЧНО: Сервер имеет аппаратную проблему (MCE PCIe error) при 100% нагрузке на все 80 потоков.
+          # Сборка ДОЛЖНА выполняться строго по очереди, иначе происходит аппаратная перезагрузка.
+          docker compose build auth-service
+          docker compose build parts-service
+          docker compose build orders-service
+          docker compose build messaging-service
+          docker compose build gateway
+          docker compose build frontend
           docker compose up -d --remove-orphans
           docker image prune -f
