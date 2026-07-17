@@ -1721,15 +1721,27 @@ export default function DefectReport() {
               </div>
 
               <div>
-                <Label htmlFor="year">Год выпуска *</Label>
+                <Label htmlFor="body-brand">Марка кузова</Label>
                 <Input
-                  id="year"
-                  {...register("year", { valueAsNumber: true })}
-                  type="number"
+                  id="body-brand"
+                  {...register("body_brand")}
+                  type="text"
+                  placeholder="Например: Toyota Corolla"
                   className="h-10"
                   autoComplete="off"
                 />
-                {errors.year && <p className="text-red-500 text-sm">{errors.year.message}</p>}
+              </div>
+
+              <div>
+                <Label htmlFor="engine-brand">Марка двигателя</Label>
+                <Input
+                  id="engine-brand"
+                  {...register("engine_brand")}
+                  type="text"
+                  placeholder="Например: Toyota 1NZ-FE"
+                  className="h-10"
+                  autoComplete="off"
+                />
               </div>
             </div>
 
@@ -1761,27 +1773,15 @@ export default function DefectReport() {
 
             <div className="space-y-4">
               <div>
-                <Label htmlFor="body-brand">Марка кузова</Label>
+                <Label htmlFor="year">Год выпуска *</Label>
                 <Input
-                  id="body-brand"
-                  {...register("body_brand")}
-                  type="text"
-                  placeholder="Например: Toyota Corolla"
+                  id="year"
+                  {...register("year", { valueAsNumber: true })}
+                  type="number"
                   className="h-10"
                   autoComplete="off"
                 />
-              </div>
-
-              <div>
-                <Label htmlFor="engine-brand">Марка двигателя</Label>
-                <Input
-                  id="engine-brand"
-                  {...register("engine_brand")}
-                  type="text"
-                  placeholder="Например: Toyota 1NZ-FE"
-                  className="h-10"
-                  autoComplete="off"
-                />
+                {errors.year && <p className="text-red-500 text-sm">{errors.year.message}</p>}
               </div>
 
               <div>
