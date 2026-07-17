@@ -10,7 +10,7 @@ COPY messaging-service/go.mod messaging-service/go.sum ./
 RUN go mod download
 COPY messaging-service/ .
 
-RUN GOMAXPROCS=4 CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /messaging-service .
+RUN GOMAXPROCS=16 CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /messaging-service .
 
 FROM alpine:3.19
 
