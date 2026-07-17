@@ -5,12 +5,13 @@ RUN apk add --no-cache git ca-certificates tzdata
 WORKDIR /app
 
 COPY gen ./gen
+COPY pkg ./pkg
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
 
-RUN     CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /gateway .
+RUN GOMAXPROCS=4 CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /gateway .
 
 FROM alpine:3.19
 

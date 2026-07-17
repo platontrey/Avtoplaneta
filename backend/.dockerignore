@@ -26,8 +26,8 @@ start-production.sh
 migration/
 drom-test/
 elasticsearch-9.2.3/
-robots.txt
-sitemap.xml
+
+
 
 # Скомпилированные Go-бинарники (мусор от локальных сборок, ~430M)
 # Исключаем по именам сервисов в подкаталогах и общие имена в корне.
