@@ -16,12 +16,7 @@ jobs:
           git fetch --all
           git reset --hard origin/OptimizedBackend
 
-          # Разделили сборку на последовательные шаги, чтобы избежать нехватки памяти (OOM) и перезагрузок сервера
-          docker compose build auth-service
-          docker compose build parts-service
-          docker compose build orders-service
-          docker compose build messaging-service
-          docker compose build gateway
-          docker compose build frontend
+          # Сборка всех сервисов выполняется параллельно (ограничение памяти GOMAXPROCS=16 позволяет это делать безопасно)
+          docker compose build
           docker compose up -d --remove-orphans
           docker image prune -f
