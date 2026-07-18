@@ -3276,7 +3276,7 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x1eDeleteZeroQuantityPartsRequest\x12#\n" +
 	"\rsupplier_code\x18\x01 \x01(\tR\fsupplierCode\"F\n" +
 	"\x1fDeleteZeroQuantityPartsResponse\x12#\n" +
-	"\rdeleted_count\x18\x01 \x01(\x05R\fdeletedCount2\xc0\x11\n" +
+	"\rdeleted_count\x18\x01 \x01(\x05R\fdeletedCount2\xc5\x11\n" +
 	"\fPartsService\x12k\n" +
 	"\fGetInventory\x12\x1d.parts.v1.GetInventoryRequest\x1a\x1b.parts.v1.InventoryResponse\"\x1f\x82\xd3\xe4\x93\x02\x19\x12\x17/api/v1/parts/inventory\x12M\n" +
 	"\aAddPart\x12\x18.parts.v1.AddPartRequest\x1a\x0e.parts.v1.Part\"\x18\x82\xd3\xe4\x93\x02\x12:\x01*\"\r/api/v1/parts\x12X\n" +
@@ -3284,8 +3284,8 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"UpdatePart\x12\x1b.parts.v1.UpdatePartRequest\x1a\x0e.parts.v1.Part\"\x1d\x82\xd3\xe4\x93\x02\x17:\x01*\x1a\x12/api/v1/parts/{id}\x12c\n" +
 	"\n" +
 	"DeletePart\x12\x1b.parts.v1.DeletePartRequest\x1a\x1c.parts.v1.DeletePartResponse\"\x1a\x82\xd3\xe4\x93\x02\x14*\x12/api/v1/parts/{id}\x12x\n" +
-	"\x13MarkPartForDeletion\x12$.parts.v1.MarkPartForDeletionRequest\x1a\x0e.parts.v1.Part\"+\x82\xd3\xe4\x93\x02%:\x01*\" /api/v1/parts/{id}/mark-deletion\x12O\n" +
-	"\aGetPart\x12\x18.parts.v1.GetPartRequest\x1a\x0e.parts.v1.Part\"\x1a\x82\xd3\xe4\x93\x02\x14\x12\x12/api/v1/parts/{id}\x12\x89\x01\n" +
+	"\x13MarkPartForDeletion\x12$.parts.v1.MarkPartForDeletionRequest\x1a\x0e.parts.v1.Part\"+\x82\xd3\xe4\x93\x02%:\x01*\" /api/v1/parts/{id}/mark-deletion\x12T\n" +
+	"\aGetPart\x12\x18.parts.v1.GetPartRequest\x1a\x0e.parts.v1.Part\"\x1f\x82\xd3\xe4\x93\x02\x19\x12\x17/api/v1/parts/item/{id}\x12\x89\x01\n" +
 	"\x14DecreasePartQuantity\x12#.parts.v1.ChangePartQuantityRequest\x1a$.parts.v1.ChangePartQuantityResponse\"&\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/api/v1/parts/{id}/decrease\x12\x89\x01\n" +
 	"\x14IncreasePartQuantity\x12#.parts.v1.ChangePartQuantityRequest\x1a$.parts.v1.ChangePartQuantityResponse\"&\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/api/v1/parts/{id}/increase\x12X\n" +
 	"\x0fUploadPartPhoto\x12\x1e.parts.v1.UploadPartPhotoChunk\x1a!.parts.v1.UploadPartPhotoResponse\"\x00(\x01\x12}\n" +

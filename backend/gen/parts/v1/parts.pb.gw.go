@@ -786,7 +786,7 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/GetPart", runtime.WithHTTPPathPattern("/api/v1/parts/{id}"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/GetPart", runtime.WithHTTPPathPattern("/api/v1/parts/item/{id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1176,7 +1176,7 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/GetPart", runtime.WithHTTPPathPattern("/api/v1/parts/{id}"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/GetPart", runtime.WithHTTPPathPattern("/api/v1/parts/item/{id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1419,7 +1419,7 @@ var (
 	pattern_PartsService_UpdatePart_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "parts", "id"}, ""))
 	pattern_PartsService_DeletePart_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "parts", "id"}, ""))
 	pattern_PartsService_MarkPartForDeletion_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "parts", "id", "mark-deletion"}, ""))
-	pattern_PartsService_GetPart_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "parts", "id"}, ""))
+	pattern_PartsService_GetPart_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"api", "v1", "parts", "item", "id"}, ""))
 	pattern_PartsService_DecreasePartQuantity_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "parts", "id", "decrease"}, ""))
 	pattern_PartsService_IncreasePartQuantity_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "parts", "id", "increase"}, ""))
 	pattern_PartsService_UploadPartPhoto_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"parts.v1.PartsService", "UploadPartPhoto"}, ""))

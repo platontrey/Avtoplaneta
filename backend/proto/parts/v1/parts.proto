@@ -37,7 +37,7 @@ service PartsService {
   }
   rpc GetPart(GetPartRequest) returns (Part) {
     option (google.api.http) = {
-      get: "/api/v1/parts/{id}"
+      get: "/api/v1/parts/item/{id}"
     };
   }
 
