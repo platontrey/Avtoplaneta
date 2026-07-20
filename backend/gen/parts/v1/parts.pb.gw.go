@@ -686,7 +686,7 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/GetInventory", runtime.WithHTTPPathPattern("/api/v1/parts/inventory"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/GetInventory", runtime.WithHTTPPathPattern("/api/v1/inventory"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1091,7 +1091,7 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/GetInventory", runtime.WithHTTPPathPattern("/api/v1/parts/inventory"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/GetInventory", runtime.WithHTTPPathPattern("/api/v1/inventory"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1414,7 +1414,7 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 }
 
 var (
-	pattern_PartsService_GetInventory_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "parts", "inventory"}, ""))
+	pattern_PartsService_GetInventory_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "inventory"}, ""))
 	pattern_PartsService_AddPart_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "parts"}, ""))
 	pattern_PartsService_UpdatePart_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "parts", "id"}, ""))
 	pattern_PartsService_DeletePart_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "parts", "id"}, ""))

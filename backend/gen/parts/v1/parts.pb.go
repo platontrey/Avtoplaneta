@@ -3276,9 +3276,9 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x1eDeleteZeroQuantityPartsRequest\x12#\n" +
 	"\rsupplier_code\x18\x01 \x01(\tR\fsupplierCode\"F\n" +
 	"\x1fDeleteZeroQuantityPartsResponse\x12#\n" +
-	"\rdeleted_count\x18\x01 \x01(\x05R\fdeletedCount2\xc5\x11\n" +
-	"\fPartsService\x12k\n" +
-	"\fGetInventory\x12\x1d.parts.v1.GetInventoryRequest\x1a\x1b.parts.v1.InventoryResponse\"\x1f\x82\xd3\xe4\x93\x02\x19\x12\x17/api/v1/parts/inventory\x12M\n" +
+	"\rdeleted_count\x18\x01 \x01(\x05R\fdeletedCount2\xbf\x11\n" +
+	"\fPartsService\x12e\n" +
+	"\fGetInventory\x12\x1d.parts.v1.GetInventoryRequest\x1a\x1b.parts.v1.InventoryResponse\"\x19\x82\xd3\xe4\x93\x02\x13\x12\x11/api/v1/inventory\x12M\n" +
 	"\aAddPart\x12\x18.parts.v1.AddPartRequest\x1a\x0e.parts.v1.Part\"\x18\x82\xd3\xe4\x93\x02\x12:\x01*\"\r/api/v1/parts\x12X\n" +
 	"\n" +
 	"UpdatePart\x12\x1b.parts.v1.UpdatePartRequest\x1a\x0e.parts.v1.Part\"\x1d\x82\xd3\xe4\x93\x02\x17:\x01*\x1a\x12/api/v1/parts/{id}\x12c\n" +

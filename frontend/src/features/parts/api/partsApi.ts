@@ -39,7 +39,7 @@ export const partsApi = {
       params.append('page', filters.page.toString());
     }
 
-    const url = `${API_BASE_URL}/api/v1/parts/inventory${params.toString() ? '?' + params.toString() : ''}`;
+    const url = `${API_BASE_URL}/api/v1/inventory${params.toString() ? '?' + params.toString() : ''}`;
     console.log('partsApi.getAll: Fetching URL:', url);
 
     const response = await fetch(url, {

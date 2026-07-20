@@ -9,7 +9,7 @@ service PartsService {
   // Инвентарь
   rpc GetInventory(GetInventoryRequest) returns (InventoryResponse) {
     option (google.api.http) = {
-      get: "/api/v1/parts/inventory"
+      get: "/api/v1/inventory"
     };
   }
   rpc AddPart(AddPartRequest) returns (Part) {
