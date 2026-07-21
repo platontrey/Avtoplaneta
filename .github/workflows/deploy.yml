@@ -19,13 +19,12 @@ jobs:
           cd /opt/avtoplaneta
 
           # КРИТИЧНО: Сервер имеет аппаратную проблему (MCE PCIe error) при 100% нагрузке на все 80 потоков.
-          # КРИТИЧНО: Отключаем BuildKit и ограничиваем потоки
-          export DOCKER_BUILDKIT=0
-          docker compose build auth-service
-          docker compose build parts-service
-          docker compose build orders-service
-          docker compose build messaging-service
-          docker compose build gateway
-          docker compose build frontend
+          # КРИТИЧНО: Используем docker build с жестким ограничением ядер для предотвращения MCE PCIe
+          docker build --cpuset-cpus="0-3" -t avtoplaneta-auth-service:latest ./backend -f ./backend/auth-service/Dockerfile
+          docker build --cpuset-cpus="0-3" -t avtoplaneta-parts-service:latest ./backend -f ./backend/parts-service/Dockerfile
+          docker build --cpuset-cpus="0-3" -t avtoplaneta-orders-service:latest ./backend -f ./backend/orders-service/Dockerfile
+          docker build --cpuset-cpus="0-3" -t avtoplaneta-messaging-service:latest ./backend -f ./backend/messaging-service/Dockerfile
+          docker build --cpuset-cpus="0-3" -t avtoplaneta-gateway:latest ./backend -f ./backend/Dockerfile
+          docker build --cpuset-cpus="0-3" --build-arg VITE_API_BASE_URL=https://avtoplaneta.crazedns.ru -t avtoplaneta-frontend:latest ./frontend -f ./frontend/Dockerfile
           docker compose up -d --remove-orphans
           docker image prune -f

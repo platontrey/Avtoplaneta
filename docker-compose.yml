@@ -44,6 +44,7 @@ services:
       retries: 3
 
   frontend:
+    image: avtoplaneta-frontend:latest
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -67,6 +68,7 @@ services:
       - gateway
 
   gateway:
+    image: avtoplaneta-gateway:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -107,6 +109,7 @@ services:
       - redis
 
   auth-service:
+    image: avtoplaneta-auth-service:latest
     build:
       context: ./backend
       dockerfile: auth-service/Dockerfile
@@ -138,6 +141,7 @@ services:
       - redis
 
   parts-service:
+    image: avtoplaneta-parts-service:latest
     build:
       context: ./backend
       dockerfile: parts-service/Dockerfile
@@ -172,6 +176,7 @@ services:
         condition: service_healthy
 
   orders-service:
+    image: avtoplaneta-orders-service:latest
     build:
       context: ./backend
       dockerfile: orders-service/Dockerfile
@@ -201,6 +206,7 @@ services:
       - parts-service
 
   messaging-service:
+    image: avtoplaneta-messaging-service:latest
     build:
       context: ./backend
       dockerfile: messaging-service/Dockerfile
