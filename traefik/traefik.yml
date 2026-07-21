@@ -22,7 +22,7 @@ providers:
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: "${ACME_EMAIL}"
+      email: "platontrey5@gmail.com"
       storage: "/etc/traefik/acme.json"
       tlsChallenge: {}
 
