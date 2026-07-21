@@ -10,11 +10,13 @@ jobs:
   deploy:
     runs-on: self-hosted
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        
       - name: Pull and Restart Services
         run: |
+          rsync -av --exclude=.git ./ /opt/avtoplaneta/
           cd /opt/avtoplaneta
-          git fetch --all
-          git reset --hard origin/OptimizedBackend
 
           # КРИТИЧНО: Сервер имеет аппаратную проблему (MCE PCIe error) при 100% нагрузке на все 80 потоков.
           # Сборка ДОЛЖНА выполняться строго по очереди, иначе происходит аппаратная перезагрузка.
