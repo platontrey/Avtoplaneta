@@ -10,7 +10,7 @@ COPY parts-service/go.mod parts-service/go.sum ./
 RUN go mod download
 COPY parts-service/ .
 
-RUN GOMAXPROCS=2 CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /parts-service .
+RUN GOMAXPROCS=16 CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /parts-service .
 
 FROM alpine:3.19
 

@@ -10,7 +10,7 @@ COPY orders-service/go.mod orders-service/go.sum ./
 RUN go mod download
 COPY orders-service/ .
 
-RUN GOMAXPROCS=2 CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /orders-service .
+RUN GOMAXPROCS=16 CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /orders-service .
 
 FROM alpine:3.19
 

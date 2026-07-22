@@ -10,7 +10,7 @@ COPY auth-service/go.mod auth-service/go.sum ./
 RUN go mod download
 COPY auth-service/ .
 
-RUN GOMAXPROCS=2 CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /auth-service .
+RUN GOMAXPROCS=16 CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /auth-service .
 
 FROM alpine:3.19
 
