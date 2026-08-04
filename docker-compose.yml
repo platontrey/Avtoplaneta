@@ -19,13 +19,6 @@ services:
       - avtoplaneta_network
     labels:
       - "traefik.enable=true"
-      # Dashboard Router (HTTPS)
-      - "traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN}`)"
-      - "traefik.http.routers.traefik.entrypoints=websecure"
-      - "traefik.http.routers.traefik.tls=true"
-      - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.traefik.service=api@internal"
-      - "traefik.http.routers.traefik.middlewares=dashboard-auth@file"
       # Global HTTP to HTTPS redirect
       - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)"
       - "traefik.http.routers.http-catchall.entrypoints=web"
@@ -34,8 +27,6 @@ services:
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
     environment:
       - ACME_EMAIL=${ACME_EMAIL:-admin@example.com}
-      - DASHBOARD_USER=${DASHBOARD_USER:-admin}
-      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:-$$2y$$05$$example}
       - DOMAIN=${DOMAIN:-localhost}
     healthcheck:
       test: ["CMD", "traefik", "healthcheck"]
@@ -48,8 +39,6 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      args:
-        - VITE_API_BASE_URL=https://${DOMAIN}
     container_name: avtoplaneta-frontend
     cpuset: "20-39,60-79"
     restart: unless-stopped
@@ -57,13 +46,11 @@ services:
       - avtoplaneta_network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN}`) || HostRegexp(`^[0-9.]+:?[0-9]*$$`)"
-      - "traefik.http.routers.frontend.entrypoints=websecure,web"
+      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls=true"
       - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
-    environment:
-      - VITE_API_BASE_URL=https://${DOMAIN}
     depends_on:
       - gateway
 
@@ -79,12 +66,11 @@ services:
       - avtoplaneta_network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.gateway.rule=(Host(`${DOMAIN}`) || HostRegexp(`^[0-9.]+:?[0-9]*$$`)) && (PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/admin`) || PathPrefix(`/orders`) || PathPrefix(`/uploads`) || PathPrefix(`/health`) || PathPrefix(`/ready`) || PathPrefix(`/metrics`) || PathPrefix(`/swagger`))"
-      - "traefik.http.routers.gateway.entrypoints=websecure,web"
+      - "traefik.http.routers.gateway.rule=Host(`${DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/admin`) || PathPrefix(`/orders`) || PathPrefix(`/uploads`) || PathPrefix(`/health`) || PathPrefix(`/ready`) || PathPrefix(`/metrics`) || PathPrefix(`/swagger`))"
+      - "traefik.http.routers.gateway.entrypoints=websecure"
       - "traefik.http.routers.gateway.tls=true"
       - "traefik.http.routers.gateway.tls.certresolver=letsencrypt"
       - "traefik.http.services.gateway.loadbalancer.server.port=8080"
-      - "traefik.http.middlewares.gateway-stripprefix.stripprefix.prefixes=/api"
     environment:
       - NODE_ENV=production
       - DOMAIN=${DOMAIN}
@@ -311,8 +297,8 @@ services:
     restart: unless-stopped
     networks:
       - avtoplaneta_network
-    ports:
-      - "9200:9200"
+    expose:
+      - "9200"
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
@@ -329,7 +315,7 @@ services:
     cpuset: "20-39,60-79"
     restart: unless-stopped
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     networks:
       - avtoplaneta_network
     volumes:
@@ -338,13 +324,6 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.prometheus.rule=Host(`prometheus.${DOMAIN}`)"
-      - "traefik.http.routers.prometheus.entrypoints=websecure"
-      - "traefik.http.routers.prometheus.tls=true"
-      - "traefik.http.routers.prometheus.tls.certresolver=letsencrypt"
-      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
 
   node-exporter:
     image: prom/node-exporter:latest
@@ -383,7 +362,7 @@ services:
     cpuset: "20-39,60-79"
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     networks:
       - avtoplaneta_network
     volumes:
@@ -392,13 +371,6 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)"
-      - "traefik.http.routers.grafana.entrypoints=websecure"
-      - "traefik.http.routers.grafana.tls=true"
-      - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
-      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
 
   tempo:
     image: grafana/tempo:latest
@@ -407,12 +379,12 @@ services:
     volumes:
       - ./tempo/tempo.yaml:/etc/tempo.yaml
       - tempo-data:/tmp/tempo
-    ports:
-      - "14268:14268"  # jaeger ingest
-      - "3200:3200"    # tempo
-      - "4317:4317"    # otlp grpc
-      - "4318:4318"    # otlp http
-      - "9411:9411"    # zipkin
+    expose:
+      - "14268"  # jaeger ingest
+      - "3200"   # tempo
+      - "4317"   # otlp grpc
+      - "4318"   # otlp http
+      - "9411"   # zipkin
     networks:
       - avtoplaneta_network
     restart: unless-stopped

@@ -21,6 +21,21 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+Microsoft/
+
+# Runtime sessions, cookies, uploads and debug captures
+**/drom_session.json
+**/cookies.json
+**/dialog_*.json
+**/debug*.html
+**/page_debug.html
+**/debug_error.png
+**/error_screen.png
+**/fatal_error.png
+backend/*-service/uploads/*
+scripts/input.xlsx
+scripts/output.txt
+scripts/ICatsParser/downloaded_files/
 
 # Go binaries
 **/bin/

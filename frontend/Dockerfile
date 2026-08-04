@@ -6,7 +6,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-ARG VITE_API_BASE_URL=https://avtoplaneta.avtoplaneta.crazedns.ru
+ARG VITE_API_BASE_URL=
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV GOMAXPROCS=8
 ENV NODE_OPTIONS="--max-old-space-size=4096"
