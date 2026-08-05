@@ -44,5 +44,14 @@ Workflow `Build Android app` запускается при push и pull request 
 Он выполняет анализ, тесты и release-сборку. Готовый APK доступен в артефактах
 запуска GitHub Actions в течение 30 дней.
 
+Чтобы дополнительно создать постоянный GitHub Release с APK, отправьте тег,
+начинающийся с `v`, например `v1.0.0`. В Release будет добавлен файл
+`avtoplaneta-v1.0.0.apk`.
+
+```shell
+git tag v1.0.0
+git push origin v1.0.0
+```
+
 Сейчас release-вариант использует debug-ключ из Android-конфигурации проекта.
 Перед публикацией в Google Play необходимо настроить постоянный release-ключ.
