@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../app/theme.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/order.dart';
+import '../../../shared/widgets/app_states.dart';
 import '../../auth/providers/auth_provider.dart';
 
 final ordersProvider = FutureProvider<OrdersResponse>((ref) async {
@@ -31,6 +33,7 @@ class OrdersScreen extends ConsumerWidget {
         title: const Text('Заказы'),
         actions: [
           IconButton(
+            tooltip: 'Обновить',
             icon: const Icon(Icons.refresh),
             onPressed: () => ref.invalidate(ordersProvider),
           ),
@@ -38,20 +41,39 @@ class OrdersScreen extends ConsumerWidget {
       ),
       body: ordersAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Ошибка: $e')),
+        error: (e, _) => AppEmptyState(
+          icon: Icons.cloud_off_rounded,
+          title: 'Не удалось загрузить заказы',
+          message: 'Проверьте соединение и повторите попытку.',
+          actionLabel: 'Повторить',
+          onAction: () => ref.invalidate(ordersProvider),
+        ),
         data: (data) => data.orders.isEmpty
-            ? const Center(
-                child: Text('Заказов нет', style: TextStyle(color: Colors.white54)))
+            ? const AppEmptyState(
+                icon: Icons.receipt_long_outlined,
+                title: 'Заказов пока нет',
+                message: 'Новые заказы появятся здесь автоматически.',
+              )
             : RefreshIndicator(
                 onRefresh: () async => ref.invalidate(ordersProvider),
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(8),
-                  itemCount: data.orders.length,
-                  itemBuilder: (_, i) => _OrderCard(
-                    order: data.orders[i],
-                    canChangeStatus: user?.isOperator == true,
-                    onStatusChanged: () => ref.invalidate(ordersProvider),
-                  ),
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+                  itemCount: data.orders.length + 1,
+                  separatorBuilder: (_, i) =>
+                      SizedBox(height: i == 0 ? 14 : 10),
+                  itemBuilder: (_, i) {
+                    if (i == 0) {
+                      return AppSectionHeader(
+                        title: 'Активность',
+                        caption: '${data.total} заказов',
+                      );
+                    }
+                    return _OrderCard(
+                      order: data.orders[i - 1],
+                      canChangeStatus: user?.isOperator == true,
+                      onStatusChanged: () => ref.invalidate(ordersProvider),
+                    );
+                  },
                 ),
               ),
       ),
@@ -75,68 +97,85 @@ class _OrderCard extends StatelessWidget {
     final statusColor = Color(order.statusColor);
 
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Container(
-                  width: 12,
-                  height: 12,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: statusColor,
-                    shape: BoxShape.circle,
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: statusColor.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          color: statusColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      Text(
+                        order.displayStatusText,
+                        style: TextStyle(
+                          color: statusColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    order.displayStatusText,
-                    style: TextStyle(
-                        color: statusColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600),
-                  ),
-                ),
+                const Spacer(),
                 Text(
                   order.timeAgo,
-                  style:
-                      const TextStyle(color: Colors.white38, fontSize: 11),
+                  style: const TextStyle(
+                    color: AppTheme.mutedColor,
+                    fontSize: 11,
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 14),
             Text(
               order.partName,
               style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700),
             ),
-            const SizedBox(height: 4),
-            Row(
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
               children: [
                 if (order.location.isNotEmpty)
                   _info(Icons.location_on_outlined, order.location),
-                if (order.sellerName.isNotEmpty) ...[
-                  const SizedBox(width: 12),
+                if (order.sellerName.isNotEmpty)
                   _info(Icons.person_outline, order.sellerName),
-                ],
               ],
             ),
             if (order.orderNumber.isNotEmpty || order.buyerNumber.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Row(
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
                 children: [
                   if (order.orderNumber.isNotEmpty)
                     _info(Icons.tag, '# ${order.orderNumber}'),
-                  if (order.buyerNumber.isNotEmpty) ...[
-                    const SizedBox(width: 12),
+                  if (order.buyerNumber.isNotEmpty)
                     _info(Icons.phone_outlined, order.buyerNumber),
-                  ],
                 ],
               ),
             ],
@@ -159,9 +198,15 @@ class _OrderCard extends StatelessWidget {
   Widget _info(IconData icon, String text) => Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 13, color: Colors.white38),
-          const SizedBox(width: 3),
-          Text(text, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+          Icon(icon, size: 14, color: AppTheme.mutedColor),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: const TextStyle(
+              color: AppTheme.mutedColor,
+              fontSize: 12,
+            ),
+          ),
         ],
       );
 }

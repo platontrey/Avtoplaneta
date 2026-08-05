@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../app/theme.dart';
 import 'ai_assistant_sheet.dart';
 
 class MainScaffold extends StatelessWidget {
@@ -22,26 +23,57 @@ class MainScaffold extends StatelessWidget {
     showModalBottomSheet<void>(
       context: context,
       builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.add_box_outlined),
-              title: const Text('Добавить запчасть'),
-              onTap: () {
-                Navigator.pop(context);
-                context.go('/inventory/add');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.fact_check_outlined),
-              title: const Text('Создать дефектную ведомость'),
-              onTap: () {
-                Navigator.pop(context);
-                context.go('/inventory/defect-report');
-              },
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Что добавить?',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Выберите подходящий сценарий',
+                style: TextStyle(color: AppTheme.mutedColor),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                tileColor: AppTheme.cardColor,
+                leading: const Icon(
+                  Icons.add_box_outlined,
+                  color: AppTheme.primaryColor,
+                ),
+                title: const Text('Добавить запчасть'),
+                subtitle: const Text('Одна позиция в инвентарь'),
+                onTap: () {
+                  Navigator.pop(context);
+                  context.go('/inventory/add');
+                },
+              ),
+              const SizedBox(height: 10),
+              ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                tileColor: AppTheme.cardColor,
+                leading: const Icon(
+                  Icons.fact_check_outlined,
+                  color: AppTheme.secondaryColor,
+                ),
+                title: const Text('Создать дефектную ведомость'),
+                subtitle: const Text('Добавить сразу несколько позиций'),
+                onTap: () {
+                  Navigator.pop(context);
+                  context.go('/inventory/defect-report');
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -54,60 +86,74 @@ class MainScaffold extends StatelessWidget {
 
     if (location.startsWith('/admin')) return Scaffold(body: child);
 
-    final items = [
-      const BottomNavigationBarItem(
+    const destinations = [
+      NavigationDestination(
         icon: Icon(Icons.inventory_2_outlined),
-        activeIcon: Icon(Icons.inventory_2),
+        selectedIcon: Icon(Icons.inventory_2_rounded),
         label: 'Инвентарь',
       ),
-      const BottomNavigationBarItem(
+      NavigationDestination(
         icon: Icon(Icons.bar_chart_outlined),
-        activeIcon: Icon(Icons.bar_chart),
+        selectedIcon: Icon(Icons.bar_chart_rounded),
         label: 'Статистика',
       ),
-      const BottomNavigationBarItem(
+      NavigationDestination(
         icon: Icon(Icons.chat_outlined),
-        activeIcon: Icon(Icons.chat),
+        selectedIcon: Icon(Icons.chat_rounded),
         label: 'Сообщения',
       ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.add_circle_outline),
-        activeIcon: Icon(Icons.add_circle),
+      NavigationDestination(
+        icon: Icon(Icons.add_circle_outline_rounded),
+        selectedIcon: Icon(Icons.add_circle_rounded),
         label: 'Добавить',
       ),
-      const BottomNavigationBarItem(
+      NavigationDestination(
         icon: Icon(Icons.receipt_long_outlined),
-        activeIcon: Icon(Icons.receipt_long),
+        selectedIcon: Icon(Icons.receipt_long_rounded),
         label: 'Заказы',
       ),
-      const BottomNavigationBarItem(
+      NavigationDestination(
         icon: Icon(Icons.smart_toy_outlined),
-        activeIcon: Icon(Icons.smart_toy),
+        selectedIcon: Icon(Icons.smart_toy_rounded),
         label: 'ИИ',
       ),
     ];
 
     return Scaffold(
       body: child,
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: currentIndex,
-        items: items,
-        onTap: (i) {
-          switch (i) {
-            case 0: context.go('/inventory');
-            case 1: context.go('/statistics');
-            case 2: context.go('/messages');
-            case 3: _showAddMenu(context);
-            case 4: context.go('/orders');
-            case 5:
-              showModalBottomSheet<void>(
-                context: context,
-                isScrollControlled: true,
-                builder: (_) => const AIAssistantSheet(),
-              );
-          }
-        },
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: AppTheme.borderColor)),
+        ),
+        child: NavigationBar(
+          height: 70,
+          backgroundColor: AppTheme.surfaceColor,
+          surfaceTintColor: Colors.transparent,
+          indicatorColor: AppTheme.primaryColor.withValues(alpha: 0.16),
+          labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+          selectedIndex: currentIndex,
+          destinations: destinations,
+          onDestinationSelected: (index) {
+            switch (index) {
+              case 0:
+                context.go('/inventory');
+              case 1:
+                context.go('/statistics');
+              case 2:
+                context.go('/messages');
+              case 3:
+                _showAddMenu(context);
+              case 4:
+                context.go('/orders');
+              case 5:
+                showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  builder: (_) => const AIAssistantSheet(),
+                );
+            }
+          },
+        ),
       ),
     );
   }

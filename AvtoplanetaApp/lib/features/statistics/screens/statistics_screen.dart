@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import '../../../app/theme.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/statistics.dart';
+import '../../../shared/widgets/app_states.dart';
 
 final statisticsProvider = FutureProvider<StatisticsData>((ref) async {
   final response = await apiClient.dio.get('/api/v1/statistics');
@@ -24,6 +26,7 @@ class StatisticsScreen extends ConsumerWidget {
         title: const Text('Статистика'),
         actions: [
           IconButton(
+            tooltip: 'Обновить',
             icon: const Icon(Icons.refresh),
             onPressed: () => ref.invalidate(statisticsProvider),
           ),
@@ -31,7 +34,13 @@ class StatisticsScreen extends ConsumerWidget {
       ),
       body: statsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Ошибка: $e')),
+        error: (e, _) => AppEmptyState(
+          icon: Icons.cloud_off_rounded,
+          title: 'Не удалось загрузить статистику',
+          message: 'Проверьте соединение и повторите попытку.',
+          actionLabel: 'Повторить',
+          onAction: () => ref.invalidate(statisticsProvider),
+        ),
         data: (data) {
           final categories = {
             for (final category in data.categories)
@@ -44,24 +53,30 @@ class StatisticsScreen extends ConsumerWidget {
           );
 
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Карточки итогов
+                const AppSectionHeader(
+                  title: 'Обзор склада',
+                  caption: 'Актуальные данные',
+                ),
+                const SizedBox(height: 14),
                 GridView.count(
                   crossAxisCount: MediaQuery.sizeOf(context).width >= 600 ? 4 : 2,
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 1.25,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: MediaQuery.sizeOf(context).width >= 600
+                      ? 1.15
+                      : 1.08,
                   children: [
                     _StatCard(
                       label: 'Всего позиций',
                       value: data.totalParts.toString(),
                       icon: Icons.inventory_2_outlined,
-                      color: const Color(0xFF4F8EF7),
+                      color: AppTheme.primaryColor,
                     ),
                     _StatCard(
                       label: 'Общее количество',
@@ -79,41 +94,49 @@ class StatisticsScreen extends ConsumerWidget {
                       label: 'Общий заработок',
                       value: currency.format(data.totalEarnings),
                       icon: Icons.trending_up,
-                      color: const Color(0xFF43A047),
+                      color: AppTheme.successColor,
                     ),
                   ],
                 ),
                 const SizedBox(height: 24),
 
                 if (categories.isNotEmpty) ...[
-                  Text(
-                    'По категориям',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(color: Colors.white),
+                  const AppSectionHeader(
+                    title: 'По категориям',
+                    caption: 'Доля позиций',
                   ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 220,
-                    child: _CategoryPieChart(categories: categories),
+                  const SizedBox(height: 14),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          SizedBox(
+                            height: 210,
+                            child: _CategoryPieChart(categories: categories),
+                          ),
+                          const SizedBox(height: 12),
+                          _CategoryLegend(categories: categories),
+                        ],
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  _CategoryLegend(categories: categories),
                 ],
                 if (data.monthlySales.isNotEmpty) ...[
                   const SizedBox(height: 24),
-                  Text(
-                    'Продажи по месяцам',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(color: Colors.white),
+                  const AppSectionHeader(
+                    title: 'Продажи по месяцам',
+                    caption: 'Динамика',
                   ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 240,
-                    child: _MonthlySalesChart(data: data.monthlySales),
+                  const SizedBox(height: 14),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 20, 18, 12),
+                      child: SizedBox(
+                        height: 230,
+                        child: _MonthlySalesChart(data: data.monthlySales),
+                      ),
+                    ),
                   ),
                 ],
               ],
@@ -181,7 +204,7 @@ class _MonthlySalesChart extends StatelessWidget {
             barRods: [
               BarChartRodData(
                 toY: data[index].sales,
-                color: const Color(0xFF43A047),
+                color: AppTheme.successColor,
                 width: 16,
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(4),
@@ -212,23 +235,39 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                  color: color,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold),
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 21),
             ),
-            const SizedBox(height: 4),
+            const Spacer(),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
+                ),
+              ),
+            ),
+            const SizedBox(height: 5),
             Text(
               label,
-              style: const TextStyle(color: Colors.white54, fontSize: 12),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: AppTheme.mutedColor, fontSize: 11),
             ),
           ],
         ),
@@ -238,7 +277,7 @@ class _StatCard extends StatelessWidget {
 }
 
 const _chartColors = [
-  Color(0xFF4F8EF7),
+  AppTheme.primaryColor,
   Color(0xFF43A047),
   Color(0xFFFDD835),
   Color(0xFFE53935),
@@ -305,13 +344,16 @@ class _CategoryLegend extends StatelessWidget {
               Expanded(
                 child: Text(
                   entries[i].key,
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  style: const TextStyle(
+                    color: Color(0xFFCBD5E1),
+                    fontSize: 13,
+                  ),
                 ),
               ),
               Text(
                 '${entries[i].value} шт.',
                 style: const TextStyle(
-                    color: Colors.white54, fontSize: 13),
+                    color: AppTheme.mutedColor, fontSize: 13),
               ),
             ],
           ),

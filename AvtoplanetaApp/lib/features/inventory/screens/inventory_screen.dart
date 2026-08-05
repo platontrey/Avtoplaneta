@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import '../../../app/theme.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/part.dart';
 import '../../../core/utils/qr_signer.dart';
+import '../../../shared/widgets/app_states.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/inventory_provider.dart';
 
@@ -50,12 +52,14 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         title: const Text('Инвентарь'),
         actions: [
           IconButton(
+            tooltip: 'Сканировать код',
             icon: const Icon(Icons.qr_code_scanner_outlined),
             onPressed: () => _openScanner(context),
           ),
           if (user?.isOperator == true)
             IconButton(
-              icon: const Icon(Icons.add),
+              tooltip: 'Добавить',
+              icon: const Icon(Icons.add_circle_outline_rounded),
               onPressed: isOffline
                   ? () => ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -65,32 +69,32 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   : () => _showAddMenu(context),
             ),
           IconButton(
+            tooltip: 'Профиль',
             icon: const Icon(Icons.person_outline),
             onPressed: () => _showUserMenu(context),
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60),
+          preferredSize: const Size.fromHeight(68),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
             child: TextField(
               controller: _searchCtrl,
               onChanged: _onSearch,
-              style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                hintText: 'Поиск запчастей...',
-                hintStyle: const TextStyle(color: Colors.white38),
-                prefixIcon: const Icon(Icons.search, color: Colors.white38),
+                hintText: 'Название, марка, модель или место',
+                prefixIcon: const Icon(Icons.search_rounded),
                 suffixIcon: _searchCtrl.text.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.clear, color: Colors.white38),
+                        tooltip: 'Очистить поиск',
+                        icon: const Icon(Icons.close_rounded),
                         onPressed: () {
                           _searchCtrl.clear();
                           _onSearch('');
                         },
                       )
                     : null,
-                contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
               ),
             ),
           ),
@@ -98,67 +102,85 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       ),
       body: inventoryAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
-              const SizedBox(height: 8),
-              Text('Ошибка загрузки', style: Theme.of(context).textTheme.bodyLarge),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () => ref.invalidate(inventoryProvider),
-                child: const Text('Повторить'),
-              ),
-            ],
-          ),
+        error: (e, _) => AppEmptyState(
+          icon: Icons.cloud_off_rounded,
+          title: 'Не удалось загрузить склад',
+          message: 'Проверьте подключение к сети и попробуйте ещё раз.',
+          actionLabel: 'Повторить',
+          onAction: () => ref.invalidate(inventoryProvider),
         ),
         data: (data) => Column(
           children: [
             if (data.isOffline)
               Container(
-                color: Colors.amber.shade900,
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: const Text(
-                  'Оффлайн-режим (только просмотр)',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
+                margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppTheme.warningColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AppTheme.warningColor.withValues(alpha: 0.25),
                   ),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.cloud_off_rounded,
+                        size: 18, color: AppTheme.warningColor),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Оффлайн-режим · доступен только просмотр',
+                        style: TextStyle(
+                          color: AppTheme.warningColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
               child: Row(
                 children: [
-                  Text(
-                    'Всего: ${data.total} шт.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.white54,
-                        ),
+                  Text('Запчасти', style: Theme.of(context).textTheme.titleMedium),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${data.total} позиций',
+                      style: const TextStyle(
+                        color: AppTheme.primaryColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
             Expanded(
               child: data.parts.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'Запчасти не найдены',
-                        style: TextStyle(color: Colors.white54),
-                      ),
+                  ? const AppEmptyState(
+                      icon: Icons.search_off_rounded,
+                      title: 'Ничего не найдено',
+                      message: 'Попробуйте изменить запрос или очистить строку поиска.',
                     )
                   : RefreshIndicator(
                       onRefresh: () async =>
                           ref.invalidate(inventoryProvider(filter)),
                       child: ListView.builder(
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
                         itemCount: data.parts.length,
-                        itemBuilder: (ctx, i) =>
-                            _PartCard(part: data.parts[i]),
+                        itemBuilder: (ctx, i) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _PartCard(part: data.parts[i]),
+                        ),
                       ),
                     ),
             ),
@@ -180,22 +202,21 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   void _showAddMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF16213E),
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.directions_car_outlined, color: Color(0xFF4F8EF7)),
-              title: const Text('Добавить одну запчасть', style: TextStyle(color: Colors.white)),
+              leading: const Icon(Icons.directions_car_outlined, color: AppTheme.primaryColor),
+              title: const Text('Добавить одну запчасть'),
               onTap: () {
                 Navigator.pop(context);
                 context.go('/inventory/add');
               },
             ),
             ListTile(
-              leading: const Icon(Icons.receipt_long_outlined, color: Color(0xFF4F8EF7)),
-              title: const Text('Создать дефектную ведомость', style: TextStyle(color: Colors.white)),
+              leading: const Icon(Icons.receipt_long_outlined, color: AppTheme.primaryColor),
+              title: const Text('Создать дефектную ведомость'),
               onTap: () {
                 Navigator.pop(context);
                 context.go('/inventory/defect-report');
@@ -299,27 +320,26 @@ class _PartCard extends StatelessWidget {
         : null;
 
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         onTap: () => context.go('/inventory/part/${part.id}'),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(14),
           child: Row(
             children: [
               // Фото
               ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(14),
                 child: photoUrl != null
                     ? CachedNetworkImage(
                         imageUrl: photoUrl,
-                        width: 64,
-                        height: 64,
+                        width: 76,
+                        height: 76,
                         fit: BoxFit.cover,
                         placeholder: (ctx, url) => Container(
-                          width: 64,
-                          height: 64,
-                          color: const Color(0xFF1A1A2E),
+                          width: 76,
+                          height: 76,
+                          color: AppTheme.surfaceColor,
                           child: const Icon(Icons.image_outlined,
                               color: Colors.white24),
                         ),
@@ -327,7 +347,7 @@ class _PartCard extends StatelessWidget {
                       )
                     : _placeholder(),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               // Инфо
               Expanded(
                 child: Column(
@@ -336,7 +356,9 @@ class _PartCard extends StatelessWidget {
                     Text(
                       part.name,
                       style: const TextStyle(
-                          fontWeight: FontWeight.w600, color: Colors.white),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -347,15 +369,16 @@ class _PartCard extends StatelessWidget {
                             .where((e) => e != null && e.isNotEmpty)
                             .join(' • '),
                         style: const TextStyle(
-                            color: Colors.white54, fontSize: 12),
+                            color: AppTheme.mutedColor, fontSize: 12),
                       ),
                     const SizedBox(height: 4),
-                    Row(
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 5,
                       children: [
-                        _chip(part.category, const Color(0xFF4F8EF7)),
-                        const SizedBox(width: 6),
+                        _chip(part.category, AppTheme.primaryColor),
                         if (part.location.isNotEmpty)
-                          _chip(part.location, const Color(0xFF43A047)),
+                          _chip(part.location, AppTheme.successColor),
                       ],
                     ),
                   ],
@@ -369,7 +392,7 @@ class _PartCard extends StatelessWidget {
                   Text(
                     '${part.price.toStringAsFixed(0)} ₽',
                     style: const TextStyle(
-                      color: Color(0xFF4F8EF7),
+                      color: AppTheme.primaryColor,
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
                     ),
@@ -379,7 +402,7 @@ class _PartCard extends StatelessWidget {
                     '${part.quantity} шт.',
                     style: TextStyle(
                       color:
-                          part.quantity > 0 ? Colors.white54 : Colors.red,
+                          part.quantity > 0 ? AppTheme.mutedColor : AppTheme.dangerColor,
                       fontSize: 12,
                     ),
                   ),
@@ -393,9 +416,9 @@ class _PartCard extends StatelessWidget {
   }
 
   Widget _placeholder() => Container(
-        width: 64,
-        height: 64,
-        color: const Color(0xFF1A1A2E),
+        width: 76,
+        height: 76,
+        color: AppTheme.surfaceColor,
         child: const Icon(Icons.directions_car_outlined, color: Colors.white24),
       );
 
@@ -403,7 +426,7 @@ class _PartCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: color.withValues(alpha: 0.4), width: 0.5),
         ),
         child: Text(
@@ -525,7 +548,7 @@ class _ScannerModalState extends State<_ScannerModal> {
               width: 250,
               height: 250,
               decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFF4F8EF7), width: 3),
+                border: Border.all(color: AppTheme.primaryColor, width: 3),
                 borderRadius: BorderRadius.circular(16),
                 color: Colors.transparent,
               ),

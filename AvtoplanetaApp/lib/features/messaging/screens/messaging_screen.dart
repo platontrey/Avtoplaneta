@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../app/theme.dart';
 import '../../../core/api/api_client.dart';
+import '../../../shared/widgets/app_states.dart';
 import '../../auth/providers/auth_provider.dart';
 
 final conversationsProvider = FutureProvider<List<dynamic>>((ref) async {
@@ -45,6 +47,7 @@ class MessagingScreen extends ConsumerWidget {
         title: const Text('Сообщения'),
         actions: [
           IconButton(
+            tooltip: 'Обновить',
             icon: const Icon(Icons.refresh),
             onPressed: () => ref.invalidate(conversationsProvider),
           ),
@@ -52,32 +55,58 @@ class MessagingScreen extends ConsumerWidget {
       ),
       body: convsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Ошибка: $e')),
+        error: (e, _) => AppEmptyState(
+          icon: Icons.cloud_off_rounded,
+          title: 'Не удалось загрузить сообщения',
+          message: 'Проверьте соединение и повторите попытку.',
+          actionLabel: 'Повторить',
+          onAction: () => ref.invalidate(conversationsProvider),
+        ),
         data: (convs) => convs.isEmpty
-            ? const Center(
-                child: Text('Нет диалогов',
-                    style: TextStyle(color: Colors.white54)))
-            : ListView.builder(
+            ? const AppEmptyState(
+                icon: Icons.forum_outlined,
+                title: 'Диалогов пока нет',
+                message: 'Здесь появится переписка с вашей командой.',
+              )
+            : ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
                 itemCount: convs.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (_, i) {
                   final conv = convs[i] as Map<String, dynamic>;
                   final title =
                       _conversationTitle(conv, userNames, currentUserId);
                   return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 7,
+                    ),
+                    tileColor: AppTheme.cardColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      side: const BorderSide(color: AppTheme.borderColor),
+                    ),
                     leading: CircleAvatar(
-                      backgroundColor: const Color(0xFF4F8EF7),
+                      radius: 23,
+                      backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.16),
                       child: Text(
                         title.isEmpty ? '?' : title[0].toUpperCase(),
-                        style: const TextStyle(color: Colors.white),
+                        style: const TextStyle(
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                     title: Text(
                       title,
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     subtitle: Text(
                       conv['last_message'] as String? ?? '',
-                      style: const TextStyle(color: Colors.white54, fontSize: 12),
+                      style: const TextStyle(color: AppTheme.mutedColor, fontSize: 12),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -87,6 +116,7 @@ class MessagingScreen extends ConsumerWidget {
                       userNames,
                       currentUserId,
                     ),
+                    trailing: const Icon(Icons.chevron_right_rounded, size: 20),
                   );
                 },
               ),
@@ -205,6 +235,8 @@ class _ChatScreenState extends ConsumerState<_ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUserId = ref.watch(authProvider).valueOrNull?.id;
+
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
       body: Column(
@@ -212,47 +244,64 @@ class _ChatScreenState extends ConsumerState<_ChatScreen> {
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    reverse: true,
-                    padding: const EdgeInsets.all(12),
-                    itemCount: _messages.length,
-                    itemBuilder: (_, i) {
-                      final msg = _messages[_messages.length - 1 - i]
-                          as Map<String, dynamic>;
-                      return _MessageBubble(
-                        msg: msg,
-                        userNames: widget.userNames,
-                      );
-                    },
-                  ),
+                : _messages.isEmpty
+                    ? const AppEmptyState(
+                        icon: Icons.waving_hand_outlined,
+                        title: 'Начните разговор',
+                        message: 'Напишите первое сообщение в этом диалоге.',
+                      )
+                    : ListView.builder(
+                        reverse: true,
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                        itemCount: _messages.length,
+                        itemBuilder: (_, i) {
+                          final msg = _messages[_messages.length - 1 - i]
+                              as Map<String, dynamic>;
+                          return _MessageBubble(
+                            msg: msg,
+                            userNames: widget.userNames,
+                            isMine:
+                                (msg['sender_id'] as num?)?.toInt() ==
+                                    currentUserId,
+                          );
+                        },
+                      ),
           ),
           // Поле ввода
           Container(
-            color: const Color(0xFF16213E),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _msgCtrl,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      hintText: 'Сообщение...',
-                      hintStyle: TextStyle(color: Colors.white38),
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: const BoxDecoration(
+              color: AppTheme.surfaceColor,
+              border: Border(top: BorderSide(color: AppTheme.borderColor)),
+            ),
+            padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+            child: SafeArea(
+              top: false,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _msgCtrl,
+                      minLines: 1,
+                      maxLines: 4,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: const InputDecoration(
+                        hintText: 'Написать сообщение…',
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                      onSubmitted: (_) => _send(),
                     ),
-                    onSubmitted: (_) => _send(),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.send, color: Color(0xFF4F8EF7)),
-                  onPressed: _send,
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    tooltip: 'Отправить',
+                    icon: const Icon(Icons.arrow_upward_rounded),
+                    onPressed: _send,
+                  ),
+                ],
+              ),
             ),
           ),
-          SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
         ],
       ),
     );
@@ -262,7 +311,12 @@ class _ChatScreenState extends ConsumerState<_ChatScreen> {
 class _MessageBubble extends StatelessWidget {
   final Map<String, dynamic> msg;
   final Map<int, String> userNames;
-  const _MessageBubble({required this.msg, required this.userNames});
+  final bool isMine;
+  const _MessageBubble({
+    required this.msg,
+    required this.userNames,
+    required this.isMine,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -275,18 +329,40 @@ class _MessageBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
-          Text(senderName,
-              style: const TextStyle(color: Colors.white38, fontSize: 11)),
-          const SizedBox(height: 2),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0F3460),
-              borderRadius: BorderRadius.circular(12),
+          if (!isMine)
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Text(
+                senderName,
+                style: const TextStyle(color: AppTheme.mutedColor, fontSize: 11),
+              ),
             ),
-            child: Text(content, style: const TextStyle(color: Colors.white)),
+          const SizedBox(height: 2),
+          FractionallySizedBox(
+            widthFactor: 0.82,
+            alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: isMine ? AppTheme.primaryColor : AppTheme.cardColor,
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(18),
+                  topRight: const Radius.circular(18),
+                  bottomLeft: Radius.circular(isMine ? 18 : 5),
+                  bottomRight: Radius.circular(isMine ? 5 : 18),
+                ),
+                border: isMine
+                    ? null
+                    : Border.all(color: AppTheme.borderColor),
+              ),
+              child: Text(
+                content,
+                style: const TextStyle(color: Colors.white, height: 1.35),
+              ),
+            ),
           ),
         ],
       ),
