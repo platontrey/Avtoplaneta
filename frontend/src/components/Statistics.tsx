@@ -8,18 +8,49 @@ import { Package, Boxes, DollarSign, TrendingUp, TrendingDown, ChartNoAxesCombin
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { API_BASE_URL } from '@/lib/api';
+import type { StatisticsResponse } from '@/lib/types';
 
-interface Statistics {
-   total_parts: number;
-   total_quantity: number;
-   total_value: number;
-   total_earnings: number;
-   categories: { name: string; count: number }[];
-   monthly_sales: { month: string; sales: number }[];
-}
+type StatisticsPayload = Partial<StatisticsResponse> & {
+  total_parts?: unknown;
+  total_quantity?: unknown;
+  total_value?: unknown;
+  total_earnings?: unknown;
+  monthly_sales?: unknown;
+};
+
+const toFiniteNumber = (value: unknown): number => {
+  const number = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(number) ? number : 0;
+};
+
+const normalizeStatistics = (value: unknown): StatisticsResponse => {
+  const payload = value && typeof value === 'object' ? value as StatisticsPayload : {};
+  const categories = Array.isArray(payload.categories)
+    ? payload.categories
+      .filter((category): category is { name: string; count: number } => Boolean(category && typeof category.name === 'string'))
+      .map((category) => ({ name: category.name, count: toFiniteNumber(category.count) }))
+    : [];
+  const monthlySalesSource = Array.isArray(payload.monthlySales)
+    ? payload.monthlySales
+    : Array.isArray(payload.monthly_sales)
+      ? payload.monthly_sales
+      : [];
+  const monthlySales = monthlySalesSource
+    .filter((item): item is { month: string; sales: number } => Boolean(item && typeof item === 'object' && 'month' in item && typeof item.month === 'string'))
+    .map((item) => ({ month: item.month, sales: toFiniteNumber(item.sales) }));
+
+  return {
+    totalParts: toFiniteNumber(payload.totalParts ?? payload.total_parts),
+    totalQuantity: toFiniteNumber(payload.totalQuantity ?? payload.total_quantity),
+    totalValue: toFiniteNumber(payload.totalValue ?? payload.total_value),
+    totalEarnings: toFiniteNumber(payload.totalEarnings ?? payload.total_earnings),
+    categories,
+    monthlySales,
+  };
+};
 
 function Statistics() {
-  const [data, setData] = useState<Statistics | null>(null);
+  const [data, setData] = useState<StatisticsResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
   const GrowthIndicator = ({ growth }: { growth: number }) => {
@@ -36,7 +67,7 @@ function Statistics() {
 
   // Функция форматирования цены для корректного отображения
   const formatPrice = (price: number) => {
-    return price.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return toFiniteNumber(price).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const fetchData = useCallback(async () => {
@@ -48,8 +79,8 @@ function Statistics() {
         console.error(`HTTP error! status: ${response.status}`);
         return;
       }
-      const result = await response.json();
-      setData(result);
+      const result: unknown = await response.json();
+      setData(normalizeStatistics(result));
     } catch (error) {
       console.error('Error fetching statistics:', error);
     } finally {
@@ -180,7 +211,7 @@ function Statistics() {
     fill: ['#6b7280', '#9ca3af', '#d1d5db', '#f3f4f6', '#e5e7eb'][index % 5]
   })) || [];
 
-  const monthlySalesData = data?.monthly_sales?.map((item, index) => ({
+  const monthlySalesData = data?.monthlySales?.map((item, index) => ({
      name: item.month,
      sales: item.sales,
      fill: ['#059669', '#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#34d399', '#10b981', '#059669', '#047857', '#065f46', '#064e3b', '#022c22'][index % 12]
@@ -188,8 +219,8 @@ function Statistics() {
 
   // Calculate growth percentage for earnings
   const growthPercentage = (() => {
-    if (!data?.monthly_sales || data.monthly_sales.length < 2) return 0;
-    const sorted = [...data.monthly_sales].sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
+    if (!data?.monthlySales || data.monthlySales.length < 2) return 0;
+    const sorted = [...data.monthlySales].sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
     const last = sorted[sorted.length - 1].sales;
     const prev = sorted[sorted.length - 2].sales;
     if (prev === 0) return 0;
@@ -202,10 +233,10 @@ function Statistics() {
   const valueGrowth = growthPercentage;
 
   const summaryData = [
-    { name: 'Всего запчастей', value: data?.total_parts || 0, color: '#6b7280' },
-    { name: 'Общее количество', value: data?.total_quantity || 0, color: '#7c3aed' },
-    { name: 'Общая стоимость', value: data?.total_value || 0, color: '#374151' },
-    { name: 'Общий заработок', value: data?.total_earnings || 0, color: '#059669' }
+    { name: 'Всего запчастей', value: data?.totalParts || 0, color: '#6b7280' },
+    { name: 'Общее количество', value: data?.totalQuantity || 0, color: '#7c3aed' },
+    { name: 'Общая стоимость', value: data?.totalValue || 0, color: '#374151' },
+    { name: 'Общий заработок', value: data?.totalEarnings || 0, color: '#059669' }
   ];
 
   return (
@@ -226,7 +257,7 @@ function Statistics() {
                 <CardTitle className="text-lg">Всего запчастей</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold">{data.total_parts}</p>
+                <p className="text-3xl font-bold">{data.totalParts}</p>
               </CardContent>
             </Card>
             <Card className="shadow-none gap-0 relative">
@@ -238,7 +269,7 @@ function Statistics() {
                 <CardTitle className="text-lg">Общее количество</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold">{data.total_quantity}</p>
+                <p className="text-3xl font-bold">{data.totalQuantity}</p>
               </CardContent>
             </Card>
             <Card className="shadow-none gap-0 relative">
@@ -250,7 +281,7 @@ function Statistics() {
                 <CardTitle className="text-lg">Общая стоимость</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold">₽{formatPrice(data.total_value)}</p>
+                <p className="text-3xl font-bold">₽{formatPrice(data.totalValue)}</p>
               </CardContent>
             </Card>
             <Card className="shadow-none gap-0 relative">
@@ -262,7 +293,7 @@ function Statistics() {
                 <CardTitle className="text-lg">Общий заработок</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold">₽{formatPrice(data.total_earnings)}</p>
+                <p className="text-3xl font-bold">₽{formatPrice(data.totalEarnings)}</p>
               </CardContent>
             </Card>
           </div>
@@ -378,7 +409,7 @@ function Statistics() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {data.monthly_sales && Array.isArray(data.monthly_sales) && data.monthly_sales.map((item, index) => (
+                {data.monthlySales.map((item, index) => (
                   <Card key={index}>
                     <CardContent className="p-4">
                       <h4 className="font-semibold">{item.month}</h4>

@@ -52,10 +52,18 @@ export interface CategoryCount {
   count: number;
 }
 
+export interface MonthlySales {
+  month: string;
+  sales: number;
+}
+
 export interface StatisticsResponse {
   totalParts: number;
+  totalQuantity: number;
   totalValue: number;
+  totalEarnings: number;
   categories: CategoryCount[];
+  monthlySales: MonthlySales[];
 }
 
 export interface OrderItem {
