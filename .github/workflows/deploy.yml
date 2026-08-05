@@ -26,6 +26,6 @@ jobs:
           docker build --cpuset-cpus="0-15" -t avtoplaneta-orders-service:latest ./backend -f ./backend/orders-service/Dockerfile
           docker build --cpuset-cpus="0-15" -t avtoplaneta-messaging-service:latest ./backend -f ./backend/messaging-service/Dockerfile
           docker build --cpuset-cpus="0-15" -t avtoplaneta-gateway:latest ./backend -f ./backend/Dockerfile
-          docker build --cpuset-cpus="0-15" --build-arg VITE_API_BASE_URL=https://avtoplaneta.crazedns.ru -t avtoplaneta-frontend:latest ./frontend -f ./frontend/Dockerfile
+          docker build --cpuset-cpus="0-15" -t avtoplaneta-frontend:latest ./frontend -f ./frontend/Dockerfile
           docker compose up -d --remove-orphans
           docker image prune -f

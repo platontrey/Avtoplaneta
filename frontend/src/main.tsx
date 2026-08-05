@@ -21,34 +21,45 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
-// Unregister service worker and clear cache to force updates
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then((registrations) => {
-    for (const registration of registrations) {
-      registration.unregister().then((success) => {
-        if (success) console.log('Service Worker unregistered successfully');
-      });
-    }
-  });
-}
+const isIpHostname = /^(?:\d{1,3}\.){3}\d{1,3}$/.test(window.location.hostname)
+  || window.location.hostname.includes(':')
 
-if ('caches' in window) {
-  caches.keys().then((names) => {
-    for (const name of names) {
-      caches.delete(name).then(() => {
-        console.log('Cache cleared:', name);
-      });
-    }
-  });
-}
-
-// Initialize push notifications
-pushManager.init().then((isInitialized) => {
-  if (isInitialized) {
-    console.log('Push notifications initialized successfully');
-  } else {
-    console.log('Push notifications not available or already initialized');
+const clearServiceWorkerState = async () => {
+  if ('serviceWorker' in navigator) {
+    const registrations = await navigator.serviceWorker.getRegistrations()
+    await Promise.all(registrations.map((registration) => registration.unregister()))
   }
-}).catch((error) => {
-  console.error('Failed to initialize push notifications:', error);
-});
+
+  if ('caches' in window) {
+    const names = await caches.keys()
+    await Promise.all(names.map((name) => caches.delete(name)))
+  }
+}
+
+const initializeServiceWorker = async () => {
+  if (!('serviceWorker' in navigator)) return
+
+  // Public certificates generally do not cover private LAN IP addresses.
+  // Avoid a noisy registration failure while preserving PWA support by domain.
+  if (isIpHostname) {
+    await clearServiceWorkerState()
+    console.info('Service Worker disabled for direct IP access')
+    return
+  }
+
+  try {
+    await navigator.serviceWorker.register('/sw.js')
+    const isInitialized = await pushManager.init()
+    console.info(
+      isInitialized
+        ? 'Push notifications initialized successfully'
+        : 'Push notifications not available or already initialized',
+    )
+  } catch (error) {
+    console.error('Failed to initialize Service Worker:', error)
+  }
+}
+
+window.addEventListener('load', () => {
+  void initializeServiceWorker()
+})
