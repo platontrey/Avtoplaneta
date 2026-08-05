@@ -71,7 +71,7 @@ class MessagingScreen extends ConsumerWidget {
             : ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
                 itemCount: convs.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
                 itemBuilder: (_, i) {
                   final conv = convs[i] as Map<String, dynamic>;
                   final title =
