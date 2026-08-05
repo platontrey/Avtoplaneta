@@ -797,6 +797,17 @@ function PartBlock({
                                         )}
 
                                         {/* Category-specific fields */}
+                                        {part.transmission_model && (
+                                            <motion.div
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: 0.85, duration: 0.3 }}
+                                                className="text-sm"
+                                            >
+                                                <div className="font-medium text-gray-600">Номер трансмиссии</div>
+                                                <div>{part.transmission_model}</div>
+                                            </motion.div>
+                                        )}
                                         {(part.category === 'Двигатель' || part.category === 'Трансмиссия') && (
                                             <>
                                                 {part.engine_brand && (

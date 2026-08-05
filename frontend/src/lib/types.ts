@@ -34,6 +34,7 @@ export interface Part {
   supplier_code?: string;
   defect?: string;
   transmission?: string;
+  transmission_model?: string;
   drive?: string;
   wear_percentage?: string;
   season?: string;

@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS parts (
     supplier_code TEXT NOT NULL DEFAULT '',
     defect TEXT NOT NULL DEFAULT '',
     transmission TEXT NOT NULL DEFAULT '',
+    transmission_model TEXT NOT NULL DEFAULT '',
     drive TEXT NOT NULL DEFAULT '',
     wear_percentage TEXT NOT NULL DEFAULT '',
 

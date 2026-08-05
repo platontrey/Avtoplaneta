@@ -41,23 +41,24 @@ type Part struct {
 	ToDeleteAt  *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=to_delete_at,json=toDeleteAt,proto3" json:"to_delete_at,omitempty"`
 	Vin         string                 `protobuf:"bytes,15,opt,name=vin,proto3" json:"vin,omitempty"`
 	// Specifications
-	BodyBrand        string `protobuf:"bytes,20,opt,name=body_brand,json=bodyBrand,proto3" json:"body_brand,omitempty"`
-	EngineBrand      string `protobuf:"bytes,21,opt,name=engine_brand,json=engineBrand,proto3" json:"engine_brand,omitempty"`
-	CarReleaseDate   string `protobuf:"bytes,22,opt,name=car_release_date,json=carReleaseDate,proto3" json:"car_release_date,omitempty"`
-	FrontRear        string `protobuf:"bytes,23,opt,name=front_rear,json=frontRear,proto3" json:"front_rear,omitempty"`
-	LeftRight        string `protobuf:"bytes,24,opt,name=left_right,json=leftRight,proto3" json:"left_right,omitempty"`
-	TopBottom        string `protobuf:"bytes,25,opt,name=top_bottom,json=topBottom,proto3" json:"top_bottom,omitempty"`
-	Number           string `protobuf:"bytes,26,opt,name=number,proto3" json:"number,omitempty"`
-	Manufacturer     string `protobuf:"bytes,27,opt,name=manufacturer,proto3" json:"manufacturer,omitempty"`
-	ManufacturerCode string `protobuf:"bytes,28,opt,name=manufacturer_code,json=manufacturerCode,proto3" json:"manufacturer_code,omitempty"`
-	OemCode          string `protobuf:"bytes,29,opt,name=oem_code,json=oemCode,proto3" json:"oem_code,omitempty"`
-	Color            string `protobuf:"bytes,30,opt,name=color,proto3" json:"color,omitempty"`
-	Condition        string `protobuf:"bytes,31,opt,name=condition,proto3" json:"condition,omitempty"`
-	SupplierCode     string `protobuf:"bytes,32,opt,name=supplier_code,json=supplierCode,proto3" json:"supplier_code,omitempty"`
-	Defect           string `protobuf:"bytes,33,opt,name=defect,proto3" json:"defect,omitempty"`
-	Transmission     string `protobuf:"bytes,34,opt,name=transmission,proto3" json:"transmission,omitempty"`
-	Drive            string `protobuf:"bytes,35,opt,name=drive,proto3" json:"drive,omitempty"`
-	WearPercentage   string `protobuf:"bytes,36,opt,name=wear_percentage,json=wearPercentage,proto3" json:"wear_percentage,omitempty"`
+	BodyBrand         string `protobuf:"bytes,20,opt,name=body_brand,json=bodyBrand,proto3" json:"body_brand,omitempty"`
+	EngineBrand       string `protobuf:"bytes,21,opt,name=engine_brand,json=engineBrand,proto3" json:"engine_brand,omitempty"`
+	CarReleaseDate    string `protobuf:"bytes,22,opt,name=car_release_date,json=carReleaseDate,proto3" json:"car_release_date,omitempty"`
+	FrontRear         string `protobuf:"bytes,23,opt,name=front_rear,json=frontRear,proto3" json:"front_rear,omitempty"`
+	LeftRight         string `protobuf:"bytes,24,opt,name=left_right,json=leftRight,proto3" json:"left_right,omitempty"`
+	TopBottom         string `protobuf:"bytes,25,opt,name=top_bottom,json=topBottom,proto3" json:"top_bottom,omitempty"`
+	Number            string `protobuf:"bytes,26,opt,name=number,proto3" json:"number,omitempty"`
+	Manufacturer      string `protobuf:"bytes,27,opt,name=manufacturer,proto3" json:"manufacturer,omitempty"`
+	ManufacturerCode  string `protobuf:"bytes,28,opt,name=manufacturer_code,json=manufacturerCode,proto3" json:"manufacturer_code,omitempty"`
+	OemCode           string `protobuf:"bytes,29,opt,name=oem_code,json=oemCode,proto3" json:"oem_code,omitempty"`
+	Color             string `protobuf:"bytes,30,opt,name=color,proto3" json:"color,omitempty"`
+	Condition         string `protobuf:"bytes,31,opt,name=condition,proto3" json:"condition,omitempty"`
+	SupplierCode      string `protobuf:"bytes,32,opt,name=supplier_code,json=supplierCode,proto3" json:"supplier_code,omitempty"`
+	Defect            string `protobuf:"bytes,33,opt,name=defect,proto3" json:"defect,omitempty"`
+	Transmission      string `protobuf:"bytes,34,opt,name=transmission,proto3" json:"transmission,omitempty"`
+	Drive             string `protobuf:"bytes,35,opt,name=drive,proto3" json:"drive,omitempty"`
+	WearPercentage    string `protobuf:"bytes,36,opt,name=wear_percentage,json=wearPercentage,proto3" json:"wear_percentage,omitempty"`
+	TransmissionModel string `protobuf:"bytes,37,opt,name=transmission_model,json=transmissionModel,proto3" json:"transmission_model,omitempty"`
 	// Tire specifications
 	Season             string `protobuf:"bytes,40,opt,name=season,proto3" json:"season,omitempty"`
 	Diameter           string `protobuf:"bytes,41,opt,name=diameter,proto3" json:"diameter,omitempty"`
@@ -325,6 +326,13 @@ func (x *Part) GetDrive() string {
 func (x *Part) GetWearPercentage() string {
 	if x != nil {
 		return x.WearPercentage
+	}
+	return ""
+}
+
+func (x *Part) GetTransmissionModel() string {
+	if x != nil {
+		return x.TransmissionModel
 	}
 	return ""
 }
@@ -753,23 +761,24 @@ type AddPartRequest struct {
 	SellerId    uint32                 `protobuf:"varint,11,opt,name=seller_id,json=sellerId,proto3" json:"seller_id,omitempty"`
 	Vin         string                 `protobuf:"bytes,12,opt,name=vin,proto3" json:"vin,omitempty"`
 	// Specifications
-	BodyBrand        string `protobuf:"bytes,20,opt,name=body_brand,json=bodyBrand,proto3" json:"body_brand,omitempty"`
-	EngineBrand      string `protobuf:"bytes,21,opt,name=engine_brand,json=engineBrand,proto3" json:"engine_brand,omitempty"`
-	CarReleaseDate   string `protobuf:"bytes,22,opt,name=car_release_date,json=carReleaseDate,proto3" json:"car_release_date,omitempty"`
-	FrontRear        string `protobuf:"bytes,23,opt,name=front_rear,json=frontRear,proto3" json:"front_rear,omitempty"`
-	LeftRight        string `protobuf:"bytes,24,opt,name=left_right,json=leftRight,proto3" json:"left_right,omitempty"`
-	TopBottom        string `protobuf:"bytes,25,opt,name=top_bottom,json=topBottom,proto3" json:"top_bottom,omitempty"`
-	Number           string `protobuf:"bytes,26,opt,name=number,proto3" json:"number,omitempty"`
-	Manufacturer     string `protobuf:"bytes,27,opt,name=manufacturer,proto3" json:"manufacturer,omitempty"`
-	ManufacturerCode string `protobuf:"bytes,28,opt,name=manufacturer_code,json=manufacturerCode,proto3" json:"manufacturer_code,omitempty"`
-	OemCode          string `protobuf:"bytes,29,opt,name=oem_code,json=oemCode,proto3" json:"oem_code,omitempty"`
-	Color            string `protobuf:"bytes,30,opt,name=color,proto3" json:"color,omitempty"`
-	Condition        string `protobuf:"bytes,31,opt,name=condition,proto3" json:"condition,omitempty"`
-	SupplierCode     string `protobuf:"bytes,32,opt,name=supplier_code,json=supplierCode,proto3" json:"supplier_code,omitempty"`
-	Defect           string `protobuf:"bytes,33,opt,name=defect,proto3" json:"defect,omitempty"`
-	Transmission     string `protobuf:"bytes,34,opt,name=transmission,proto3" json:"transmission,omitempty"`
-	Drive            string `protobuf:"bytes,35,opt,name=drive,proto3" json:"drive,omitempty"`
-	WearPercentage   string `protobuf:"bytes,36,opt,name=wear_percentage,json=wearPercentage,proto3" json:"wear_percentage,omitempty"`
+	BodyBrand         string `protobuf:"bytes,20,opt,name=body_brand,json=bodyBrand,proto3" json:"body_brand,omitempty"`
+	EngineBrand       string `protobuf:"bytes,21,opt,name=engine_brand,json=engineBrand,proto3" json:"engine_brand,omitempty"`
+	CarReleaseDate    string `protobuf:"bytes,22,opt,name=car_release_date,json=carReleaseDate,proto3" json:"car_release_date,omitempty"`
+	FrontRear         string `protobuf:"bytes,23,opt,name=front_rear,json=frontRear,proto3" json:"front_rear,omitempty"`
+	LeftRight         string `protobuf:"bytes,24,opt,name=left_right,json=leftRight,proto3" json:"left_right,omitempty"`
+	TopBottom         string `protobuf:"bytes,25,opt,name=top_bottom,json=topBottom,proto3" json:"top_bottom,omitempty"`
+	Number            string `protobuf:"bytes,26,opt,name=number,proto3" json:"number,omitempty"`
+	Manufacturer      string `protobuf:"bytes,27,opt,name=manufacturer,proto3" json:"manufacturer,omitempty"`
+	ManufacturerCode  string `protobuf:"bytes,28,opt,name=manufacturer_code,json=manufacturerCode,proto3" json:"manufacturer_code,omitempty"`
+	OemCode           string `protobuf:"bytes,29,opt,name=oem_code,json=oemCode,proto3" json:"oem_code,omitempty"`
+	Color             string `protobuf:"bytes,30,opt,name=color,proto3" json:"color,omitempty"`
+	Condition         string `protobuf:"bytes,31,opt,name=condition,proto3" json:"condition,omitempty"`
+	SupplierCode      string `protobuf:"bytes,32,opt,name=supplier_code,json=supplierCode,proto3" json:"supplier_code,omitempty"`
+	Defect            string `protobuf:"bytes,33,opt,name=defect,proto3" json:"defect,omitempty"`
+	Transmission      string `protobuf:"bytes,34,opt,name=transmission,proto3" json:"transmission,omitempty"`
+	Drive             string `protobuf:"bytes,35,opt,name=drive,proto3" json:"drive,omitempty"`
+	WearPercentage    string `protobuf:"bytes,36,opt,name=wear_percentage,json=wearPercentage,proto3" json:"wear_percentage,omitempty"`
+	TransmissionModel string `protobuf:"bytes,37,opt,name=transmission_model,json=transmissionModel,proto3" json:"transmission_model,omitempty"`
 	// Tire
 	Season             string `protobuf:"bytes,40,opt,name=season,proto3" json:"season,omitempty"`
 	Diameter           string `protobuf:"bytes,41,opt,name=diameter,proto3" json:"diameter,omitempty"`
@@ -1017,6 +1026,13 @@ func (x *AddPartRequest) GetWearPercentage() string {
 	return ""
 }
 
+func (x *AddPartRequest) GetTransmissionModel() string {
+	if x != nil {
+		return x.TransmissionModel
+	}
+	return ""
+}
+
 func (x *AddPartRequest) GetSeason() string {
 	if x != nil {
 		return x.Season
@@ -1113,6 +1129,7 @@ type UpdatePartRequest struct {
 	Transmission       *string  `protobuf:"bytes,34,opt,name=transmission,proto3,oneof" json:"transmission,omitempty"`
 	Drive              *string  `protobuf:"bytes,35,opt,name=drive,proto3,oneof" json:"drive,omitempty"`
 	WearPercentage     *string  `protobuf:"bytes,36,opt,name=wear_percentage,json=wearPercentage,proto3,oneof" json:"wear_percentage,omitempty"`
+	TransmissionModel  *string  `protobuf:"bytes,37,opt,name=transmission_model,json=transmissionModel,proto3,oneof" json:"transmission_model,omitempty"`
 	Season             *string  `protobuf:"bytes,40,opt,name=season,proto3,oneof" json:"season,omitempty"`
 	Diameter           *string  `protobuf:"bytes,41,opt,name=diameter,proto3,oneof" json:"diameter,omitempty"`
 	Width              *string  `protobuf:"bytes,42,opt,name=width,proto3,oneof" json:"width,omitempty"`
@@ -1362,6 +1379,13 @@ func (x *UpdatePartRequest) GetDrive() string {
 func (x *UpdatePartRequest) GetWearPercentage() string {
 	if x != nil && x.WearPercentage != nil {
 		return *x.WearPercentage
+	}
+	return ""
+}
+
+func (x *UpdatePartRequest) GetTransmissionModel() string {
+	if x != nil && x.TransmissionModel != nil {
+		return *x.TransmissionModel
 	}
 	return ""
 }
@@ -2965,7 +2989,7 @@ var File_parts_v1_parts_proto protoreflect.FileDescriptor
 
 const file_parts_v1_parts_proto_rawDesc = "" +
 	"\n" +
-	"\x14parts/v1/parts.proto\x12\bparts.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/api/annotations.proto\"\xaf\n" +
+	"\x14parts/v1/parts.proto\x12\bparts.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/api/annotations.proto\"\xde\n" +
 	"\n" +
 	"\x04Part\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x12\n" +
@@ -3005,7 +3029,8 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x06defect\x18! \x01(\tR\x06defect\x12\"\n" +
 	"\ftransmission\x18\" \x01(\tR\ftransmission\x12\x14\n" +
 	"\x05drive\x18# \x01(\tR\x05drive\x12'\n" +
-	"\x0fwear_percentage\x18$ \x01(\tR\x0ewearPercentage\x12\x16\n" +
+	"\x0fwear_percentage\x18$ \x01(\tR\x0ewearPercentage\x12-\n" +
+	"\x12transmission_model\x18% \x01(\tR\x11transmissionModel\x12\x16\n" +
 	"\x06season\x18( \x01(\tR\x06season\x12\x1a\n" +
 	"\bdiameter\x18) \x01(\tR\bdiameter\x12\x14\n" +
 	"\x05width\x18* \x01(\tR\x05width\x12\x18\n" +
@@ -3042,7 +3067,7 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x06amount\x18\x02 \x01(\x05R\x06amount\"Y\n" +
 	"\x1aChangePartQuantityResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12!\n" +
-	"\fnew_quantity\x18\x02 \x01(\x05R\vnewQuantity\"\xee\b\n" +
+	"\fnew_quantity\x18\x02 \x01(\x05R\vnewQuantity\"\x9d\t\n" +
 	"\x0eAddPartRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\bquantity\x18\x02 \x01(\x05R\bquantity\x12 \n" +
@@ -3077,7 +3102,8 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x06defect\x18! \x01(\tR\x06defect\x12\"\n" +
 	"\ftransmission\x18\" \x01(\tR\ftransmission\x12\x14\n" +
 	"\x05drive\x18# \x01(\tR\x05drive\x12'\n" +
-	"\x0fwear_percentage\x18$ \x01(\tR\x0ewearPercentage\x12\x16\n" +
+	"\x0fwear_percentage\x18$ \x01(\tR\x0ewearPercentage\x12-\n" +
+	"\x12transmission_model\x18% \x01(\tR\x11transmissionModel\x12\x16\n" +
 	"\x06season\x18( \x01(\tR\x06season\x12\x1a\n" +
 	"\bdiameter\x18) \x01(\tR\bdiameter\x12\x14\n" +
 	"\x05width\x18* \x01(\tR\x05width\x12\x18\n" +
@@ -3087,7 +3113,7 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x06offset\x18. \x01(\tR\x06offset\x120\n" +
 	"\x14center_hole_diameter\x18/ \x01(\tR\x12centerHoleDiameter\x12\x1d\n" +
 	"\n" +
-	"tire_model\x180 \x01(\tR\ttireModel\"\xd0\x0e\n" +
+	"tire_model\x180 \x01(\tR\ttireModel\"\x9b\x0f\n" +
 	"\x11UpdatePartRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12\x1f\n" +
@@ -3124,17 +3150,18 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x06defect\x18! \x01(\tH\x19R\x06defect\x88\x01\x01\x12'\n" +
 	"\ftransmission\x18\" \x01(\tH\x1aR\ftransmission\x88\x01\x01\x12\x19\n" +
 	"\x05drive\x18# \x01(\tH\x1bR\x05drive\x88\x01\x01\x12,\n" +
-	"\x0fwear_percentage\x18$ \x01(\tH\x1cR\x0ewearPercentage\x88\x01\x01\x12\x1b\n" +
-	"\x06season\x18( \x01(\tH\x1dR\x06season\x88\x01\x01\x12\x1f\n" +
-	"\bdiameter\x18) \x01(\tH\x1eR\bdiameter\x88\x01\x01\x12\x19\n" +
-	"\x05width\x18* \x01(\tH\x1fR\x05width\x88\x01\x01\x12\x1d\n" +
-	"\aprofile\x18+ \x01(\tH R\aprofile\x88\x01\x01\x12(\n" +
-	"\rtire_quantity\x18, \x01(\tH!R\ftireQuantity\x88\x01\x01\x12\x1f\n" +
-	"\bdrilling\x18- \x01(\tH\"R\bdrilling\x88\x01\x01\x12\x1b\n" +
-	"\x06offset\x18. \x01(\tH#R\x06offset\x88\x01\x01\x125\n" +
-	"\x14center_hole_diameter\x18/ \x01(\tH$R\x12centerHoleDiameter\x88\x01\x01\x12\"\n" +
+	"\x0fwear_percentage\x18$ \x01(\tH\x1cR\x0ewearPercentage\x88\x01\x01\x122\n" +
+	"\x12transmission_model\x18% \x01(\tH\x1dR\x11transmissionModel\x88\x01\x01\x12\x1b\n" +
+	"\x06season\x18( \x01(\tH\x1eR\x06season\x88\x01\x01\x12\x1f\n" +
+	"\bdiameter\x18) \x01(\tH\x1fR\bdiameter\x88\x01\x01\x12\x19\n" +
+	"\x05width\x18* \x01(\tH R\x05width\x88\x01\x01\x12\x1d\n" +
+	"\aprofile\x18+ \x01(\tH!R\aprofile\x88\x01\x01\x12(\n" +
+	"\rtire_quantity\x18, \x01(\tH\"R\ftireQuantity\x88\x01\x01\x12\x1f\n" +
+	"\bdrilling\x18- \x01(\tH#R\bdrilling\x88\x01\x01\x12\x1b\n" +
+	"\x06offset\x18. \x01(\tH$R\x06offset\x88\x01\x01\x125\n" +
+	"\x14center_hole_diameter\x18/ \x01(\tH%R\x12centerHoleDiameter\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"tire_model\x180 \x01(\tH%R\ttireModel\x88\x01\x01B\a\n" +
+	"tire_model\x180 \x01(\tH&R\ttireModel\x88\x01\x01B\a\n" +
 	"\x05_nameB\v\n" +
 	"\t_quantityB\x0e\n" +
 	"\f_descriptionB\v\n" +
@@ -3165,7 +3192,8 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\a_defectB\x0f\n" +
 	"\r_transmissionB\b\n" +
 	"\x06_driveB\x12\n" +
-	"\x10_wear_percentageB\t\n" +
+	"\x10_wear_percentageB\x15\n" +
+	"\x13_transmission_modelB\t\n" +
 	"\a_seasonB\v\n" +
 	"\t_diameterB\b\n" +
 	"\x06_widthB\n" +

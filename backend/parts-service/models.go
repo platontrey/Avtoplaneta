@@ -61,23 +61,24 @@ type PartCore struct {
 
 // PartSpecifications содержит технические характеристики запчасти
 type PartSpecifications struct {
-	BodyBrand        string `json:"body_brand,omitempty"`
-	EngineBrand      string `json:"engine_brand,omitempty"`
-	CarReleaseDate   string `json:"car_release_date,omitempty"`
-	FrontRear        string `json:"front_rear,omitempty"`
-	LeftRight        string `json:"left_right,omitempty"`
-	TopBottom        string `json:"top_bottom,omitempty"`
-	Number           string `json:"number,omitempty"`
-	Manufacturer     string `json:"manufacturer,omitempty"`
-	ManufacturerCode string `json:"manufacturer_code,omitempty"`
-	OEMCode          string `json:"oem_code,omitempty"`
-	Color            string `json:"color,omitempty"`
-	Condition        string `json:"condition,omitempty"`
-	SupplierCode     string `json:"supplier_code,omitempty"`
-	Defect           string `json:"defect,omitempty"`
-	Transmission     string `json:"transmission,omitempty"`
-	Drive            string `json:"drive,omitempty"`
-	WearPercentage   string `json:"wear_percentage,omitempty"`
+	BodyBrand         string `json:"body_brand,omitempty"`
+	EngineBrand       string `json:"engine_brand,omitempty"`
+	CarReleaseDate    string `json:"car_release_date,omitempty"`
+	FrontRear         string `json:"front_rear,omitempty"`
+	LeftRight         string `json:"left_right,omitempty"`
+	TopBottom         string `json:"top_bottom,omitempty"`
+	Number            string `json:"number,omitempty"`
+	Manufacturer      string `json:"manufacturer,omitempty"`
+	ManufacturerCode  string `json:"manufacturer_code,omitempty"`
+	OEMCode           string `json:"oem_code,omitempty"`
+	Color             string `json:"color,omitempty"`
+	Condition         string `json:"condition,omitempty"`
+	SupplierCode      string `json:"supplier_code,omitempty"`
+	Defect            string `json:"defect,omitempty"`
+	Transmission      string `json:"transmission,omitempty"`
+	TransmissionModel string `json:"transmission_model,omitempty"`
+	Drive             string `json:"drive,omitempty"`
+	WearPercentage    string `json:"wear_percentage,omitempty"`
 }
 
 // PartTireSpecifications содержит характеристики шин
@@ -135,6 +136,7 @@ func (p *Part) GetFullSpecifications() map[string]interface{} {
 		{"supplier_code", p.SupplierCode},
 		{"defect", p.Defect},
 		{"transmission", p.Transmission},
+		{"transmission_model", p.TransmissionModel},
 		{"drive", p.Drive},
 		{"wear_percentage", p.WearPercentage},
 	}
@@ -204,6 +206,8 @@ func (p *Part) SetSpecifications(specs map[string]interface{}) {
 			p.Defect = strValue
 		case "transmission":
 			p.Transmission = strValue
+		case "transmission_model":
+			p.TransmissionModel = strValue
 		case "drive":
 			p.Drive = strValue
 		case "wear_percentage":

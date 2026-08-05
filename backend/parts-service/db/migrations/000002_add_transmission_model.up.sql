@@ -1,0 +1,2 @@
+ALTER TABLE parts
+ADD COLUMN IF NOT EXISTS transmission_model TEXT NOT NULL DEFAULT '';

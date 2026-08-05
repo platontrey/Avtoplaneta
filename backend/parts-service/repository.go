@@ -66,7 +66,7 @@ var partColumns = `id, name, quantity, description, category, price, salesman, l
 	brand, model, photos, seller_id, to_delete_at, vin,
 	body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom,
 	number, manufacturer, manufacturer_code, oem_code, color, condition,
-	supplier_code, defect, transmission, drive, wear_percentage,
+	supplier_code, defect, transmission, transmission_model, drive, wear_percentage,
 	season, diameter, width, profile, tire_quantity, drilling, "offset",
 	center_hole_diameter, tire_model, created_at, updated_at, deleted_at`
 
@@ -83,7 +83,7 @@ func scanPart(row pgx.Row) (*Part, error) {
 		&p.SellerID, &toDeleteAt, &p.VIN,
 		&p.BodyBrand, &p.EngineBrand, &p.CarReleaseDate, &p.FrontRear, &p.LeftRight, &p.TopBottom,
 		&p.Number, &p.Manufacturer, &p.ManufacturerCode, &p.OEMCode, &p.Color, &p.Condition,
-		&p.SupplierCode, &p.Defect, &p.Transmission, &p.Drive, &p.WearPercentage,
+		&p.SupplierCode, &p.Defect, &p.Transmission, &p.TransmissionModel, &p.Drive, &p.WearPercentage,
 		&p.Season, &p.Diameter, &p.Width, &p.Profile, &p.TireQuantity, &p.Drilling, &p.Offset,
 		&p.CenterHoleDiameter, &p.TireModel,
 		&createdAt, &updatedAt, &deletedAt,
@@ -117,7 +117,7 @@ func scanParts(rows pgx.Rows) ([]Part, error) {
 			&p.SellerID, &toDeleteAt, &p.VIN,
 			&p.BodyBrand, &p.EngineBrand, &p.CarReleaseDate, &p.FrontRear, &p.LeftRight, &p.TopBottom,
 			&p.Number, &p.Manufacturer, &p.ManufacturerCode, &p.OEMCode, &p.Color, &p.Condition,
-			&p.SupplierCode, &p.Defect, &p.Transmission, &p.Drive, &p.WearPercentage,
+			&p.SupplierCode, &p.Defect, &p.Transmission, &p.TransmissionModel, &p.Drive, &p.WearPercentage,
 			&p.Season, &p.Diameter, &p.Width, &p.Profile, &p.TireQuantity, &p.Drilling, &p.Offset,
 			&p.CenterHoleDiameter, &p.TireModel,
 			&createdAt, &updatedAt, &deletedAt,
@@ -163,20 +163,20 @@ func (r *partRepository) Create(ctx context.Context, part *Part) error {
 			brand, model, photos, seller_id, to_delete_at, vin,
 			body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom,
 			number, manufacturer, manufacturer_code, oem_code, color, condition,
-			supplier_code, defect, transmission, drive, wear_percentage,
+			supplier_code, defect, transmission, transmission_model, drive, wear_percentage,
 			season, diameter, width, profile, tire_quantity, drilling, "offset",
 			center_hole_diameter, tire_model, created_at, updated_at
 		) VALUES (
 			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,
 			$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,
-			$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,NOW(),NOW()
+			$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,NOW(),NOW()
 		) RETURNING id, created_at, updated_at`,
 		part.Name, part.Quantity, part.Description, part.Category, part.Price,
 		part.Salesman, part.Location, part.Status, part.Brand, part.Model,
 		photosJSON, part.SellerID, toDeleteAt, part.VIN,
 		part.BodyBrand, part.EngineBrand, part.CarReleaseDate, part.FrontRear, part.LeftRight, part.TopBottom,
 		part.Number, part.Manufacturer, part.ManufacturerCode, part.OEMCode, part.Color, part.Condition,
-		part.SupplierCode, part.Defect, part.Transmission, part.Drive, part.WearPercentage,
+		part.SupplierCode, part.Defect, part.Transmission, part.TransmissionModel, part.Drive, part.WearPercentage,
 		part.Season, part.Diameter, part.Width, part.Profile, part.TireQuantity, part.Drilling, part.Offset,
 		part.CenterHoleDiameter, part.TireModel,
 	)
@@ -206,7 +206,6 @@ func (r *partRepository) Update(ctx context.Context, id int64, updates map[strin
 	if len(updates) == 0 {
 		return nil
 	}
-
 
 	builder := r.psq.Update("parts").Where(squirrel.Eq{"id": id, "deleted_at": nil})
 	for key, value := range updates {
@@ -418,7 +417,7 @@ func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]in
 			front_rear TEXT, left_right TEXT, top_bottom TEXT,
 			number TEXT, manufacturer TEXT, manufacturer_code TEXT,
 			oem_code TEXT, color TEXT, condition TEXT,
-			supplier_code TEXT, defect TEXT, transmission TEXT,
+			supplier_code TEXT, defect TEXT, transmission TEXT, transmission_model TEXT,
 			drive TEXT, wear_percentage TEXT,
 			season TEXT, diameter TEXT, width TEXT, profile TEXT,
 			tire_quantity TEXT, drilling TEXT, "offset" TEXT,
@@ -455,9 +454,9 @@ func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]in
 		_, err = tx.Exec(ctx, `
 			INSERT INTO temp_parts_update (id, name, quantity, description, category, price, brand, model, location, salesman, status, photos,
 				body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer,
-				manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, drive, wear_percentage,
+				manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage,
 				season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38)`,
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39)`,
 			id,
 			update["name"], update["quantity"], update["description"], update["category"],
 			update["price"], update["brand"], update["model"], update["location"],
@@ -466,7 +465,7 @@ func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]in
 			update["front_rear"], update["left_right"], update["top_bottom"],
 			update["number"], update["manufacturer"], update["manufacturer_code"],
 			update["oem_code"], update["color"], update["condition"],
-			update["supplier_code"], update["defect"], update["transmission"],
+			update["supplier_code"], update["defect"], update["transmission"], update["transmission_model"],
 			update["drive"], update["wear_percentage"],
 			update["season"], update["diameter"], update["width"], update["profile"],
 			update["tire_quantity"], update["drilling"], update["offset"],
@@ -507,6 +506,7 @@ func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]in
 			supplier_code = COALESCE(t.supplier_code, parts.supplier_code),
 			defect = COALESCE(t.defect, parts.defect),
 			transmission = COALESCE(t.transmission, parts.transmission),
+			transmission_model = COALESCE(t.transmission_model, parts.transmission_model),
 			drive = COALESCE(t.drive, parts.drive),
 			wear_percentage = COALESCE(t.wear_percentage, parts.wear_percentage),
 			season = COALESCE(t.season, parts.season),

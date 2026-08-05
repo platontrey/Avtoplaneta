@@ -46,6 +46,12 @@ const availableColors = [
   "Матовый",
 ];
 
+const transmissionModelCategories = [
+  "Подвеска ДВС/КПП",
+  "Трансмиссия",
+  "Подвеска передних колес",
+];
+
 const defectReportSchema = z.object({
   brand: z.string().min(1, "Выберите бренд"),
   model: z.string().min(1, "Введите модель"),
@@ -53,6 +59,7 @@ const defectReportSchema = z.object({
   vin: z.string().optional(),
   mileage: z.number().min(0, "Пробег должен быть положительным числом"),
   transmission: z.string().optional(),
+  transmission_model: z.string().optional(),
   engine_brand: z.string().optional(),
   body_brand: z.string().optional(),
   interior_color: z.string().optional(),
@@ -85,6 +92,7 @@ interface CommonPart {
   supplier_code?: string;
   defect?: string;
   transmission?: string;
+  transmission_model?: string;
   drive?: string;
   wear_percentage?: string;
   season?: string;
@@ -1621,6 +1629,9 @@ export default function DefectReport() {
             supplier_code: Date.now().toString(), // Автоматически выставляем код поставки как ID
             defect: part.defect,
             transmission: part.category === "Трансмиссия" ? data.transmission : part.transmission,
+            transmission_model: transmissionModelCategories.includes(part.category)
+              ? data.transmission_model
+              : part.transmission_model,
             drive: part.drive,
             wear_percentage: part.wear_percentage,
             season: part.season,
@@ -1804,6 +1815,21 @@ export default function DefectReport() {
               </div>
 
               <div>
+                <Label htmlFor="transmission-model">Номер трансмиссии</Label>
+                <Input
+                  id="transmission-model"
+                  {...register("transmission_model")}
+                  type="text"
+                  placeholder="Введите номер трансмиссии"
+                  className="h-10"
+                  autoComplete="off"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Применяется к подвеске ДВС/КПП, трансмиссии и подвеске передних колес
+                </p>
+              </div>
+
+              <div>
                 <Label htmlFor="body-color-select">Цвет кузовных деталей</Label>
                 <SearchableSelect
                   value={watch("body_color") || ""}
@@ -1937,6 +1963,9 @@ export default function DefectReport() {
                         {part.condition && <div>Состояние: {part.condition}</div>}
                         {part.defect && <div>Дефект: {part.defect}</div>}
                         {part.transmission && <div>Трансмиссия: {part.transmission}</div>}
+                        {transmissionModelCategories.includes(part.category) && watch("transmission_model") && (
+                          <div>Номер трансмиссии: {watch("transmission_model")}</div>
+                        )}
                         {part.drive && <div>Привод: {part.drive}</div>}
                         {part.wear_percentage && <div>Процент износа: {part.wear_percentage}</div>}
                         {part.season && <div>Сезон: {part.season}</div>}

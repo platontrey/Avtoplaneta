@@ -31,10 +31,12 @@ class PartDetailScreen extends ConsumerWidget {
               icon: const Icon(Icons.edit_outlined),
               onPressed: isOffline
                   ? () => ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text(
-                                'В оффлайн-режиме редактирование недоступно')),
-                      )
+                      const SnackBar(
+                        content: Text(
+                          'В оффлайн-режиме редактирование недоступно',
+                        ),
+                      ),
+                    )
                   : () => context.go('/inventory/edit/$id'),
             ),
         ],
@@ -60,13 +62,19 @@ class PartDetailScreen extends ConsumerWidget {
                         fit: BoxFit.cover,
                         placeholder: (ctx, url) => Container(
                           color: const Color(0xFF16213E),
-                          child: const Icon(Icons.image_outlined,
-                              size: 64, color: Colors.white24),
+                          child: const Icon(
+                            Icons.image_outlined,
+                            size: 64,
+                            color: Colors.white24,
+                          ),
                         ),
                         errorWidget: (ctx, url, err) => Container(
                           color: const Color(0xFF16213E),
-                          child: const Icon(Icons.broken_image_outlined,
-                              size: 64, color: Colors.white24),
+                          child: const Icon(
+                            Icons.broken_image_outlined,
+                            size: 64,
+                            color: Colors.white24,
+                          ),
                         ),
                       ),
                     ),
@@ -80,17 +88,20 @@ class PartDetailScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Center(
-                    child: Icon(Icons.directions_car_outlined,
-                        size: 64, color: Colors.white24),
+                    child: Icon(
+                      Icons.directions_car_outlined,
+                      size: 64,
+                      color: Colors.white24,
+                    ),
                   ),
                 ),
               const SizedBox(height: 16),
               Text(
                 part.name,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Row(
@@ -114,6 +125,45 @@ class PartDetailScreen extends ConsumerWidget {
                 if (part.model != null) _row('Модель', part.model!),
                 if (part.color != null) _row('Цвет', part.color!),
                 if (part.condition != null) _row('Состояние', part.condition!),
+              ]),
+              _section('Характеристики', [
+                if (_notEmpty(part.bodyBrand))
+                  _row('Марка кузова', part.bodyBrand!),
+                if (_notEmpty(part.engineBrand))
+                  _row('Марка двигателя', part.engineBrand!),
+                if (_notEmpty(part.carReleaseDate))
+                  _row('Год выпуска', part.carReleaseDate!),
+                if (_notEmpty(part.frontRear))
+                  _row('Перед / зад', part.frontRear!),
+                if (_notEmpty(part.leftRight))
+                  _row('Лево / право', part.leftRight!),
+                if (_notEmpty(part.topBottom))
+                  _row('Верх / низ', part.topBottom!),
+                if (_notEmpty(part.number)) _row('Номер детали', part.number!),
+                if (_notEmpty(part.manufacturer))
+                  _row('Производитель', part.manufacturer!),
+                if (_notEmpty(part.manufacturerCode))
+                  _row('Код производителя', part.manufacturerCode!),
+                if (_notEmpty(part.defect)) _row('Дефект', part.defect!),
+                if (_notEmpty(part.transmission))
+                  _row('Тип трансмиссии', part.transmission!),
+                if (_notEmpty(part.transmissionModel))
+                  _row('Номер трансмиссии', part.transmissionModel!),
+                if (_notEmpty(part.drive)) _row('Привод', part.drive!),
+                if (_notEmpty(part.wearPercentage))
+                  _row('Процент износа', '${part.wearPercentage!}%'),
+                if (_notEmpty(part.season)) _row('Сезон', part.season!),
+                if (_notEmpty(part.diameter)) _row('Диаметр', part.diameter!),
+                if (_notEmpty(part.width)) _row('Ширина', part.width!),
+                if (_notEmpty(part.profile)) _row('Профиль', part.profile!),
+                if (_notEmpty(part.tireQuantity))
+                  _row('Количество шин', part.tireQuantity!),
+                if (_notEmpty(part.drilling)) _row('Сверловка', part.drilling!),
+                if (_notEmpty(part.offset)) _row('Вылет', part.offset!),
+                if (_notEmpty(part.centerHoleDiameter))
+                  _row('Центральное отверстие', part.centerHoleDiameter!),
+                if (_notEmpty(part.tireModel))
+                  _row('Модель шины', part.tireModel!),
               ]),
               if (part.oemCode != null || part.supplierCode != null)
                 _section('Коды', [
@@ -146,7 +196,10 @@ class PartDetailScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: QrImageView(
-                      data: QrSigner.generateQrData(partId: part.id, createdAt: part.createdAt),
+                      data: QrSigner.generateQrData(
+                        partId: part.id,
+                        createdAt: part.createdAt,
+                      ),
                       version: QrVersions.auto,
                       size: 160.0,
                     ),
@@ -167,56 +220,65 @@ class PartDetailScreen extends ConsumerWidget {
   }
 
   Widget _statusChip(int qty) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: qty > 0
-              ? const Color(0xFF43A047).withValues(alpha: 0.2)
-              : const Color(0xFFE53935).withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          qty > 0 ? '$qty шт. в наличии' : 'Нет в наличии',
-          style: TextStyle(
-            color: qty > 0 ? const Color(0xFF43A047) : const Color(0xFFE53935),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    decoration: BoxDecoration(
+      color: qty > 0
+          ? const Color(0xFF43A047).withValues(alpha: 0.2)
+          : const Color(0xFFE53935).withValues(alpha: 0.2),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Text(
+      qty > 0 ? '$qty шт. в наличии' : 'Нет в наличии',
+      style: TextStyle(
+        color: qty > 0 ? const Color(0xFF43A047) : const Color(0xFFE53935),
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  );
 
-  Widget _section(String title, List<Widget> children) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Divider(color: Colors.white12),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: const TextStyle(
+  bool _notEmpty(String? value) => value != null && value.isNotEmpty;
+
+  Widget _section(String title, List<Widget> children) => children.isEmpty
+      ? const SizedBox.shrink()
+      : Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Divider(color: Colors.white12),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: const TextStyle(
                 color: Colors.white54,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                letterSpacing: 0.5),
-          ),
-          const SizedBox(height: 8),
-          ...children,
-          const SizedBox(height: 8),
-        ],
-      );
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...children,
+            const SizedBox(height: 8),
+          ],
+        );
 
   Widget _row(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 130,
-              child: Text(label,
-                  style: const TextStyle(color: Colors.white38, fontSize: 13)),
-            ),
-            Expanded(
-              child: Text(value,
-                  style: const TextStyle(color: Colors.white, fontSize: 13)),
-            ),
-          ],
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 130,
+          child: Text(
+            label,
+            style: const TextStyle(color: Colors.white38, fontSize: 13),
+          ),
         ),
-      );
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+          ),
+        ),
+      ],
+    ),
+  );
 }

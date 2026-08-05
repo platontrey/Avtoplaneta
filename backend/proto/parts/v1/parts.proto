@@ -162,6 +162,7 @@ message Part {
   string transmission = 34;
   string drive = 35;
   string wear_percentage = 36;
+  string transmission_model = 37;
 
   // Tire specifications
   string season = 40;
@@ -249,6 +250,7 @@ message AddPartRequest {
   string transmission = 34;
   string drive = 35;
   string wear_percentage = 36;
+  string transmission_model = 37;
 
   // Tire
   string season = 40;
@@ -295,6 +297,7 @@ message UpdatePartRequest {
   optional string transmission = 34;
   optional string drive = 35;
   optional string wear_percentage = 36;
+  optional string transmission_model = 37;
 
   optional string season = 40;
   optional string diameter = 41;

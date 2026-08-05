@@ -335,6 +335,7 @@ func (c *RedisEventConsumer) handleDefectReportCreated(ctx context.Context, msg 
 			SupplierCode       string  `json:"supplier_code,omitempty"`
 			Defect             string  `json:"defect,omitempty"`
 			Transmission       string  `json:"transmission,omitempty"`
+			TransmissionModel  string  `json:"transmission_model,omitempty"`
 			Drive              string  `json:"drive,omitempty"`
 			WearPercentage     string  `json:"wear_percentage,omitempty"`
 			Season             string  `json:"season,omitempty"`
@@ -394,23 +395,24 @@ func (c *RedisEventConsumer) handleDefectReportCreated(ctx context.Context, msg 
 					SellerID:    defaultUserID,
 				},
 				PartSpecifications: PartSpecifications{
-					BodyBrand:        selectedPart.BodyBrand,
-					EngineBrand:      selectedPart.EngineBrand,
-					CarReleaseDate:   selectedPart.CarReleaseDate,
-					FrontRear:        selectedPart.FrontRear,
-					LeftRight:        selectedPart.LeftRight,
-					TopBottom:        selectedPart.TopBottom,
-					Number:           selectedPart.Number,
-					Manufacturer:     selectedPart.Manufacturer,
-					ManufacturerCode: selectedPart.ManufacturerCode,
-					OEMCode:          selectedPart.OEMCode,
-					Color:            selectedPart.Color,
-					Condition:        selectedPart.Condition,
-					SupplierCode:     selectedPart.SupplierCode,
-					Defect:           selectedPart.Defect,
-					Transmission:     selectedPart.Transmission,
-					Drive:            selectedPart.Drive,
-					WearPercentage:   selectedPart.WearPercentage,
+					BodyBrand:         selectedPart.BodyBrand,
+					EngineBrand:       selectedPart.EngineBrand,
+					CarReleaseDate:    selectedPart.CarReleaseDate,
+					FrontRear:         selectedPart.FrontRear,
+					LeftRight:         selectedPart.LeftRight,
+					TopBottom:         selectedPart.TopBottom,
+					Number:            selectedPart.Number,
+					Manufacturer:      selectedPart.Manufacturer,
+					ManufacturerCode:  selectedPart.ManufacturerCode,
+					OEMCode:           selectedPart.OEMCode,
+					Color:             selectedPart.Color,
+					Condition:         selectedPart.Condition,
+					SupplierCode:      selectedPart.SupplierCode,
+					Defect:            selectedPart.Defect,
+					Transmission:      selectedPart.Transmission,
+					TransmissionModel: selectedPart.TransmissionModel,
+					Drive:             selectedPart.Drive,
+					WearPercentage:    selectedPart.WearPercentage,
 				},
 				PartTireSpecifications: PartTireSpecifications{
 					Season:             selectedPart.Season,

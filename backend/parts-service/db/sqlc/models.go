@@ -45,6 +45,7 @@ type Part struct {
 	SupplierCode       string             `json:"supplier_code"`
 	Defect             string             `json:"defect"`
 	Transmission       string             `json:"transmission"`
+	TransmissionModel  string             `json:"transmission_model"`
 	Drive              string             `json:"drive"`
 	WearPercentage     string             `json:"wear_percentage"`
 	Season             string             `json:"season"`

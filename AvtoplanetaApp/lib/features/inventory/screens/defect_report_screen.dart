@@ -23,8 +23,10 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
   final _mileageCtrl = TextEditingController();
   final _engineBrandCtrl = TextEditingController();
   final _bodyBrandCtrl = TextEditingController();
+  final _transmissionModelCtrl = TextEditingController();
   final _descCtrl = TextEditingController(
-    text: "В связи с изменением цены конечную стоимость товара узнавать по WhatsApp 89138538227",
+    text:
+        "В связи с изменением цены конечную стоимость товара узнавать по WhatsApp 89138538227",
   );
 
   String? _selectedBrand;
@@ -48,6 +50,12 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
     "Роботизированная",
     "Вариатор",
   ];
+
+  static const _transmissionModelCategories = {
+    'Подвеска ДВС/КПП',
+    'Трансмиссия',
+    'Подвеска передних колес',
+  };
 
   final List<String> _availableColors = [
     "Черный",
@@ -89,6 +97,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
     _mileageCtrl.dispose();
     _engineBrandCtrl.dispose();
     _bodyBrandCtrl.dispose();
+    _transmissionModelCtrl.dispose();
     _descCtrl.dispose();
     super.dispose();
   }
@@ -101,7 +110,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
       final isInteriorCategory = [
         'Электрооснащение',
         'Система кондиционирования',
-        'Сопутствующие товары'
+        'Сопутствующие товары',
       ].contains(category);
 
       final defaultColor = isInteriorCategory ? 'Черный' : 'Белый';
@@ -109,8 +118,13 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
           ? (_selectedInteriorColor ?? 'Черный')
           : (_selectedBodyColor ?? part['color'] ?? defaultColor);
 
-      final transmissionVal =
-          category == 'Трансмиссия' ? _selectedTransmission : part['transmission'];
+      final transmissionVal = category == 'Трансмиссия'
+          ? _selectedTransmission
+          : part['transmission'];
+      final transmissionModelVal =
+          _transmissionModelCategories.contains(category)
+          ? _transmissionModelCtrl.text.trim()
+          : part['transmission_model'];
 
       return {
         'name': part['name'],
@@ -135,6 +149,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
         'supplier_code': DateTime.now().millisecondsSinceEpoch.toString(),
         'defect': part['defect'],
         'transmission': transmissionVal,
+        'transmission_model': transmissionModelVal,
         'drive': part['drive'],
         'wear_percentage': part['wear_percentage'],
         'season': part['season'],
@@ -190,9 +205,9 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
       context.go('/inventory');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка создания: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Ошибка создания: $e')));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -227,7 +242,10 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
               onPressed: _submit,
               child: const Text(
                 'Создать',
-                style: TextStyle(color: Color(0xFF4F8EF7), fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: Color(0xFF4F8EF7),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
         ],
@@ -265,8 +283,22 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
               items: _transmissions,
               onChanged: (val) => setState(() => _selectedTransmission = val),
             ),
-            _buildTextField(_engineBrandCtrl, 'Марка двигателя', hint: 'Например: Toyota 1NZ-FE'),
-            _buildTextField(_bodyBrandCtrl, 'Марка кузова', hint: 'Например: Toyota Corolla'),
+            _buildTextField(
+              _transmissionModelCtrl,
+              'Номер трансмиссии',
+              hint:
+                  'Применяется к подвеске ДВС/КПП, трансмиссии и передней подвеске',
+            ),
+            _buildTextField(
+              _engineBrandCtrl,
+              'Марка двигателя',
+              hint: 'Например: Toyota 1NZ-FE',
+            ),
+            _buildTextField(
+              _bodyBrandCtrl,
+              'Марка кузова',
+              hint: 'Например: Toyota Corolla',
+            ),
 
             const SizedBox(height: 12),
             _sectionTitle('Цвета деталей'),
@@ -331,7 +363,8 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
           hintStyle: const TextStyle(color: Colors.white30),
         ),
         validator: required
-            ? (v) => (v == null || v.trim().isEmpty) ? 'Обязательное поле' : null
+            ? (v) =>
+                  (v == null || v.trim().isEmpty) ? 'Обязательное поле' : null
             : null,
       ),
     );
@@ -352,10 +385,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
         dropdownColor: const Color(0xFF16213E),
         style: const TextStyle(color: Colors.white, fontSize: 16),
         items: items
-            .map((item) => DropdownMenuItem(
-                  value: item,
-                  child: Text(item),
-                ))
+            .map((item) => DropdownMenuItem(value: item, child: Text(item)))
             .toList(),
         onChanged: onChanged,
       ),
@@ -396,7 +426,10 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
         const SizedBox(height: 8),
         Row(
           children: [
-            const Text('Показывать:', style: TextStyle(color: Colors.white54, fontSize: 12)),
+            const Text(
+              'Показывать:',
+              style: TextStyle(color: Colors.white54, fontSize: 12),
+            ),
             const SizedBox(width: 8),
             _limitButton(10),
             _limitButton(30),
@@ -415,16 +448,25 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
           ),
           child: filteredParts.isEmpty
               ? const Center(
-                  child: Text('Ничего не найдено', style: TextStyle(color: Colors.white30)))
+                  child: Text(
+                    'Ничего не найдено',
+                    style: TextStyle(color: Colors.white30),
+                  ),
+                )
               : ListView.builder(
                   padding: const EdgeInsets.all(8),
                   itemCount: filteredParts.length.clamp(0, _displayLimit),
                   itemBuilder: (ctx, i) {
                     final part = filteredParts[i];
                     return Container(
-                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 6,
+                        horizontal: 4,
+                      ),
                       decoration: const BoxDecoration(
-                        border: Border(bottom: BorderSide(color: Colors.white10, width: 0.5)),
+                        border: Border(
+                          bottom: BorderSide(color: Colors.white10, width: 0.5),
+                        ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -444,7 +486,10 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
                                 const SizedBox(height: 2),
                                 Text(
                                   part['category'] ?? '',
-                                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+                                  style: const TextStyle(
+                                    color: Colors.white38,
+                                    fontSize: 11,
+                                  ),
                                 ),
                               ],
                             ),
@@ -477,7 +522,9 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF4F8EF7).withValues(alpha: 0.2) : Colors.transparent,
+            color: isSelected
+                ? const Color(0xFF4F8EF7).withValues(alpha: 0.2)
+                : Colors.transparent,
             border: Border.all(
               color: isSelected ? const Color(0xFF4F8EF7) : Colors.white10,
               width: 1,

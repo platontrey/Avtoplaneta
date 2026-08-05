@@ -45,6 +45,7 @@ export interface UsePartEditReturn {
     supplier_code?: string;
     defect?: string;
     transmission?: string;
+    transmission_model?: string;
     drive?: string;
     wear_percentage?: string;
     season?: string;
@@ -107,6 +108,7 @@ export function usePartEdit(options: UsePartEditOptions): UsePartEditReturn {
     supplier_code: initialPart.supplier_code || '',
     defect: initialPart.defect || '',
     transmission: initialPart.transmission || '',
+    transmission_model: initialPart.transmission_model || '',
     drive: initialPart.drive || '',
     wear_percentage: initialPart.wear_percentage || '',
     season: initialPart.season || '',
@@ -152,6 +154,7 @@ export function usePartEdit(options: UsePartEditOptions): UsePartEditReturn {
       supplier_code: initialPart.supplier_code || '',
       defect: initialPart.defect || '',
       transmission: initialPart.transmission || '',
+      transmission_model: initialPart.transmission_model || '',
       drive: initialPart.drive || '',
       wear_percentage: initialPart.wear_percentage || '',
       season: initialPart.season || '',
@@ -260,6 +263,7 @@ export function usePartEdit(options: UsePartEditOptions): UsePartEditReturn {
         supplier_code: editForm.supplier_code,
         defect: editForm.defect,
         transmission: editForm.transmission,
+        transmission_model: editForm.transmission_model,
         drive: editForm.drive,
         wear_percentage: editForm.wear_percentage,
         season: editForm.season,
@@ -326,7 +330,7 @@ export function usePartEdit(options: UsePartEditOptions): UsePartEditReturn {
       setIsEditing(false);
       setShouldDeletePhoto(false); // Reset flag on error
     }
-  }, [editForm.name, editForm.quantity, editForm.description, editForm.category, editForm.price, editForm.salesman, editForm.location, editForm.status, editForm.brand, editForm.model, editForm.photo, editForm.body_brand, editForm.engine_brand, editForm.car_release_date, editForm.front_rear, editForm.left_right, editForm.top_bottom, editForm.number, editForm.manufacturer, editForm.manufacturer_code, editForm.oem_code, editForm.color, editForm.condition, editForm.supplier_code, editForm.defect, editForm.transmission, editForm.drive, editForm.wear_percentage, editForm.season, editForm.diameter, editForm.width, editForm.profile, editForm.tire_quantity, editForm.drilling, editForm.offset, editForm.center_hole_diameter, editForm.tire_model, initialPart.id, updatePartMutation, queryClient, photoUpload]);
+  }, [editForm.name, editForm.quantity, editForm.description, editForm.category, editForm.price, editForm.salesman, editForm.location, editForm.status, editForm.brand, editForm.model, editForm.photo, editForm.body_brand, editForm.engine_brand, editForm.car_release_date, editForm.front_rear, editForm.left_right, editForm.top_bottom, editForm.number, editForm.manufacturer, editForm.manufacturer_code, editForm.oem_code, editForm.color, editForm.condition, editForm.supplier_code, editForm.defect, editForm.transmission, editForm.transmission_model, editForm.drive, editForm.wear_percentage, editForm.season, editForm.diameter, editForm.width, editForm.profile, editForm.tire_quantity, editForm.drilling, editForm.offset, editForm.center_hole_diameter, editForm.tire_model, initialPart.id, updatePartMutation, queryClient, photoUpload]);
 
 
   return {

@@ -111,6 +111,7 @@ const partSchema = z.object({
     supplier_code: z.string().optional(),
     defect: z.string().optional(),
     transmission: z.string().optional(),
+    transmission_model: z.string().optional(),
     drive: z.string().optional(),
     wear_percentage: z.string().optional(),
     season: z.string().optional(),
@@ -154,6 +155,7 @@ interface Part {
     supplier_code?: string;
     defect?: string;
     transmission?: string;
+    transmission_model?: string;
     drive?: string;
     wear_percentage?: string;
     season?: string;
@@ -211,7 +213,7 @@ export default function AddPart() {
             return [
                 "body_brand", "engine_brand", "car_release_date", "front_rear", "left_right", "top_bottom",
                 "number", "manufacturer", "manufacturer_code", "oem_code", "color",
-                "supplier_code", "defect", "transmission", "drive", "wear_percentage", "season",
+                "supplier_code", "defect", "transmission", "transmission_model", "drive", "wear_percentage", "season",
                 "diameter", "width", "profile", "tire_quantity", "drilling", "offset",
                 "center_hole_diameter", "tire_model"
             ];
@@ -221,14 +223,14 @@ export default function AddPart() {
             "Тормоза": ["front_rear", "left_right", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect", "wear_percentage"],
             "Двигатель": ["engine_brand", "car_release_date", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
             "Подвеска": ["front_rear", "left_right", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
-            "Подвеска ДВС/КПП": ["front_rear", "left_right", "top_bottom", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
-            "Подвеска передних колес": ["front_rear", "left_right", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
+            "Подвеска ДВС/КПП": ["front_rear", "left_right", "top_bottom", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect", "transmission_model"],
+            "Подвеска передних колес": ["front_rear", "left_right", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect", "transmission_model"],
             "Подвеска задних колес": ["front_rear", "left_right", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
             "Электрика": ["number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
             "Кузов": ["body_brand", "front_rear", "left_right", "top_bottom", "number", "manufacturer", "manufacturer_code", "oem_code", "color", "condition", "supplier_code", "defect"],
             "Кузов снаружи": ["body_brand", "front_rear", "left_right", "top_bottom", "number", "manufacturer", "manufacturer_code", "oem_code", "color", "condition", "supplier_code", "defect"],
             "Интерьер": ["top_bottom", "number", "manufacturer", "manufacturer_code", "oem_code", "color", "condition", "supplier_code", "defect"],
-            "Трансмиссия": ["front_rear", "left_right", "transmission", "drive", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
+            "Трансмиссия": ["front_rear", "left_right", "transmission", "transmission_model", "drive", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
             "Система охлаждения и отопления": ["number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
             "Система выхлопа (Глушитель)": ["number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
             "Система рулевого управления": ["front_rear", "left_right", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
@@ -388,6 +390,7 @@ export default function AddPart() {
             supplier_code: data.supplier_code,
             defect: data.defect,
             transmission: data.transmission,
+            transmission_model: data.transmission_model,
             drive: data.drive,
             wear_percentage: data.wear_percentage,
             season: data.season,
@@ -1019,6 +1022,20 @@ export default function AddPart() {
                                             <input
                                                 type="hidden"
                                                 {...register("transmission")}
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {visibleFields.includes("transmission_model") && (
+                                        <div>
+                                            <Label htmlFor="transmission_model" className="mb-1">Номер трансмиссии</Label>
+                                            <Input
+                                                id="transmission_model"
+                                                {...register("transmission_model")}
+                                                type="text"
+                                                placeholder="Введите номер трансмиссии"
+                                                className="h-10"
                                                 autoComplete="off"
                                             />
                                         </div>

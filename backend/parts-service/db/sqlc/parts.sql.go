@@ -38,7 +38,7 @@ INSERT INTO parts (
     brand, model, photos, seller_id, to_delete_at, vin,
     body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom,
     number, manufacturer, manufacturer_code, oem_code, color, condition,
-    supplier_code, defect, transmission, drive, wear_percentage,
+    supplier_code, defect, transmission, transmission_model, drive, wear_percentage,
     season, diameter, width, profile, tire_quantity, drilling, "offset",
     center_hole_diameter, tire_model, created_at, updated_at
 ) VALUES (
@@ -46,10 +46,10 @@ INSERT INTO parts (
     $9, $10, $11, $12, $13, $14,
     $15, $16, $17, $18, $19, $20,
     $21, $22, $23, $24, $25, $26,
-    $27, $28, $29, $30, $31,
-    $32, $33, $34, $35, $36, $37, $38,
-    $39, $40, NOW(), NOW()
-) RETURNING id, name, quantity, description, category, price, salesman, location, status, brand, model, photos, seller_id, to_delete_at, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, created_at, updated_at, deleted_at
+    $27, $28, $29, $30, $31, $32,
+    $33, $34, $35, $36, $37, $38, $39,
+    $40, $41, NOW(), NOW()
+) RETURNING id, name, quantity, description, category, price, salesman, location, status, brand, model, photos, seller_id, to_delete_at, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, created_at, updated_at, deleted_at
 `
 
 type CreatePartParams struct {
@@ -82,6 +82,7 @@ type CreatePartParams struct {
 	SupplierCode       string             `json:"supplier_code"`
 	Defect             string             `json:"defect"`
 	Transmission       string             `json:"transmission"`
+	TransmissionModel  string             `json:"transmission_model"`
 	Drive              string             `json:"drive"`
 	WearPercentage     string             `json:"wear_percentage"`
 	Season             string             `json:"season"`
@@ -126,6 +127,7 @@ func (q *Queries) CreatePart(ctx context.Context, arg CreatePartParams) (Part, e
 		arg.SupplierCode,
 		arg.Defect,
 		arg.Transmission,
+		arg.TransmissionModel,
 		arg.Drive,
 		arg.WearPercentage,
 		arg.Season,
@@ -170,6 +172,7 @@ func (q *Queries) CreatePart(ctx context.Context, arg CreatePartParams) (Part, e
 		&i.SupplierCode,
 		&i.Defect,
 		&i.Transmission,
+		&i.TransmissionModel,
 		&i.Drive,
 		&i.WearPercentage,
 		&i.Season,
@@ -239,7 +242,7 @@ func (q *Queries) DeleteZeroQuantityBySupplier(ctx context.Context, supplierCode
 }
 
 const GetAllParts = `-- name: GetAllParts :many
-SELECT id, name, quantity, description, category, price, salesman, location, status, brand, model, photos, seller_id, to_delete_at, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, created_at, updated_at, deleted_at FROM parts WHERE deleted_at IS NULL ORDER BY id
+SELECT id, name, quantity, description, category, price, salesman, location, status, brand, model, photos, seller_id, to_delete_at, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, created_at, updated_at, deleted_at FROM parts WHERE deleted_at IS NULL ORDER BY id
 `
 
 func (q *Queries) GetAllParts(ctx context.Context) ([]Part, error) {
@@ -282,6 +285,7 @@ func (q *Queries) GetAllParts(ctx context.Context) ([]Part, error) {
 			&i.SupplierCode,
 			&i.Defect,
 			&i.Transmission,
+			&i.TransmissionModel,
 			&i.Drive,
 			&i.WearPercentage,
 			&i.Season,
@@ -308,7 +312,7 @@ func (q *Queries) GetAllParts(ctx context.Context) ([]Part, error) {
 }
 
 const GetLastCreatedPart = `-- name: GetLastCreatedPart :one
-SELECT id, name, quantity, description, category, price, salesman, location, status, brand, model, photos, seller_id, to_delete_at, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, created_at, updated_at, deleted_at FROM parts WHERE deleted_at IS NULL ORDER BY id DESC LIMIT 1
+SELECT id, name, quantity, description, category, price, salesman, location, status, brand, model, photos, seller_id, to_delete_at, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, created_at, updated_at, deleted_at FROM parts WHERE deleted_at IS NULL ORDER BY id DESC LIMIT 1
 `
 
 func (q *Queries) GetLastCreatedPart(ctx context.Context) (Part, error) {
@@ -345,6 +349,7 @@ func (q *Queries) GetLastCreatedPart(ctx context.Context) (Part, error) {
 		&i.SupplierCode,
 		&i.Defect,
 		&i.Transmission,
+		&i.TransmissionModel,
 		&i.Drive,
 		&i.WearPercentage,
 		&i.Season,
@@ -364,7 +369,7 @@ func (q *Queries) GetLastCreatedPart(ctx context.Context) (Part, error) {
 }
 
 const GetPartByID = `-- name: GetPartByID :one
-SELECT id, name, quantity, description, category, price, salesman, location, status, brand, model, photos, seller_id, to_delete_at, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, created_at, updated_at, deleted_at FROM parts WHERE id = $1 AND deleted_at IS NULL
+SELECT id, name, quantity, description, category, price, salesman, location, status, brand, model, photos, seller_id, to_delete_at, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, created_at, updated_at, deleted_at FROM parts WHERE id = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetPartByID(ctx context.Context, id int64) (Part, error) {
@@ -401,6 +406,7 @@ func (q *Queries) GetPartByID(ctx context.Context, id int64) (Part, error) {
 		&i.SupplierCode,
 		&i.Defect,
 		&i.Transmission,
+		&i.TransmissionModel,
 		&i.Drive,
 		&i.WearPercentage,
 		&i.Season,
@@ -420,7 +426,7 @@ func (q *Queries) GetPartByID(ctx context.Context, id int64) (Part, error) {
 }
 
 const GetPartsForXML = `-- name: GetPartsForXML :many
-SELECT id, name, quantity, description, category, price, salesman, location, status, brand, model, photos, seller_id, to_delete_at, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, created_at, updated_at, deleted_at FROM parts WHERE to_delete_at IS NULL AND quantity >= 0 AND deleted_at IS NULL ORDER BY id
+SELECT id, name, quantity, description, category, price, salesman, location, status, brand, model, photos, seller_id, to_delete_at, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, created_at, updated_at, deleted_at FROM parts WHERE to_delete_at IS NULL AND quantity >= 0 AND deleted_at IS NULL ORDER BY id
 `
 
 func (q *Queries) GetPartsForXML(ctx context.Context) ([]Part, error) {
@@ -463,6 +469,7 @@ func (q *Queries) GetPartsForXML(ctx context.Context) ([]Part, error) {
 			&i.SupplierCode,
 			&i.Defect,
 			&i.Transmission,
+			&i.TransmissionModel,
 			&i.Drive,
 			&i.WearPercentage,
 			&i.Season,

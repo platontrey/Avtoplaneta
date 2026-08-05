@@ -393,6 +393,17 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                     </>
                                 )}
 
+                                {['Подвеска ДВС/КПП', 'Трансмиссия', 'Подвеска передних колес'].includes(partEdit.editForm.category) && (
+                                    <FormRow label="Номер трансмиссии" htmlFor="transmission_model">
+                                        <Input
+                                            id="transmission_model"
+                                            value={partEdit.editForm.transmission_model || ''}
+                                            onChange={(e) => partEdit.updateFormField('transmission_model', e.target.value)}
+                                            placeholder="Введите номер трансмиссии"
+                                        />
+                                    </FormRow>
+                                )}
+
                                 {(partEdit.editForm.category === 'Кузов' || partEdit.editForm.category === 'Кузов снаружи' || partEdit.editForm.category === 'Интерьер') && (
                                     <>
                                         <FormRow label="Марка кузова" htmlFor="body_brand">

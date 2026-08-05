@@ -41,6 +41,7 @@ func (h *Handler) CreateDefectReportHandler(c *gin.Context) {
 			SupplierCode       string  `json:"supplier_code,omitempty"`
 			Defect             string  `json:"defect,omitempty"`
 			Transmission       string  `json:"transmission,omitempty"`
+			TransmissionModel  string  `json:"transmission_model,omitempty"`
 			Drive              string  `json:"drive,omitempty"`
 			WearPercentage     string  `json:"wear_percentage,omitempty"`
 			Season             string  `json:"season,omitempty"`
