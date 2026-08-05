@@ -7,12 +7,26 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:avtoplaneta_app/core/models/part.dart';
+import 'package:avtoplaneta_app/features/inventory/providers/inventory_provider.dart';
 import 'package:avtoplaneta_app/main.dart';
 
 void main() {
   testWidgets('App smoke test', (WidgetTester tester) async {
     await tester.pumpWidget(
-      const ProviderScope(child: AvtoplanetaApp()),
+      ProviderScope(
+        overrides: [
+          inventoryProvider.overrideWith(
+            (ref, filter) async => const InventoryResponse(
+              parts: [],
+              total: 0,
+              page: 1,
+              limit: 20,
+            ),
+          ),
+        ],
+        child: const AvtoplanetaApp(),
+      ),
     );
     await tester.pump();
   });
