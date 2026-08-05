@@ -208,12 +208,22 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   }
 
   void _showUserMenu(BuildContext context) {
+    final user = ref.read(authProvider).valueOrNull;
     showModalBottomSheet(
       context: context,
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (user?.isAdmin == true)
+              ListTile(
+                leading: const Icon(Icons.admin_panel_settings_outlined),
+                title: const Text('Администрирование'),
+                onTap: () {
+                  Navigator.pop(context);
+                  context.go('/admin');
+                },
+              ),
             ListTile(
               leading: const Icon(Icons.logout),
               title: const Text('Выйти'),
@@ -284,8 +294,9 @@ class _PartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final baseUrl = apiClient.dio.options.baseUrl;
-    final photoUrl = part.photos.isNotEmpty ? '$baseUrl${part.photos.first}' : null;
+    final photoUrl = part.photos.isNotEmpty
+        ? apiClient.resolveUrl(part.photos.first)
+        : null;
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),

@@ -3,12 +3,14 @@ import type { Conversation, Message, User, UserStatus, Notification, Reaction, D
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 class MessagingApi {
-  private getHeaders() {
-    return {
+  private getHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
       'X-User-ID': localStorage.getItem('userId') || '',
     };
+    const token = localStorage.getItem('token');
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return headers;
   }
 
   // === ИСПОЛЬЗУЕМЫЕ МЕТОДЫ ===
@@ -52,10 +54,14 @@ class MessagingApi {
 
     const response = await fetch(`${API_BASE_URL}/api/messaging/conversations/${conversationId}/messages/voice`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'X-User-ID': localStorage.getItem('userId') || '',
-      },
+      headers: (() => {
+        const headers: Record<string, string> = {
+          'X-User-ID': localStorage.getItem('userId') || '',
+        };
+        const token = localStorage.getItem('token');
+        if (token) headers.Authorization = `Bearer ${token}`;
+        return headers;
+      })(),
       body: formData,
     });
     if (!response.ok) throw new Error('Failed to send voice message');

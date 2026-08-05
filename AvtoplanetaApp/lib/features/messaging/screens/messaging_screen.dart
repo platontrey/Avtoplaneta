@@ -1,7 +1,6 @@
-import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../../core/api/api_client.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -17,12 +16,29 @@ final conversationsProvider = FutureProvider<List<dynamic>>((ref) async {
   return [];
 });
 
+final messagingUsersProvider = FutureProvider<Map<int, String>>((ref) async {
+  final response = await apiClient.dio.get('/api/messaging/users');
+  final data = response.data;
+  final users = data is Map && data['users'] is List
+      ? data['users'] as List
+      : const [];
+  return {
+    for (final user in users.whereType<Map>())
+      if (user['id'] is num)
+        (user['id'] as num).toInt():
+            (user['name'] ?? user['username'] ?? user['email'] ?? 'Пользователь')
+                .toString(),
+  };
+});
+
 class MessagingScreen extends ConsumerWidget {
   const MessagingScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final convsAsync = ref.watch(conversationsProvider);
+    final userNames = ref.watch(messagingUsersProvider).valueOrNull ?? const {};
+    final currentUserId = ref.watch(authProvider).valueOrNull?.id;
 
     return Scaffold(
       appBar: AppBar(
@@ -45,16 +61,18 @@ class MessagingScreen extends ConsumerWidget {
                 itemCount: convs.length,
                 itemBuilder: (_, i) {
                   final conv = convs[i] as Map<String, dynamic>;
+                  final title =
+                      _conversationTitle(conv, userNames, currentUserId);
                   return ListTile(
                     leading: CircleAvatar(
                       backgroundColor: const Color(0xFF4F8EF7),
                       child: Text(
-                        (conv['title'] as String? ?? '?')[0].toUpperCase(),
+                        title.isEmpty ? '?' : title[0].toUpperCase(),
                         style: const TextStyle(color: Colors.white),
                       ),
                     ),
                     title: Text(
-                      conv['title'] as String? ?? 'Диалог',
+                      title,
                       style: const TextStyle(color: Colors.white),
                     ),
                     subtitle: Text(
@@ -63,7 +81,12 @@ class MessagingScreen extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    onTap: () => _openChat(context, conv),
+                    onTap: () => _openChat(
+                      context,
+                      conv,
+                      userNames,
+                      currentUserId,
+                    ),
                   );
                 },
               ),
@@ -71,13 +94,42 @@ class MessagingScreen extends ConsumerWidget {
     );
   }
 
-  void _openChat(BuildContext context, Map<String, dynamic> conv) {
+  String _conversationTitle(
+    Map<String, dynamic> conv,
+    Map<int, String> userNames,
+    int? currentUserId,
+  ) {
+    final title = conv['title']?.toString().trim() ?? '';
+    if (title.isNotEmpty) return title;
+
+    final participants = conv['participants'] is List
+        ? conv['participants'] as List
+        : const [];
+    final names = participants
+        .whereType<num>()
+        .map((id) => id.toInt())
+        .where((id) => id != currentUserId)
+        .map((id) => userNames[id])
+        .whereType<String>()
+        .where((name) => name.isNotEmpty)
+        .toList();
+    if (names.isNotEmpty) return names.join(', ');
+    return 'Чат №${conv['id']}';
+  }
+
+  void _openChat(
+    BuildContext context,
+    Map<String, dynamic> conv,
+    Map<int, String> userNames,
+    int? currentUserId,
+  ) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => _ChatScreen(
-          convId: conv['id'] as int,
-          title: conv['title'] as String? ?? 'Диалог',
+          convId: (conv['id'] as num).toInt(),
+          title: _conversationTitle(conv, userNames, currentUserId),
+          userNames: userNames,
         ),
       ),
     );
@@ -87,7 +139,12 @@ class MessagingScreen extends ConsumerWidget {
 class _ChatScreen extends ConsumerStatefulWidget {
   final int convId;
   final String title;
-  const _ChatScreen({required this.convId, required this.title});
+  final Map<int, String> userNames;
+  const _ChatScreen({
+    required this.convId,
+    required this.title,
+    required this.userNames,
+  });
 
   @override
   ConsumerState<_ChatScreen> createState() => _ChatScreenState();
@@ -97,77 +154,39 @@ class _ChatScreenState extends ConsumerState<_ChatScreen> {
   final _msgCtrl = TextEditingController();
   List<dynamic> _messages = [];
   bool _loading = true;
-  WebSocketChannel? _channel;
-  bool _isDisposed = false;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _loadMessages();
-    _connectWebSocket();
-  }
-
-  void _connectWebSocket() {
-    if (_isDisposed) return;
-    final user = ref.read(authProvider).valueOrNull;
-    if (user == null) return;
-
-    try {
-      final wsUrl = Uri.parse('ws://192.168.1.63:8084/api/messaging/ws?userId=${user.id}');
-      _channel = WebSocketChannel.connect(wsUrl);
-      _channel!.stream.listen((message) {
-        try {
-          final payload = jsonDecode(message as String);
-          if (payload['event'] == 'new_message') {
-            final msgData = payload['data'];
-            if (msgData['conversation_id'] == widget.convId) {
-              setState(() {
-                final id = msgData['id'];
-                if (!_messages.any((m) => m['id'] == id)) {
-                  _messages.add(msgData);
-                }
-              });
-            }
-          }
-        } catch (_) {}
-      }, onError: (err) {
-        _reconnect();
-      }, onDone: () {
-        _reconnect();
-      });
-    } catch (_) {
-      _reconnect();
-    }
-  }
-
-  void _reconnect() {
-    if (_isDisposed) return;
-    Future.delayed(const Duration(seconds: 3), () {
-      if (!_isDisposed) {
-        _connectWebSocket();
-      }
-    });
+    // Сайт работает через тот же HTTP API. Периодическое обновление не зависит
+    // от недоступного извне внутреннего порта messaging-service.
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _loadMessages(silent: true),
+    );
   }
 
   @override
   void dispose() {
-    _isDisposed = true;
-    _channel?.sink.close();
+    _refreshTimer?.cancel();
     _msgCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _loadMessages() async {
+  Future<void> _loadMessages({bool silent = false}) async {
     try {
       final response = await apiClient.dio
           .get('/api/messaging/conversations/${widget.convId}/messages');
       final data = response.data;
+      if (!mounted) return;
       setState(() {
         _messages = (data is Map ? data['messages'] ?? [] : []) as List<dynamic>;
         _loading = false;
       });
     } catch (_) {
-      setState(() => _loading = false);
+      if (mounted && !silent) setState(() => _loading = false);
     }
   }
 
@@ -178,7 +197,7 @@ class _ChatScreenState extends ConsumerState<_ChatScreen> {
     try {
       await apiClient.dio.post(
         '/api/messaging/conversations/${widget.convId}/messages',
-        data: {'content': text, 'type': 'text'},
+        data: {'content': text},
       );
       await _loadMessages();
     } catch (_) {}
@@ -200,7 +219,10 @@ class _ChatScreenState extends ConsumerState<_ChatScreen> {
                     itemBuilder: (_, i) {
                       final msg = _messages[_messages.length - 1 - i]
                           as Map<String, dynamic>;
-                      return _MessageBubble(msg: msg);
+                      return _MessageBubble(
+                        msg: msg,
+                        userNames: widget.userNames,
+                      );
                     },
                   ),
           ),
@@ -239,12 +261,16 @@ class _ChatScreenState extends ConsumerState<_ChatScreen> {
 
 class _MessageBubble extends StatelessWidget {
   final Map<String, dynamic> msg;
-  const _MessageBubble({required this.msg});
+  final Map<int, String> userNames;
+  const _MessageBubble({required this.msg, required this.userNames});
 
   @override
   Widget build(BuildContext context) {
     final content = msg['content'] as String? ?? '';
-    final senderName = msg['sender_name'] as String? ?? 'Неизвестно';
+    final senderId = (msg['sender_id'] as num?)?.toInt();
+    final senderName = senderId == null
+        ? 'Неизвестно'
+        : userNames[senderId] ?? 'Пользователь №$senderId';
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),

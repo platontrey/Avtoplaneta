@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 import '../../../core/api/api_client.dart';
+import '../../../core/models/statistics.dart';
 
-final statisticsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-  final response = await apiClient.dio.get('/api/statistics');
-  return response.data as Map<String, dynamic>;
+final statisticsProvider = FutureProvider<StatisticsData>((ref) async {
+  final response = await apiClient.dio.get('/api/v1/statistics');
+  return StatisticsData.fromJson(
+    Map<String, dynamic>.from(response.data as Map),
+  );
 });
 
 class StatisticsScreen extends ConsumerWidget {
@@ -29,21 +33,15 @@ class StatisticsScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Ошибка: $e')),
         data: (data) {
-          final totalParts = data['total_parts'] as int? ?? 0;
-          final totalValue = (data['total_value'] as num?)?.toDouble() ?? 0;
-          final categoriesRaw = data['categories'];
-          final Map<String, dynamic> categories = {};
-          if (categoriesRaw is List) {
-            for (final item in categoriesRaw) {
-              if (item is Map) {
-                final name = item['name']?.toString() ?? 'Неизвестно';
-                final count = item['count'] ?? 0;
-                categories[name] = count;
-              }
-            }
-          } else if (categoriesRaw is Map) {
-            categories.addAll(Map<String, dynamic>.from(categoriesRaw));
-          }
+          final categories = {
+            for (final category in data.categories)
+              category.name: category.count,
+          };
+          final currency = NumberFormat.currency(
+            locale: 'ru_RU',
+            symbol: '₽',
+            decimalDigits: 2,
+          );
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -51,24 +49,37 @@ class StatisticsScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Карточки итогов
-                Row(
+                GridView.count(
+                  crossAxisCount: MediaQuery.sizeOf(context).width >= 600 ? 4 : 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 1.25,
                   children: [
-                    Expanded(
-                      child: _StatCard(
-                        label: 'Всего запчастей',
-                        value: totalParts.toString(),
-                        icon: Icons.inventory_2_outlined,
-                        color: const Color(0xFF4F8EF7),
-                      ),
+                    _StatCard(
+                      label: 'Всего позиций',
+                      value: data.totalParts.toString(),
+                      icon: Icons.inventory_2_outlined,
+                      color: const Color(0xFF4F8EF7),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _StatCard(
-                        label: 'Общая стоимость',
-                        value: '${(totalValue / 1000).toStringAsFixed(0)}K ₽',
-                        icon: Icons.monetization_on_outlined,
-                        color: const Color(0xFF43A047),
-                      ),
+                    _StatCard(
+                      label: 'Общее количество',
+                      value: data.totalQuantity.toString(),
+                      icon: Icons.inventory_outlined,
+                      color: const Color(0xFF7C3AED),
+                    ),
+                    _StatCard(
+                      label: 'Общая стоимость',
+                      value: currency.format(data.totalValue),
+                      icon: Icons.monetization_on_outlined,
+                      color: const Color(0xFFEA580C),
+                    ),
+                    _StatCard(
+                      label: 'Общий заработок',
+                      value: currency.format(data.totalEarnings),
+                      icon: Icons.trending_up,
+                      color: const Color(0xFF43A047),
                     ),
                   ],
                 ),
@@ -90,10 +101,95 @@ class StatisticsScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   _CategoryLegend(categories: categories),
                 ],
+                if (data.monthlySales.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  Text(
+                    'Продажи по месяцам',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(color: Colors.white),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: 240,
+                    child: _MonthlySalesChart(data: data.monthlySales),
+                  ),
+                ],
               ],
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _MonthlySalesChart extends StatelessWidget {
+  final List<MonthlySales> data;
+  const _MonthlySalesChart({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final maxSales = data.fold<double>(
+      0,
+      (max, item) => item.sales > max ? item.sales : max,
+    );
+
+    return BarChart(
+      BarChartData(
+        maxY: maxSales > 0 ? maxSales * 1.15 : 1,
+        borderData: FlBorderData(show: false),
+        gridData: const FlGridData(show: false),
+        barTouchData: BarTouchData(enabled: true),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          leftTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: true, reservedSize: 44),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (value, meta) {
+                final index = value.toInt();
+                if (index < 0 || index >= data.length) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    data[index].month,
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 10,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        barGroups: List.generate(
+          data.length,
+          (index) => BarChartGroupData(
+            x: index,
+            barRods: [
+              BarChartRodData(
+                toY: data[index].sales,
+                color: const Color(0xFF43A047),
+                width: 16,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(4),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

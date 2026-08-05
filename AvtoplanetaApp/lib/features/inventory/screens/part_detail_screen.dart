@@ -16,7 +16,6 @@ class PartDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final partAsync = ref.watch(partProvider(id));
     final user = ref.watch(authProvider).valueOrNull;
-    final baseUrl = apiClient.dio.options.baseUrl;
 
     // Читаем текущий оффлайн статус из фильтрованного списка
     final filter = ref.watch(inventoryFilterProvider);
@@ -57,7 +56,7 @@ class PartDetailScreen extends ConsumerWidget {
                     itemBuilder: (_, i) => ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: CachedNetworkImage(
-                        imageUrl: '$baseUrl${part.photos[i]}',
+                        imageUrl: apiClient.resolveUrl(part.photos[i]),
                         fit: BoxFit.cover,
                         placeholder: (ctx, url) => Container(
                           color: const Color(0xFF16213E),

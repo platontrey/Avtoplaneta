@@ -78,7 +78,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Avtoplaneta',
+                    'Вход в личный кабинет',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           color: Colors.white,
@@ -87,7 +87,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Управление автозапчастями',
+                    'Система управления складом автозапчастей',
                     textAlign: TextAlign.center,
                     style: Theme.of(context)
                         .textTheme
@@ -102,9 +102,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     keyboardType: TextInputType.emailAddress,
                     autocorrect: false,
                     style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration('Email', Icons.email_outlined),
+                    decoration: _inputDecoration(
+                      'Электронная почта или имя пользователя',
+                      Icons.email_outlined,
+                    ),
                     validator: (v) =>
-                        (v == null || v.isEmpty) ? 'Введите email' : null,
+                        (v == null || v.isEmpty)
+                            ? 'Введите электронную почту или имя пользователя'
+                            : null,
                   ),
                   const SizedBox(height: 16),
 
@@ -174,7 +179,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
-                          'ИЛИ',
+                          'или',
                           style: TextStyle(
                             color: Colors.white38,
                             fontSize: 12,
@@ -209,7 +214,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
                     label: const Text(
-                      'Войти через Google',
+                      'Продолжить через Google',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,

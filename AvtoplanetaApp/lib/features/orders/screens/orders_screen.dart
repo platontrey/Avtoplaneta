@@ -49,7 +49,7 @@ class OrdersScreen extends ConsumerWidget {
                   itemCount: data.orders.length,
                   itemBuilder: (_, i) => _OrderCard(
                     order: data.orders[i],
-                    canChangeStatus: user?.isManager == true,
+                    canChangeStatus: user?.isOperator == true,
                     onStatusChanged: () => ref.invalidate(ordersProvider),
                   ),
                 ),
@@ -94,7 +94,7 @@ class _OrderCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    order.statusText,
+                    order.displayStatusText,
                     style: TextStyle(
                         color: statusColor,
                         fontSize: 12,
@@ -144,6 +144,11 @@ class _OrderCard extends StatelessWidget {
               const SizedBox(height: 8),
               _StatusButtons(
                   orderId: order.id, onChanged: onStatusChanged),
+              const SizedBox(height: 8),
+              _OrderActions(
+                orderId: order.id,
+                onChanged: onStatusChanged,
+              ),
             ],
           ],
         ),
@@ -161,16 +166,102 @@ class _OrderCard extends StatelessWidget {
       );
 }
 
+class _OrderActions extends StatelessWidget {
+  final int orderId;
+  final VoidCallback onChanged;
+  const _OrderActions({required this.orderId, required this.onChanged});
+
+  Future<void> _confirmAction(
+    BuildContext context, {
+    required String title,
+    required String description,
+    required String actionLabel,
+    required String path,
+    required String method,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(description),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(actionLabel),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      if (method == 'DELETE') {
+        await apiClient.dio.delete(path);
+      } else {
+        await apiClient.dio.put(path);
+      }
+      onChanged();
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Не удалось выполнить действие: $error')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: FilledButton.tonal(
+            onPressed: () => _confirmAction(
+              context,
+              title: 'Подтверждение завершения продажи',
+              description:
+                  'Завершить продажу по заказу $orderId? Заказ будет учтён в статистике продаж.',
+              actionLabel: 'Завершить',
+              path: '/admin/orders/$orderId/complete',
+              method: 'PUT',
+            ),
+            child: const Text('Завершить'),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: OutlinedButton(
+            onPressed: () => _confirmAction(
+              context,
+              title: 'Подтверждение удаления',
+              description:
+                  'Удалить заказ $orderId? Количество запчастей будет восстановлено.',
+              actionLabel: 'Удалить',
+              path: '/admin/orders/$orderId',
+              method: 'DELETE',
+            ),
+            style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Удалить'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _StatusButtons extends ConsumerWidget {
   final int orderId;
   final VoidCallback onChanged;
   const _StatusButtons({required this.orderId, required this.onChanged});
 
   static const statuses = [
-    ('red', 'Заказать транспорт', Color(0xFFE53935)),
-    ('brown', 'Ожидание', Color(0xFF795548)),
-    ('yellow', 'Доставить', Color(0xFFFDD835)),
-    ('green', 'Доставлен', Color(0xFF43A047)),
+    ('red', 'Нужен транспорт', Color(0xFFE53935)),
+    ('brown', 'Ожидание ответа', Color(0xFF795548)),
+    ('yellow', 'Нужна доставка', Color(0xFFFDD835)),
+    ('green', 'Доставлено', Color(0xFF43A047)),
   ];
 
   @override

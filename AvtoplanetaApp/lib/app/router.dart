@@ -22,10 +22,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isLoggedIn = authState.valueOrNull != null;
       final isLoading = authState.isLoading;
       final isLoginPage = state.matchedLocation == '/login';
+      final isAdminPage = state.matchedLocation.startsWith('/admin');
+      final user = authState.valueOrNull;
 
       if (isLoading) return null;
       if (!isLoggedIn && !isLoginPage) return '/login';
       if (isLoggedIn && isLoginPage) return '/inventory';
+      if (isAdminPage && user?.isAdmin != true) return '/inventory';
       return null;
     },
     routes: [

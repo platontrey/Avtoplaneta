@@ -52,17 +52,27 @@ final inventoryProvider =
 
     try {
       final response = await apiClient.dio.get(
-        '/api/inventory',
+        '/api/v1/inventory',
         queryParameters: params,
       );
 
-      final list = response.data is List ? response.data as List : [];
+      final responseData = response.data;
+      final list = responseData is List
+          ? responseData
+          : responseData is Map && responseData['parts'] is List
+              ? responseData['parts'] as List
+              : const [];
       final parts = list
           .map((e) => Part.fromJson(e as Map<String, dynamic>))
           .toList();
 
       final hasMore = parts.length == 20;
-      final total = hasMore ? (filter.page + 1) * 20 : (filter.page - 1) * 20 + parts.length;
+      final calculatedTotal = hasMore
+          ? (filter.page + 1) * 20
+          : (filter.page - 1) * 20 + parts.length;
+      final total = responseData is Map
+          ? (responseData['total'] as num?)?.toInt() ?? calculatedTotal
+          : calculatedTotal;
 
       return InventoryResponse(
         parts: parts,
@@ -101,10 +111,12 @@ final inventoryProvider =
         // Локальная пагинация
         final start = (filter.page - 1) * 20;
         final end = start + 20;
-        final partsPage = filteredList.sublist(
-          start,
-          end > filteredList.length ? filteredList.length : end,
-        );
+        final partsPage = start >= filteredList.length
+            ? <Part>[]
+            : filteredList.sublist(
+                start,
+                end > filteredList.length ? filteredList.length : end,
+              );
 
         return InventoryResponse(
           parts: partsPage,
@@ -122,7 +134,7 @@ final inventoryProvider =
 // Провайдер для одной запчасти с поддержкой локального поиска при оффлайне
 final partProvider = FutureProvider.family<Part, int>((ref, id) async {
   try {
-    final response = await apiClient.dio.get('/api/inventory/$id');
+    final response = await apiClient.dio.get('/api/v1/parts/item/$id');
     return Part.fromJson(response.data as Map<String, dynamic>);
   } catch (e) {
     // В оффлайне пробуем найти деталь в сохраненном кэше

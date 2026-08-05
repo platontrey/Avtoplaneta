@@ -43,30 +43,39 @@ class Part {
     List<String> photosList = [];
     final photosRaw = json['photos'];
     if (photosRaw is List) {
-      photosList = photosRaw.map((e) => e.toString()).toList();
+      photosList = photosRaw
+          .map((e) => e.toString())
+          .where((value) => value.isNotEmpty)
+          .toList();
+    }
+    final legacyPhoto = json['photo']?.toString();
+    if (photosList.isEmpty && legacyPhoto != null && legacyPhoto.isNotEmpty) {
+      photosList = [legacyPhoto];
     }
 
     return Part(
-      id: json['id'] as int,
+      id: (json['id'] as num?)?.toInt() ?? 0,
       name: json['name'] as String? ?? '',
       description: json['description'] as String?,
       category: json['category'] as String? ?? '',
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
-      quantity: json['quantity'] as int? ?? 0,
+      quantity: (json['quantity'] as num?)?.toInt() ?? 0,
       brand: json['brand'] as String?,
       model: json['model'] as String?,
       color: json['color'] as String?,
       condition: json['condition'] as String?,
-      oemCode: json['oem_code'] as String?,
-      supplierCode: json['supplier_code'] as String?,
+      oemCode: (json['oem_code'] ?? json['oemCode']) as String?,
+      supplierCode: (json['supplier_code'] ?? json['supplierCode']) as String?,
       vin: json['vin'] as String?,
       location: json['location'] as String? ?? '',
       salesman: json['salesman'] as String?,
       photos: photosList,
-      createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'] as String)
+      createdAt: (json['created_at'] ?? json['createdAt']) != null
+          ? DateTime.tryParse((json['created_at'] ?? json['createdAt']).toString())
           : null,
-      markedForDeletion: json['marked_for_deletion'] as bool? ?? false,
+      markedForDeletion:
+          (json['marked_for_deletion'] ?? json['markedForDeletion']) as bool? ??
+              false,
     );
   }
 
@@ -109,9 +118,9 @@ class InventoryResponse {
       parts: partsRaw
           .map((e) => Part.fromJson(e as Map<String, dynamic>))
           .toList(),
-      total: json['total'] as int? ?? 0,
-      page: json['page'] as int? ?? 1,
-      limit: json['limit'] as int? ?? 20,
+      total: (json['total'] as num?)?.toInt() ?? 0,
+      page: (json['page'] as num?)?.toInt() ?? 1,
+      limit: (json['limit'] as num?)?.toInt() ?? 20,
       isOffline: json['is_offline'] as bool? ?? false,
     );
   }

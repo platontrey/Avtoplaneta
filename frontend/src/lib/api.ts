@@ -13,7 +13,7 @@ export const ORDERS_API_URL = import.meta.env.VITE_API_BASE_URL || '';
 export const partsApi = {
   // Get all parts
   getAll: async (): Promise<Part[]> => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/parts/inventory`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/inventory`, {
       credentials: 'include',
     });
 
@@ -129,7 +129,7 @@ export const statisticsApi = {
 
 // AI Agent API
 export const aiAgentApi = {
-  chat: async (message: string, context?: Record<string, any>) => {
+  chat: async (message: string, context?: Record<string, unknown>) => {
     const response = await fetch(`${API_BASE_URL}/api/ai-agent/chat`, {
       method: 'POST',
       headers: getAuthHeaders(),

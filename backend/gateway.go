@@ -231,11 +231,11 @@ func (g *Gateway) setupRoutes() {
 	// Static files
 	g.setupStaticRoutes()
 
-	// Add direct user route for messaging (temporarily without auth for debugging)
-	g.router.GET("/api/users", g.getUsersHandler)
+	// Список пользователей нужен клиентам мессенджера и не должен быть публичным.
+	g.router.GET("/api/users", g.authMiddleware, requireRole("operator"), g.getUsersHandler)
 
-	// AI agent
-	g.router.POST("/api/ai-agent/chat", handleAIAgentChat)
+	// AI agent доступен только авторизованным пользователям приложения.
+	g.router.POST("/api/ai-agent/chat", g.authMiddleware, requireRole("operator"), handleAIAgentChat)
 
 	// Swagger documentation
 	g.router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
@@ -383,8 +383,7 @@ func (g *Gateway) setupMessagingRoutes() {
 	}
 
 	for _, route := range messagingRoutes {
-		// Временно убрал authMiddleware для тестирования
-		g.router.Any(route, g.proxyToMessagingService)
+		g.router.Any(route, g.authMiddleware, requireRole("operator"), g.proxyToMessagingService)
 	}
 }
 

@@ -26,18 +26,18 @@ class Order {
   });
 
   factory Order.fromJson(Map<String, dynamic> json) => Order(
-        id: json['id'] as int,
-        partName: json['part_name'] as String? ?? '',
-        partId: json['part_id'] as int?,
+        id: (json['id'] as num?)?.toInt() ?? 0,
+        partName: (json['part'] ?? json['part_name']) as String? ?? '',
+        partId: (json['part_id'] as num?)?.toInt(),
         location: json['location'] as String? ?? '',
         buyerNumber: json['buyer_number'] as String? ?? '',
         orderNumber: json['order_number'] as String? ?? '',
         status: json['status'] as String? ?? 'red',
         statusText: json['status_text'] as String? ?? '',
-        sellerName: json['seller_name'] as String? ?? '',
+        sellerName: (json['seller'] ?? json['seller_name']) as String? ?? '',
         timeAgo: json['time_ago'] as String? ?? '',
         createdAt: json['created_at'] != null
-            ? DateTime.tryParse(json['created_at'] as String)
+            ? DateTime.tryParse(json['created_at'].toString())
             : null,
       );
 
@@ -50,6 +50,17 @@ class Order {
   };
 
   int get statusColor => statusColors[status] ?? 0xFF9E9E9E;
+
+  String get displayStatusText {
+    if (statusText.isNotEmpty) return statusText;
+    return const {
+          'red': 'Нужен транспорт',
+          'brown': 'Ожидание ответа',
+          'yellow': 'Нужна доставка',
+          'green': 'Доставлено',
+        }[status] ??
+        status;
+  }
 }
 
 class OrdersResponse {
@@ -64,7 +75,7 @@ class OrdersResponse {
       orders: ordersRaw
           .map((e) => Order.fromJson(e as Map<String, dynamic>))
           .toList(),
-      total: json['total'] as int? ?? 0,
+      total: (json['total'] as num?)?.toInt() ?? 0,
     );
   }
 }

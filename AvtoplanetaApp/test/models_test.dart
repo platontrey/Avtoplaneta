@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:avtoplaneta_app/core/models/part.dart';
+import 'package:avtoplaneta_app/core/models/order.dart';
+import 'package:avtoplaneta_app/core/models/statistics.dart';
 import 'package:avtoplaneta_app/core/models/user.dart';
 
 void main() {
@@ -56,6 +58,73 @@ void main() {
       expect(serialized['quantity'], 1);
       expect(serialized['brand'], 'BMW');
       expect(serialized['location'], 'Полка 2');
+    });
+
+    test('supports the current API photo and camelCase fields', () {
+      final part = Part.fromJson({
+        'id': 7,
+        'name': 'Бампер',
+        'quantity': 1,
+        'photo': '/uploads/bumper.jpg',
+        'oemCode': 'OEM-7',
+        'supplierCode': 'SUP-7',
+      });
+
+      expect(part.photos, ['/uploads/bumper.jpg']);
+      expect(part.oemCode, 'OEM-7');
+      expect(part.supplierCode, 'SUP-7');
+    });
+  });
+
+  group('API parity model tests', () {
+    test('statistics accepts the camelCase response used by the website', () {
+      final statistics = StatisticsData.fromJson({
+        'totalParts': 4,
+        'totalQuantity': 9,
+        'totalValue': 125000.5,
+        'totalEarnings': 25000,
+        'categories': [
+          {'name': 'Оптика', 'count': 3},
+        ],
+        'monthlySales': [
+          {'month': '2026-08', 'sales': 25000},
+        ],
+      });
+
+      expect(statistics.totalParts, 4);
+      expect(statistics.totalQuantity, 9);
+      expect(statistics.totalValue, 125000.5);
+      expect(statistics.totalEarnings, 25000);
+      expect(statistics.categories.single.name, 'Оптика');
+      expect(statistics.monthlySales.single.month, '2026-08');
+    });
+
+    test('statistics keeps compatibility with snake_case responses', () {
+      final statistics = StatisticsData.fromJson({
+        'total_parts': '2',
+        'total_quantity': 5,
+        'total_value': '1000.25',
+        'total_earnings': 300,
+        'monthly_sales': const [],
+      });
+
+      expect(statistics.totalParts, 2);
+      expect(statistics.totalValue, 1000.25);
+    });
+
+    test('orders use the same field names as the website', () {
+      final order = Order.fromJson({
+        'id': 11,
+        'part': 'Фара левая',
+        'seller': 'Иван',
+        'part_id': 12,
+        'status': 'red',
+        'status_text': '',
+      });
+
+      expect(order.partName, 'Фара левая');
+      expect(order.sellerName, 'Иван');
+      expect(order.displayStatusText, 'Нужен транспорт');
     });
   });
 

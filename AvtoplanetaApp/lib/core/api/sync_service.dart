@@ -35,7 +35,7 @@ class SyncService {
 
       while (hasMore) {
         final response = await apiClient.dio.get(
-          '/api/inventory',
+          '/api/v1/inventory',
           queryParameters: {
             'page': page,
             'limit': limit,
@@ -43,7 +43,12 @@ class SyncService {
           },
         );
 
-        final List<dynamic> list = response.data is List ? response.data as List : [];
+        final data = response.data;
+        final List<dynamic> list = data is List
+            ? data
+            : data is Map && data['parts'] is List
+                ? data['parts'] as List<dynamic>
+                : [];
         allParts.addAll(list);
 
         if (list.length < limit || allParts.length >= 5000) {

@@ -52,7 +52,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
   Future<void> _loadPart() async {
     try {
       final response =
-          await apiClient.dio.get('/api/inventory/${widget.editId}');
+          await apiClient.dio.get('/api/v1/parts/item/${widget.editId}');
       final data = response.data as Map<String, dynamic>;
       setState(() {
         _nameCtrl.text = data['name'] ?? '';
@@ -73,6 +73,8 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
         final photosRaw = data['photos'];
         if (photosRaw is List) {
           _existingPhotos.addAll(photosRaw.map((e) => e.toString()));
+        } else if (data['photo']?.toString().isNotEmpty == true) {
+          _existingPhotos.add(data['photo'].toString());
         }
       });
     } catch (_) {}
@@ -180,7 +182,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       int partId;
       if (widget.editId != null) {
         partId = widget.editId!;
-        await apiClient.dio.put('/api/updatepart/$partId', data: data);
+        await apiClient.dio.put('/api/v1/parts/$partId', data: data);
         
         for (final photoPath in _photosToDelete) {
           await apiClient.dio.delete(
@@ -189,8 +191,8 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
           );
         }
       } else {
-        final response = await apiClient.dio.post('/api/addpart', data: data);
-        partId = response.data['id'] as int;
+        final response = await apiClient.dio.post('/api/v1/parts', data: data);
+        partId = (response.data['id'] as num).toInt();
       }
 
       for (final file in _newPhotos) {
@@ -281,7 +283,6 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
   }
 
   Widget _photoListSection() {
-    final baseUrl = apiClient.dio.options.baseUrl;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -364,7 +365,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: CachedNetworkImage(
-                          imageUrl: '$baseUrl$path',
+                          imageUrl: apiClient.resolveUrl(path),
                           width: 100,
                           height: 100,
                           fit: BoxFit.cover,

@@ -1,17 +1,38 @@
-# avtoplaneta_app
+# Мобильная Автопланета
 
-A new Flutter project.
+Flutter-клиент использует тот же API и те же данные, что веб-приложение.
 
-## Getting Started
+## Запуск
 
-This project is a starting point for a Flutter application.
+По умолчанию приложение подключается к `https://backend-server.ru`:
 
-A few resources to get you started if this is your first Flutter project:
+```shell
+flutter pub get
+flutter run
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Для другого окружения передайте URL при сборке:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```shell
+flutter run --dart-define=API_BASE_URL=https://example.org
+```
+
+## Вход через Google
+
+Для получения ID Token мобильной сборке нужен OAuth Client ID типа Web application,
+совпадающий с `GOOGLE_CLIENT_ID` auth-service:
+
+```shell
+flutter run --dart-define=GOOGLE_SERVER_CLIENT_ID=your-client-id.apps.googleusercontent.com
+```
+
+Также добавьте штатную конфигурацию Google Sign-In для Android и iOS в соответствии
+с настройками OAuth проекта. Секрет OAuth в приложение добавлять нельзя.
+
+## Проверки перед коммитом
+
+```shell
+flutter analyze
+flutter test
+flutter build apk --debug
+```

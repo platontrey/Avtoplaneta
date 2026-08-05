@@ -1,8 +1,12 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../storage/secure_storage.dart';
 
-const _baseUrl = 'http://192.168.1.63';
+const _baseUrl = String.fromEnvironment(
+  'API_BASE_URL',
+  defaultValue: 'https://backend-server.ru',
+);
 
 class ApiClient {
   static final ApiClient _instance = ApiClient._internal();
@@ -30,6 +34,13 @@ class ApiClient {
   }
 
   Dio get dio => _dio;
+
+  /// Преобразует относительный путь из API в публичный URL.
+  String resolveUrl(String path) {
+    final uri = Uri.tryParse(path);
+    if (uri != null && uri.hasScheme) return path;
+    return Uri.parse(_dio.options.baseUrl).resolve(path).toString();
+  }
 }
 
 /// Перехватчик для автоматического добавления JWT и обновления токена
@@ -47,6 +58,20 @@ class _AuthInterceptor extends Interceptor {
     final token = await SecureStorage.getToken();
     if (token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
+    }
+
+    // messaging-service использует тот же идентификатор пользователя, что и сайт.
+    if (options.path.startsWith('/api/messaging/')) {
+      final cachedUser = await SecureStorage.getUser();
+      if (cachedUser != null) {
+        try {
+          final user = jsonDecode(cachedUser) as Map<String, dynamic>;
+          final userId = user['id'];
+          if (userId != null) options.headers['X-User-ID'] = userId.toString();
+        } catch (_) {
+          // Повреждённый кэш не должен блокировать остальные API-запросы.
+        }
+      }
     }
     handler.next(options);
   }

@@ -17,10 +17,10 @@ interface SpeechRecognition extends EventTarget {
   start(): void;
   stop(): void;
   abort(): void;
-  onstart: ((this: SpeechRecognition, ev: Event) => any) | null;
-  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
-  onend: ((this: SpeechRecognition, ev: Event) => any) | null;
-  onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => any) | null;
+  onstart: ((this: SpeechRecognition, ev: Event) => void) | null;
+  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => void) | null;
+  onend: ((this: SpeechRecognition, ev: Event) => void) | null;
+  onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => void) | null;
 }
 
 interface SpeechRecognitionEvent extends Event {
@@ -233,7 +233,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         setIsSearching(true);
 
         try {
-            const url = `${API_BASE_URL}/api/v1/parts/inventory?search=${encodeURIComponent(query)}&limit=10`;
+            const url = `${API_BASE_URL}/api/v1/inventory?search=${encodeURIComponent(query)}&limit=10`;
             const response = await fetch(url, {
                 credentials: 'include',
                 signal: abortControllerRef.current.signal
@@ -341,7 +341,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
 
         try {
             recognitionRef.current.start();
-        } catch (error) {
+        } catch {
             setVoiceSearchError('Не удалось начать распознавание речи');
             setIsListening(false);
         }

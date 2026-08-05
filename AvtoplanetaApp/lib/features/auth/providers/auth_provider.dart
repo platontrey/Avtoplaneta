@@ -7,6 +7,11 @@ import '../../../core/api/sync_service.dart';
 import '../../../core/models/user.dart';
 import '../../../core/storage/secure_storage.dart';
 
+const _googleServerClientId = String.fromEnvironment(
+  'GOOGLE_SERVER_CLIENT_ID',
+  defaultValue: '',
+);
+
 // Провайдер текущего пользователя
 final authProvider = StateNotifierProvider<AuthNotifier, AsyncValue<User?>>(
   (ref) => AuthNotifier(),
@@ -112,7 +117,10 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
   Future<void> loginWithGoogle() async {
     state = const AsyncValue.loading();
     try {
-      await GoogleSignIn.instance.initialize();
+      await GoogleSignIn.instance.initialize(
+        serverClientId:
+            _googleServerClientId.isEmpty ? null : _googleServerClientId,
+      );
       final GoogleSignInAccount googleUser = await GoogleSignIn.instance.authenticate();
       final String? idToken = googleUser.authentication.idToken;
       if (idToken == null || idToken.isEmpty) {

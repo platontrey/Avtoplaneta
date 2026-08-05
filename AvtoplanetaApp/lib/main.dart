@@ -17,7 +17,7 @@ class AvtoplanetaApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     return MaterialApp.router(
-      title: 'Avtoplaneta',
+      title: 'Автопланета',
       theme: AppTheme.dark,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
