@@ -804,7 +804,7 @@ function PartBlock({
                                                 transition={{ delay: 0.85, duration: 0.3 }}
                                                 className="text-sm"
                                             >
-                                                <div className="font-medium text-gray-600">Номер трансмиссии</div>
+                                                <div className="font-medium text-gray-600">Модель трансмиссии</div>
                                                 <div>{part.transmission_model}</div>
                                             </motion.div>
                                         )}

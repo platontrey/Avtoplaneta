@@ -285,7 +285,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
             ),
             _buildTextField(
               _transmissionModelCtrl,
-              'Номер трансмиссии',
+              'Модель трансмиссии',
               hint:
                   'Применяется к подвеске ДВС/КПП, трансмиссии и передней подвеске',
             ),

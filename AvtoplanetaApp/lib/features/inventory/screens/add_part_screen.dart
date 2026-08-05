@@ -694,7 +694,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
             if (_shows('transmission_model'))
               _field(
                 _transmissionModelCtrl,
-                'Номер трансмиссии',
+                'Модель трансмиссии',
                 hint: 'Введите номер трансмиссии',
               ),
             if (_shows('drive')) _field(_driveCtrl, 'Привод'),

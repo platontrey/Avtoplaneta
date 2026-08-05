@@ -394,7 +394,7 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                 )}
 
                                 {['Подвеска ДВС/КПП', 'Трансмиссия', 'Подвеска передних колес'].includes(partEdit.editForm.category) && (
-                                    <FormRow label="Номер трансмиссии" htmlFor="transmission_model">
+                                    <FormRow label="Модель трансмиссии" htmlFor="transmission_model">
                                         <Input
                                             id="transmission_model"
                                             value={partEdit.editForm.transmission_model || ''}

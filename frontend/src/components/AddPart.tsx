@@ -1029,7 +1029,7 @@ export default function AddPart() {
 
                                     {visibleFields.includes("transmission_model") && (
                                         <div>
-                                            <Label htmlFor="transmission_model" className="mb-1">Номер трансмиссии</Label>
+                                            <Label htmlFor="transmission_model" className="mb-1">Модель трансмиссии</Label>
                                             <Input
                                                 id="transmission_model"
                                                 {...register("transmission_model")}

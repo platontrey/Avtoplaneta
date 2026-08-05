@@ -1815,7 +1815,7 @@ export default function DefectReport() {
               </div>
 
               <div>
-                <Label htmlFor="transmission-model">Номер трансмиссии</Label>
+                <Label htmlFor="transmission-model">Модель трансмиссии</Label>
                 <Input
                   id="transmission-model"
                   {...register("transmission_model")}
@@ -1825,7 +1825,8 @@ export default function DefectReport() {
                   autoComplete="off"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  Применяется к подвеске ДВС/КПП, трансмиссии и подвеске передних колес
+                  Укажите номер трансмиссии. Применяется к подвеске ДВС/КПП,
+                  трансмиссии и подвеске передних колес.
                 </p>
               </div>
 
@@ -1964,7 +1965,7 @@ export default function DefectReport() {
                         {part.defect && <div>Дефект: {part.defect}</div>}
                         {part.transmission && <div>Трансмиссия: {part.transmission}</div>}
                         {transmissionModelCategories.includes(part.category) && watch("transmission_model") && (
-                          <div>Номер трансмиссии: {watch("transmission_model")}</div>
+                          <div>Модель трансмиссии: {watch("transmission_model")}</div>
                         )}
                         {part.drive && <div>Привод: {part.drive}</div>}
                         {part.wear_percentage && <div>Процент износа: {part.wear_percentage}</div>}

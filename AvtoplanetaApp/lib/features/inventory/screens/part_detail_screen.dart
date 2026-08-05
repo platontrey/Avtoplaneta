@@ -148,7 +148,7 @@ class PartDetailScreen extends ConsumerWidget {
                 if (_notEmpty(part.transmission))
                   _row('Тип трансмиссии', part.transmission!),
                 if (_notEmpty(part.transmissionModel))
-                  _row('Номер трансмиссии', part.transmissionModel!),
+                  _row('Модель трансмиссии', part.transmissionModel!),
                 if (_notEmpty(part.drive)) _row('Привод', part.drive!),
                 if (_notEmpty(part.wearPercentage))
                   _row('Процент износа', '${part.wearPercentage!}%'),
