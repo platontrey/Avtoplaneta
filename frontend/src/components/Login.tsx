@@ -15,8 +15,8 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../features/auth/hooks/useAuth';
 
 const loginSchema = z.object({
-  email: z.string().min(1, { message: "Email or username is required" }),
-  password: z.string().min(1, { message: "Password is required" }),
+  email: z.string().min(1, { message: "Введите электронную почту или имя пользователя" }),
+  password: z.string().min(1, { message: "Введите пароль" }),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -49,7 +49,7 @@ export default function Login() {
       window.location.href = '/';
     } catch (err) {
       console.error('Login error:', err);
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : 'Не удалось войти');
     }
   };
 
@@ -58,10 +58,10 @@ export default function Login() {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to your account
+            Вход в личный кабинет
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Access the inventory management system
+            Система управления складом автозапчастей
           </p>
         </div>
 
@@ -70,28 +70,28 @@ export default function Login() {
           <Card>
             <CardHeader>
               <CardTitle className="text-center">
-                User Login
+                Вход в систему
               </CardTitle>
               <CardDescription className="text-center">
-                Sign in with your email and password
+                Введите электронную почту или имя пользователя и пароль
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div>
-                  <Label htmlFor="email">Email or Username</Label>
+                  <Label htmlFor="email">Электронная почта или имя пользователя</Label>
                   <Input
                     id="email"
                     {...register("email")}
                     type="text"
                     autoComplete="email"
-                    placeholder="Enter your email or username"
+                    placeholder="Введите электронную почту или имя пользователя"
                   />
                   {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
                 </div>
                 <div>
                   <Label htmlFor="password">
-                    Password
+                    Пароль
                   </Label>
                   <div className="relative">
                     <Input
@@ -99,7 +99,7 @@ export default function Login() {
                       {...register("password")}
                       type={showPassword ? "text" : "password"}
                       autoComplete="current-password"
-                      placeholder="Enter your password"
+                      placeholder="Введите пароль"
                       className="pr-10"
                     />
                     <Button
@@ -108,7 +108,7 @@ export default function Login() {
                       size="sm"
                       className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                       onClick={() => setShowPassword(!showPassword)}
-                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
                     >
                       {showPassword ? (
                         <EyeOff className="h-4 w-4" />
@@ -131,7 +131,7 @@ export default function Login() {
                   className="w-full"
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Signing in...' : 'Sign in'}
+                  {isLoading ? 'Выполняется вход…' : 'Войти'}
                 </Button>
               </form>
             </CardContent>
@@ -143,16 +143,16 @@ export default function Login() {
               <div className="w-full border-t border-gray-300" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-gray-50 text-gray-500">Or</span>
+              <span className="px-2 bg-gray-50 text-gray-500">или</span>
             </div>
           </div>
 
           {/* Google Login */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-center">Google Login</CardTitle>
+              <CardTitle className="text-center">Вход через Google</CardTitle>
               <CardDescription className="text-center">
-                Sign in with your Google account
+                Используйте свою учётную запись Google
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -179,7 +179,7 @@ export default function Login() {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
-                Continue with Google
+                Продолжить через Google
               </Button>
             </CardContent>
           </Card>

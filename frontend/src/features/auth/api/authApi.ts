@@ -18,7 +18,7 @@ export const authApi = {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Login failed: ${errorText}`);
+      throw new Error(`Не удалось войти: ${errorText}`);
     }
 
     const data = await response.json();
