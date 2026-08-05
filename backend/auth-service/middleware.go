@@ -39,8 +39,9 @@ func CORSMiddleware(config *Config) gin.HandlerFunc {
 				"http://192.168.1.63:5173",
 				"http://192.168.56.1:5173",
 				"http://192.168.51.2:5173",
-				"https://avtoplaneta.avtoplaneta.crazedns.ru",
-				"http://avtoplaneta.avtoplaneta.crazedns.ru",
+				"https://backend-server.ru",
+				"https://www.backend-server.ru",
+				"https://192.168.1.3",
 			}
 		}
 

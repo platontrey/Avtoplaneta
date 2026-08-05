@@ -21,7 +21,7 @@ services:
       - "traefik.enable=true"
     environment:
       - ACME_EMAIL=${ACME_EMAIL:-admin@example.com}
-      - DOMAIN=${DOMAIN:-localhost}
+      - PUBLIC_DOMAIN=${PUBLIC_DOMAIN:-backend-server.ru}
     healthcheck:
       test: ["CMD", "traefik", "healthcheck"]
       interval: 30s
@@ -40,11 +40,16 @@ services:
       - avtoplaneta_network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN}`) || Host(`192.168.1.3`)"
+      # Cloudflare terminates public TLS; Traefik still encrypts the origin hop.
+      - "traefik.http.routers.frontend.rule=Host(`${PUBLIC_DOMAIN:-backend-server.ru}`) || Host(`www.${PUBLIC_DOMAIN:-backend-server.ru}`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls=true"
-      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
+      # Keep LAN access separate so ACME never requests a certificate for RFC1918 IPs.
+      - "traefik.http.routers.frontend-lan.rule=Host(`192.168.1.3`)"
+      - "traefik.http.routers.frontend-lan.entrypoints=websecure"
+      - "traefik.http.routers.frontend-lan.tls=true"
+      - "traefik.http.routers.frontend-lan.service=frontend"
     depends_on:
       - gateway
 
@@ -60,14 +65,17 @@ services:
       - avtoplaneta_network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.gateway.rule=(Host(`${DOMAIN}`) || Host(`192.168.1.3`)) && (PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/admin`) || PathPrefix(`/orders`) || PathPrefix(`/uploads`) || PathPrefix(`/health`) || PathPrefix(`/ready`) || PathPrefix(`/metrics`) || PathPrefix(`/swagger`))"
+      - "traefik.http.routers.gateway.rule=(Host(`${PUBLIC_DOMAIN:-backend-server.ru}`) || Host(`www.${PUBLIC_DOMAIN:-backend-server.ru}`)) && (PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/admin`) || PathPrefix(`/orders`) || PathPrefix(`/uploads`) || PathPrefix(`/health`) || PathPrefix(`/ready`) || PathPrefix(`/metrics`) || PathPrefix(`/swagger`))"
       - "traefik.http.routers.gateway.entrypoints=websecure"
       - "traefik.http.routers.gateway.tls=true"
-      - "traefik.http.routers.gateway.tls.certresolver=letsencrypt"
       - "traefik.http.services.gateway.loadbalancer.server.port=8080"
+      - "traefik.http.routers.gateway-lan.rule=Host(`192.168.1.3`) && (PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/admin`) || PathPrefix(`/orders`) || PathPrefix(`/uploads`) || PathPrefix(`/health`) || PathPrefix(`/ready`) || PathPrefix(`/metrics`) || PathPrefix(`/swagger`))"
+      - "traefik.http.routers.gateway-lan.entrypoints=websecure"
+      - "traefik.http.routers.gateway-lan.tls=true"
+      - "traefik.http.routers.gateway-lan.service=gateway"
     environment:
       - NODE_ENV=production
-      - DOMAIN=${DOMAIN}
+      - DOMAIN=${PUBLIC_DOMAIN:-backend-server.ru}
       - AUTH_SERVICE_URL=http://auth-service:8083
       - PARTS_SERVICE_URL=http://parts-service:8081
       - ORDERS_SERVICE_URL=http://orders-service:8082
@@ -111,8 +119,8 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - GOOGLE_CALLBACK_URL=https://${DOMAIN}/auth/google/callback
-      - ALLOWED_ORIGINS=https://${DOMAIN},http://${DOMAIN}
+      - GOOGLE_CALLBACK_URL=https://${PUBLIC_DOMAIN:-backend-server.ru}/auth/google/callback
+      - ALLOWED_ORIGINS=https://${PUBLIC_DOMAIN:-backend-server.ru},https://www.${PUBLIC_DOMAIN:-backend-server.ru},https://192.168.1.3
       - PARTS_SERVICE_URL=http://parts-service:8081
       - GOMEMLIMIT=1024MiB
       - GOGC=400
@@ -210,7 +218,7 @@ services:
       - GATEWAY_URL=http://gateway:8080
       - DROM_API_KEY=${DROM_API_KEY}
       - DROM_PACKET_ID=${DROM_PACKET_ID}
-      - MESSAGING_SERVICE_URL=https://${DOMAIN}/api/messaging
+      - MESSAGING_SERVICE_URL=https://${PUBLIC_DOMAIN:-backend-server.ru}/api/messaging
       - GOMEMLIMIT=1024MiB
       - GOGC=400
       - GOMAXPROCS=8
