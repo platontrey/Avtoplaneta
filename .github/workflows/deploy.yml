@@ -5,6 +5,8 @@ on:
     branches:
       - OptimizedBackend
       - main
+    paths-ignore:
+      - "AvtoplanetaApp/**"
 
 jobs:
   deploy:

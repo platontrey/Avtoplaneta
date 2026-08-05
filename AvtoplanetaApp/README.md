@@ -36,3 +36,13 @@ flutter analyze
 flutter test
 flutter build apk --debug
 ```
+
+## Сборка в GitHub Actions
+
+Workflow `Build Android app` запускается при push и pull request в ветки
+`OptimizedBackend` и `main`, только если изменились файлы в `AvtoplanetaApp/`.
+Он выполняет анализ, тесты и release-сборку. Готовый APK доступен в артефактах
+запуска GitHub Actions в течение 30 дней.
+
+Сейчас release-вариант использует debug-ключ из Android-конфигурации проекта.
+Перед публикацией в Google Play необходимо настроить постоянный release-ключ.
