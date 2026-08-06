@@ -26,8 +26,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  quality:
+    name: Analyze and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: AvtoplanetaApp
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: AvtoplanetaApp
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.41.6"
+          channel: stable
+          cache: true
+          pub-cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-pub
+
+      - name: Run tests
+        run: flutter test --no-pub
+
   build:
-    name: Analyze, test and build APK
+    name: Build APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -62,14 +94,8 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Analyze
-        run: flutter analyze
-
-      - name: Run tests
-        run: flutter test
-
       - name: Build release APK
-        run: flutter build apk --release --build-number="${{ github.run_number }}"
+        run: flutter build apk --release --no-pub --build-number="${{ github.run_number }}"
 
       - name: Upload APK
         uses: actions/upload-artifact@v7
@@ -80,18 +106,33 @@ jobs:
           retention-days: 30
           compression-level: 0
 
+  publish:
+    name: Publish APK
+    if: github.event_name == 'push'
+    needs:
+      - quality
+      - build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Download APK
+        uses: actions/download-artifact@v8
+        with:
+          name: avtoplaneta-android-${{ github.sha }}
+          path: release
+
       - name: Prepare release APK
-        if: github.event_name == 'push'
         id: prepare-release
         shell: bash
         run: |
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            release_asset="build/app/outputs/flutter-apk/avtoplaneta-${GITHUB_REF_NAME}.apk"
+            release_asset="release/avtoplaneta-${GITHUB_REF_NAME}.apk"
           else
-            release_asset="build/app/outputs/flutter-apk/avtoplaneta-latest.apk"
+            release_asset="release/avtoplaneta-latest.apk"
           fi
 
-          cp build/app/outputs/flutter-apk/app-release.apk "${release_asset}"
+          cp release/app-release.apk "${release_asset}"
           echo "release_asset=${release_asset}" >> "${GITHUB_OUTPUT}"
 
       - name: Add APK to GitHub Release
@@ -111,7 +152,6 @@ jobs:
 
       - name: Update latest Android release
         if: >-
-          github.event_name == 'push' &&
           !startsWith(github.ref, 'refs/tags/') &&
           github.ref_name == github.event.repository.default_branch
         env:
