@@ -57,15 +57,6 @@ jobs:
           cache: true
           pub-cache: true
 
-      - name: Restore Flutter build cache
-        uses: actions/cache@v5
-        with:
-          path: |
-            AvtoplanetaApp/.dart_tool
-            AvtoplanetaApp/build
-          key: flutter-android-${{ runner.os }}-3.41.6-${{ hashFiles('AvtoplanetaApp/pubspec.lock', 'AvtoplanetaApp/android/**/*.gradle*', 'AvtoplanetaApp/android/gradle/wrapper/gradle-wrapper.properties') }}-${{ github.sha }}
-          restore-keys: flutter-android-${{ runner.os }}-3.41.6-${{ hashFiles('AvtoplanetaApp/pubspec.lock', 'AvtoplanetaApp/android/**/*.gradle*', 'AvtoplanetaApp/android/gradle/wrapper/gradle-wrapper.properties') }}-
-
       - name: Install dependencies
         run: flutter pub get
 
@@ -76,7 +67,15 @@ jobs:
         run: flutter test
 
       - name: Build release APK
-        run: flutter build apk --release --build-number="${{ github.run_number }}"
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            flutter build apk --release --build-number="${GITHUB_RUN_NUMBER}"
+          else
+            flutter build apk --release \
+              --target-platform android-arm64 \
+              --build-number="${GITHUB_RUN_NUMBER}"
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v7
