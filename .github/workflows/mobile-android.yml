@@ -9,12 +9,14 @@ on:
       - "v*"
     paths:
       - "AvtoplanetaApp/**"
+      - ".github/workflows/mobile-android.yml"
   pull_request:
     branches:
       - OptimizedBackend
       - main
     paths:
       - "AvtoplanetaApp/**"
+      - ".github/workflows/mobile-android.yml"
 
 permissions:
   contents: write
