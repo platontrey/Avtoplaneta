@@ -5,6 +5,7 @@ class Part {
   final String category;
   final double price;
   final int quantity;
+  final bool? status;
   final String? brand;
   final String? model;
   final String? bodyBrand;
@@ -48,6 +49,7 @@ class Part {
     required this.category,
     required this.price,
     required this.quantity,
+    this.status,
     this.brand,
     this.model,
     this.bodyBrand,
@@ -106,6 +108,7 @@ class Part {
       category: json['category'] as String? ?? '',
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
       quantity: (json['quantity'] as num?)?.toInt() ?? 0,
+      status: json['status'] as bool?,
       brand: json['brand'] as String?,
       model: json['model'] as String?,
       bodyBrand: json['body_brand'] as String?,
@@ -157,6 +160,7 @@ class Part {
     'category': category,
     'price': price,
     'quantity': quantity,
+    'status': status,
     'brand': brand,
     'model': model,
     'body_brand': bodyBrand,
@@ -190,6 +194,8 @@ class Part {
     'location': location,
     'salesman': salesman,
   };
+
+  bool get isAvailable => status ?? quantity > 0;
 }
 
 class InventoryResponse {

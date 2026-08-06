@@ -3,6 +3,7 @@ import 'package:avtoplaneta_app/core/models/part.dart';
 import 'package:avtoplaneta_app/core/models/order.dart';
 import 'package:avtoplaneta_app/core/models/statistics.dart';
 import 'package:avtoplaneta_app/core/models/user.dart';
+import 'package:avtoplaneta_app/features/inventory/providers/inventory_provider.dart';
 
 void main() {
   group('Part Model Tests', () {
@@ -73,6 +74,75 @@ void main() {
       expect(part.photos, ['/uploads/bumper.jpg']);
       expect(part.oemCode, 'OEM-7');
       expect(part.supplierCode, 'SUP-7');
+    });
+
+    test('availability respects the API status with quantity fallback', () {
+      final unavailable = Part.fromJson({
+        'id': 8,
+        'name': 'Деталь',
+        'quantity': 5,
+        'status': false,
+      });
+      final legacyAvailable = Part.fromJson({
+        'id': 9,
+        'name': 'Другая деталь',
+        'quantity': 2,
+      });
+
+      expect(unavailable.isAvailable, false);
+      expect(legacyAvailable.isAvailable, true);
+    });
+  });
+
+  group('Inventory Filter Tests', () {
+    test('counts every non-default advanced filter', () {
+      const filter = InventoryFilter(
+        category: 'Трансмиссия',
+        brand: 'BMW',
+        model: 'E90',
+        location: 'A-12',
+        salesman: 'Иван',
+        status: 'true',
+        hasPhoto: 'without',
+      );
+
+      expect(filter.activeFilterCount, 7);
+    });
+
+    test('copyWith can clear a filter and reset pagination', () {
+      const filter = InventoryFilter(brand: 'BMW', page: 4);
+      final cleared = filter.copyWith(brand: '', page: 1);
+
+      expect(cleared.brand, isEmpty);
+      expect(cleared.page, 1);
+      expect(cleared.activeFilterCount, 0);
+    });
+
+    test('builds the exact query supported by the inventory API', () {
+      const filter = InventoryFilter(
+        search: 'рейка',
+        category: 'Рулевое управление',
+        brand: 'BMW',
+        model: 'E90',
+        location: 'A-12',
+        salesman: 'Иван',
+        status: 'true',
+        hasPhoto: 'with',
+        page: 3,
+      );
+
+      expect(filter.toQueryParameters(), {
+        'page': 3,
+        'limit': 20,
+        'search': 'рейка',
+        'category': 'Рулевое управление',
+        'brand': 'BMW',
+        'model': 'E90',
+        'location': 'A-12',
+        'salesman': 'Иван',
+        'status': 'true',
+        'hasPhoto': 'with',
+      });
     });
   });
 
