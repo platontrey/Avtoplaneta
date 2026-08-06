@@ -18,8 +18,15 @@ final authProvider = StateNotifierProvider<AuthNotifier, AsyncValue<User?>>(
 );
 
 class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
-  AuthNotifier() : super(const AsyncValue.loading()) {
-    _init();
+  AuthNotifier({User? initialUser, bool initialize = true})
+    : super(
+        initialUser == null
+            ? const AsyncValue.loading()
+            : AsyncValue.data(initialUser),
+      ) {
+    if (initialize) {
+      _init();
+    }
   }
 
   bool _isNetworkError(Object err) {
@@ -96,8 +103,9 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
         '/auth/login',
         data: {'email': email, 'password': password},
       );
-      final loginResponse =
-          LoginResponse.fromJson(response.data as Map<String, dynamic>);
+      final loginResponse = LoginResponse.fromJson(
+        response.data as Map<String, dynamic>,
+      );
 
       if (loginResponse.token.isNotEmpty) {
         await SecureStorage.saveTokens(
@@ -118,10 +126,12 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
     state = const AsyncValue.loading();
     try {
       await GoogleSignIn.instance.initialize(
-        serverClientId:
-            _googleServerClientId.isEmpty ? null : _googleServerClientId,
+        serverClientId: _googleServerClientId.isEmpty
+            ? null
+            : _googleServerClientId,
       );
-      final GoogleSignInAccount googleUser = await GoogleSignIn.instance.authenticate();
+      final GoogleSignInAccount googleUser = await GoogleSignIn.instance
+          .authenticate();
       final String? idToken = googleUser.authentication.idToken;
       if (idToken == null || idToken.isEmpty) {
         throw Exception('Не удалось получить Google ID Token');
@@ -131,8 +141,9 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
         '/auth/google/mobile',
         data: {'id_token': idToken},
       );
-      final loginResponse =
-          LoginResponse.fromJson(response.data as Map<String, dynamic>);
+      final loginResponse = LoginResponse.fromJson(
+        response.data as Map<String, dynamic>,
+      );
 
       if (loginResponse.token.isNotEmpty) {
         await SecureStorage.saveTokens(
@@ -168,7 +179,9 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
 
   Future<void> _tryRefresh() async {
     final refreshToken = await SecureStorage.getRefreshToken();
-    if (refreshToken == null || refreshToken.isEmpty) throw Exception('no refresh token');
+    if (refreshToken == null || refreshToken.isEmpty) {
+      throw Exception('no refresh token');
+    }
 
     final response = await apiClient.dio.post(
       '/auth/refresh',
