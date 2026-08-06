@@ -126,6 +126,25 @@ void main() {
       expect(order.sellerName, 'Иван');
       expect(order.displayStatusText, 'Нужен транспорт');
     });
+
+    test('orders parse item quantities and formatted dates', () {
+      final order = Order.fromJson({
+        'id': 21,
+        'part': 'Комплект подвески',
+        'status': 'yellow',
+        'status_text': 'Needs delivery',
+        'created_at_formatted': '2026-08-06 12:30:00',
+        'items': [
+          {'id': 1, 'part_id': 10, 'quantity': 2, 'price': 5000},
+          {'id': 2, 'part_id': 11, 'quantity': 3, 'price': 2500.5},
+        ],
+      });
+
+      expect(order.totalQuantity, 5);
+      expect(order.createdAtFormatted, '2026-08-06 12:30:00');
+      expect(order.items.last.price, 2500.5);
+      expect(order.displayStatusText, 'Нужна доставка');
+    });
   });
 
   group('User Model Tests', () {

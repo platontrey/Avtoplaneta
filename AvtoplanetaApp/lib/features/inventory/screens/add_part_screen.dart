@@ -67,13 +67,17 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
   final List<String> _photosToDelete = [];
 
   final ImagePicker _picker = ImagePicker();
+  bool _selectingImage = false;
 
   @override
   void initState() {
     super.initState();
     _categoryCtrl.addListener(_onCategoryChanged);
     _loadCatalog();
-    if (widget.editId != null) _loadPart();
+    if (widget.editId != null) {
+      _loadPart();
+    }
+    _recoverLostImages();
   }
 
   PartCatalog? _partCatalog;
@@ -89,7 +93,9 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
 
   Set<String> get _visibleSpecificationFields {
     final catalog = _partCatalog;
-    if (catalog == null) return const {};
+    if (catalog == null) {
+      return const {};
+    }
     final category = _categoryCtrl.text.trim();
     if (category.isEmpty) {
       return catalog.attributes.map((attribute) => attribute.code).toSet();
@@ -113,7 +119,9 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
   bool _shows(String field) => _visibleSpecificationFields.contains(field);
 
   void _onCategoryChanged() {
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _loadPart() async {
@@ -122,6 +130,9 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
         '/api/v1/parts/item/${widget.editId}',
       );
       final data = response.data as Map<String, dynamic>;
+      if (!mounted) {
+        return;
+      }
       setState(() {
         _nameCtrl.text = data['name'] ?? '';
         _descCtrl.text = data['description'] ?? '';
@@ -161,6 +172,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
         _locationCtrl.text = data['location'] ?? '';
         _salesmanCtrl.text = data['salesman'] ?? '';
 
+        _existingPhotos.clear();
         final photosRaw = data['photos'];
         if (photosRaw is List) {
           _existingPhotos.addAll(photosRaw.map((e) => e.toString()));
@@ -168,7 +180,13 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
           _existingPhotos.add(data['photo'].toString());
         }
       });
-    } catch (_) {}
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Не удалось загрузить запчасть: $error')),
+        );
+      }
+    }
   }
 
   @override
@@ -219,42 +237,82 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
+    if (_selectingImage) {
+      return;
+    }
+    setState(() => _selectingImage = true);
     try {
       final XFile? image = await _picker.pickImage(
         source: source,
         imageQuality: 85,
+        maxWidth: 2048,
+        maxHeight: 2048,
       );
-      if (image == null) return;
-
-      final cropped = await ImageCropper().cropImage(
-        sourcePath: image.path,
-        uiSettings: [
-          AndroidUiSettings(
-            toolbarTitle: 'Редактор фото',
-            toolbarColor: const Color(0xFF1A1A2E),
-            toolbarWidgetColor: Colors.white,
-            initAspectRatio: CropAspectRatioPreset.square,
-            lockAspectRatio: true,
-          ),
-          IOSUiSettings(title: 'Редактор фото', aspectRatioLockEnabled: true),
-        ],
-      );
-
-      if (cropped != null) {
-        setState(() {
-          _newPhotos.add(File(cropped.path));
-        });
+      if (image == null || !mounted) {
+        return;
       }
+      await _cropAndAddImage(image);
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Ошибка при выборе фото: $e')));
+      _showImageError(e);
+    } finally {
+      if (mounted) {
+        setState(() => _selectingImage = false);
+      }
     }
   }
 
-  void _showPhotoOptions() {
-    showModalBottomSheet(
+  Future<void> _recoverLostImages() async {
+    try {
+      final response = await _picker.retrieveLostData();
+      if (response.isEmpty || !mounted) {
+        return;
+      }
+      if (response.exception != null) {
+        _showImageError(response.exception!);
+        return;
+      }
+      final files = response.files;
+      if (files == null || files.isEmpty) {
+        return;
+      }
+      await _cropAndAddImage(files.first);
+    } catch (error) {
+      _showImageError(error);
+    }
+  }
+
+  Future<void> _cropAndAddImage(XFile image) async {
+    final cropped = await ImageCropper().cropImage(
+      sourcePath: image.path,
+      compressQuality: 85,
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Редактор фото',
+          toolbarColor: const Color(0xFF1A1A2E),
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.square,
+          lockAspectRatio: true,
+        ),
+        IOSUiSettings(title: 'Редактор фото', aspectRatioLockEnabled: true),
+      ],
+    );
+    if (cropped == null || !mounted) {
+      return;
+    }
+    setState(() => _newPhotos.add(File(cropped.path)));
+  }
+
+  void _showImageError(Object error) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Ошибка при выборе фото: $error')));
+  }
+
+  Future<void> _showPhotoOptions() async {
+    final source = await showModalBottomSheet<ImageSource>(
       context: context,
       builder: (_) => SafeArea(
         child: Wrap(
@@ -262,27 +320,26 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
             ListTile(
               leading: const Icon(Icons.camera_alt_outlined),
               title: const Text('Сделать снимок (Камера)'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImage(ImageSource.camera);
-              },
+              onTap: () => Navigator.pop(context, ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
               title: const Text('Выбрать из галереи'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImage(ImageSource.gallery);
-              },
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
             ),
           ],
         ),
       ),
     );
+    if (source != null && mounted) {
+      await _pickImage(source);
+    }
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
     setState(() => _loading = true);
     try {
       final data = {
@@ -355,7 +412,9 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       }
 
       ref.invalidate(inventoryProvider);
-      if (mounted) context.go('/inventory');
+      if (mounted) {
+        context.go('/inventory');
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -363,7 +422,9 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
         ).showSnackBar(SnackBar(content: Text('Ошибка сохранения: $e')));
       }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -500,19 +561,32 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
                   side: const BorderSide(color: Colors.white24, width: 1),
                 ),
                 child: InkWell(
-                  onTap: _showPhotoOptions,
+                  onTap: _selectingImage ? null : _showPhotoOptions,
                   borderRadius: BorderRadius.circular(12),
-                  child: const SizedBox(
+                  child: SizedBox(
                     width: 100,
                     height: 100,
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.add_a_photo_outlined, color: Colors.white70),
-                        SizedBox(height: 4),
+                        if (_selectingImage)
+                          const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        else
+                          const Icon(
+                            Icons.add_a_photo_outlined,
+                            color: Colors.white70,
+                          ),
+                        const SizedBox(height: 4),
                         Text(
-                          'Добавить',
-                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                          _selectingImage ? 'Обработка' : 'Добавить',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),

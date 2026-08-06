@@ -7,6 +7,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/utils/qr_signer.dart';
 import '../providers/inventory_provider.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../orders/widgets/part_order_sheet.dart';
 
 class PartDetailScreen extends ConsumerWidget {
   final int id;
@@ -45,7 +46,7 @@ class PartDetailScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Ошибка: $e')),
         data: (part) => SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -212,6 +213,26 @@ class PartDetailScreen extends ConsumerWidget {
                   ),
                 ),
               ]),
+              if (part.quantity > 0 && !isOffline)
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () async {
+                      final created = await showPartOrderSheet(
+                        context,
+                        ref,
+                        part,
+                      );
+                      if (created && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Заказ оформлен')),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.shopping_cart_checkout_rounded),
+                    label: const Text('Оформить заказ'),
+                  ),
+                ),
             ],
           ),
         ),

@@ -1,27 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/order.dart';
 import '../../../shared/widgets/app_states.dart';
 import '../../auth/providers/auth_provider.dart';
-
-final ordersProvider = FutureProvider<OrdersResponse>((ref) async {
-  final response = await apiClient.dio.get('/orders');
-  final data = response.data;
-  if (data is List) {
-    final orders = data
-        .map((e) => Order.fromJson(e as Map<String, dynamic>))
-        .toList();
-    return OrdersResponse(orders: orders, total: orders.length);
-  } else if (data is Map) {
-    return OrdersResponse.fromJson(Map<String, dynamic>.from(data));
-  }
-  return const OrdersResponse(orders: [], total: 0);
-});
+import '../../inventory/providers/inventory_provider.dart';
+import '../providers/orders_provider.dart';
 
 class OrdersScreen extends ConsumerWidget {
   const OrdersScreen({super.key});
+
+  Future<void> _refresh(WidgetRef ref) async {
+    ref.invalidate(ordersProvider);
+    await ref.read(ordersProvider.future);
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -35,7 +29,7 @@ class OrdersScreen extends ConsumerWidget {
           IconButton(
             tooltip: 'Обновить',
             icon: const Icon(Icons.refresh),
-            onPressed: () => ref.invalidate(ordersProvider),
+            onPressed: () => _refresh(ref),
           ),
         ],
       ),
@@ -48,34 +42,53 @@ class OrdersScreen extends ConsumerWidget {
           actionLabel: 'Повторить',
           onAction: () => ref.invalidate(ordersProvider),
         ),
-        data: (data) => data.orders.isEmpty
-            ? const AppEmptyState(
-                icon: Icons.receipt_long_outlined,
-                title: 'Заказов пока нет',
-                message: 'Новые заказы появятся здесь автоматически.',
-              )
-            : RefreshIndicator(
-                onRefresh: () async => ref.invalidate(ordersProvider),
-                child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
-                  itemCount: data.orders.length + 1,
-                  separatorBuilder: (_, i) =>
-                      SizedBox(height: i == 0 ? 14 : 10),
-                  itemBuilder: (_, i) {
-                    if (i == 0) {
-                      return AppSectionHeader(
-                        title: 'Активность',
-                        caption: '${data.total} заказов',
-                      );
-                    }
-                    return _OrderCard(
-                      order: data.orders[i - 1],
-                      canChangeStatus: user?.isOperator == true,
-                      onStatusChanged: () => ref.invalidate(ordersProvider),
-                    );
-                  },
-                ),
-              ),
+        data: (data) => RefreshIndicator(
+          onRefresh: () => _refresh(ref),
+          child: ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+            itemCount: data.orders.length + (data.orders.isEmpty ? 3 : 2),
+            separatorBuilder: (_, i) => SizedBox(height: i == 0 ? 14 : 10),
+            itemBuilder: (_, i) {
+              if (i == 0) {
+                return Card(
+                  child: ListTile(
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.add_shopping_cart_rounded),
+                    ),
+                    title: const Text('Создать новый заказ'),
+                    subtitle: const Text(
+                      'Выберите запчасть в инвентаре и оформите заказ',
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => context.go('/inventory'),
+                  ),
+                );
+              }
+              if (i == 1) {
+                return AppSectionHeader(
+                  title: 'Активность',
+                  caption: '${data.total} заказов',
+                );
+              }
+              if (data.orders.isEmpty) {
+                return const AppEmptyState(
+                  icon: Icons.receipt_long_outlined,
+                  title: 'Заказов пока нет',
+                  message: 'Выберите запчасть и создайте первый заказ.',
+                );
+              }
+              return _OrderCard(
+                order: data.orders[i - 2],
+                canChangeStatus: user?.isOperator == true,
+                onStatusChanged: () {
+                  ref.invalidate(ordersProvider);
+                  ref.invalidate(inventoryProvider);
+                },
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -105,8 +118,10 @@ class _OrderCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(20),
@@ -139,7 +154,18 @@ class _OrderCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  order.timeAgo,
+                  '#${order.id}',
+                  style: const TextStyle(
+                    color: AppTheme.mutedColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  order.timeAgo.isNotEmpty
+                      ? order.timeAgo
+                      : order.createdAtFormatted,
                   style: const TextStyle(
                     color: AppTheme.mutedColor,
                     fontSize: 11,
@@ -149,11 +175,12 @@ class _OrderCard extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             Text(
-              order.partName,
+              '${order.totalQuantity} × ${order.partName}',
               style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700),
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 10),
             Wrap(
@@ -166,7 +193,8 @@ class _OrderCard extends StatelessWidget {
                   _info(Icons.person_outline, order.sellerName),
               ],
             ),
-            if (order.orderNumber.isNotEmpty || order.buyerNumber.isNotEmpty) ...[
+            if (order.orderNumber.isNotEmpty ||
+                order.buyerNumber.isNotEmpty) ...[
               const SizedBox(height: 8),
               Wrap(
                 spacing: 12,
@@ -181,13 +209,9 @@ class _OrderCard extends StatelessWidget {
             ],
             if (canChangeStatus) ...[
               const SizedBox(height: 8),
-              _StatusButtons(
-                  orderId: order.id, onChanged: onStatusChanged),
+              _StatusButtons(orderId: order.id, onChanged: onStatusChanged),
               const SizedBox(height: 8),
-              _OrderActions(
-                orderId: order.id,
-                onChanged: onStatusChanged,
-              ),
+              _OrderActions(orderId: order.id, onChanged: onStatusChanged),
             ],
           ],
         ),
@@ -196,19 +220,16 @@ class _OrderCard extends StatelessWidget {
   }
 
   Widget _info(IconData icon, String text) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: AppTheme.mutedColor),
-          const SizedBox(width: 5),
-          Text(
-            text,
-            style: const TextStyle(
-              color: AppTheme.mutedColor,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      );
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, size: 14, color: AppTheme.mutedColor),
+      const SizedBox(width: 5),
+      Text(
+        text,
+        style: const TextStyle(color: AppTheme.mutedColor, fontSize: 12),
+      ),
+    ],
+  );
 }
 
 class _OrderActions extends StatelessWidget {
@@ -241,7 +262,9 @@ class _OrderActions extends StatelessWidget {
         ],
       ),
     );
-    if (confirmed != true || !context.mounted) return;
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
 
     try {
       if (method == 'DELETE') {
@@ -249,9 +272,17 @@ class _OrderActions extends StatelessWidget {
       } else {
         await apiClient.dio.put(path);
       }
+      if (!context.mounted) {
+        return;
+      }
       onChanged();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('$actionLabel: выполнено')));
     } catch (error) {
-      if (!context.mounted) return;
+      if (!context.mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Не удалось выполнить действие: $error')),
       );
@@ -324,14 +355,28 @@ class _StatusButtons extends ConsumerWidget {
                     '/admin/orders/$orderId/status',
                     data: {'status': s.$1, 'status_text': s.$2},
                   );
+                  if (!context.mounted) {
+                    return;
+                  }
                   onChanged();
-                } catch (_) {}
+                } catch (error) {
+                  if (!context.mounted) {
+                    return;
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Не удалось изменить статус: $error'),
+                    ),
+                  );
+                }
               },
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: s.$3, width: 1),
                 foregroundColor: s.$3,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
