@@ -65,7 +65,7 @@ jobs:
         run: flutter test
 
       - name: Build release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --build-number="${{ github.run_number }}"
 
       - name: Upload APK
         uses: actions/upload-artifact@v7
@@ -77,17 +77,62 @@ jobs:
           compression-level: 0
 
       - name: Prepare release APK
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: >-
-          cp build/app/outputs/flutter-apk/app-release.apk
-          build/app/outputs/flutter-apk/avtoplaneta-${{ github.ref_name }}.apk
+        if: github.event_name == 'push'
+        id: prepare-release
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            release_asset="build/app/outputs/flutter-apk/avtoplaneta-${GITHUB_REF_NAME}.apk"
+          else
+            release_asset="build/app/outputs/flutter-apk/avtoplaneta-latest.apk"
+          fi
+
+          cp build/app/outputs/flutter-apk/app-release.apk "${release_asset}"
+          echo "release_asset=${release_asset}" >> "${GITHUB_OUTPUT}"
 
       - name: Add APK to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >-
-          gh release create "${{ github.ref_name }}"
-          "build/app/outputs/flutter-apk/avtoplaneta-${{ github.ref_name }}.apk"
-          --title "Автопланета ${{ github.ref_name }}"
-          --generate-notes
+        shell: bash
+        run: |
+          release_asset="${{ steps.prepare-release.outputs.release_asset }}"
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" "${release_asset}" --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" "${release_asset}" \
+              --title "Автопланета ${GITHUB_REF_NAME}" \
+              --generate-notes
+          fi
+
+      - name: Update latest Android release
+        if: >-
+          github.event_name == 'push' &&
+          !startsWith(github.ref, 'refs/tags/') &&
+          github.ref_name == github.event.repository.default_branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          release_tag="mobile-latest"
+          release_asset="${{ steps.prepare-release.outputs.release_asset }}"
+          release_title="Автопланета — актуальная Android-сборка"
+          release_notes="Автоматическая сборка из ${GITHUB_REF_NAME} (${GITHUB_SHA})."
+
+          if gh release view "${release_tag}" >/dev/null 2>&1; then
+            gh api --method PATCH \
+              "repos/${GITHUB_REPOSITORY}/git/refs/tags/${release_tag}" \
+              -f sha="${GITHUB_SHA}" \
+              -F force=true >/dev/null
+            gh release upload "${release_tag}" "${release_asset}" --clobber
+            gh release edit "${release_tag}" \
+              --title "${release_title}" \
+              --notes "${release_notes}" \
+              --latest
+          else
+            gh release create "${release_tag}" "${release_asset}" \
+              --target "${GITHUB_SHA}" \
+              --title "${release_title}" \
+              --notes "${release_notes}" \
+              --latest
+          fi
