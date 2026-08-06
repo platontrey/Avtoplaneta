@@ -10,8 +10,10 @@ import '../../../core/models/part.dart';
 import '../../../core/utils/qr_signer.dart';
 import '../../../shared/widgets/app_states.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../orders/widgets/part_order_sheet.dart';
 import '../providers/inventory_provider.dart';
 import '../providers/part_catalog_provider.dart';
+import '../widgets/bulk_part_actions.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
   const InventoryScreen({super.key});
@@ -23,6 +25,8 @@ class InventoryScreen extends ConsumerStatefulWidget {
 class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   final _searchCtrl = TextEditingController();
   Timer? _debounce;
+  final Set<int> _selectedPartIds = {};
+  bool _selectionMode = false;
 
   @override
   void dispose() {
@@ -41,6 +45,21 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     });
   }
 
+  void _toggleSelection(Part part) {
+    setState(() {
+      _selectionMode = true;
+      if (!_selectedPartIds.add(part.id)) _selectedPartIds.remove(part.id);
+      if (_selectedPartIds.isEmpty) _selectionMode = false;
+    });
+  }
+
+  void _clearSelection() {
+    setState(() {
+      _selectionMode = false;
+      _selectedPartIds.clear();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final filter = ref.watch(inventoryFilterProvider);
@@ -56,75 +75,120 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final user = ref.watch(authProvider).valueOrNull;
 
     final isOffline = inventoryAsync.valueOrNull?.isOffline ?? false;
+    final visibleParts = inventoryAsync.valueOrNull?.parts ?? const <Part>[];
+    final selectedParts = visibleParts
+        .where((part) => _selectedPartIds.contains(part.id))
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Инвентарь'),
-        actions: [
-          IconButton(
-            tooltip: 'Сканировать код',
-            icon: const Icon(Icons.qr_code_scanner_outlined),
-            onPressed: () => _openScanner(context),
-          ),
-          if (user?.isOperator == true)
-            IconButton(
-              tooltip: 'Добавить',
-              icon: const Icon(Icons.add_circle_outline_rounded),
-              onPressed: isOffline
-                  ? () => ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('В оффлайн-режиме добавление недоступно'),
-                      ),
-                    )
-                  : () => _showAddMenu(context),
-            ),
-          IconButton(
-            tooltip: 'Профиль',
-            icon: const Icon(Icons.person_outline),
-            onPressed: () => _showUserMenu(context),
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(68),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchCtrl,
-                    onChanged: _onSearch,
-                    decoration: InputDecoration(
-                      hintText: 'Название, марка, модель или место',
-                      prefixIcon: const Icon(Icons.search_rounded),
-                      suffixIcon: _searchCtrl.text.isNotEmpty
-                          ? IconButton(
-                              tooltip: 'Очистить поиск',
-                              icon: const Icon(Icons.close_rounded),
-                              onPressed: () {
-                                _searchCtrl.clear();
-                                _onSearch('');
-                              },
-                            )
-                          : null,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Badge(
-                  isLabelVisible: filter.activeFilterCount > 0,
-                  label: Text('${filter.activeFilterCount}'),
-                  child: IconButton.filledTonal(
-                    tooltip: 'Фильтры',
-                    onPressed: () => _showFilters(context, filter, categories),
-                    icon: const Icon(Icons.tune_rounded),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        leading: _selectionMode
+            ? IconButton(
+                tooltip: 'Отменить выбор',
+                onPressed: _clearSelection,
+                icon: const Icon(Icons.close),
+              )
+            : null,
+        title: Text(
+          _selectionMode ? 'Выбрано: ${_selectedPartIds.length}' : 'Инвентарь',
         ),
+        actions: [
+          if (_selectionMode)
+            IconButton(
+              tooltip: _selectedPartIds.length == visibleParts.length
+                  ? 'Снять выбор со всех'
+                  : 'Выбрать все на странице',
+              icon: Icon(
+                _selectedPartIds.length == visibleParts.length
+                    ? Icons.deselect_rounded
+                    : Icons.select_all_rounded,
+              ),
+              onPressed: () {
+                setState(() {
+                  if (_selectedPartIds.length == visibleParts.length) {
+                    _selectedPartIds.clear();
+                    _selectionMode = false;
+                  } else {
+                    _selectedPartIds.addAll(
+                      visibleParts.map((part) => part.id),
+                    );
+                  }
+                });
+              },
+            ),
+          if (!_selectionMode) ...[
+            IconButton(
+              tooltip: 'Сканировать код',
+              icon: const Icon(Icons.qr_code_scanner_outlined),
+              onPressed: () => _openScanner(context),
+            ),
+            if (user?.isOperator == true)
+              IconButton(
+                tooltip: 'Добавить',
+                icon: const Icon(Icons.add_circle_outline_rounded),
+                onPressed: isOffline
+                    ? () => ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'В оффлайн-режиме добавление недоступно',
+                          ),
+                        ),
+                      )
+                    : () => _showAddMenu(context),
+              ),
+            IconButton(
+              tooltip: 'Профиль',
+              icon: const Icon(Icons.person_outline),
+              onPressed: () => _showUserMenu(context),
+            ),
+          ],
+        ],
+        bottom: _selectionMode
+            ? null
+            : PreferredSize(
+                preferredSize: const Size.fromHeight(68),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _searchCtrl,
+                          onChanged: _onSearch,
+                          decoration: InputDecoration(
+                            hintText: 'Название, марка, модель или место',
+                            prefixIcon: const Icon(Icons.search_rounded),
+                            suffixIcon: _searchCtrl.text.isNotEmpty
+                                ? IconButton(
+                                    tooltip: 'Очистить поиск',
+                                    icon: const Icon(Icons.close_rounded),
+                                    onPressed: () {
+                                      _searchCtrl.clear();
+                                      _onSearch('');
+                                    },
+                                  )
+                                : null,
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Badge(
+                        isLabelVisible: filter.activeFilterCount > 0,
+                        label: Text('${filter.activeFilterCount}'),
+                        child: IconButton.filledTonal(
+                          tooltip: 'Фильтры',
+                          onPressed: () =>
+                              _showFilters(context, filter, categories),
+                          icon: const Icon(Icons.tune_rounded),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
       ),
       body: inventoryAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -219,13 +283,29 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                         itemCount: data.parts.length,
                         itemBuilder: (ctx, i) => Padding(
                           padding: const EdgeInsets.only(bottom: 10),
-                          child: _PartCard(part: data.parts[i]),
+                          child: _PartCard(
+                            part: data.parts[i],
+                            selected: _selectedPartIds.contains(
+                              data.parts[i].id,
+                            ),
+                            selectionMode: _selectionMode,
+                            onTap: () {
+                              if (_selectionMode) {
+                                _toggleSelection(data.parts[i]);
+                              } else {
+                                context.go(
+                                  '/inventory/part/${data.parts[i].id}',
+                                );
+                              }
+                            },
+                            onLongPress: () => _toggleSelection(data.parts[i]),
+                          ),
                         ),
                       ),
                     ),
             ),
             // Пагинация
-            if (data.total > 20)
+            if (data.total > 20 && !_selectionMode)
               _Pagination(
                 current: filter.page,
                 total: (data.total / 20).ceil(),
@@ -236,6 +316,65 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           ],
         ),
       ),
+      bottomNavigationBar: _selectionMode
+          ? _BulkActionBar(
+              count: _selectedPartIds.length,
+              enabled: !isOffline && selectedParts.isNotEmpty,
+              onOrder: () async {
+                if (selectedParts.any((part) => part.quantity <= 0)) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Для заказа выберите только запчасти в наличии',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+                final created = await showPartsOrderSheet(
+                  context,
+                  ref,
+                  selectedParts,
+                );
+                if (!context.mounted) return;
+                if (created) {
+                  _clearSelection();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Заказ оформлен')),
+                  );
+                }
+              },
+              onEdit: () async {
+                final changed = await showBulkEditSheet(
+                  context,
+                  ref,
+                  parts: selectedParts,
+                  categories: categories,
+                );
+                if (!context.mounted) return;
+                if (changed) {
+                  _clearSelection();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Запчасти обновлены')),
+                  );
+                }
+              },
+              onDelete: () async {
+                final deleted = await confirmBulkDelete(
+                  context,
+                  ref,
+                  selectedParts,
+                );
+                if (!context.mounted) return;
+                if (deleted) {
+                  _clearSelection();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Запчасти удалены')),
+                  );
+                }
+              },
+            )
+          : null,
     );
   }
 
@@ -646,7 +785,18 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
 
 class _PartCard extends StatelessWidget {
   final Part part;
-  const _PartCard({required this.part});
+  final bool selected;
+  final bool selectionMode;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
+
+  const _PartCard({
+    required this.part,
+    required this.selected,
+    required this.selectionMode,
+    required this.onTap,
+    required this.onLongPress,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -655,9 +805,17 @@ class _PartCard extends StatelessWidget {
         : null;
 
     return Card(
+      color: selected ? AppTheme.primaryColor.withValues(alpha: 0.18) : null,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: selected
+            ? const BorderSide(color: AppTheme.primaryColor, width: 2)
+            : BorderSide.none,
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
-        onTap: () => context.go('/inventory/part/${part.id}'),
+        onTap: onTap,
+        onLongPress: onLongPress,
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
@@ -726,6 +884,10 @@ class _PartCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
+              if (selectionMode) ...[
+                Checkbox(value: selected, onChanged: (_) => onTap()),
+                const SizedBox(width: 4),
+              ],
               // Цена и количество
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -772,6 +934,72 @@ class _PartCard extends StatelessWidget {
       border: Border.all(color: color.withValues(alpha: 0.4), width: 0.5),
     ),
     child: Text(label, style: TextStyle(color: color, fontSize: 11)),
+  );
+}
+
+class _BulkActionBar extends StatelessWidget {
+  final int count;
+  final bool enabled;
+  final VoidCallback onOrder;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _BulkActionBar({
+    required this.count,
+    required this.enabled,
+    required this.onOrder,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: Material(
+      elevation: 12,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
+        child: Row(
+          children: [
+            Expanded(
+              child: _action(
+                Icons.shopping_cart_checkout_rounded,
+                'Заказать ($count)',
+                enabled ? onOrder : null,
+              ),
+            ),
+            Expanded(
+              child: _action(
+                Icons.edit_outlined,
+                'Изменить',
+                enabled ? onEdit : null,
+              ),
+            ),
+            Expanded(
+              child: _action(
+                Icons.delete_outline_rounded,
+                'Удалить',
+                enabled ? onDelete : null,
+                danger: true,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  Widget _action(
+    IconData icon,
+    String label,
+    VoidCallback? onPressed, {
+    bool danger = false,
+  }) => TextButton.icon(
+    onPressed: onPressed,
+    style: danger
+        ? TextButton.styleFrom(foregroundColor: AppTheme.dangerColor)
+        : null,
+    icon: Icon(icon),
+    label: Text(label),
   );
 }
 

@@ -58,4 +58,74 @@ void main() {
     expect(find.byTooltip('Фильтры'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('inventory supports multi-select bulk actions', (
+    WidgetTester tester,
+  ) async {
+    const parts = [
+      Part(
+        id: 101,
+        name: 'Фара левая',
+        category: 'Кузов',
+        price: 5000,
+        quantity: 1,
+      ),
+      Part(
+        id: 102,
+        name: 'Фара правая',
+        category: 'Кузов',
+        price: 5500,
+        quantity: 2,
+      ),
+    ];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authProvider.overrideWith(
+            (ref) => AuthNotifier(
+              initialUser: const User(
+                id: 1,
+                email: 'test@avtoplaneta.local',
+                name: 'Test User',
+                role: 'operator',
+              ),
+              initialize: false,
+            ),
+          ),
+          inventoryProvider.overrideWith(
+            (ref, filter) async => const InventoryResponse(
+              parts: parts,
+              total: 2,
+              page: 1,
+              limit: 20,
+            ),
+          ),
+          partCatalogProvider.overrideWith(
+            (ref) async => const PartCatalog(
+              version: 'test',
+              attributes: [],
+              partFormCategories: [],
+              reportBindings: [],
+              parts: [],
+            ),
+          ),
+        ],
+        child: const AvtoplanetaApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.longPress(find.text('Фара левая'));
+    await tester.pump();
+
+    expect(find.text('Выбрано: 1'), findsOneWidget);
+    expect(find.text('Заказать (1)'), findsOneWidget);
+    expect(find.text('Изменить'), findsOneWidget);
+    expect(find.text('Удалить'), findsOneWidget);
+
+    await tester.tap(find.text('Фара правая'));
+    await tester.pump();
+    expect(find.text('Выбрано: 2'), findsOneWidget);
+    expect(find.text('Заказать (2)'), findsOneWidget);
+  });
 }

@@ -12,24 +12,35 @@ Future<bool> showPartOrderSheet(
   WidgetRef ref,
   Part part,
 ) async {
+  return showPartsOrderSheet(context, ref, [part]);
+}
+
+Future<bool> showPartsOrderSheet(
+  BuildContext context,
+  WidgetRef ref,
+  List<Part> parts,
+) async {
+  if (parts.isEmpty) return false;
   final created = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (_) => _PartOrderSheet(part: part),
+    builder: (_) => _PartOrderSheet(parts: parts),
   );
   if (created == true) {
     ref.invalidate(ordersProvider);
     ref.invalidate(inventoryProvider);
-    ref.invalidate(partProvider(part.id));
+    for (final part in parts) {
+      ref.invalidate(partProvider(part.id));
+    }
   }
   return created ?? false;
 }
 
 class _PartOrderSheet extends ConsumerStatefulWidget {
-  final Part part;
+  final List<Part> parts;
 
-  const _PartOrderSheet({required this.part});
+  const _PartOrderSheet({required this.parts});
 
   @override
   ConsumerState<_PartOrderSheet> createState() => _PartOrderSheetState();
@@ -39,16 +50,26 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
   final _formKey = GlobalKey<FormState>();
   final _customerIdController = TextEditingController();
   final _buyerNumberController = TextEditingController();
-  final _quantityController = TextEditingController(text: '1');
+  final Map<int, TextEditingController> _quantityControllers = {};
   bool _addToExisting = false;
   bool _submitting = false;
   int? _selectedOrderId;
 
   @override
+  void initState() {
+    super.initState();
+    for (final part in widget.parts) {
+      _quantityControllers[part.id] = TextEditingController(text: '1');
+    }
+  }
+
+  @override
   void dispose() {
     _customerIdController.dispose();
     _buyerNumberController.dispose();
-    _quantityController.dispose();
+    for (final controller in _quantityControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -63,25 +84,33 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
       return;
     }
 
-    final quantity = int.parse(_quantityController.text);
+    final items = widget.parts
+        .map(
+          (part) => {
+            'part_id': part.id,
+            'quantity': int.parse(_quantityControllers[part.id]!.text),
+          },
+        )
+        .toList();
     setState(() => _submitting = true);
     try {
       if (_addToExisting) {
-        await apiClient.dio.post(
-          '/orders/$_selectedOrderId/items',
-          data: {'part_id': widget.part.id, 'quantity': quantity},
-        );
+        for (final item in items) {
+          await apiClient.dio.post(
+            '/orders/$_selectedOrderId/items',
+            data: item,
+          );
+        }
       } else {
         await apiClient.dio.post(
           '/orders',
           data: {
             'customer_id': int.parse(_customerIdController.text),
-            'part': widget.part.name,
-            'part_id': widget.part.id,
+            'order_number': '',
+            'part': widget.parts.map((part) => part.name).join(', '),
+            'part_id': widget.parts.first.id,
             'buyer_number': _buyerNumberController.text.trim(),
-            'items': [
-              {'part_id': widget.part.id, 'quantity': quantity},
-            ],
+            'items': items,
           },
         );
       }
@@ -119,7 +148,9 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
                 children: [
                   Expanded(
                     child: Text(
-                      'Оформить заказ',
+                      widget.parts.length == 1
+                          ? 'Оформить заказ'
+                          : 'Заказ из ${widget.parts.length} запчастей',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                   ),
@@ -130,10 +161,11 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
                   ),
                 ],
               ),
-              Text(
-                '${widget.part.name} · ${widget.part.quantity} шт. в наличии',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
+              if (widget.parts.length == 1)
+                Text(
+                  '${widget.parts.first.name} · ${widget.parts.first.quantity} шт. в наличии',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
               const SizedBox(height: 18),
               SegmentedButton<bool>(
                 segments: const [
@@ -208,21 +240,30 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
                 ),
               ],
               const SizedBox(height: 12),
-              TextFormField(
-                controller: _quantityController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: const InputDecoration(labelText: 'Количество *'),
-                validator: (value) {
-                  final quantity = int.tryParse(value ?? '');
-                  if (quantity == null || quantity <= 0) {
-                    return 'Укажите количество';
-                  }
-                  if (quantity > widget.part.quantity) {
-                    return 'Доступно только ${widget.part.quantity} шт.';
-                  }
-                  return null;
-                },
+              ...widget.parts.map(
+                (part) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: TextFormField(
+                    controller: _quantityControllers[part.id],
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: InputDecoration(
+                      labelText: widget.parts.length == 1
+                          ? 'Количество *'
+                          : '${part.name} (${part.quantity} шт.)',
+                    ),
+                    validator: (value) {
+                      final quantity = int.tryParse(value ?? '');
+                      if (quantity == null || quantity <= 0) {
+                        return 'Укажите количество';
+                      }
+                      if (quantity > part.quantity) {
+                        return 'Доступно только ${part.quantity} шт.';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
               ),
               const SizedBox(height: 20),
               SizedBox(

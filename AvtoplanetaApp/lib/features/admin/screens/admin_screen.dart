@@ -37,13 +37,17 @@ class AdminScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               child: Text(
                 'Пользователи (${users.length})',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(color: Colors.white70),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(color: Colors.white70),
               ),
             ),
-            ...users.map((u) => _UserTile(user: u, onDeleted: () => ref.invalidate(usersListProvider))),
+            ...users.map(
+              (u) => _UserTile(
+                user: u,
+                onDeleted: () => ref.invalidate(usersListProvider),
+              ),
+            ),
           ],
         ),
       ),
@@ -55,7 +59,11 @@ class AdminScreen extends ConsumerWidget {
   }
 
   void _showCreateUser(BuildContext context, WidgetRef ref) {
-    showDialog(context: context, builder: (_) => _CreateUserDialog(onCreated: () => ref.invalidate(usersListProvider)));
+    showDialog(
+      context: context,
+      builder: (_) =>
+          _CreateUserDialog(onCreated: () => ref.invalidate(usersListProvider)),
+    );
   }
 }
 
@@ -66,9 +74,12 @@ class _UserTile extends StatelessWidget {
 
   Color _roleColor(String role) {
     switch (role) {
-      case 'admin': return const Color(0xFFE53935);
-      case 'manager': return const Color(0xFFFDD835);
-      default: return const Color(0xFF43A047);
+      case 'admin':
+        return const Color(0xFFE53935);
+      case 'manager':
+        return const Color(0xFFFDD835);
+      default:
+        return const Color(0xFF43A047);
     }
   }
 
@@ -80,12 +91,22 @@ class _UserTile extends StatelessWidget {
         leading: CircleAvatar(
           backgroundColor: _roleColor(user.role).withValues(alpha: 0.2),
           child: Text(
-            user.initials.isNotEmpty ? user.initials : user.name.isNotEmpty ? user.name[0] : '?',
-            style: TextStyle(color: _roleColor(user.role), fontWeight: FontWeight.bold),
+            user.initials.isNotEmpty
+                ? user.initials
+                : user.name.isNotEmpty
+                ? user.name[0]
+                : '?',
+            style: TextStyle(
+              color: _roleColor(user.role),
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
         title: Text(user.name, style: const TextStyle(color: Colors.white)),
-        subtitle: Text(user.email, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+        subtitle: Text(
+          user.email,
+          style: const TextStyle(color: Colors.white54, fontSize: 12),
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -102,7 +123,11 @@ class _UserTile extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+              icon: const Icon(
+                Icons.delete_outline,
+                color: Colors.red,
+                size: 20,
+              ),
               onPressed: () => _confirmDelete(context),
             ),
           ],
@@ -118,7 +143,10 @@ class _UserTile extends StatelessWidget {
         title: const Text('Удалить пользователя?'),
         content: Text('${user.name} (${user.email})'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Отмена'),
+          ),
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
@@ -153,24 +181,37 @@ class _CreateUserDialogState extends State<_CreateUserDialog> {
 
   @override
   void dispose() {
-    _nameCtrl.dispose(); _emailCtrl.dispose(); _passCtrl.dispose();
+    _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _create() async {
-    if (_nameCtrl.text.isEmpty || _emailCtrl.text.isEmpty || _passCtrl.text.isEmpty) return;
+    if (_nameCtrl.text.isEmpty ||
+        _emailCtrl.text.isEmpty ||
+        _passCtrl.text.isEmpty) {
+      return;
+    }
     setState(() => _loading = true);
     try {
-      await apiClient.dio.post('/admin/users', data: {
-        'name': _nameCtrl.text.trim(),
-        'email': _emailCtrl.text.trim(),
-        'password': _passCtrl.text,
-        'role': _role,
-      });
+      await apiClient.dio.post(
+        '/admin/users',
+        data: {
+          'name': _nameCtrl.text.trim(),
+          'email': _emailCtrl.text.trim(),
+          'password': _passCtrl.text,
+          'role': _role,
+        },
+      );
       widget.onCreated();
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context);
+      }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -181,11 +222,22 @@ class _CreateUserDialogState extends State<_CreateUserDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          TextField(controller: _nameCtrl, decoration: const InputDecoration(labelText: 'Имя')),
+          TextField(
+            controller: _nameCtrl,
+            decoration: const InputDecoration(labelText: 'Имя'),
+          ),
           const SizedBox(height: 8),
-          TextField(controller: _emailCtrl, decoration: const InputDecoration(labelText: 'Email'), keyboardType: TextInputType.emailAddress),
+          TextField(
+            controller: _emailCtrl,
+            decoration: const InputDecoration(labelText: 'Email'),
+            keyboardType: TextInputType.emailAddress,
+          ),
           const SizedBox(height: 8),
-          TextField(controller: _passCtrl, decoration: const InputDecoration(labelText: 'Пароль'), obscureText: true),
+          TextField(
+            controller: _passCtrl,
+            decoration: const InputDecoration(labelText: 'Пароль'),
+            obscureText: true,
+          ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             initialValue: _role,
@@ -200,8 +252,14 @@ class _CreateUserDialogState extends State<_CreateUserDialog> {
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
-        FilledButton(onPressed: _loading ? null : _create, child: const Text('Создать')),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Отмена'),
+        ),
+        FilledButton(
+          onPressed: _loading ? null : _create,
+          child: const Text('Создать'),
+        ),
       ],
     );
   }

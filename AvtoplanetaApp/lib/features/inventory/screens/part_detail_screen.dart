@@ -213,26 +213,33 @@ class PartDetailScreen extends ConsumerWidget {
                   ),
                 ),
               ]),
-              if (part.quantity > 0 && !isOffline)
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () async {
-                      final created = await showPartOrderSheet(
-                        context,
-                        ref,
-                        part,
-                      );
-                      if (created && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Заказ оформлен')),
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.shopping_cart_checkout_rounded),
-                    label: const Text('Оформить заказ'),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: part.quantity > 0 && !isOffline
+                      ? () async {
+                          final created = await showPartOrderSheet(
+                            context,
+                            ref,
+                            part,
+                          );
+                          if (created && context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Заказ оформлен')),
+                            );
+                          }
+                        }
+                      : null,
+                  icon: const Icon(Icons.shopping_cart_checkout_rounded),
+                  label: Text(
+                    isOffline
+                        ? 'Заказ недоступен оффлайн'
+                        : part.quantity > 0
+                        ? 'Оформить заказ'
+                        : 'Нет в наличии',
                   ),
                 ),
+              ),
             ],
           ),
         ),
