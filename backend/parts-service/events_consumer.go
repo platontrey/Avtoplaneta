@@ -305,51 +305,7 @@ func (c *RedisEventConsumer) handleDefectReportCreated(ctx context.Context, msg 
 		return nil
 	}
 
-	var defectReportData struct {
-		Brand         string `json:"brand"`
-		Model         string `json:"model"`
-		Year          int    `json:"year"`
-		VIN           string `json:"vin"`
-		Mileage       int    `json:"mileage"`
-		Description   string `json:"description"`
-		SellerID      int64  `json:"seller_id"`
-		SellerName    string `json:"seller_name"`
-		SelectedParts []struct {
-			Name               string  `json:"name"`
-			Category           string  `json:"category"`
-			Description        string  `json:"description"`
-			Quantity           int     `json:"quantity"`
-			Price              float64 `json:"price"`
-			BodyBrand          string  `json:"body_brand,omitempty"`
-			EngineBrand        string  `json:"engine_brand,omitempty"`
-			CarReleaseDate     string  `json:"car_release_date,omitempty"`
-			FrontRear          string  `json:"front_rear,omitempty"`
-			LeftRight          string  `json:"left_right,omitempty"`
-			TopBottom          string  `json:"top_bottom,omitempty"`
-			Number             string  `json:"number,omitempty"`
-			Manufacturer       string  `json:"manufacturer,omitempty"`
-			ManufacturerCode   string  `json:"manufacturer_code,omitempty"`
-			OEMCode            string  `json:"oem_code,omitempty"`
-			Color              string  `json:"color,omitempty"`
-			Condition          string  `json:"condition,omitempty"`
-			SupplierCode       string  `json:"supplier_code,omitempty"`
-			Defect             string  `json:"defect,omitempty"`
-			Transmission       string  `json:"transmission,omitempty"`
-			TransmissionModel  string  `json:"transmission_model,omitempty"`
-			Drive              string  `json:"drive,omitempty"`
-			WearPercentage     string  `json:"wear_percentage,omitempty"`
-			Season             string  `json:"season,omitempty"`
-			Diameter           string  `json:"diameter,omitempty"`
-			Width              string  `json:"width,omitempty"`
-			Profile            string  `json:"profile,omitempty"`
-			TireQuantity       string  `json:"tire_quantity,omitempty"`
-			Drilling           string  `json:"drilling,omitempty"`
-			Offset             string  `json:"offset,omitempty"`
-			CenterHoleDiameter string  `json:"center_hole_diameter,omitempty"`
-			TireModel          string  `json:"tire_model,omitempty"`
-			VIN                string  `json:"vin,omitempty"`
-		} `json:"selectedParts"`
-	}
+	var defectReportData DefectReportRequest
 
 	if err := json.Unmarshal([]byte(dataStr), &defectReportData); err != nil {
 		logrus.WithError(err).Error("Failed to deserialize defect report data")
@@ -393,6 +349,7 @@ func (c *RedisEventConsumer) handleDefectReportCreated(ctx context.Context, msg 
 					Model:       defectReportData.Model,
 					Photo:       "",
 					SellerID:    defaultUserID,
+					VIN:         selectedPart.VIN,
 				},
 				PartSpecifications: PartSpecifications{
 					BodyBrand:         selectedPart.BodyBrand,

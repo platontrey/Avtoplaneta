@@ -334,6 +334,7 @@ func (g *Gateway) setupPartsRoutes() {
 		"/api/inventory",
 		"/api/inventory/:id",
 		"/api/statistics",
+		"/api/part-catalog",
 	}
 
 	for _, route := range readRoutes {

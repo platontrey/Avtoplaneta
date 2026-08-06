@@ -27,6 +27,7 @@ func SetupRoutes(r *gin.Engine, handler *Handler) {
 	r.DELETE("/api/deletepartphoto/:id", handler.DeletePartPhotoHandler)
 	r.POST("/api/markpartfordeletion/:id", handler.MarkPartForDeletionHandler)
 	r.GET("/api/statistics", handler.GetStatisticsHandler)
+	r.GET("/api/part-catalog", handler.GetPartCatalogHandler)
 	r.POST("/api/statistics/update-earnings", handler.UpdateEarningsHandler)
 	r.GET("/api/export/xml", exportXMLPriceList)
 	r.POST("/api/export/drom", sendPriceListToDrom)

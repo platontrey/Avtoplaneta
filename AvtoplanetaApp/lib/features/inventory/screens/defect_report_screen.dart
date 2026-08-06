@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/api_client.dart';
-import '../data/common_parts.dart';
 import '../providers/inventory_provider.dart';
+import '../providers/part_catalog_provider.dart';
 
 class DefectReportScreen extends ConsumerStatefulWidget {
   const DefectReportScreen({super.key});
@@ -52,24 +52,6 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
     "Вариатор",
   ];
 
-  static const _transmissionModelCategories = {
-    'Подвеска ДВС/КПП',
-    'Трансмиссия',
-    'Подвеска передних колес',
-  };
-
-  static const _driveCategories = {
-    'Подвеска ДВС/КПП',
-    'Трансмиссия',
-    'Подвеска передних колес',
-    'Подвеска задних колес',
-    'Рулевое управление',
-    'Выхлопная система',
-    'Тормозная система',
-    'Электрооснащение',
-    'Двигатель',
-  };
-
   final List<String> _availableColors = [
     "Черный",
     "Белый",
@@ -116,72 +98,6 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
     super.dispose();
   }
 
-  // Prep parts using the React algorithm
-  List<Map<String, dynamic>> _prepareParts() {
-    final yearVal = int.tryParse(_yearCtrl.text) ?? 2000;
-    return commonPartsList.map((part) {
-      final category = part['category'] as String? ?? '';
-      final isInteriorCategory = [
-        'Электрооснащение',
-        'Система кондиционирования',
-        'Сопутствующие товары',
-      ].contains(category);
-
-      final defaultColor = isInteriorCategory ? 'Черный' : 'Белый';
-      final partColor = isInteriorCategory
-          ? (_selectedInteriorColor ?? 'Черный')
-          : (_selectedBodyColor ?? part['color'] ?? defaultColor);
-
-      final transmissionVal = category == 'Трансмиссия'
-          ? _selectedTransmission
-          : part['transmission'];
-      final transmissionModelVal =
-          _transmissionModelCategories.contains(category)
-          ? _transmissionModelCtrl.text.trim()
-          : part['transmission_model'];
-
-      return {
-        'name': part['name'],
-        'category': category,
-        'description': '',
-        'quantity': part['quantity'] ?? 0,
-        'price': (part['price'] as num?)?.toDouble() ?? 1000.0,
-        'brand': _selectedBrand ?? '',
-        'model': _modelCtrl.text.trim(),
-        'body_brand': _bodyBrandCtrl.text.trim(),
-        'engine_brand': _engineBrandCtrl.text.trim(),
-        'car_release_date': yearVal.toString(),
-        'front_rear': part['front_rear'],
-        'left_right': part['left_right'],
-        'top_bottom': part['top_bottom'],
-        'number': part['number'],
-        'manufacturer': part['manufacturer'],
-        'manufacturer_code': part['manufacturer_code'],
-        'oem_code': part['oem_code'],
-        'color': partColor,
-        'condition': part['condition'],
-        'supplier_code': DateTime.now().millisecondsSinceEpoch.toString(),
-        'defect': part['defect'],
-        'transmission': transmissionVal,
-        'transmission_model': transmissionModelVal,
-        'drive': _driveCategories.contains(category)
-            ? _driveCtrl.text.trim()
-            : part['drive'],
-        'wear_percentage': part['wear_percentage'],
-        'season': part['season'],
-        'diameter': part['diameter'],
-        'width': part['width'],
-        'profile': part['profile'],
-        'tire_quantity': part['tire_quantity'],
-        'drilling': part['drilling'],
-        'offset': part['offset'],
-        'center_hole_diameter': part['center_hole_diameter'],
-        'tire_model': part['tire_model'],
-        'vin': _vinCtrl.text.trim(),
-      };
-    }).toList();
-  }
-
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedBrand == null) {
@@ -194,7 +110,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
     setState(() => _loading = true);
 
     try {
-      final preparedParts = _prepareParts();
+      final catalog = await ref.read(partCatalogProvider.future);
 
       final payload = {
         'brand': _selectedBrand,
@@ -206,8 +122,11 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
         'body_brand': _bodyBrandCtrl.text.trim(),
         'interior_color': _selectedInteriorColor,
         'body_color': _selectedBodyColor,
+        'transmission': _selectedTransmission,
+        'transmission_model': _transmissionModelCtrl.text.trim(),
+        'drive': _driveCtrl.text.trim(),
         'description': _descCtrl.text.trim(),
-        'selectedParts': preparedParts,
+        'catalog_version': catalog.version,
       };
 
       await apiClient.dio.post('/api/defect-reports', data: payload);
@@ -231,8 +150,33 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final catalogState = ref.watch(partCatalogProvider);
+    final catalog = catalogState.asData?.value;
+    if (catalog == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Дефектная ведомость')),
+        body: Center(
+          child: catalogState.hasError
+              ? Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    'Не удалось загрузить каталог: ${catalogState.error}',
+                    textAlign: TextAlign.center,
+                  ),
+                )
+              : const CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    final allParts = catalog.parts.map((part) => part.toPreviewMap()).toList();
+    final driveCategories = catalog.categoriesForBinding('drive');
+    final transmissionModelCategories = catalog.categoriesForBinding(
+      'transmission_model',
+    );
+
     // Filter parts for preview based on filter text
-    final filteredParts = commonPartsList.where((part) {
+    final filteredParts = allParts.where((part) {
       if (_previewFilter.isEmpty) return true;
       final name = (part['name'] as String? ?? '').toLowerCase();
       final cat = (part['category'] as String? ?? '').toLowerCase();
@@ -342,7 +286,12 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
             _buildTextField(_descCtrl, 'Описание / Заметки', maxLines: 3),
 
             const SizedBox(height: 16),
-            _buildPartsPreviewSection(filteredParts),
+            _buildPartsPreviewSection(
+              filteredParts,
+              totalParts: allParts.length,
+              driveCategories: driveCategories,
+              transmissionModelCategories: transmissionModelCategories,
+            ),
             const SizedBox(height: 80),
           ],
         ),
@@ -416,7 +365,12 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
     );
   }
 
-  Widget _buildPartsPreviewSection(List<Map<String, dynamic>> filteredParts) {
+  Widget _buildPartsPreviewSection(
+    List<Map<String, dynamic>> filteredParts, {
+    required int totalParts,
+    required Set<String> driveCategories,
+    required Set<String> transmissionModelCategories,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -432,7 +386,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
               ),
             ),
             Text(
-              'Всего: ${commonPartsList.length}',
+              'Всего: $totalParts',
               style: const TextStyle(color: Colors.white38, fontSize: 12),
             ),
           ],
@@ -515,12 +469,25 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
                                     fontSize: 11,
                                   ),
                                 ),
-                                if (_driveCategories.contains(
+                                if (driveCategories.contains(
                                       part['category'],
                                     ) &&
                                     _driveCtrl.text.trim().isNotEmpty)
                                   Text(
                                     'Привод: ${_driveCtrl.text.trim()}',
+                                    style: const TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                if (transmissionModelCategories.contains(
+                                      part['category'],
+                                    ) &&
+                                    _transmissionModelCtrl.text
+                                        .trim()
+                                        .isNotEmpty)
+                                  Text(
+                                    'Модель трансмиссии: ${_transmissionModelCtrl.text.trim()}',
                                     style: const TextStyle(
                                       color: Colors.white54,
                                       fontSize: 11,

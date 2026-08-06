@@ -33,11 +33,20 @@ class CacheStorage {
     return DateTime.fromMillisecondsSinceEpoch(ms);
   }
 
+  static Future<void> savePartCatalog(Map<String, dynamic> catalog) async {
+    await _settingsBox.put('part_catalog', catalog);
+  }
+
+  static Map<String, dynamic>? getPartCatalog() {
+    final value = _settingsBox.get('part_catalog');
+    if (value is! Map) {
+      return null;
+    }
+    return Map<String, dynamic>.from(value);
+  }
+
   /// Очистка всего кэша
   static Future<void> clearCache() async {
-    await Future.wait([
-      _partsBox.clear(),
-      _settingsBox.clear(),
-    ]);
+    await Future.wait([_partsBox.clear(), _settingsBox.clear()]);
   }
 }

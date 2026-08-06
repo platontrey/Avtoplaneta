@@ -7,7 +7,9 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import '../../../core/api/api_client.dart';
+import '../data/part_catalog.dart';
 import '../providers/inventory_provider.dart';
+import '../providers/part_catalog_provider.dart';
 
 class AddPartScreen extends ConsumerStatefulWidget {
   final int? editId;
@@ -70,61 +72,9 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
   void initState() {
     super.initState();
     _categoryCtrl.addListener(_onCategoryChanged);
+    _loadCatalog();
     if (widget.editId != null) _loadPart();
   }
-
-  static const Set<String> _allSpecificationFields = {
-    'body_brand',
-    'engine_brand',
-    'car_release_date',
-    'front_rear',
-    'left_right',
-    'top_bottom',
-    'number',
-    'manufacturer',
-    'manufacturer_code',
-    'oem_code',
-    'color',
-    'condition',
-    'supplier_code',
-    'defect',
-    'transmission',
-    'transmission_model',
-    'drive',
-    'wear_percentage',
-    'season',
-    'diameter',
-    'width',
-    'profile',
-    'tire_quantity',
-    'drilling',
-    'offset',
-    'center_hole_diameter',
-    'tire_model',
-  };
-
-  static const List<String> _categories = [
-    'Тормоза',
-    'Двигатель',
-    'Подвеска',
-    'Подвеска ДВС/КПП',
-    'Подвеска передних колес',
-    'Подвеска задних колес',
-    'Электрика',
-    'Кузов',
-    'Кузов снаружи',
-    'Интерьер',
-    'Трансмиссия',
-    'Система охлаждения и отопления',
-    'Система выхлопа (Глушитель)',
-    'Система рулевого управления',
-    'Рулевое управление',
-    'Система фильтрации (Фильтры)',
-    'Шины и диски',
-    'Автохимия и масла',
-    'Аксессуары и тюннинг',
-    'Другое',
-  ];
 
   static const List<String> _transmissionTypes = [
     'МКПП',
@@ -133,242 +83,34 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
     'Вариатор',
   ];
 
-  static const Map<String, Set<String>> _specificationFieldsByCategory = {
-    'Тормоза': {
-      'front_rear',
-      'left_right',
-      'number',
-      'manufacturer',
-      'manufacturer_code',
-      'oem_code',
-      'condition',
-      'supplier_code',
-      'defect',
-      'drive',
-      'wear_percentage',
-    },
-    'Двигатель': {
-      'engine_brand',
-      'car_release_date',
-      'number',
-      'manufacturer',
-      'manufacturer_code',
-      'oem_code',
-      'condition',
-      'supplier_code',
-      'defect',
-      'drive',
-    },
-    'Подвеска': {
-      'front_rear',
-      'left_right',
-      'number',
-      'manufacturer',
-      'manufacturer_code',
-      'oem_code',
-      'condition',
-      'supplier_code',
-      'defect',
-    },
-    'Подвеска ДВС/КПП': {
-      'front_rear',
-      'left_right',
-      'top_bottom',
-      'number',
-      'manufacturer',
-      'manufacturer_code',
-      'oem_code',
-      'condition',
-      'supplier_code',
-      'defect',
-      'transmission_model',
-      'drive',
-    },
-    'Подвеска передних колес': {
-      'front_rear',
-      'left_right',
-      'number',
-      'manufacturer',
-      'manufacturer_code',
-      'oem_code',
-      'condition',
-      'supplier_code',
-      'defect',
-      'transmission_model',
-      'drive',
-    },
-    'Подвеска задних колес': {
-      'front_rear',
-      'left_right',
-      'number',
-      'manufacturer',
-      'manufacturer_code',
-      'oem_code',
-      'condition',
-      'supplier_code',
-      'defect',
-      'drive',
-    },
-    'Электрика': {
-      'number',
-      'manufacturer',
-      'manufacturer_code',
-      'oem_code',
-      'condition',
-      'supplier_code',
-      'defect',
-      'drive',
-    },
-    'Кузов': {
-      'body_brand',
-      'front_rear',
-      'left_right',
-      'top_bottom',
-      'number',
-      'manufacturer',
-      'manufacturer_code',
-      'oem_code',
-      'color',
-      'condition',
-      'supplier_code',
-      'defect',
-    },
-    'Кузов снаружи': {
-      'body_brand',
-      'front_rear',
-      'left_right',
-      'top_bottom',
-      'number',
-      'manufacturer',
-      'manufacturer_code',
-      'oem_code',
-      'color',
-      'condition',
-      'supplier_code',
-      'defect',
-    },
-    'Интерьер': {
-      'top_bottom',
-      'number',
-      'manufacturer',
-      'manufacturer_code',
-      'oem_code',
-      'color',
-      'condition',
-      'supplier_code',
-      'defect',
-    },
-    'Трансмиссия': {
-      'front_rear',
-      'left_right',
-      'transmission',
-      'transmission_model',
-      'drive',
-      'number',
-      'manufacturer',
-      'manufacturer_code',
-      'oem_code',
-      'condition',
-      'supplier_code',
-      'defect',
-    },
-    'Система охлаждения и отопления': {
-      'number',
-      'manufacturer',
-      'manufacturer_code',
-      'oem_code',
-      'condition',
-      'supplier_code',
-      'defect',
-    },
-    'Система выхлопа (Глушитель)': {
-      'number',
-      'manufacturer',
-      'manufacturer_code',
-      'oem_code',
-      'condition',
-      'supplier_code',
-      'defect',
-      'drive',
-    },
-    'Система рулевого управления': {
-      'front_rear',
-      'left_right',
-      'number',
-      'manufacturer',
-      'manufacturer_code',
-      'oem_code',
-      'condition',
-      'supplier_code',
-      'defect',
-      'drive',
-    },
-    'Рулевое управление': {
-      'front_rear',
-      'left_right',
-      'number',
-      'manufacturer',
-      'manufacturer_code',
-      'oem_code',
-      'condition',
-      'supplier_code',
-      'defect',
-      'drive',
-    },
-    'Система фильтрации (Фильтры)': {
-      'number',
-      'manufacturer',
-      'manufacturer_code',
-      'oem_code',
-      'condition',
-      'supplier_code',
-      'defect',
-    },
-    'Шины и диски': {
-      'front_rear',
-      'left_right',
-      'diameter',
-      'width',
-      'profile',
-      'tire_quantity',
-      'drilling',
-      'offset',
-      'center_hole_diameter',
-      'tire_model',
-      'season',
-      'manufacturer',
-      'manufacturer_code',
-      'oem_code',
-      'condition',
-      'supplier_code',
-      'defect',
-      'wear_percentage',
-    },
-    'Автохимия и масла': {
-      'manufacturer',
-      'manufacturer_code',
-      'oem_code',
-      'condition',
-      'supplier_code',
-    },
-    'Аксессуары и тюннинг': {
-      'number',
-      'manufacturer',
-      'manufacturer_code',
-      'oem_code',
-      'color',
-      'condition',
-      'supplier_code',
-      'defect',
-    },
-  };
+  PartCatalog? _partCatalog;
+  String? _catalogError;
+
+  List<String> get _categories =>
+      _partCatalog?.partFormCategories.map((item) => item.name).toList() ??
+      const [];
 
   Set<String> get _visibleSpecificationFields {
+    final catalog = _partCatalog;
+    if (catalog == null) return const {};
     final category = _categoryCtrl.text.trim();
-    if (category.isEmpty || category == 'Другое') {
-      return _allSpecificationFields;
+    if (category.isEmpty) {
+      return catalog.attributes.map((attribute) => attribute.code).toSet();
     }
-    return _specificationFieldsByCategory[category] ?? const <String>{};
+    return catalog.attributesForCategory(category);
+  }
+
+  Future<void> _loadCatalog() async {
+    try {
+      final catalog = await ref.read(partCatalogProvider.future);
+      if (mounted) {
+        setState(() => _partCatalog = catalog);
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => _catalogError = error.toString());
+      }
+    }
   }
 
   bool _shows(String field) => _visibleSpecificationFields.contains(field);
@@ -928,22 +670,35 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
     final current = _categoryCtrl.text.trim();
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: DropdownButtonFormField<String>(
-        key: ValueKey(current),
-        initialValue: _categories.contains(current) ? current : null,
-        isExpanded: true,
-        decoration: const InputDecoration(labelText: 'Категория *'),
-        items: _categories
-            .map(
-              (category) => DropdownMenuItem(
-                value: category,
-                child: Text(category, overflow: TextOverflow.ellipsis),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DropdownButtonFormField<String>(
+            key: ValueKey(current),
+            initialValue: _categories.contains(current) ? current : null,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Категория *'),
+            items: _categories
+                .map(
+                  (category) => DropdownMenuItem(
+                    value: category,
+                    child: Text(category, overflow: TextOverflow.ellipsis),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) => _categoryCtrl.text = value ?? '',
+            validator: (value) =>
+                value == null || value.isEmpty ? 'Обязательное поле' : null,
+          ),
+          if (_catalogError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                'Не удалось загрузить каталог: $_catalogError',
+                style: const TextStyle(color: Colors.redAccent, fontSize: 12),
               ),
-            )
-            .toList(),
-        onChanged: (value) => _categoryCtrl.text = value ?? '',
-        validator: (value) =>
-            value == null || value.isEmpty ? 'Обязательное поле' : null,
+            ),
+        ],
       ),
     );
   }

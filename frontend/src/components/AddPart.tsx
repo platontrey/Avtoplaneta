@@ -26,6 +26,7 @@ import { getAuthHeaders } from "@/lib/csrf";
 import { sanitizeHtml } from "@/lib/security";
 import ImageEditor from "./ImageEditor";
 import { API_BASE_URL } from '@/lib/api';
+import { usePartCatalog } from '@/features/catalog/usePartCatalog';
 
 const brandOptions = [
         { value: "Acura", label: "Acura" },
@@ -185,6 +186,7 @@ export default function AddPart() {
     const [loadingUsers, setLoadingUsers] = useState<boolean>(true);
     const [showCropper, setShowCropper] = useState<boolean>(false);
     const [tempImageSrc, setTempImageSrc] = useState<string | File>("");
+    const { data: partCatalog, error: catalogError } = usePartCatalog();
 
     const {
         register,
@@ -206,45 +208,9 @@ export default function AddPart() {
     const sellerId = watch("seller_id");
 
 
-    // Функция для определения видимых полей характеристик в зависимости от категории
-    const getVisibleFields = (category: string | undefined) => {
-        if (!category || category === "Другое") {
-            // Для категории "Другое" или если категория не выбрана, показываем все поля
-            return [
-                "body_brand", "engine_brand", "car_release_date", "front_rear", "left_right", "top_bottom",
-                "number", "manufacturer", "manufacturer_code", "oem_code", "color",
-                "supplier_code", "defect", "transmission", "transmission_model", "drive", "wear_percentage", "season",
-                "diameter", "width", "profile", "tire_quantity", "drilling", "offset",
-                "center_hole_diameter", "tire_model"
-            ];
-        }
-
-        const fieldMappings: Record<string, string[]> = {
-            "Тормоза": ["front_rear", "left_right", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect", "drive", "wear_percentage"],
-            "Двигатель": ["engine_brand", "car_release_date", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect", "drive"],
-            "Подвеска": ["front_rear", "left_right", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
-            "Подвеска ДВС/КПП": ["front_rear", "left_right", "top_bottom", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect", "transmission_model", "drive"],
-            "Подвеска передних колес": ["front_rear", "left_right", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect", "transmission_model", "drive"],
-            "Подвеска задних колес": ["front_rear", "left_right", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect", "drive"],
-            "Электрика": ["number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect", "drive"],
-            "Кузов": ["body_brand", "front_rear", "left_right", "top_bottom", "number", "manufacturer", "manufacturer_code", "oem_code", "color", "condition", "supplier_code", "defect"],
-            "Кузов снаружи": ["body_brand", "front_rear", "left_right", "top_bottom", "number", "manufacturer", "manufacturer_code", "oem_code", "color", "condition", "supplier_code", "defect"],
-            "Интерьер": ["top_bottom", "number", "manufacturer", "manufacturer_code", "oem_code", "color", "condition", "supplier_code", "defect"],
-            "Трансмиссия": ["front_rear", "left_right", "transmission", "transmission_model", "drive", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
-            "Система охлаждения и отопления": ["number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
-            "Система выхлопа (Глушитель)": ["number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect", "drive"],
-            "Система рулевого управления": ["front_rear", "left_right", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect", "drive"],
-            "Рулевое управление": ["front_rear", "left_right", "number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect", "drive"],
-            "Система фильтрации (Фильтры)": ["number", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect"],
-            "Шины и диски": ["front_rear", "left_right", "diameter", "width", "profile", "tire_quantity", "drilling", "offset", "center_hole_diameter", "tire_model", "season", "manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code", "defect", "wear_percentage"],
-            "Автохимия и масла": ["manufacturer", "manufacturer_code", "oem_code", "condition", "supplier_code"],
-            "Аксессуары и тюннинг": ["number", "manufacturer", "manufacturer_code", "oem_code", "color", "condition", "supplier_code", "defect"]
-        };
-
-        return fieldMappings[category] || [];
-    };
-
-    const visibleFields = getVisibleFields(category);
+    const visibleFields = category
+        ? partCatalog?.part_form_categories.find((item) => item.name === category)?.attributes ?? []
+        : partCatalog?.attributes.map((attribute) => attribute.code) ?? [];
 
     // Загрузка списка пользователей и шаблонов характеристик при монтировании компонента
     useEffect(() => {
@@ -561,27 +527,13 @@ export default function AddPart() {
     onValueChange={(value) => setValue("category", value)}
     placeholder="Выберите категорию" id="category-select" className="h-10 w-full"
 >
-    <SelectItem value="Тормоза">Тормоза</SelectItem>
-                                                    <SelectItem value="Двигатель">Двигатель</SelectItem>
-                                                    <SelectItem value="Подвеска">Подвеска</SelectItem>
-                                                    <SelectItem value="Подвеска ДВС/КПП">Подвеска ДВС/КПП</SelectItem>
-                                                    <SelectItem value="Подвеска передних колес">Подвеска передних колес</SelectItem>
-                                                    <SelectItem value="Подвеска задних колес">Подвеска задних колес</SelectItem>
-                                                    <SelectItem value="Электрика">Электрика</SelectItem>
-                                                    <SelectItem value="Кузов">Кузов</SelectItem>
-                                                    <SelectItem value="Кузов снаружи">Кузов снаружи</SelectItem>
-                                                    <SelectItem value="Интерьер">Интерьер</SelectItem>
-                                                    <SelectItem value="Трансмиссия">Трансмиссия</SelectItem>
-                                                    <SelectItem value="Система охлаждения и отопления">Система охлаждения и отопления</SelectItem>
-                                                    <SelectItem value="Система выхлопа (Глушитель)">Система выхлопа (Глушитель)</SelectItem>
-                                                    <SelectItem value="Система рулевого управления">Система рулевого управления</SelectItem>
-                                                    <SelectItem value="Рулевое управление">Рулевое управление</SelectItem>
-                                                    <SelectItem value="Система фильтрации (Фильтры)">Система фильтрации (Фильтры)</SelectItem>
-                                                    <SelectItem value="Шины и диски">Шины и диски</SelectItem>
-                                                    <SelectItem value="Автохимия и масла">Автохимия и масла</SelectItem>
-                                                    <SelectItem value="Аксессуары и тюннинг">Аксессуары и тюннинг</SelectItem>
-                                                    <SelectItem value="Другое">Другое</SelectItem>
+    {partCatalog?.part_form_categories.map((item) => (
+                                                        <SelectItem key={item.code} value={item.name}>{item.name}</SelectItem>
+                                                    ))}
 </ClearableSelect>
+                                            {catalogError && (
+                                                <p className="mt-1 text-sm text-red-500">{catalogError.message}</p>
+                                            )}
                                             
                                         </div>
                                         <input

@@ -11,56 +11,22 @@ import (
 
 // CreateDefectReportHandler отправляет дефектную ведомость в Redis Streams для асинхронной обработки
 func (h *Handler) CreateDefectReportHandler(c *gin.Context) {
-	var defectReportData struct {
-		Brand         string `json:"brand"`
-		Model         string `json:"model"`
-		Year          int    `json:"year"`
-		VIN           string `json:"vin"`
-		Mileage       int    `json:"mileage"`
-		Description   string `json:"description"`
-		SellerID      int64  `json:"seller_id"`
-		SellerName    string `json:"seller_name"`
-		SelectedParts []struct {
-			Name               string  `json:"name"`
-			Category           string  `json:"category"`
-			Description        string  `json:"description"`
-			Quantity           int     `json:"quantity"`
-			Price              float64 `json:"price"`
-			BodyBrand          string  `json:"body_brand,omitempty"`
-			EngineBrand        string  `json:"engine_brand,omitempty"`
-			CarReleaseDate     string  `json:"car_release_date,omitempty"`
-			FrontRear          string  `json:"front_rear,omitempty"`
-			LeftRight          string  `json:"left_right,omitempty"`
-			TopBottom          string  `json:"top_bottom,omitempty"`
-			Number             string  `json:"number,omitempty"`
-			Manufacturer       string  `json:"manufacturer,omitempty"`
-			ManufacturerCode   string  `json:"manufacturer_code,omitempty"`
-			OEMCode            string  `json:"oem_code,omitempty"`
-			Color              string  `json:"color,omitempty"`
-			Condition          string  `json:"condition,omitempty"`
-			SupplierCode       string  `json:"supplier_code,omitempty"`
-			Defect             string  `json:"defect,omitempty"`
-			Transmission       string  `json:"transmission,omitempty"`
-			TransmissionModel  string  `json:"transmission_model,omitempty"`
-			Drive              string  `json:"drive,omitempty"`
-			WearPercentage     string  `json:"wear_percentage,omitempty"`
-			Season             string  `json:"season,omitempty"`
-			Diameter           string  `json:"diameter,omitempty"`
-			Width              string  `json:"width,omitempty"`
-			Profile            string  `json:"profile,omitempty"`
-			TireQuantity       string  `json:"tire_quantity,omitempty"`
-			Drilling           string  `json:"drilling,omitempty"`
-			Offset             string  `json:"offset,omitempty"`
-			CenterHoleDiameter string  `json:"center_hole_diameter,omitempty"`
-			TireModel          string  `json:"tire_model,omitempty"`
-			VIN                string  `json:"vin,omitempty"`
-		} `json:"selectedParts"`
-	}
+	var defectReportData DefectReportRequest
 
 	if err := c.ShouldBindJSON(&defectReportData); err != nil {
 		fmt.Printf("Invalid JSON in createDefectReport: %v\n", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Новые клиенты отправляют только данные автомобиля и характеристики.
+	// Старый selectedParts временно поддерживается для уже установленных версий.
+	if len(defectReportData.SelectedParts) == 0 {
+		if h.partCatalog == nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Каталог шаблонов запчастей недоступен"})
+			return
+		}
+		defectReportData.SelectedParts = h.partCatalog.ExpandDefectReport(defectReportData)
 	}
 
 	userIDStr := c.GetHeader("X-User-ID")

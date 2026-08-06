@@ -16,8 +16,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 
-	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"avtoplaneta/pkg/tracing"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
 var redisClient *redis.Client
@@ -75,7 +75,11 @@ func main() {
 	// Создание зависимостей с dependency injection
 	repo := NewPartRepository(dbPool)
 	service := NewInventoryService(repo, esClient, config)
-	handler := NewHandler(service)
+	partCatalog, err := LoadPartCatalog()
+	if err != nil {
+		log.Fatalf("Не удалось загрузить каталог шаблонов запчастей: %v", err)
+	}
+	handler := NewHandler(service, partCatalog)
 
 	// Запуск gRPC-сервера в отдельной горутине
 	grpcPort := os.Getenv("GRPC_PORT")

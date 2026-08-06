@@ -14,6 +14,7 @@ import (
 // Отвечает только за обработку HTTP запросов и ответов, делегируя бизнес-логику сервису
 type Handler struct {
 	inventoryService InventoryService
+	partCatalog      *PartCatalog
 }
 
 // getUpdatedFields возвращает строку с именами обновленных полей
@@ -26,10 +27,14 @@ func getUpdatedFields(updates map[string]interface{}) string {
 }
 
 // NewHandler создает новый handler с dependency injection
-func NewHandler(inventoryService InventoryService) *Handler {
-	return &Handler{
+func NewHandler(inventoryService InventoryService, catalogs ...*PartCatalog) *Handler {
+	handler := &Handler{
 		inventoryService: inventoryService,
 	}
+	if len(catalogs) > 0 {
+		handler.partCatalog = catalogs[0]
+	}
+	return handler
 }
 
 // logUserActivity логирует активность пользователя через gRPC (с HTTP fallback)
