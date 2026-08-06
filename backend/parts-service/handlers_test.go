@@ -84,6 +84,16 @@ func (m *MockInventoryService) GetPartByID(ctx context.Context, id int64) (*Part
 	return args.Get(0).(*Part), args.Error(1)
 }
 
+func (m *MockInventoryService) DecreasePartQuantity(ctx context.Context, id int64, amount int) error {
+	args := m.Called(ctx, id, amount)
+	return args.Error(0)
+}
+
+func (m *MockInventoryService) IncreasePartQuantity(ctx context.Context, id int64, amount int) error {
+	args := m.Called(ctx, id, amount)
+	return args.Error(0)
+}
+
 func (m *MockInventoryService) UpdateEarnings(ctx context.Context, amount float64) error {
 	args := m.Called(ctx, amount)
 	return args.Error(0)

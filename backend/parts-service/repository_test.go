@@ -48,6 +48,16 @@ func (m *MockPartRepository) Delete(ctx context.Context, id int64) error {
 	return args.Error(0)
 }
 
+func (m *MockPartRepository) DecreaseQuantity(ctx context.Context, id int64, amount int) error {
+	args := m.Called(ctx, id, amount)
+	return args.Error(0)
+}
+
+func (m *MockPartRepository) IncreaseQuantity(ctx context.Context, id int64, amount int) error {
+	args := m.Called(ctx, id, amount)
+	return args.Error(0)
+}
+
 func (m *MockPartRepository) MarkForDeletion(ctx context.Context, id int64, deleteAt time.Time) error {
 	args := m.Called(ctx, id, deleteAt)
 	return args.Error(0)
