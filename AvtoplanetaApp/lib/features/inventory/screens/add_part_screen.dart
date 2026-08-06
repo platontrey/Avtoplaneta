@@ -356,8 +356,9 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
 
   Set<String> get _visibleSpecificationFields {
     final category = _categoryCtrl.text.trim();
-    if (category.isEmpty || category == 'Другое')
+    if (category.isEmpty || category == 'Другое') {
       return _allSpecificationFields;
+    }
     return _specificationFieldsByCategory[category] ?? const <String>{};
   }
 
