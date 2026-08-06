@@ -48,7 +48,10 @@ const initializeServiceWorker = async () => {
   }
 
   try {
-    await navigator.serviceWorker.register('/sw.js')
+    const registration = await navigator.serviceWorker.register('/sw.js', {
+      updateViaCache: 'none',
+    })
+    await registration.update()
     const isInitialized = await pushManager.init()
     console.info(
       isInitialized
