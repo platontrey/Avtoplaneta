@@ -63,6 +63,7 @@ dev_dependencies:
 # build can be cached efficiently by Flutter tooling.
 dependency_overrides:
   path_provider_android: 2.2.23
+  path_provider_foundation: 2.4.1
 
 flutter:
   uses-material-design: true
