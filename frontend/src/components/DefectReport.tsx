@@ -52,6 +52,18 @@ const transmissionModelCategories = [
   "Подвеска передних колес",
 ];
 
+const driveCategories = new Set([
+  "Подвеска ДВС/КПП",
+  "Трансмиссия",
+  "Подвеска передних колес",
+  "Подвеска задних колес",
+  "Рулевое управление",
+  "Выхлопная система",
+  "Тормозная система",
+  "Электрооснащение",
+  "Двигатель",
+]);
+
 const defectReportSchema = z.object({
   brand: z.string().min(1, "Выберите бренд"),
   model: z.string().min(1, "Введите модель"),
@@ -60,6 +72,7 @@ const defectReportSchema = z.object({
   mileage: z.number().min(0, "Пробег должен быть положительным числом"),
   transmission: z.string().optional(),
   transmission_model: z.string().optional(),
+  drive: z.string().optional(),
   engine_brand: z.string().optional(),
   body_brand: z.string().optional(),
   interior_color: z.string().optional(),
@@ -1632,7 +1645,7 @@ export default function DefectReport() {
             transmission_model: transmissionModelCategories.includes(part.category)
               ? data.transmission_model
               : part.transmission_model,
-            drive: part.drive,
+            drive: driveCategories.has(part.category) ? data.drive : part.drive,
             wear_percentage: part.wear_percentage,
             season: part.season,
             diameter: part.diameter,
@@ -1831,6 +1844,23 @@ export default function DefectReport() {
               </div>
 
               <div>
+                <Label htmlFor="drive">Привод</Label>
+                <Input
+                  id="drive"
+                  {...register("drive")}
+                  type="text"
+                  placeholder="Например: передний, задний или полный"
+                  className="h-10"
+                  autoComplete="off"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Значение будет добавлено только к подходящим запчастям подвески,
+                  трансмиссии, рулевого управления, выхлопной и тормозной систем,
+                  электрооснащения и двигателя.
+                </p>
+              </div>
+
+              <div>
                 <Label htmlFor="body-color-select">Цвет кузовных деталей</Label>
                 <SearchableSelect
                   value={watch("body_color") || ""}
@@ -1967,7 +1997,9 @@ export default function DefectReport() {
                         {transmissionModelCategories.includes(part.category) && watch("transmission_model") && (
                           <div>Модель трансмиссии: {watch("transmission_model")}</div>
                         )}
-                        {part.drive && <div>Привод: {part.drive}</div>}
+                        {driveCategories.has(part.category) && watch("drive") && (
+                          <div>Привод: {watch("drive")}</div>
+                        )}
                         {part.wear_percentage && <div>Процент износа: {part.wear_percentage}</div>}
                         {part.season && <div>Сезон: {part.season}</div>}
                         {part.diameter && <div>Диаметр: {part.diameter}</div>}

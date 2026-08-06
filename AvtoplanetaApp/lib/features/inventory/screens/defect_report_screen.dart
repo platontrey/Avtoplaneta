@@ -24,6 +24,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
   final _engineBrandCtrl = TextEditingController();
   final _bodyBrandCtrl = TextEditingController();
   final _transmissionModelCtrl = TextEditingController();
+  final _driveCtrl = TextEditingController();
   final _descCtrl = TextEditingController(
     text:
         "В связи с изменением цены конечную стоимость товара узнавать по WhatsApp 89138538227",
@@ -55,6 +56,18 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
     'Подвеска ДВС/КПП',
     'Трансмиссия',
     'Подвеска передних колес',
+  };
+
+  static const _driveCategories = {
+    'Подвеска ДВС/КПП',
+    'Трансмиссия',
+    'Подвеска передних колес',
+    'Подвеска задних колес',
+    'Рулевое управление',
+    'Выхлопная система',
+    'Тормозная система',
+    'Электрооснащение',
+    'Двигатель',
   };
 
   final List<String> _availableColors = [
@@ -98,6 +111,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
     _engineBrandCtrl.dispose();
     _bodyBrandCtrl.dispose();
     _transmissionModelCtrl.dispose();
+    _driveCtrl.dispose();
     _descCtrl.dispose();
     super.dispose();
   }
@@ -150,7 +164,9 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
         'defect': part['defect'],
         'transmission': transmissionVal,
         'transmission_model': transmissionModelVal,
-        'drive': part['drive'],
+        'drive': _driveCategories.contains(category)
+            ? _driveCtrl.text.trim()
+            : part['drive'],
         'wear_percentage': part['wear_percentage'],
         'season': part['season'],
         'diameter': part['diameter'],
@@ -290,6 +306,12 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
                   'Применяется к подвеске ДВС/КПП, трансмиссии и передней подвеске',
             ),
             _buildTextField(
+              _driveCtrl,
+              'Привод',
+              hint: 'Например: передний, задний или полный',
+              onChanged: (_) => setState(() {}),
+            ),
+            _buildTextField(
               _engineBrandCtrl,
               'Марка двигателя',
               hint: 'Например: Toyota 1NZ-FE',
@@ -349,6 +371,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
     int maxLines = 1,
     TextInputType keyboard = TextInputType.text,
     String? hint,
+    ValueChanged<String>? onChanged,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -356,6 +379,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
         controller: ctrl,
         maxLines: maxLines,
         keyboardType: keyboard,
+        onChanged: onChanged,
         style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
           labelText: label,
@@ -491,6 +515,17 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
                                     fontSize: 11,
                                   ),
                                 ),
+                                if (_driveCategories.contains(
+                                      part['category'],
+                                    ) &&
+                                    _driveCtrl.text.trim().isNotEmpty)
+                                  Text(
+                                    'Привод: ${_driveCtrl.text.trim()}',
+                                    style: const TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 11,
+                                    ),
+                                  ),
                               ],
                             ),
                           ),

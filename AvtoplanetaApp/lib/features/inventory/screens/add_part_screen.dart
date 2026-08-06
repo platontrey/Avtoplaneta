@@ -144,6 +144,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       'condition',
       'supplier_code',
       'defect',
+      'drive',
       'wear_percentage',
     },
     'Двигатель': {
@@ -156,6 +157,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       'condition',
       'supplier_code',
       'defect',
+      'drive',
     },
     'Подвеска': {
       'front_rear',
@@ -180,6 +182,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       'supplier_code',
       'defect',
       'transmission_model',
+      'drive',
     },
     'Подвеска передних колес': {
       'front_rear',
@@ -192,6 +195,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       'supplier_code',
       'defect',
       'transmission_model',
+      'drive',
     },
     'Подвеска задних колес': {
       'front_rear',
@@ -203,6 +207,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       'condition',
       'supplier_code',
       'defect',
+      'drive',
     },
     'Электрика': {
       'number',
@@ -212,6 +217,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       'condition',
       'supplier_code',
       'defect',
+      'drive',
     },
     'Кузов': {
       'body_brand',
@@ -283,6 +289,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       'condition',
       'supplier_code',
       'defect',
+      'drive',
     },
     'Система рулевого управления': {
       'front_rear',
@@ -294,6 +301,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       'condition',
       'supplier_code',
       'defect',
+      'drive',
     },
     'Рулевое управление': {
       'front_rear',
@@ -305,6 +313,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       'condition',
       'supplier_code',
       'defect',
+      'drive',
     },
     'Система фильтрации (Фильтры)': {
       'number',
