@@ -7,6 +7,14 @@ on:
       - main
     paths-ignore:
       - "AvtoplanetaApp/**"
+      - ".github/**"
+      - "backend/bin/**"
+      - "backend/**/*.exe"
+      - "backend/main"
+      - "backend/avtoplaneta-backend"
+      - "backend/gateway"
+      - "backend/*-service/*-service"
+      - "backend/*-service/*-test"
 
 jobs:
   deploy:

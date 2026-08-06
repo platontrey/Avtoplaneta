@@ -36,16 +36,19 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          sparse-checkout: AvtoplanetaApp
 
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
-          cache: gradle
-          cache-dependency-path: |
-            AvtoplanetaApp/android/**/*.gradle*
-            AvtoplanetaApp/android/gradle/wrapper/gradle-wrapper.properties
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -54,6 +57,15 @@ jobs:
           channel: stable
           cache: true
           pub-cache: true
+
+      - name: Restore Flutter build cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            AvtoplanetaApp/.dart_tool
+            AvtoplanetaApp/build
+          key: flutter-android-${{ runner.os }}-3.41.6-${{ hashFiles('AvtoplanetaApp/pubspec.lock', 'AvtoplanetaApp/android/**/*.gradle*', 'AvtoplanetaApp/android/gradle/wrapper/gradle-wrapper.properties') }}-${{ github.sha }}
+          restore-keys: flutter-android-${{ runner.os }}-3.41.6-${{ hashFiles('AvtoplanetaApp/pubspec.lock', 'AvtoplanetaApp/android/**/*.gradle*', 'AvtoplanetaApp/android/gradle/wrapper/gradle-wrapper.properties') }}-
 
       - name: Install dependencies
         run: flutter pub get
