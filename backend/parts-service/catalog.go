@@ -135,6 +135,9 @@ func validatePartCatalog(catalog *PartCatalog) error {
 		if _, exists := attributeCodes[attribute.Code]; exists {
 			return fmt.Errorf("part catalog contains duplicate attribute %q", attribute.Code)
 		}
+		if attribute.InputType == "select" && len(attribute.Options) == 0 {
+			return fmt.Errorf("select attribute %q contains no options", attribute.Code)
+		}
 		attributeCodes[attribute.Code] = struct{}{}
 	}
 

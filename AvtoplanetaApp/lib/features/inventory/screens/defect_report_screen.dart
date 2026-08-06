@@ -45,13 +45,6 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
     "Ford",
   ];
 
-  final List<String> _transmissions = [
-    "МКПП",
-    "АКПП",
-    "Роботизированная",
-    "Вариатор",
-  ];
-
   final List<String> _availableColors = [
     "Черный",
     "Белый",
@@ -174,6 +167,8 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
     final transmissionModelCategories = catalog.categoriesForBinding(
       'transmission_model',
     );
+    final transmissionOptions = catalog.optionsForAttribute('transmission');
+    final driveOptions = catalog.optionsForAttribute('drive');
 
     // Filter parts for preview based on filter text
     final filteredParts = allParts.where((part) {
@@ -240,7 +235,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
             _buildDropdown(
               value: _selectedTransmission,
               label: 'Тип трансмиссии',
-              items: _transmissions,
+              items: transmissionOptions,
               onChanged: (val) => setState(() => _selectedTransmission = val),
             ),
             _buildTextField(
@@ -249,11 +244,13 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
               hint:
                   'Применяется к подвеске ДВС/КПП, трансмиссии и передней подвеске',
             ),
-            _buildTextField(
-              _driveCtrl,
-              'Привод',
-              hint: 'Например: передний, задний или полный',
-              onChanged: (_) => setState(() {}),
+            _buildDropdown(
+              value: driveOptions.contains(_driveCtrl.text.trim())
+                  ? _driveCtrl.text.trim()
+                  : null,
+              label: 'Привод',
+              items: driveOptions,
+              onChanged: (val) => setState(() => _driveCtrl.text = val ?? ''),
             ),
             _buildTextField(
               _engineBrandCtrl,

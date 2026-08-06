@@ -76,19 +76,16 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
     if (widget.editId != null) _loadPart();
   }
 
-  static const List<String> _transmissionTypes = [
-    'МКПП',
-    'АКПП',
-    'Роботизированная',
-    'Вариатор',
-  ];
-
   PartCatalog? _partCatalog;
   String? _catalogError;
 
   List<String> get _categories =>
       _partCatalog?.partFormCategories.map((item) => item.name).toList() ??
       const [];
+  List<String> get _transmissionOptions =>
+      _partCatalog?.optionsForAttribute('transmission') ?? const [];
+  List<String> get _driveOptions =>
+      _partCatalog?.optionsForAttribute('drive') ?? const [];
 
   Set<String> get _visibleSpecificationFields {
     final catalog = _partCatalog;
@@ -449,7 +446,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
                 'Модель трансмиссии',
                 hint: 'Введите номер трансмиссии',
               ),
-            if (_shows('drive')) _field(_driveCtrl, 'Привод'),
+            if (_shows('drive')) _driveField(),
             if (_shows('wear_percentage'))
               _field(
                 _wearPercentageCtrl,
@@ -709,13 +706,30 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       padding: const EdgeInsets.only(bottom: 12),
       child: DropdownButtonFormField<String>(
         key: ValueKey('transmission-$current'),
-        initialValue: _transmissionTypes.contains(current) ? current : null,
+        initialValue: _transmissionOptions.contains(current) ? current : null,
         isExpanded: true,
         decoration: const InputDecoration(labelText: 'Тип трансмиссии'),
-        items: _transmissionTypes
+        items: _transmissionOptions
             .map((type) => DropdownMenuItem(value: type, child: Text(type)))
             .toList(),
         onChanged: (value) => _transmissionCtrl.text = value ?? '',
+      ),
+    );
+  }
+
+  Widget _driveField() {
+    final current = _driveCtrl.text.trim();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<String>(
+        key: ValueKey('drive-$current'),
+        initialValue: _driveOptions.contains(current) ? current : null,
+        isExpanded: true,
+        decoration: const InputDecoration(labelText: 'Привод'),
+        items: _driveOptions
+            .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+            .toList(),
+        onChanged: (value) => _driveCtrl.text = value ?? '',
       ),
     );
   }

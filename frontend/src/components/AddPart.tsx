@@ -211,6 +211,12 @@ export default function AddPart() {
     const visibleFields = category
         ? partCatalog?.part_form_categories.find((item) => item.name === category)?.attributes ?? []
         : partCatalog?.attributes.map((attribute) => attribute.code) ?? [];
+    const transmissionOptions = partCatalog?.attributes.find(
+        (attribute) => attribute.code === "transmission",
+    )?.options ?? [];
+    const driveOptions = partCatalog?.attributes.find(
+        (attribute) => attribute.code === "drive",
+    )?.options ?? [];
 
     // Загрузка списка пользователей и шаблонов характеристик при монтировании компонента
     useEffect(() => {
@@ -964,10 +970,9 @@ export default function AddPart() {
     onValueChange={(value) => setValue("transmission", value)}
     placeholder="Выберите тип трансмиссии" id="transmission-select" className="h-10 w-full"
 >
-    <SelectItem value="МКПП">МКПП</SelectItem>
-                                                        <SelectItem value="АКПП">АКПП</SelectItem>
-                                                        <SelectItem value="Роботизированная">Роботизированная</SelectItem>
-                                                        <SelectItem value="Вариатор">Вариатор</SelectItem>
+    {transmissionOptions.map((option) => (
+                                                        <SelectItem key={option} value={option}>{option}</SelectItem>
+                                                    ))}
 </ClearableSelect>
                                                 
                                             </div>
@@ -995,12 +1000,21 @@ export default function AddPart() {
 
                                     {visibleFields.includes("drive") && (
                                         <div>
-                                            <Label htmlFor="drive" className="mb-1">Привод</Label>
-                                            <Input
-                                                id="drive"
+                                            <Label htmlFor="drive-select" className="mb-1">Привод</Label>
+                                            <ClearableSelect
+                                                value={watch("drive") || ""}
+                                                onValueChange={(value) => setValue("drive", value)}
+                                                placeholder="Выберите привод"
+                                                id="drive-select"
+                                                className="h-10 w-full"
+                                            >
+                                                {driveOptions.map((option) => (
+                                                    <SelectItem key={option} value={option}>{option}</SelectItem>
+                                                ))}
+                                            </ClearableSelect>
+                                            <input
+                                                type="hidden"
                                                 {...register("drive")}
-                                                type="text"
-                                                className="h-10"
                                                 autoComplete="off"
                                             />
                                         </div>

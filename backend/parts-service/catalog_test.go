@@ -72,6 +72,22 @@ func TestCatalogValidationRejectsUnknownDependencyCategory(t *testing.T) {
 	}
 }
 
+func TestCatalogValidationRejectsSelectWithoutOptions(t *testing.T) {
+	catalog, err := LoadPartCatalog()
+	if err != nil {
+		t.Fatalf("load embedded catalog: %v", err)
+	}
+	for index := range catalog.Attributes {
+		if catalog.Attributes[index].Code == "drive" {
+			catalog.Attributes[index].Options = nil
+			break
+		}
+	}
+	if err := validatePartCatalog(catalog); err == nil {
+		t.Fatal("expected a select attribute without options to fail validation")
+	}
+}
+
 func findExpandedPart(t *testing.T, parts []DefectReportPart, category string) DefectReportPart {
 	t.Helper()
 	for _, part := range parts {

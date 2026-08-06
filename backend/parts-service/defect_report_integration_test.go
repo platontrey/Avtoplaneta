@@ -164,6 +164,8 @@ func TestPartCatalogHTTPRevalidation(t *testing.T) {
 	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &received))
 	require.Equal(t, catalog.Version, received.Version)
 	require.Len(t, received.Parts, 1442)
+	require.Equal(t, []string{"Передний", "Задний", "Полный"}, attributeOptions(&received, "drive"))
+	require.Equal(t, []string{"МКПП", "АКПП", "Роботизированная", "Вариатор"}, attributeOptions(&received, "transmission"))
 
 	revalidationRequest := httptest.NewRequest(http.MethodGet, "/api/part-catalog", nil)
 	revalidationRequest.Header.Set("If-None-Match", response.Header().Get("ETag"))
@@ -247,6 +249,15 @@ func bindingCategories(catalog *PartCatalog, source string) map[string]bool {
 		}
 	}
 	return result
+}
+
+func attributeOptions(catalog *PartCatalog, code string) []string {
+	for _, attribute := range catalog.Attributes {
+		if attribute.Code == code {
+			return attribute.Options
+		}
+	}
+	return nil
 }
 
 func findRecordedPart(t *testing.T, parts []Part, category string) Part {

@@ -177,4 +177,13 @@ class PartCatalog {
     }
     return const {};
   }
+
+  List<String> optionsForAttribute(String code) {
+    for (final attribute in attributes) {
+      if (attribute.code == code) {
+        return attribute.options;
+      }
+    }
+    return const [];
+  }
 }

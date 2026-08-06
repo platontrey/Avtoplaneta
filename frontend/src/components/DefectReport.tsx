@@ -103,6 +103,10 @@ export default function DefectReport() {
     () => reportBindingCategories(partCatalog, 'drive'),
     [partCatalog],
   );
+  const transmissionOptions =
+    partCatalog?.attributes.find((attribute) => attribute.code === 'transmission')?.options ?? [];
+  const driveOptions =
+    partCatalog?.attributes.find((attribute) => attribute.code === 'drive')?.options ?? [];
 
   const commonPartsWithColor = commonParts;
 
@@ -286,10 +290,9 @@ export default function DefectReport() {
     onValueChange={(value) => setValue("transmission", value)}
     placeholder="Выберите тип трансмиссии" id="transmission-select" className="h-10 w-full"
 >
-    <SelectItem value="МКПП">МКПП</SelectItem>
-                    <SelectItem value="АКПП">АКПП</SelectItem>
-                    <SelectItem value="Роботизированная">Роботизированная</SelectItem>
-                    <SelectItem value="Вариатор">Вариатор</SelectItem>
+    {transmissionOptions.map((option) => (
+                      <SelectItem key={option} value={option}>{option}</SelectItem>
+                    ))}
 </ClearableSelect>
                 <input
                   type="hidden"
@@ -315,15 +318,19 @@ export default function DefectReport() {
               </div>
 
               <div>
-                <Label htmlFor="drive">Привод</Label>
-                <Input
-                  id="drive"
-                  {...register("drive")}
-                  type="text"
-                  placeholder="Например: передний, задний или полный"
-                  className="h-10"
-                  autoComplete="off"
-                />
+                <Label htmlFor="drive-select">Привод</Label>
+                <ClearableSelect
+                  value={watch("drive") || ""}
+                  onValueChange={(value) => setValue("drive", value)}
+                  placeholder="Выберите привод"
+                  id="drive-select"
+                  className="h-10 w-full"
+                >
+                  {driveOptions.map((option) => (
+                    <SelectItem key={option} value={option}>{option}</SelectItem>
+                  ))}
+                </ClearableSelect>
+                <input type="hidden" {...register("drive")} autoComplete="off" />
                 <p className="mt-1 text-xs text-gray-500">
                   Значение будет добавлено только к подходящим запчастям подвески,
                   трансмиссии, рулевого управления, выхлопной и тормозной систем,
