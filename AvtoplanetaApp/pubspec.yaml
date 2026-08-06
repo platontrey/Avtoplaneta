@@ -58,6 +58,12 @@ dev_dependencies:
   custom_lint: ^0.7.5
   riverpod_lint: ^2.6.5
 
+# path_provider_android 2.3.x compiles a JNI bridge through CMake on every
+# Android CI build. Keep the stable channel implementation until that native
+# build can be cached efficiently by Flutter tooling.
+dependency_overrides:
+  path_provider_android: 2.2.23
+
 flutter:
   uses-material-design: true
   assets:
