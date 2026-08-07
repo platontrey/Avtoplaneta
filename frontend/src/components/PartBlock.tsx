@@ -29,6 +29,21 @@ import {
 } from "@/components/ui/alert-dialog";
 import { usePartEdit } from "@/hooks/usePartEdit";
 import { useDeletePart, partsKeys } from "@/hooks/useParts";
+import { useAuth } from "@/hooks/useAuth";
+import { partsApi } from "@/features/parts/api/partsApi";
+import PartOrderDialog from "./PartOrderDialog";
+import ImageEditor from "./ImageEditor";
+import EditPartDialog from "./EditPartDialog";
+import type { Part } from "@/features/parts/types";
+import { API_BASE_URL } from "@/lib/api";
+import { useQueryClient } from '@tanstack/react-query';
+import { getAuthHeaders } from '@/lib/csrf';
+import { usePartCatalog } from "@/features/catalog/usePartCatalog";
+
+interface PartBlockProps {
+    part: Part;
+    isLoading?: boolean;
+    isSelectionMode?: boolean;
     isSelected?: boolean;
     onLongPress?: () => void;
     onSelect?: (isSelected: boolean) => void;
