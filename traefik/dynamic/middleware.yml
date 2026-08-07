@@ -21,4 +21,8 @@ http:
         burst: 50
         period: 1m
 
-
+    compress-res:
+      compress:
+        encodings:
+          - br
+          - gzip
