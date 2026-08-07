@@ -264,26 +264,26 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 							},
 						},
 					},
-					// 2. Кросс-полейный поиск по названию, брендам, моделям и артикулам (все слова)
+					// 2. Кросс-полейный точный поиск по названию, брендам, моделям и артикулам
 					{
 						"multi_match": map[string]interface{}{
 							"query":    params.Search,
-							"fields":   []string{"name^5", "name.ngram^3", "brand.text^3", "model.text^3", "category.text^2", "description^1"},
+							"fields":   []string{"name^6", "name.ngram^4", "brand.text^3", "model.text^3", "category.text^2", "description^1"},
 							"type":     "cross_fields",
 							"operator": "and",
 							"boost":    5.0,
 						},
 					},
-					// 3. Нечёткий поиск с толерантностью к опечаткам
+					// 3. Строгий нечёткий поиск с защитой от ложных опечаток (AUTO:4,7 разрешает 1 опечатку только от 4 до 7 символов)
 					{
 						"multi_match": map[string]interface{}{
 							"query":                params.Search,
-							"fields":               []string{"name^4", "name.ngram^2", "brand.text^2", "model.text^2", "description^1"},
+							"fields":               []string{"name^4", "name.ngram^2", "brand.text^2", "model.text^2"},
 							"type":                 "best_fields",
-							"fuzziness":            "AUTO",
+							"fuzziness":            "AUTO:4,7",
 							"prefix_length":        2,
-							"minimum_should_match": "70%",
-							"boost":                2.0,
+							"minimum_should_match": "75%",
+							"boost":                1.0,
 						},
 					},
 				},
