@@ -29,20 +29,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { usePartEdit } from "@/hooks/usePartEdit";
 import { useDeletePart, partsKeys } from "@/hooks/useParts";
-import { useAuth } from "@/hooks/useAuth";
-import { partsApi } from "@/features/parts/api/partsApi";
-import PartOrderDialog from "./PartOrderDialog";
-import ImageEditor from "./ImageEditor";
-import EditPartDialog from "./EditPartDialog";
-import type { Part } from "@/features/parts/types";
-import { API_BASE_URL } from "@/lib/api";
-import { useQueryClient } from '@tanstack/react-query';
-import { getAuthHeaders } from '@/lib/csrf';
-
-interface PartBlockProps {
-    part: Part;
-    isLoading?: boolean;
-    isSelectionMode?: boolean;
     isSelected?: boolean;
     onLongPress?: () => void;
     onSelect?: (isSelected: boolean) => void;
@@ -70,6 +56,7 @@ function PartBlock({
 
     // Для множественных фото используем partsApi напрямую
     const [photoUploadTimestamp, setPhotoUploadTimestamp] = useState<number>(Date.now());
+    const { data: partCatalog } = usePartCatalog();
 
     const partEdit = usePartEdit({
         initialPart: part,
@@ -680,58 +667,82 @@ function PartBlock({
 
                                 {/* Адаптивная сетка карточек характеристик */}
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
-                                    {[
-                                        { label: 'Бренд', value: part.brand },
-                                        { label: 'Модель', value: part.model },
-                                        { label: 'VIN', value: part.vin },
-                                        { label: 'Количество', value: part.quantity ?? 0 },
-                                        { label: 'Категория', value: part.category },
-                                        { label: 'Местоположение', value: part.location },
-                                        { label: 'Продавец', value: part.salesman },
-                                        { label: 'Производитель', value: part.manufacturer },
-                                        { label: 'Код производителя', value: part.manufacturer_code },
-                                        { label: 'OEM код', value: part.oem_code },
-                                        { label: 'Код поставки', value: part.supplier_code },
-                                        { label: 'Состояние', value: part.condition },
-                                        { label: 'Процент износа', value: part.wear_percentage ? `${part.wear_percentage}%` : null },
-                                        { label: 'Модель трансмиссии', value: part.transmission_model },
-                                        { label: 'Марка двигателя', value: (part.category === 'Двигатель' || part.category === 'Трансмиссия') ? part.engine_brand : null },
-                                        { label: 'Трансмиссия', value: (part.category === 'Двигатель' || part.category === 'Трансмиссия') ? part.transmission : null },
-                                        { label: 'Привод', value: (part.category === 'Двигатель' || part.category === 'Трансмиссия') ? part.drive : null },
-                                        { label: 'Марка кузова', value: (part.category === 'Кузов' || part.category === 'Кузов снаружи' || part.category === 'Интерьер') ? part.body_brand : null },
-                                        { label: 'Цвет', value: (part.category === 'Кузов' || part.category === 'Кузов снаружи' || part.category === 'Интерьер') ? part.color : null },
-                                        { label: 'Диаметр', value: part.category === 'Шины и диски' ? part.diameter : null },
-                                        { label: 'Ширина', value: part.category === 'Шины и диски' ? part.width : null },
-                                        { label: 'Профиль', value: part.category === 'Шины и диски' ? part.profile : null },
-                                        { label: 'Количество шин', value: part.category === 'Шины и диски' ? part.tire_quantity : null },
-                                        { label: 'Сверловка', value: part.category === 'Шины и диски' ? part.drilling : null },
-                                        { label: 'Вылет', value: part.category === 'Шины и диски' ? part.offset : null },
-                                        { label: 'Диаметр ЦО', value: part.category === 'Шины и диски' ? part.center_hole_diameter : null },
-                                        { label: 'Модель шины', value: part.category === 'Шины и диски' ? part.tire_model : null },
-                                        { label: 'Сезон', value: part.category === 'Шины и диски' ? part.season : null },
-                                        { label: 'Перед/зад', value: (part.category !== 'Автохимия и масла' && part.category !== 'Аксессуары и тюннинг' && part.category !== 'Другое') ? part.front_rear : null },
-                                        { label: 'Право/лево', value: (part.category !== 'Автохимия и масла' && part.category !== 'Аксессуары и тюннинг' && part.category !== 'Другое') ? part.left_right : null },
-                                        { label: 'Верх/низ', value: (part.category !== 'Автохимия и масла' && part.category !== 'Аксессуары и тюннинг' && part.category !== 'Другое') ? part.top_bottom : null },
-                                        { label: 'Номер', value: (part.category !== 'Автохимия и масла' && part.category !== 'Аксессуары и тюннинг' && part.category !== 'Другое') ? part.number : null },
-                                        { label: 'Дата выпуска авто', value: (part.category !== 'Автохимия и масла' && part.category !== 'Аксессуары и тюннинг' && part.category !== 'Другое') ? part.car_release_date : null },
-                                    ]
-                                        .filter(item => item.value !== null && item.value !== undefined && item.value !== '')
-                                        .map((item, idx) => (
-                                            <motion.div
-                                                key={item.label}
-                                                initial={{ opacity: 0, y: 10 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                transition={{ delay: Math.min(idx * 0.03, 0.4), duration: 0.2 }}
-                                                className="bg-muted/40 hover:bg-muted/70 border border-border/60 rounded-xl p-2.5 flex flex-col justify-between transition-colors min-h-[58px]"
-                                            >
-                                                <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground truncate" title={item.label}>
-                                                    {item.label}
-                                                </span>
-                                                <span className="text-sm font-semibold text-foreground break-words mt-0.5 line-clamp-2" title={String(item.value)}>
-                                                    {item.value}
-                                                </span>
-                                            </motion.div>
-                                        ))}
+                                    {(() => {
+                                        const formatPosValue = (code: string, val?: string) => {
+                                            if (!val) return null;
+                                            if (code === 'front_rear') {
+                                                if (val === 'F') return 'F (Перед)';
+                                                if (val === 'R') return 'R (Зад)';
+                                            }
+                                            if (code === 'left_right') {
+                                                if (val === 'L') return 'L (Лево)';
+                                                if (val === 'R') return 'R (Право)';
+                                            }
+                                            return val;
+                                        };
+
+                                        const categoryAttrs = part.category
+                                            ? partCatalog?.part_form_categories.find((c) => c.name === part.category)?.attributes
+                                            : undefined;
+
+                                        const allSpecs = [
+                                            { code: 'front_rear', label: 'Перед/зад', value: formatPosValue('front_rear', part.front_rear) },
+                                            { code: 'left_right', label: 'Право/лево', value: formatPosValue('left_right', part.left_right) },
+                                            { code: 'top_bottom', label: 'Верх/низ', value: part.top_bottom },
+                                            { code: 'body_brand', label: 'Марка кузова', value: part.body_brand },
+                                            { code: 'engine_brand', label: 'Марка двигателя', value: part.engine_brand },
+                                            { code: 'car_release_date', label: 'Дата выпуска авто', value: part.car_release_date },
+                                            { code: 'number', label: 'Номер', value: part.number },
+                                            { code: 'manufacturer', label: 'Производитель', value: part.manufacturer },
+                                            { code: 'manufacturer_code', label: 'Код производителя', value: part.manufacturer_code },
+                                            { code: 'oem_code', label: 'OEM код', value: part.oem_code },
+                                            { code: 'color', label: 'Цвет', value: part.color },
+                                            { code: 'condition', label: 'Состояние', value: part.condition },
+                                            { code: 'supplier_code', label: 'Код поставки', value: part.supplier_code },
+                                            { code: 'transmission', label: 'Трансмиссия', value: part.transmission },
+                                            { code: 'transmission_model', label: 'Модель трансмиссии', value: part.transmission_model },
+                                            { code: 'drive', label: 'Привод', value: part.drive },
+                                            { code: 'wear_percentage', label: 'Процент износа', value: part.wear_percentage ? `${part.wear_percentage}%` : null },
+                                            { code: 'season', label: 'Сезон', value: part.season },
+                                            { code: 'diameter', label: 'Диаметр', value: part.diameter },
+                                            { code: 'width', label: 'Ширина', value: part.width },
+                                            { code: 'profile', label: 'Профиль', value: part.profile },
+                                            { code: 'tire_quantity', label: 'Количество шин', value: part.tire_quantity },
+                                            { code: 'drilling', label: 'Сверловка', value: part.drilling },
+                                            { code: 'offset', label: 'Вылет', value: part.offset },
+                                            { code: 'center_hole_diameter', label: 'Диаметр ЦО', value: part.center_hole_diameter },
+                                            { code: 'tire_model', label: 'Модель шины', value: part.tire_model },
+                                            { code: 'vin', label: 'VIN', value: part.vin },
+                                            { code: 'location', label: 'Местоположение', value: part.location },
+                                            { code: 'salesman', label: 'Продавец', value: part.salesman },
+                                        ];
+
+                                        return allSpecs
+                                            .filter(item => {
+                                                if (!item.value) return false;
+                                                if (categoryAttrs && categoryAttrs.length > 0) {
+                                                    if (['location', 'salesman', 'vin'].includes(item.code)) return true;
+                                                    return categoryAttrs.includes(item.code);
+                                                }
+                                                return true;
+                                            })
+                                            .map((item, idx) => (
+                                                <motion.div
+                                                    key={item.label}
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ delay: Math.min(idx * 0.03, 0.4), duration: 0.2 }}
+                                                    className="bg-muted/40 hover:bg-muted/70 border border-border/60 rounded-xl p-2.5 flex flex-col justify-between transition-colors min-h-[58px]"
+                                                >
+                                                    <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground truncate" title={item.label}>
+                                                        {item.label}
+                                                    </span>
+                                                    <span className="text-sm font-semibold text-foreground break-words mt-0.5 line-clamp-2" title={String(item.value)}>
+                                                        {item.value}
+                                                    </span>
+                                                </motion.div>
+                                            ));
+                                    })()}
                                 </div>
                             </div>
                         </motion.div>
