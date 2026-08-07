@@ -237,6 +237,48 @@ func (s *inventoryService) getInventoryFromElasticsearch(ctx context.Context, pa
 	return parts, nil
 }
 
+// TransliterateLatinToCyrillic преобразует транслит латиницы в кириллицу (sirena -> сирена, bamper -> бампер)
+func TransliterateLatinToCyrillic(text string) string {
+	text = strings.ToLower(text)
+	replacements := []struct {
+		from string
+		to   string
+	}{
+		{"shch", "щ"}, {"sh", "ш"}, {"ch", "ч"}, {"zh", "ж"},
+		{"ya", "я"}, {"yu", "ю"}, {"yo", "ё"}, {"ts", "ц"},
+		{"a", "а"}, {"b", "б"}, {"v", "в"}, {"g", "г"}, {"d", "д"},
+		{"e", "е"}, {"z", "з"}, {"i", "и"}, {"j", "й"}, {"k", "к"},
+		{"l", "л"}, {"m", "м"}, {"n", "н"}, {"o", "о"}, {"p", "п"},
+		{"r", "р"}, {"s", "с"}, {"t", "т"}, {"u", "у"}, {"f", "ф"},
+		{"h", "х"}, {"c", "к"}, {"y", "ы"}, {"w", "в"}, {"x", "кс"},
+	}
+
+	res := text
+	for _, r := range replacements {
+		res = strings.ReplaceAll(res, r.from, r.to)
+	}
+	return res
+}
+
+// ConvertQwertyToRussian переводит текст с неверной QWERTY раскладки на кириллицу (gthtlybq -> передний)
+func ConvertQwertyToRussian(text string) string {
+	qwertyMap := map[rune]rune{
+		'q': 'й', 'w': 'ц', 'e': 'у', 'r': 'к', 't': 'е', 'y': 'н', 'u': 'г', 'i': 'ш', 'o': 'щ', 'p': 'з', '[': 'х', ']': 'ъ',
+		'a': 'ф', 's': 'ы', 'd': 'в', 'f': 'а', 'g': 'п', 'h': 'р', 'j': 'о', 'k': 'л', 'l': 'д', ';': 'ж', '\'': 'э',
+		'z': 'я', 'x': 'ч', 'c': 'с', 'v': 'м', 'b': 'и', 'n': 'т', 'm': 'ь', ',': 'б', '.': 'ю',
+	}
+
+	var builder strings.Builder
+	for _, char := range strings.ToLower(text) {
+		if ruChar, ok := qwertyMap[char]; ok {
+			builder.WriteRune(ruChar)
+		} else {
+			builder.WriteRune(char)
+		}
+	}
+	return builder.String()
+}
+
 // buildElasticsearchQuery строит запрос для Elasticsearch
 func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) map[string]interface{} {
 	must := []map[string]interface{}{}
@@ -252,50 +294,92 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 	})
 
 	if params.Search != "" {
-		searchQuery := map[string]interface{}{
-			"bool": map[string]interface{}{
-				"should": []map[string]interface{}{
-					// 1. Абсолютное точное совпадение слова/слов в названии детали (Максимальный приоритет 100.0)
-					{
-						"match": map[string]interface{}{
-							"name": map[string]interface{}{
-								"query": params.Search,
-								"boost": 100.0,
-							},
-						},
+		transliteratedSearch := TransliterateLatinToCyrillic(params.Search)
+		qwertySearch := ConvertQwertyToRussian(params.Search)
+
+		shouldQueries := []map[string]interface{}{
+			// 1. Абсолютное точное совпадение слова/слов в названии детали (Максимальный приоритет 100.0)
+			{
+				"match": map[string]interface{}{
+					"name": map[string]interface{}{
+						"query": params.Search,
+						"boost": 100.0,
 					},
-					// 2. Фразовое совпадение с префиксом в названии
-					{
-						"match_phrase_prefix": map[string]interface{}{
-							"name": map[string]interface{}{
-								"query": params.Search,
-								"boost": 50.0,
-							},
-						},
+				},
+			},
+			// 2. Фразовое совпадение с префиксом в названии
+			{
+				"match_phrase_prefix": map[string]interface{}{
+					"name": map[string]interface{}{
+						"query": params.Search,
+						"boost": 50.0,
 					},
-					// 3. Кросс-полейный поиск по названию, брендам, моделям и артикулам
-					{
-						"multi_match": map[string]interface{}{
-							"query":    params.Search,
-							"fields":   []string{"name^10", "name.ngram^5", "brand.text^3", "model.text^3", "category.text^2", "description^1"},
-							"type":     "cross_fields",
-							"operator": "or",
-							"boost":    10.0,
-						},
-					},
-					// 4. Фоновый нечёткий поиск для опечаток (Низкий приоритет 0.1 - показывается только если нет точных совпадений)
-					{
-						"multi_match": map[string]interface{}{
-							"query":                params.Search,
-							"fields":               []string{"name^2", "brand.text^1", "model.text^1"},
-							"type":                 "best_fields",
-							"fuzziness":            "AUTO:4,7",
-							"prefix_length":        2,
-							"minimum_should_match": "75%",
-							"boost":                0.1,
+				},
+			},
+			// 3. Кросс-полейный поиск по названию, брендам, моделям и артикулам
+			{
+				"multi_match": map[string]interface{}{
+					"query":    params.Search,
+					"fields":   []string{"name^10", "name.ngram^5", "brand.text^3", "model.text^3", "category.text^2", "description^1"},
+					"type":     "cross_fields",
+					"operator": "or",
+					"boost":    10.0,
+				},
+			},
+		}
+
+		// Если введен латинский текст, добавляем варианты транслитерации и смены раскладки в кириллицу
+		if transliteratedSearch != strings.ToLower(params.Search) {
+			shouldQueries = append(shouldQueries,
+				map[string]interface{}{
+					"match": map[string]interface{}{
+						"name": map[string]interface{}{
+							"query": transliteratedSearch,
+							"boost": 80.0,
 						},
 					},
 				},
+				map[string]interface{}{
+					"multi_match": map[string]interface{}{
+						"query":    transliteratedSearch,
+						"fields":   []string{"name^8", "name.ngram^4", "brand.text^3", "model.text^3", "category.text^2"},
+						"type":     "cross_fields",
+						"operator": "or",
+						"boost":    8.0,
+					},
+				},
+			)
+		}
+
+		if qwertySearch != strings.ToLower(params.Search) && qwertySearch != transliteratedSearch {
+			shouldQueries = append(shouldQueries,
+				map[string]interface{}{
+					"match": map[string]interface{}{
+						"name": map[string]interface{}{
+							"query": qwertySearch,
+							"boost": 70.0,
+						},
+					},
+				},
+			)
+		}
+
+		// 4. Фоновый нечёткий поиск для опечаток
+		shouldQueries = append(shouldQueries, map[string]interface{}{
+			"multi_match": map[string]interface{}{
+				"query":                params.Search,
+				"fields":               []string{"name^2", "brand.text^1", "model.text^1"},
+				"type":                 "best_fields",
+				"fuzziness":            "AUTO:4,7",
+				"prefix_length":        2,
+				"minimum_should_match": "75%",
+				"boost":                0.1,
+			},
+		})
+
+		searchQuery := map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should":               shouldQueries,
 				"minimum_should_match": 1,
 			},
 		}
