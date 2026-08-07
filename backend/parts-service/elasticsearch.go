@@ -90,6 +90,25 @@ func InitElasticsearch(url string) error {
 
 // CreatePartsIndex creates the parts index with proper mappings and analyzers
 func CreatePartsIndex() error {
+	// Сначала проверяем, существует ли индекс parts. Если существует, удаляем его, чтобы полностью обновить маппинги и анализаторы
+	existsReq := esapi.IndicesExistsRequest{
+		Index: []string{"parts"},
+	}
+	existsRes, err := existsReq.Do(context.Background(), esClient)
+	if err == nil && existsRes.StatusCode == 200 {
+		_ = existsRes.Body.Close()
+		log.Println("Обнаружен старый индекс parts, удаляем для обновления маппинга...")
+		deleteReq := esapi.IndicesDeleteRequest{
+			Index: []string{"parts"},
+		}
+		delRes, delErr := deleteReq.Do(context.Background(), esClient)
+		if delErr == nil {
+			_ = delRes.Body.Close()
+		}
+	} else if existsRes != nil {
+		_ = existsRes.Body.Close()
+	}
+
 	mapping := `{
 		"settings": {
 			"analysis": {
@@ -119,7 +138,7 @@ func CreatePartsIndex() error {
 					},
 					"code_ngram": {
 						"type": "edge_ngram",
-						"min_gram": 3,
+						"min_gram": 2,
 						"max_gram": 15
 					},
 					"oem_delimiter": {
@@ -134,7 +153,15 @@ func CreatePartsIndex() error {
 					}
 				},
 				"analyzer": {
-					"custom_russian": {
+					"custom_russian_index": {
+						"tokenizer": "standard",
+						"filter": [
+							"lowercase",
+							"russian_stop",
+							"russian_stemmer"
+						]
+					},
+					"custom_russian_search": {
 						"tokenizer": "standard",
 						"filter": [
 							"lowercase",
@@ -168,7 +195,8 @@ func CreatePartsIndex() error {
 				},
 				"name": {
 					"type": "text",
-					"analyzer": "custom_russian",
+					"analyzer": "custom_russian_index",
+					"search_analyzer": "custom_russian_search",
 					"fields": {
 						"keyword": {
 							"type": "keyword"
@@ -185,14 +213,16 @@ func CreatePartsIndex() error {
 				},
 				"description": {
 					"type": "text",
-					"analyzer": "custom_russian"
+					"analyzer": "custom_russian_index",
+					"search_analyzer": "custom_russian_search"
 				},
 				"category": {
 					"type": "keyword",
 					"fields": {
 						"text": {
 							"type": "text",
-							"analyzer": "custom_russian"
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
 						}
 					}
 				},
@@ -204,7 +234,8 @@ func CreatePartsIndex() error {
 					"fields": {
 						"text": {
 							"type": "text",
-							"analyzer": "custom_russian"
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
 						}
 					}
 				},
@@ -213,7 +244,8 @@ func CreatePartsIndex() error {
 					"fields": {
 						"text": {
 							"type": "text",
-							"analyzer": "custom_russian"
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
 						}
 					}
 				},
@@ -273,7 +305,7 @@ func CreatePartsIndex() error {
 		return fmt.Errorf("error response: %s", res.String())
 	}
 
-	log.Println("Parts index created or already exists")
+	log.Println("Parts index created successfully")
 	return nil
 }
 

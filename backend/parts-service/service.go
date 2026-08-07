@@ -252,15 +252,45 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 	})
 
 	if params.Search != "" {
-		must = append(must, map[string]interface{}{
-			"multi_match": map[string]interface{}{
-				"query":         params.Search,
-				"fields":        []string{"name^4", "name.ngram^2", "brand.text^3", "model.text^2", "description^1"},
-				"type":          "best_fields",
-				"fuzziness":     "AUTO",
-				"prefix_length": 2,
+		searchQuery := map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					// 1. Совпадение фразы или префикса фразы в названии (наивысший приоритет)
+					{
+						"match_phrase_prefix": map[string]interface{}{
+							"name": map[string]interface{}{
+								"query": params.Search,
+								"boost": 10.0,
+							},
+						},
+					},
+					// 2. Кросс-полейный поиск по названию, брендам, моделям и артикулам (все слова)
+					{
+						"multi_match": map[string]interface{}{
+							"query":    params.Search,
+							"fields":   []string{"name^5", "name.ngram^3", "brand.text^3", "model.text^3", "category.text^2", "description^1"},
+							"type":     "cross_fields",
+							"operator": "and",
+							"boost":    5.0,
+						},
+					},
+					// 3. Нечёткий поиск с толерантностью к опечаткам
+					{
+						"multi_match": map[string]interface{}{
+							"query":                params.Search,
+							"fields":               []string{"name^4", "name.ngram^2", "brand.text^2", "model.text^2", "description^1"},
+							"type":                 "best_fields",
+							"fuzziness":            "AUTO",
+							"prefix_length":        2,
+							"minimum_should_match": "70%",
+							"boost":                2.0,
+						},
+					},
+				},
+				"minimum_should_match": 1,
 			},
-		})
+		}
+		must = append(must, searchQuery)
 	}
 
 	if params.Category != "" {
