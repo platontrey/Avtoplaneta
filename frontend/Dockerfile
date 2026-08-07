@@ -12,9 +12,9 @@ ENV GOMAXPROCS=8
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build
 
-FROM nginx:alpine
+FROM alpine:latest
 
-RUN apk add --no-cache nginx-mod-http-brotli
+RUN apk add --no-cache nginx nginx-mod-http-brotli
 
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
