@@ -255,35 +255,44 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 		searchQuery := map[string]interface{}{
 			"bool": map[string]interface{}{
 				"should": []map[string]interface{}{
-					// 1. Совпадение фразы или префикса фразы в названии (наивысший приоритет)
+					// 1. Абсолютное точное совпадение слова/слов в названии детали (Максимальный приоритет 100.0)
+					{
+						"match": map[string]interface{}{
+							"name": map[string]interface{}{
+								"query": params.Search,
+								"boost": 100.0,
+							},
+						},
+					},
+					// 2. Фразовое совпадение с префиксом в названии
 					{
 						"match_phrase_prefix": map[string]interface{}{
 							"name": map[string]interface{}{
 								"query": params.Search,
-								"boost": 10.0,
+								"boost": 50.0,
 							},
 						},
 					},
-					// 2. Кросс-полейный точный поиск по названию, брендам, моделям и артикулам
+					// 3. Кросс-полейный поиск по названию, брендам, моделям и артикулам
 					{
 						"multi_match": map[string]interface{}{
 							"query":    params.Search,
-							"fields":   []string{"name^6", "name.ngram^4", "brand.text^3", "model.text^3", "category.text^2", "description^1"},
+							"fields":   []string{"name^10", "name.ngram^5", "brand.text^3", "model.text^3", "category.text^2", "description^1"},
 							"type":     "cross_fields",
-							"operator": "and",
-							"boost":    5.0,
+							"operator": "or",
+							"boost":    10.0,
 						},
 					},
-					// 3. Строгий нечёткий поиск с защитой от ложных опечаток (AUTO:4,7 разрешает 1 опечатку только от 4 до 7 символов)
+					// 4. Фоновый нечёткий поиск для опечаток (Низкий приоритет 0.1 - показывается только если нет точных совпадений)
 					{
 						"multi_match": map[string]interface{}{
 							"query":                params.Search,
-							"fields":               []string{"name^4", "name.ngram^2", "brand.text^2", "model.text^2"},
+							"fields":               []string{"name^2", "brand.text^1", "model.text^1"},
 							"type":                 "best_fields",
 							"fuzziness":            "AUTO:4,7",
 							"prefix_length":        2,
 							"minimum_should_match": "75%",
-							"boost":                1.0,
+							"boost":                0.1,
 						},
 					},
 				},
