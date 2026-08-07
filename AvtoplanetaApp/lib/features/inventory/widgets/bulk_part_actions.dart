@@ -25,7 +25,12 @@ Future<bool> showBulkEditSheet(
     useSafeArea: true,
     builder: (_) => _BulkEditSheet(parts: parts, categories: categories),
   );
-  if (changed == true) ref.invalidate(inventoryProvider);
+  if (changed == true) {
+    ref.invalidate(inventoryProvider);
+    for (final part in parts) {
+      ref.invalidate(partProvider(part.id));
+    }
+  }
   return changed ?? false;
 }
 

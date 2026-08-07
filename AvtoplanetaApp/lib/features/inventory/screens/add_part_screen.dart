@@ -399,10 +399,19 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       }
 
       for (final file in _newPhotos) {
+        final fileName = file.path.split(RegExp(r'[/\\]')).last;
+        final extension = fileName.contains('.')
+            ? fileName.split('.').last.toLowerCase()
+            : 'jpg';
+        final mimeType = extension == 'png'
+            ? 'png'
+            : (extension == 'webp' ? 'webp' : 'jpeg');
+
         final formData = FormData.fromMap({
           'photo': await MultipartFile.fromFile(
             file.path,
-            filename: file.path.split('/').last,
+            filename: fileName,
+            contentType: DioMediaType('image', mimeType),
           ),
         });
         await apiClient.dio.post(
@@ -412,6 +421,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       }
 
       ref.invalidate(inventoryProvider);
+      ref.invalidate(partProvider(partId));
       if (mounted) {
         context.go('/inventory');
       }

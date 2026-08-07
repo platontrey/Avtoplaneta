@@ -136,9 +136,13 @@ func HandlePhotoUpload(c *gin.Context, partID int64) (string, error) {
 	fmt.Printf("DEBUG HandlePhotoUpload: File received: name='%s', size=%d, content-type='%s'\n", file.Filename, file.Size, file.Header.Get("Content-Type"))
 
 	// Валидировать тип файла
-	if !strings.HasPrefix(file.Header.Get("Content-Type"), "image/") {
-		fmt.Printf("DEBUG HandlePhotoUpload: Invalid file type: %s\n", file.Header.Get("Content-Type"))
-		return "", fmt.Errorf("файл должен быть изображением")
+	contentType := file.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "image/") {
+		ext := strings.ToLower(filepath.Ext(file.Filename))
+		if ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".webp" && ext != ".gif" {
+			fmt.Printf("DEBUG HandlePhotoUpload: Invalid file type: %s (ext: %s)\n", contentType, ext)
+			return "", fmt.Errorf("файл должен быть изображением")
+		}
 	}
 
 	// Валидировать размер файла (макс 5МБ)
