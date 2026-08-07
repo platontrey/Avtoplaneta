@@ -207,30 +207,14 @@ func (s *inventoryService) getInventoryFromElasticsearch(ctx context.Context, pa
 		return nil, err
 	}
 
-	validIDs := make(map[int64]bool)
+	validPartsMap := make(map[int64]Part, len(validParts))
 	for _, part := range validParts {
-		validIDs[part.ID] = true
+		validPartsMap[part.ID] = part
 	}
 
-	// Фильтруем
+	parts := make([]Part, 0, len(esParts))
 	for _, esPart := range esParts {
-		if validIDs[esPart.ID] {
-			part := Part{
-				PartCore: PartCore{
-					ID:          esPart.ID,
-					Name:        esPart.Name,
-					Quantity:    esPart.Quantity,
-					Description: esPart.Description,
-					Category:    esPart.Category,
-					Price:       esPart.Price,
-					Salesman:    esPart.Salesman,
-					Location:    esPart.Location,
-					Status:      esPart.Status,
-					Brand:       esPart.Brand,
-					Model:       esPart.Model,
-					Photos:      esPart.Photos,
-				},
-			}
+		if part, ok := validPartsMap[esPart.ID]; ok {
 			parts = append(parts, part)
 		}
 	}

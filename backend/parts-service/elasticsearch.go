@@ -40,18 +40,33 @@ func NewElasticsearchAdapter() ElasticsearchClient {
 }
 
 type ElasticsearchPart struct {
-	ID          int64    `json:"id"`
-	Name        string   `json:"name"`
-	Quantity    int      `json:"quantity"`
-	Description string   `json:"description"`
-	Category    string   `json:"category"`
-	Price       float64  `json:"price"`
-	Salesman    string   `json:"salesman"`
-	Location    string   `json:"location"`
-	Status      bool     `json:"status"`
-	Brand       string   `json:"brand"`
-	Model       string   `json:"model"`
-	Photos      []string `json:"photos"`
+	ID                int64    `json:"id"`
+	Name              string   `json:"name"`
+	Quantity          int      `json:"quantity"`
+	Description       string   `json:"description"`
+	Category          string   `json:"category"`
+	Price             float64  `json:"price"`
+	Salesman          string   `json:"salesman"`
+	Location          string   `json:"location"`
+	Status            bool     `json:"status"`
+	Brand             string   `json:"brand"`
+	Model             string   `json:"model"`
+	Photos            []string `json:"photos"`
+	FrontRear         string   `json:"front_rear,omitempty"`
+	LeftRight         string   `json:"left_right,omitempty"`
+	TopBottom         string   `json:"top_bottom,omitempty"`
+	OEMCode           string   `json:"oem_code,omitempty"`
+	ManufacturerCode  string   `json:"manufacturer_code,omitempty"`
+	Manufacturer      string   `json:"manufacturer,omitempty"`
+	Color             string   `json:"color,omitempty"`
+	Condition         string   `json:"condition,omitempty"`
+	BodyBrand         string   `json:"body_brand,omitempty"`
+	EngineBrand       string   `json:"engine_brand,omitempty"`
+	CarReleaseDate    string   `json:"car_release_date,omitempty"`
+	Transmission      string   `json:"transmission,omitempty"`
+	TransmissionModel string   `json:"transmission_model,omitempty"`
+	Drive             string   `json:"drive,omitempty"`
+	Defect            string   `json:"defect,omitempty"`
 }
 
 // InitElasticsearch initializes the Elasticsearch client
@@ -304,18 +319,33 @@ func CreatePartsIndex() error {
 // IndexPart indexes a single part in Elasticsearch
 func IndexPart(part *Part) error {
 	esPart := ElasticsearchPart{
-		ID:          part.ID,
-		Name:        part.Name,
-		Quantity:    part.Quantity,
-		Description: part.Description,
-		Category:    part.Category,
-		Price:       part.Price,
-		Salesman:    part.Salesman,
-		Location:    part.Location,
-		Status:      part.Status,
-		Brand:       part.Brand,
-		Model:       part.Model,
-		Photos:      part.Photos,
+		ID:                part.ID,
+		Name:              part.Name,
+		Quantity:          part.Quantity,
+		Description:       part.Description,
+		Category:          part.Category,
+		Price:             part.Price,
+		Salesman:          part.Salesman,
+		Location:          part.Location,
+		Status:            part.Status,
+		Brand:             part.Brand,
+		Model:             part.Model,
+		Photos:            part.Photos,
+		FrontRear:         part.FrontRear,
+		LeftRight:         part.LeftRight,
+		TopBottom:         part.TopBottom,
+		OEMCode:           part.OEMCode,
+		ManufacturerCode:  part.ManufacturerCode,
+		Manufacturer:      part.Manufacturer,
+		Color:             part.Color,
+		Condition:         part.Condition,
+		BodyBrand:         part.BodyBrand,
+		EngineBrand:       part.EngineBrand,
+		CarReleaseDate:    part.CarReleaseDate,
+		Transmission:      part.Transmission,
+		TransmissionModel: part.TransmissionModel,
+		Drive:             part.Drive,
+		Defect:            part.Defect,
 	}
 
 	body, err := json.Marshal(esPart)
