@@ -88,9 +88,79 @@ func InitElasticsearch(url string) error {
 	return nil
 }
 
-// CreatePartsIndex creates the parts index with proper mappings
+// CreatePartsIndex creates the parts index with proper mappings and analyzers
 func CreatePartsIndex() error {
 	mapping := `{
+		"settings": {
+			"analysis": {
+				"filter": {
+					"russian_stop": {
+						"type": "stop",
+						"stopwords": "_russian_"
+					},
+					"russian_stemmer": {
+						"type": "stemmer",
+						"language": "russian"
+					},
+					"auto_synonyms": {
+						"type": "synonym_graph",
+						"synonyms": [
+							"двс, двигатель, мотор",
+							"гбц, головка блока цилиндров, головка блока",
+							"акпп, автоматическая коробка, коробка автомат",
+							"мкпп, механическая коробка, механика",
+							"пер, передний, передняя",
+							"зад, задний, задняя",
+							"прав, правый, правая",
+							"лев, левый, левая",
+							"стеклоподъемник, стеклоподъем",
+							"амортизатор, стойка"
+						]
+					},
+					"code_ngram": {
+						"type": "edge_ngram",
+						"min_gram": 3,
+						"max_gram": 15
+					},
+					"oem_delimiter": {
+						"type": "word_delimiter_graph",
+						"generate_word_parts": true,
+						"generate_number_parts": true,
+						"catenate_words": true,
+						"catenate_numbers": true,
+						"catenate_all": true,
+						"split_on_case_change": true,
+						"preserve_original": true
+					}
+				},
+				"analyzer": {
+					"custom_russian": {
+						"tokenizer": "standard",
+						"filter": [
+							"lowercase",
+							"russian_stop",
+							"auto_synonyms",
+							"russian_stemmer"
+						]
+					},
+					"part_number_analyzer": {
+						"tokenizer": "standard",
+						"filter": [
+							"lowercase",
+							"oem_delimiter",
+							"code_ngram"
+						]
+					},
+					"part_number_search_analyzer": {
+						"tokenizer": "standard",
+						"filter": [
+							"lowercase",
+							"oem_delimiter"
+						]
+					}
+				}
+			}
+		},
 		"mappings": {
 			"properties": {
 				"id": {
@@ -98,10 +168,15 @@ func CreatePartsIndex() error {
 				},
 				"name": {
 					"type": "text",
-					"analyzer": "standard",
+					"analyzer": "custom_russian",
 					"fields": {
 						"keyword": {
 							"type": "keyword"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
 						}
 					}
 				},
@@ -110,14 +185,14 @@ func CreatePartsIndex() error {
 				},
 				"description": {
 					"type": "text",
-					"analyzer": "standard"
+					"analyzer": "custom_russian"
 				},
 				"category": {
 					"type": "keyword",
 					"fields": {
 						"text": {
 							"type": "text",
-							"analyzer": "standard"
+							"analyzer": "custom_russian"
 						}
 					}
 				},
@@ -129,7 +204,7 @@ func CreatePartsIndex() error {
 					"fields": {
 						"text": {
 							"type": "text",
-							"analyzer": "standard"
+							"analyzer": "custom_russian"
 						}
 					}
 				},
@@ -138,7 +213,7 @@ func CreatePartsIndex() error {
 					"fields": {
 						"text": {
 							"type": "text",
-							"analyzer": "standard"
+							"analyzer": "custom_russian"
 						}
 					}
 				},

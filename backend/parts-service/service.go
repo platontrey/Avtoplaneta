@@ -239,25 +239,32 @@ func (s *inventoryService) getInventoryFromElasticsearch(ctx context.Context, pa
 
 // buildElasticsearchQuery строит запрос для Elasticsearch
 func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) map[string]interface{} {
-	query := map[string]interface{}{
-		"bool": map[string]interface{}{
-			"must": []map[string]interface{}{},
-		},
-	}
+	must := []map[string]interface{}{}
+	filter := []map[string]interface{}{}
 
-	must := query["bool"].(map[string]interface{})["must"].([]map[string]interface{})
+	// Фильтр для отображения валидных запчастей (quantity >= 0)
+	filter = append(filter, map[string]interface{}{
+		"range": map[string]interface{}{
+			"quantity": map[string]interface{}{
+				"gte": 0,
+			},
+		},
+	})
 
 	if params.Search != "" {
 		must = append(must, map[string]interface{}{
 			"multi_match": map[string]interface{}{
-				"query":  params.Search,
-				"fields": []string{"name", "description"},
+				"query":         params.Search,
+				"fields":        []string{"name^4", "name.ngram^2", "brand.text^3", "model.text^2", "description^1"},
+				"type":          "best_fields",
+				"fuzziness":     "AUTO",
+				"prefix_length": 2,
 			},
 		})
 	}
 
 	if params.Category != "" {
-		must = append(must, map[string]interface{}{
+		filter = append(filter, map[string]interface{}{
 			"match": map[string]interface{}{
 				"category.text": params.Category,
 			},
@@ -266,13 +273,13 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 
 	if params.HasPhoto != "" && params.HasPhoto != "all" {
 		if params.HasPhoto == "with" {
-			must = append(must, map[string]interface{}{
+			filter = append(filter, map[string]interface{}{
 				"exists": map[string]interface{}{
 					"field": "photos",
 				},
 			})
 		} else if params.HasPhoto == "without" {
-			must = append(must, map[string]interface{}{
+			filter = append(filter, map[string]interface{}{
 				"bool": map[string]interface{}{
 					"must_not": []map[string]interface{}{
 						{
@@ -287,7 +294,7 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 	}
 
 	if params.Brand != "" {
-		must = append(must, map[string]interface{}{
+		filter = append(filter, map[string]interface{}{
 			"match": map[string]interface{}{
 				"brand.text": params.Brand,
 			},
@@ -295,7 +302,7 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 	}
 
 	if params.Model != "" {
-		must = append(must, map[string]interface{}{
+		filter = append(filter, map[string]interface{}{
 			"match": map[string]interface{}{
 				"model.text": params.Model,
 			},
@@ -303,7 +310,7 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 	}
 
 	if params.Location != "" {
-		must = append(must, map[string]interface{}{
+		filter = append(filter, map[string]interface{}{
 			"match": map[string]interface{}{
 				"location.text": params.Location,
 			},
@@ -311,7 +318,7 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 	}
 
 	if params.Salesman != "" {
-		must = append(must, map[string]interface{}{
+		filter = append(filter, map[string]interface{}{
 			"match": map[string]interface{}{
 				"salesman.text": params.Salesman,
 			},
@@ -320,14 +327,24 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 
 	if params.Status != "" {
 		statusBool := params.Status == "true" || params.Status == "active" || params.Status == "1"
-		must = append(must, map[string]interface{}{
-			"match": map[string]interface{}{
+		filter = append(filter, map[string]interface{}{
+			"term": map[string]interface{}{
 				"status": statusBool,
 			},
 		})
 	}
-	query["bool"].(map[string]interface{})["must"] = must
-	return query
+
+	boolQuery := map[string]interface{}{}
+	if len(must) > 0 {
+		boolQuery["must"] = must
+	}
+	if len(filter) > 0 {
+		boolQuery["filter"] = filter
+	}
+
+	return map[string]interface{}{
+		"bool": boolQuery,
+	}
 }
 
 // getInventoryFromDatabase получает данные из базы данных
