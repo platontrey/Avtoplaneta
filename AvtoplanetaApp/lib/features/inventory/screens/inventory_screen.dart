@@ -24,15 +24,76 @@ class InventoryScreen extends ConsumerStatefulWidget {
 
 class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   final _searchCtrl = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   Timer? _debounce;
   final Set<int> _selectedPartIds = {};
   bool _selectionMode = false;
 
+  List<Part> _infiniteParts = [];
+  int _nextInfinitePage = 2;
+  bool _isLoadingMore = false;
+  bool _hasMoreInfinite = true;
+  InventoryFilter? _lastFilter;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _searchCtrl.dispose();
     _debounce?.cancel();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    if (maxScroll - currentScroll <= 350) {
+      _loadMoreInfinite();
+    }
+  }
+
+  Future<void> _loadMoreInfinite() async {
+    final filter = ref.read(inventoryFilterProvider);
+    if (filter.pageSize != 'all' || _isLoadingMore || !_hasMoreInfinite) {
+      return;
+    }
+    setState(() => _isLoadingMore = true);
+    try {
+      final params = filter.copyWith(page: _nextInfinitePage).toQueryParameters(overrideLimit: 20);
+      final response = await apiClient.dio.get(
+        '/api/v1/inventory',
+        queryParameters: params,
+      );
+      final responseData = response.data;
+      final list = responseData is List
+          ? responseData
+          : responseData is Map && responseData['parts'] is List
+          ? responseData['parts'] as List
+          : const [];
+      final newParts = list
+          .map((e) => Part.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      if (mounted) {
+        setState(() {
+          _infiniteParts.addAll(newParts);
+          _nextInfinitePage++;
+          _hasMoreInfinite = newParts.length >= 20;
+          _isLoadingMore = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingMore = false);
+      }
+    }
   }
 
   void _onSearch(String value) {
@@ -76,7 +137,22 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
     final isOffline = inventoryAsync.valueOrNull?.isOffline ?? false;
     final visibleParts = inventoryAsync.valueOrNull?.parts ?? const <Part>[];
-    final selectedParts = visibleParts
+
+    if (filter.pageSize == 'all' && inventoryAsync.hasValue) {
+      final data = inventoryAsync.value!;
+      if (_lastFilter != filter) {
+        _lastFilter = filter;
+        _infiniteParts = List.from(data.parts);
+        _nextInfinitePage = 2;
+        _hasMoreInfinite = data.parts.length >= 20;
+      }
+    }
+
+    final displayParts = filter.pageSize == 'all'
+        ? (_infiniteParts.isNotEmpty ? _infiniteParts : visibleParts)
+        : visibleParts;
+
+    final selectedParts = displayParts
         .where((part) => _selectedPartIds.contains(part.id))
         .toList();
 
@@ -95,22 +171,22 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         actions: [
           if (_selectionMode)
             IconButton(
-              tooltip: _selectedPartIds.length == visibleParts.length
+              tooltip: _selectedPartIds.length == displayParts.length
                   ? 'Снять выбор со всех'
                   : 'Выбрать все на странице',
               icon: Icon(
-                _selectedPartIds.length == visibleParts.length
+                _selectedPartIds.length == displayParts.length
                     ? Icons.deselect_rounded
                     : Icons.select_all_rounded,
               ),
               onPressed: () {
                 setState(() {
-                  if (_selectedPartIds.length == visibleParts.length) {
+                  if (_selectedPartIds.length == displayParts.length) {
                     _selectedPartIds.clear();
                     _selectionMode = false;
                   } else {
                     _selectedPartIds.addAll(
-                      visibleParts.map((part) => part.id),
+                      displayParts.map((part) => part.id),
                     );
                   }
                 });
@@ -197,7 +273,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           title: 'Не удалось загрузить склад',
           message: 'Проверьте подключение к сети и попробуйте ещё раз.',
           actionLabel: 'Повторить',
-          onAction: () => ref.invalidate(inventoryProvider),
+          onAction: () => ref.invalidate(inventoryProvider(filter)),
         ),
         data: (data) => Column(
           children: [
@@ -246,29 +322,79 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '${data.total} позиций',
-                      style: const TextStyle(
-                        color: AppTheme.primaryColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
+                  PopupMenuButton<String>(
+                    tooltip: 'Сколько показывать',
+                    initialValue: filter.pageSize,
+                    onSelected: (mode) {
+                      ref.read(inventoryFilterProvider.notifier).update(
+                            (f) => f.copyWith(pageSize: mode, page: 1),
+                          );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            filter.pageSize == 'all'
+                                ? 'Все (${data.total})'
+                                : '${filter.pageSize} / стр (${data.total})',
+                            style: const TextStyle(
+                              color: AppTheme.primaryColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.arrow_drop_down,
+                            size: 16,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ],
                       ),
                     ),
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: 'all',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.all_inclusive_rounded,
+                              size: 18,
+                              color: AppTheme.primaryColor,
+                            ),
+                            SizedBox(width: 8),
+                            Text('Все (бесконечная лента)'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: '20',
+                        child: Text('20 на страницу'),
+                      ),
+                      PopupMenuItem(
+                        value: '50',
+                        child: Text('50 на страницу'),
+                      ),
+                      PopupMenuItem(
+                        value: '100',
+                        child: Text('100 на страницу'),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
             Expanded(
-              child: data.parts.isEmpty
+              child: displayParts.isEmpty
                   ? const AppEmptyState(
                       icon: Icons.search_off_rounded,
                       title: 'Ничего не найдено',
@@ -276,39 +402,62 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                           'Попробуйте изменить запрос или очистить строку поиска.',
                     )
                   : RefreshIndicator(
-                      onRefresh: () async =>
-                          ref.invalidate(inventoryProvider(filter)),
+                      onRefresh: () async {
+                        _lastFilter = null;
+                        return ref.invalidate(inventoryProvider(filter));
+                      },
                       child: ListView.builder(
+                        controller: _scrollController,
                         padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
-                        itemCount: data.parts.length,
-                        itemBuilder: (ctx, i) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _PartCard(
-                            part: data.parts[i],
-                            selected: _selectedPartIds.contains(
-                              data.parts[i].id,
+                        itemCount: displayParts.length +
+                            (filter.pageSize == 'all' && _isLoadingMore ? 1 : 0),
+                        itemBuilder: (ctx, i) {
+                          if (i >= displayParts.length) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                              child: Center(
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _PartCard(
+                              part: displayParts[i],
+                              selected: _selectedPartIds.contains(
+                                displayParts[i].id,
+                              ),
+                              selectionMode: _selectionMode,
+                              onTap: () {
+                                if (_selectionMode) {
+                                  _toggleSelection(displayParts[i]);
+                                } else {
+                                  context.go(
+                                    '/inventory/part/${displayParts[i].id}',
+                                  );
+                                }
+                              },
+                              onLongPress: () =>
+                                  _toggleSelection(displayParts[i]),
                             ),
-                            selectionMode: _selectionMode,
-                            onTap: () {
-                              if (_selectionMode) {
-                                _toggleSelection(data.parts[i]);
-                              } else {
-                                context.go(
-                                  '/inventory/part/${data.parts[i].id}',
-                                );
-                              }
-                            },
-                            onLongPress: () => _toggleSelection(data.parts[i]),
-                          ),
-                        ),
+                          );
+                        },
                       ),
                     ),
             ),
             // Пагинация
-            if (data.total > 20 && !_selectionMode)
+            if (filter.pageSize != 'all' &&
+                data.total > (int.tryParse(filter.pageSize) ?? 20) &&
+                !_selectionMode)
               _Pagination(
                 current: filter.page,
-                total: (data.total / 20).ceil(),
+                total: (data.total / (int.tryParse(filter.pageSize) ?? 20)).ceil(),
                 onPage: (p) => ref
                     .read(inventoryFilterProvider.notifier)
                     .update((f) => f.copyWith(page: p)),
@@ -446,6 +595,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       addChip(
         filter.hasPhoto == 'with' ? 'С фото' : 'Без фото',
         filter.copyWith(hasPhoto: 'all', page: 1),
+      );
+    }
+    if (filter.pageSize != 'all') {
+      addChip(
+        'Показывать: ${filter.pageSize} / стр',
+        filter.copyWith(pageSize: 'all', page: 1),
       );
     }
 
@@ -598,6 +753,7 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
   late String _category;
   late String _status;
   late String _hasPhoto;
+  late String _pageSize;
 
   @override
   void initState() {
@@ -609,6 +765,7 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
     _category = widget.current.category;
     _status = widget.current.status;
     _hasPhoto = widget.current.hasPhoto;
+    _pageSize = widget.current.pageSize;
   }
 
   @override
@@ -629,6 +786,7 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
       _category = '';
       _status = '';
       _hasPhoto = 'all';
+      _pageSize = 'all';
     });
   }
 
@@ -643,6 +801,7 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
         salesman: _salesmanController.text.trim(),
         status: _status,
         hasPhoto: _hasPhoto,
+        pageSize: _pageSize,
         page: 1,
       ),
     );
@@ -681,6 +840,35 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
           child: ListView(
             padding: EdgeInsets.fromLTRB(20, 20, 20, keyboardInset + 20),
             children: [
+              DropdownButtonFormField<String>(
+                key: ValueKey('pageSize-$_pageSize'),
+                initialValue: _pageSize,
+                decoration: const InputDecoration(
+                  labelText: 'Отображение запчастей',
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'all',
+                    child: Text('Все (бесконечная лента)'),
+                  ),
+                  DropdownMenuItem(
+                    value: '20',
+                    child: Text('20 на страницу'),
+                  ),
+                  DropdownMenuItem(
+                    value: '50',
+                    child: Text('50 на страницу'),
+                  ),
+                  DropdownMenuItem(
+                    value: '100',
+                    child: Text('100 на страницу'),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() => _pageSize = value ?? 'all');
+                },
+              ),
+              const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 key: ValueKey('category-$_category'),
                 initialValue: _category,

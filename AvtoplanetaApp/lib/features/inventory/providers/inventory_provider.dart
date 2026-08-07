@@ -13,6 +13,7 @@ class InventoryFilter {
   final String salesman;
   final String status;
   final String hasPhoto;
+  final String pageSize; // 'all' (бесконечная лента), '20', '50', '100'
   final int page;
 
   const InventoryFilter({
@@ -24,6 +25,7 @@ class InventoryFilter {
     this.salesman = '',
     this.status = '',
     this.hasPhoto = 'all',
+    this.pageSize = 'all',
     this.page = 1,
   });
 
@@ -36,6 +38,7 @@ class InventoryFilter {
     String? salesman,
     String? status,
     String? hasPhoto,
+    String? pageSize,
     int? page,
   }) => InventoryFilter(
     search: search ?? this.search,
@@ -46,6 +49,7 @@ class InventoryFilter {
     salesman: salesman ?? this.salesman,
     status: status ?? this.status,
     hasPhoto: hasPhoto ?? this.hasPhoto,
+    pageSize: pageSize ?? this.pageSize,
     page: page ?? this.page,
   );
 
@@ -57,20 +61,24 @@ class InventoryFilter {
     salesman,
     status,
     hasPhoto == 'all' ? '' : hasPhoto,
+    pageSize == 'all' ? '' : pageSize,
   ].where((value) => value.isNotEmpty).length;
 
-  Map<String, dynamic> toQueryParameters({int limit = 20}) => {
-    'page': page,
-    'limit': limit,
-    if (search.isNotEmpty) 'search': search,
-    if (category.isNotEmpty) 'category': category,
-    if (brand.isNotEmpty) 'brand': brand,
-    if (model.isNotEmpty) 'model': model,
-    if (location.isNotEmpty) 'location': location,
-    if (salesman.isNotEmpty) 'salesman': salesman,
-    if (status.isNotEmpty) 'status': status,
-    if (hasPhoto != 'all') 'hasPhoto': hasPhoto,
-  };
+  Map<String, dynamic> toQueryParameters({int? overrideLimit}) {
+    final limitVal = overrideLimit ?? (pageSize == 'all' ? 20 : (int.tryParse(pageSize) ?? 20));
+    return {
+      'page': page,
+      'limit': limitVal,
+      if (search.isNotEmpty) 'search': search,
+      if (category.isNotEmpty) 'category': category,
+      if (brand.isNotEmpty) 'brand': brand,
+      if (model.isNotEmpty) 'model': model,
+      if (location.isNotEmpty) 'location': location,
+      if (salesman.isNotEmpty) 'salesman': salesman,
+      if (status.isNotEmpty) 'status': status,
+      if (hasPhoto != 'all') 'hasPhoto': hasPhoto,
+    };
+  }
 }
 
 final inventoryFilterProvider = StateProvider<InventoryFilter>(
@@ -100,10 +108,13 @@ final inventoryProvider =
             .map((e) => Part.fromJson(e as Map<String, dynamic>))
             .toList();
 
-        final hasMore = parts.length == 20;
+        final effectiveLimit = filter.pageSize == 'all'
+            ? 20
+            : (int.tryParse(filter.pageSize) ?? 20);
+        final hasMore = parts.length == effectiveLimit;
         final calculatedTotal = hasMore
-            ? (filter.page + 1) * 20
-            : (filter.page - 1) * 20 + parts.length;
+            ? (filter.page + 1) * effectiveLimit
+            : (filter.page - 1) * effectiveLimit + parts.length;
         final total = responseData is Map
             ? (responseData['total'] as num?)?.toInt() ?? calculatedTotal
             : calculatedTotal;
@@ -112,7 +123,7 @@ final inventoryProvider =
           parts: parts,
           total: total,
           page: filter.page,
-          limit: 20,
+          limit: effectiveLimit,
           isOffline: false,
         );
       } catch (e) {
@@ -193,8 +204,11 @@ final inventoryProvider =
           }
 
           // Локальная пагинация
-          final start = (filter.page - 1) * 20;
-          final end = start + 20;
+          final effectiveLimit = filter.pageSize == 'all'
+              ? 20
+              : (int.tryParse(filter.pageSize) ?? 20);
+          final start = (filter.page - 1) * effectiveLimit;
+          final end = start + effectiveLimit;
           final partsPage = start >= filteredList.length
               ? <Part>[]
               : filteredList.sublist(
@@ -206,7 +220,7 @@ final inventoryProvider =
             parts: partsPage,
             total: filteredList.length,
             page: filter.page,
-            limit: 20,
+            limit: effectiveLimit,
             isOffline: true,
           );
         }
