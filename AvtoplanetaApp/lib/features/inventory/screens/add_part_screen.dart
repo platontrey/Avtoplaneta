@@ -336,6 +336,22 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
     }
   }
 
+  String _parseDioError(dynamic e) {
+    if (e is DioException) {
+      final res = e.response?.data;
+      if (res is Map) {
+        if (res['error'] != null) return res['error'].toString();
+        if (res['message'] != null) return res['message'].toString();
+      } else if (res is String && res.isNotEmpty) {
+        return res;
+      }
+      if (e.message != null && e.message!.isNotEmpty) {
+        return e.message!;
+      }
+    }
+    return e.toString();
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -346,7 +362,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
         'name': _nameCtrl.text.trim(),
         'description': _descCtrl.text.trim(),
         'category': _categoryCtrl.text.trim(),
-        'price': double.tryParse(_priceCtrl.text) ?? 0,
+        'price': double.tryParse(_priceCtrl.text.replaceAll(',', '.')) ?? 0.0,
         'quantity': int.tryParse(_quantityCtrl.text) ?? 1,
         'brand': _brandCtrl.text.trim(),
         'model': _modelCtrl.text.trim(),
@@ -429,13 +445,14 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Ошибка сохранения: $e')));
+        ).showSnackBar(SnackBar(content: Text('Ошибка сохранения: ${_parseDioError(e)}')));
       }
     } finally {
       if (mounted) {
         setState(() => _loading = false);
       }
     }
+  }
   }
 
   @override
