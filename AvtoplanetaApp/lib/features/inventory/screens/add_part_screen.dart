@@ -453,7 +453,6 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       }
     }
   }
-  }
 
   @override
   Widget build(BuildContext context) {
