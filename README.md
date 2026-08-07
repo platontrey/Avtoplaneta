@@ -9,7 +9,7 @@ Avtoplaneta - это комплексная система управления 
 Проект состоит из следующих основных компонентов:
 
 ### 🖥️ Frontend (Веб-приложение)
-- **Технологии**: React 18, TypeScript, Vite, Tailwind CSS
+- **Технологии**: React 18, TypeScript, Vite, Tailwind CSS, Nginx (с Brotli & Gzip сжатием)
 - **Расположение**: `frontend/`
 - **Документация**: [frontend/README.md](frontend/README.md)
 
@@ -19,21 +19,23 @@ Avtoplaneta - это комплексная система управления 
 - **Документация**: [AvtoplanetaApp/README.md](AvtoplanetaApp/README.md)
 
 ### 🔧 Backend (Микросервисы)
-- **Технологии**: Go, Gin Framework, gRPC, PostgreSQL (sqlc, pgx/v5), Elasticsearch, Redis Streams
+- **Технологии**: Go, Gin Framework, gRPC, Protobuf, PostgreSQL (sqlc, pgx/v5), Elasticsearch, Redis Streams, OpenTelemetry, Grafana Tempo
 - **Расположение**: `backend/`
 - **Документация**: [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md)
 
 #### Сервисы:
-- **API Gateway** (порт 8080) - основной шлюз, gRPC-клиент к auth-service
-- **Auth Service** (HTTP :8083, gRPC :9083) - аутентификация и управление пользователями
-- **Parts Service** (HTTP :8081, gRPC :9081) - управление инвентарем запчастей и шаблонами каталога (`catalog.json`)
-- **Orders Service** (HTTP :8082, gRPC :9082) - управление заказами и продажами
+- **API Gateway** (порт 8080) - основной шлюз, gRPC-клиент ко всем микросервисам с OTEL instrumentation
+- **Auth Service** (HTTP :8083, gRPC :9083) - аутентификация, управление пользователями, gRPC ValidateSession / GetUsers / ActivityLogs
+- **Parts Service** (HTTP :8081, gRPC :9081) - управление инвентарем, gRPC API, шаблоны каталога (`catalog.json`), Elasticsearch
+- **Orders Service** (HTTP :8082, gRPC :9082) - управление заказами, списание остатков (`quantity = -1`), аналитика продаж через gRPC
 - **Messaging Service** (HTTP :8084, gRPC :9084) - чаты, уведомления, интеграция с Drom.ru
 
-#### Коммуникация:
-- **REST/HTTP** (frontend → gateway) — для браузерных и мобильных клиентов
-- **gRPC** (gateway → services, service → service) — для внутренней межсервисной коммуникации
-- **Redis Streams** — для асинхронных событий между сервисами
+#### Коммуникация и Наблюдаемость (Observability):
+- **REST/HTTP** — внешний веб-интерфейс к Gateway и статической раздаче через Nginx
+- **gRPC + Protobuf** — высокоскоростная межсервисная коммуникация и внутренние эндпоинты
+- **Redis Streams** — для асинхронной доставки событий (дефектные отчёты, списания)
+- **OpenTelemetry & Grafana Tempo** — распределённый сквозной трейсинг запросов от Gateway до баз данных
+- **Prometheus & Grafana** — сбор метрик производительности, количества ошибок и системного мониторинга
 
 ## Инвентарь и статус количества (Quantity States)
 
