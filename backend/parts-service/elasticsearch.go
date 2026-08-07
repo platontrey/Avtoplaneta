@@ -127,7 +127,7 @@ func CreatePartsIndex() error {
 					"auto_synonyms": {
 						"type": "synonym_graph",
 						"synonyms": %s
-					},`, string(synonymsJSON))
+					},
 					"code_ngram": {
 						"type": "edge_ngram",
 						"min_gram": 2,
@@ -276,7 +276,7 @@ func CreatePartsIndex() error {
 				}
 			}
 		}
-	}`
+	}`, string(synonymsJSON))
 
 	req := esapi.IndicesCreateRequest{
 		Index: "parts",
