@@ -212,7 +212,7 @@ func (s *inventoryService) getInventoryFromElasticsearch(ctx context.Context, pa
 		validPartsMap[part.ID] = part
 	}
 
-	parts := make([]Part, 0, len(esParts))
+	parts = make([]Part, 0, len(esParts))
 	for _, esPart := range esParts {
 		if part, ok := validPartsMap[esPart.ID]; ok {
 			parts = append(parts, part)
