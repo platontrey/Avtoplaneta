@@ -12,6 +12,22 @@ import (
 //go:embed catalog/catalog.json
 var embeddedPartCatalog []byte
 
+//go:embed catalog/synonyms.txt
+var embeddedSynonyms []byte
+
+// LoadSynonyms загружает синонимы запчастей из файла catalog/synonyms.txt
+func LoadSynonyms() []string {
+	lines := strings.Split(string(embeddedSynonyms), "\n")
+	var synonyms []string
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed != "" && !strings.HasPrefix(trimmed, "#") {
+			synonyms = append(synonyms, trimmed)
+		}
+	}
+	return synonyms
+}
+
 type CatalogAttribute struct {
 	Code      string   `json:"code"`
 	Label     string   `json:"label"`

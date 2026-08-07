@@ -109,7 +109,10 @@ func CreatePartsIndex() error {
 		_ = existsRes.Body.Close()
 	}
 
-	mapping := `{
+	synonymsList := LoadSynonyms()
+	synonymsJSON, _ := json.Marshal(synonymsList)
+
+	mapping := fmt.Sprintf(`{
 		"settings": {
 			"analysis": {
 				"filter": {
@@ -123,22 +126,8 @@ func CreatePartsIndex() error {
 					},
 					"auto_synonyms": {
 						"type": "synonym_graph",
-						"synonyms": [
-							"сирена, сигнализация, сигнал, гудок",
-							"двс, двигатель, мотор",
-							"гбц, головка блока цилиндров, головка блока",
-							"акпп, автоматическая коробка, коробка автомат",
-							"мкпп, механическая коробка, механика",
-							"пер, передний, передняя",
-							"зад, задний, задняя",
-							"прав, правый, правая",
-							"лев, левый, левая",
-							"стеклоподъемник, стеклоподъем",
-							"амортизатор, стойка",
-							"фара, оптика, фонарь",
-							"бампер, обвес"
-						]
-					},
+						"synonyms": %s
+					},`, string(synonymsJSON))
 					"code_ngram": {
 						"type": "edge_ngram",
 						"min_gram": 2,
