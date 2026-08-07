@@ -637,430 +637,101 @@ function PartBlock({
                                     </motion.div>
                                 </AnimatePresence>
                             )}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-3">
-                                    <h4 className="font-semibold text-sm text-muted-foreground mb-3">ХАРАКТЕРИСТИКИ:</h4>
-                                    <div className="grid grid-cols-1 gap-3">
-                                        {part.brand && (
-                                            <motion.div
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: 0.15, duration: 0.3 }}
-                                                className="text-sm"
-                                            >
-                                                <div className="font-medium text-muted-foreground">Бренд</div>
-                                                <div>{part.brand}</div>
-                                            </motion.div>
-                                        )}
-                                        {part.model && (
-                                            <motion.div
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: 0.2, duration: 0.3 }}
-                                                className="text-sm"
-                                            >
-                                                <div className="font-medium text-gray-600">Модель</div>
-                                                <div>{part.model}</div>
-                                            </motion.div>
-                                        )}
-                                        {part.vin && (
-                                            <motion.div
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: 0.25, duration: 0.3 }}
-                                                className="text-sm"
-                                            >
-                                                <div className="font-medium text-gray-600">VIN</div>
-                                                <div>{part.vin}</div>
-                                            </motion.div>
-                                        )}
-                                        <motion.div
-                                            initial={{ opacity: 0, x: -20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            transition={{ delay: 0.3, duration: 0.3 }}
-                                            className="text-sm"
-                                        >
-                                            <div className="font-medium text-gray-600">Количество</div>
-                                            <div>{part.quantity ?? 0}</div>
-                                        </motion.div>
-                                        {part.description && (
-                                            <motion.div
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: 0.35, duration: 0.3 }}
-                                                className="text-sm"
-                                            >
-                                                <div className="font-medium text-gray-600">Описание</div>
-                                                <div>{part.description}</div>
-                                            </motion.div>
-                                        )}
-                                        {part.category && (
-                                            <motion.div
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: 0.4, duration: 0.3 }}
-                                                className="text-sm"
-                                            >
-                                                <div className="font-medium text-gray-600">Категория</div>
-                                                <div>{part.category}</div>
-                                            </motion.div>
-                                        )}
-                                        {part.location && (
-                                            <motion.div
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: 0.45, duration: 0.3 }}
-                                                className="text-sm"
-                                            >
-                                                <div className="font-medium text-gray-600">Местоположение</div>
-                                                <div>{part.location}</div>
-                                            </motion.div>
-                                        )}
-                                        {part.salesman && (
-                                            <motion.div
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: 0.5, duration: 0.3 }}
-                                                className="text-sm"
-                                            >
-                                                <div className="font-medium text-gray-600">Продавец</div>
-                                                <div>{part.salesman}</div>
-                                            </motion.div>
-                                        )}
-                                        {/* Характеристики запчасти */}
-                                        {/* Common fields */}
-                                        {part.manufacturer && (
-                                            <motion.div
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: 0.55, duration: 0.3 }}
-                                                className="text-sm"
-                                            >
-                                                <div className="font-medium text-gray-600">Производитель</div>
-                                                <div>{part.manufacturer}</div>
-                                            </motion.div>
-                                        )}
-                                        {part.manufacturer_code && (
-                                            <motion.div
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: 0.6, duration: 0.3 }}
-                                                className="text-sm"
-                                            >
-                                                <div className="font-medium text-gray-600">Код производителя</div>
-                                                <div>{part.manufacturer_code}</div>
-                                            </motion.div>
-                                        )}
-                                        {part.oem_code && (
-                                            <motion.div
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: 0.65, duration: 0.3 }}
-                                                className="text-sm"
-                                            >
-                                                <div className="font-medium text-gray-600">OEM код</div>
-                                                <div>{part.oem_code}</div>
-                                            </motion.div>
-                                        )}
-                                        {part.supplier_code && (
-                                            <motion.div
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: 0.7, duration: 0.3 }}
-                                                className="text-sm"
-                                            >
-                                                <div className="font-medium text-gray-600">Код поставки</div>
-                                                <div>{part.supplier_code}</div>
-                                            </motion.div>
-                                        )}
-                                        {part.condition && (
-                                            <motion.div
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: 0.75, duration: 0.3 }}
-                                                className="text-sm"
-                                            >
-                                                <div className="font-medium text-gray-600">Состояние</div>
-                                                <div>{part.condition}</div>
-                                            </motion.div>
-                                        )}
-                                        {part.wear_percentage && (
-                                            <motion.div
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: 0.8, duration: 0.3 }}
-                                                className="text-sm"
-                                            >
-                                                <div className="font-medium text-gray-600">Процент износа</div>
-                                                <div>{part.wear_percentage}%</div>
-                                            </motion.div>
-                                        )}
+                            <div className="w-full space-y-4 pt-2">
+                                <h4 className="font-semibold text-xs tracking-wider uppercase text-muted-foreground flex items-center gap-2">
+                                    <span className="h-px bg-border flex-1"></span>
+                                    <span>Характеристики запчасти</span>
+                                    <span className="h-px bg-border flex-1"></span>
+                                </h4>
 
-                                        {/* Category-specific fields */}
-                                        {part.transmission_model && (
+                                {/* Описание запчасти */}
+                                {part.description && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="bg-muted/40 border border-border/60 rounded-xl p-3 text-sm"
+                                    >
+                                        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                                            Описание
+                                        </div>
+                                        <div className="text-foreground whitespace-pre-line leading-relaxed">
+                                            {part.description}
+                                        </div>
+                                    </motion.div>
+                                )}
+
+                                {/* Информация о дефекте */}
+                                {(part.category !== 'Автохимия и масла' && part.category !== 'Аксессуары и тюннинг') && part.defect && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="bg-amber-500/10 border border-amber-500/25 text-amber-950 dark:text-amber-200 rounded-xl p-3 text-sm flex items-start gap-2.5"
+                                    >
+                                        <div className="flex-1">
+                                            <div className="text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-0.5">
+                                                Дефект
+                                            </div>
+                                            <div className="font-medium">{part.defect}</div>
+                                        </div>
+                                    </motion.div>
+                                )}
+
+                                {/* Адаптивная сетка карточек характеристик */}
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
+                                    {[
+                                        { label: 'Бренд', value: part.brand },
+                                        { label: 'Модель', value: part.model },
+                                        { label: 'VIN', value: part.vin },
+                                        { label: 'Количество', value: part.quantity ?? 0 },
+                                        { label: 'Категория', value: part.category },
+                                        { label: 'Местоположение', value: part.location },
+                                        { label: 'Продавец', value: part.salesman },
+                                        { label: 'Производитель', value: part.manufacturer },
+                                        { label: 'Код производителя', value: part.manufacturer_code },
+                                        { label: 'OEM код', value: part.oem_code },
+                                        { label: 'Код поставки', value: part.supplier_code },
+                                        { label: 'Состояние', value: part.condition },
+                                        { label: 'Процент износа', value: part.wear_percentage ? `${part.wear_percentage}%` : null },
+                                        { label: 'Модель трансмиссии', value: part.transmission_model },
+                                        { label: 'Марка двигателя', value: (part.category === 'Двигатель' || part.category === 'Трансмиссия') ? part.engine_brand : null },
+                                        { label: 'Трансмиссия', value: (part.category === 'Двигатель' || part.category === 'Трансмиссия') ? part.transmission : null },
+                                        { label: 'Привод', value: (part.category === 'Двигатель' || part.category === 'Трансмиссия') ? part.drive : null },
+                                        { label: 'Марка кузова', value: (part.category === 'Кузов' || part.category === 'Кузов снаружи' || part.category === 'Интерьер') ? part.body_brand : null },
+                                        { label: 'Цвет', value: (part.category === 'Кузов' || part.category === 'Кузов снаружи' || part.category === 'Интерьер') ? part.color : null },
+                                        { label: 'Диаметр', value: part.category === 'Шины и диски' ? part.diameter : null },
+                                        { label: 'Ширина', value: part.category === 'Шины и диски' ? part.width : null },
+                                        { label: 'Профиль', value: part.category === 'Шины и диски' ? part.profile : null },
+                                        { label: 'Количество шин', value: part.category === 'Шины и диски' ? part.tire_quantity : null },
+                                        { label: 'Сверловка', value: part.category === 'Шины и диски' ? part.drilling : null },
+                                        { label: 'Вылет', value: part.category === 'Шины и диски' ? part.offset : null },
+                                        { label: 'Диаметр ЦО', value: part.category === 'Шины и диски' ? part.center_hole_diameter : null },
+                                        { label: 'Модель шины', value: part.category === 'Шины и диски' ? part.tire_model : null },
+                                        { label: 'Сезон', value: part.category === 'Шины и диски' ? part.season : null },
+                                        { label: 'Перед/зад', value: (part.category !== 'Автохимия и масла' && part.category !== 'Аксессуары и тюннинг' && part.category !== 'Другое') ? part.front_rear : null },
+                                        { label: 'Право/лево', value: (part.category !== 'Автохимия и масла' && part.category !== 'Аксессуары и тюннинг' && part.category !== 'Другое') ? part.left_right : null },
+                                        { label: 'Верх/низ', value: (part.category !== 'Автохимия и масла' && part.category !== 'Аксессуары и тюннинг' && part.category !== 'Другое') ? part.top_bottom : null },
+                                        { label: 'Номер', value: (part.category !== 'Автохимия и масла' && part.category !== 'Аксессуары и тюннинг' && part.category !== 'Другое') ? part.number : null },
+                                        { label: 'Дата выпуска авто', value: (part.category !== 'Автохимия и масла' && part.category !== 'Аксессуары и тюннинг' && part.category !== 'Другое') ? part.car_release_date : null },
+                                    ]
+                                        .filter(item => item.value !== null && item.value !== undefined && item.value !== '')
+                                        .map((item, idx) => (
                                             <motion.div
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: 0.85, duration: 0.3 }}
-                                                className="text-sm"
+                                                key={item.label}
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: Math.min(idx * 0.03, 0.4), duration: 0.2 }}
+                                                className="bg-muted/40 hover:bg-muted/70 border border-border/60 rounded-xl p-2.5 flex flex-col justify-between transition-colors min-h-[58px]"
                                             >
-                                                <div className="font-medium text-gray-600">Модель трансмиссии</div>
-                                                <div>{part.transmission_model}</div>
+                                                <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground truncate" title={item.label}>
+                                                    {item.label}
+                                                </span>
+                                                <span className="text-sm font-semibold text-foreground break-words mt-0.5 line-clamp-2" title={String(item.value)}>
+                                                    {item.value}
+                                                </span>
                                             </motion.div>
-                                        )}
-                                        {(part.category === 'Двигатель' || part.category === 'Трансмиссия') && (
-                                            <>
-                                                {part.engine_brand && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, x: -20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: 0.85, duration: 0.3 }}
-                                                        className="text-sm"
-                                                    >
-                                                        <div className="font-medium text-gray-600">Марка двигателя</div>
-                                                        <div>{part.engine_brand}</div>
-                                                    </motion.div>
-                                                )}
-                                                {part.transmission && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, x: -20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: 0.9, duration: 0.3 }}
-                                                        className="text-sm"
-                                                    >
-                                                        <div className="font-medium text-gray-600">Трансмиссия</div>
-                                                        <div>{part.transmission}</div>
-                                                    </motion.div>
-                                                )}
-                                                {part.drive && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, x: -20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: 0.95, duration: 0.3 }}
-                                                        className="text-sm"
-                                                    >
-                                                        <div className="font-medium text-gray-600">Привод</div>
-                                                        <div>{part.drive}</div>
-                                                    </motion.div>
-                                                )}
-                                            </>
-                                        )}
-
-                                        {(part.category === 'Кузов' || part.category === 'Кузов снаружи' || part.category === 'Интерьер') && (
-                                            <>
-                                                {part.body_brand && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, x: -20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: 0.85, duration: 0.3 }}
-                                                        className="text-sm"
-                                                    >
-                                                        <div className="font-medium text-gray-600">Марка кузова</div>
-                                                        <div>{part.body_brand}</div>
-                                                    </motion.div>
-                                                )}
-                                                {part.color && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, x: -20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: 0.9, duration: 0.3 }}
-                                                        className="text-sm"
-                                                    >
-                                                        <div className="font-medium text-gray-600">Цвет</div>
-                                                        <div>{part.color}</div>
-                                                    </motion.div>
-                                                )}
-                                            </>
-                                        )}
-
-                                        {part.category === 'Шины и диски' && (
-                                            <>
-                                                {part.diameter && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, x: -20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: 0.85, duration: 0.3 }}
-                                                        className="text-sm"
-                                                    >
-                                                        <div className="font-medium text-gray-600">Диаметр</div>
-                                                        <div>{part.diameter}</div>
-                                                    </motion.div>
-                                                )}
-                                                {part.width && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, x: -20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: 0.9, duration: 0.3 }}
-                                                        className="text-sm"
-                                                    >
-                                                        <div className="font-medium text-gray-600">Ширина</div>
-                                                        <div>{part.width}</div>
-                                                    </motion.div>
-                                                )}
-                                                {part.profile && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, x: -20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: 0.95, duration: 0.3 }}
-                                                        className="text-sm"
-                                                    >
-                                                        <div className="font-medium text-gray-600">Профиль</div>
-                                                        <div>{part.profile}</div>
-                                                    </motion.div>
-                                                )}
-                                                {part.tire_quantity && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, x: -20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: 1.0, duration: 0.3 }}
-                                                        className="text-sm"
-                                                    >
-                                                        <div className="font-medium text-gray-600">Количество шин</div>
-                                                        <div>{part.tire_quantity}</div>
-                                                    </motion.div>
-                                                )}
-                                                {part.drilling && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, x: -20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: 1.05, duration: 0.3 }}
-                                                        className="text-sm"
-                                                    >
-                                                        <div className="font-medium text-gray-600">Сверловка</div>
-                                                        <div>{part.drilling}</div>
-                                                    </motion.div>
-                                                )}
-                                                {part.offset && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, x: -20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: 1.1, duration: 0.3 }}
-                                                        className="text-sm"
-                                                    >
-                                                        <div className="font-medium text-gray-600">Вылет</div>
-                                                        <div>{part.offset}</div>
-                                                    </motion.div>
-                                                )}
-                                                {part.center_hole_diameter && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, x: -20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: 1.15, duration: 0.3 }}
-                                                        className="text-sm"
-                                                    >
-                                                        <div className="font-medium text-gray-600">Диаметр ЦО</div>
-                                                        <div>{part.center_hole_diameter}</div>
-                                                    </motion.div>
-                                                )}
-                                                {part.tire_model && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, x: -20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: 1.2, duration: 0.3 }}
-                                                        className="text-sm"
-                                                    >
-                                                        <div className="font-medium text-gray-600">Модель шины</div>
-                                                        <div>{part.tire_model}</div>
-                                                    </motion.div>
-                                                )}
-                                                {part.season && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, x: -20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: 1.25, duration: 0.3 }}
-                                                        className="text-sm"
-                                                    >
-                                                        <div className="font-medium text-gray-600">Сезон</div>
-                                                        <div>{part.season}</div>
-                                                    </motion.div>
-                                                )}
-                                            </>
-                                        )}
-
-                                        {/* Position fields for most categories */}
-                                        {(part.category !== 'Автохимия и масла' && part.category !== 'Аксессуары и тюннинг' && part.category !== 'Другое') && (
-                                            <>
-                                                {part.front_rear && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, x: -20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: 1.3, duration: 0.3 }}
-                                                        className="text-sm"
-                                                    >
-                                                        <div className="font-medium text-gray-600">Перед/зад</div>
-                                                        <div>{part.front_rear}</div>
-                                                    </motion.div>
-                                                )}
-                                                {part.left_right && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, x: -20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: 1.35, duration: 0.3 }}
-                                                        className="text-sm"
-                                                    >
-                                                        <div className="font-medium text-gray-600">Право/лево</div>
-                                                        <div>{part.left_right}</div>
-                                                    </motion.div>
-                                                )}
-                                                {part.top_bottom && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, x: -20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: 1.4, duration: 0.3 }}
-                                                        className="text-sm"
-                                                    >
-                                                        <div className="font-medium text-gray-600">Верх/низ</div>
-                                                        <div>{part.top_bottom}</div>
-                                                    </motion.div>
-                                                )}
-                                                {part.number && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, x: -20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: 1.45, duration: 0.3 }}
-                                                        className="text-sm"
-                                                    >
-                                                        <div className="font-medium text-gray-600">Номер</div>
-                                                        <div>{part.number}</div>
-                                                    </motion.div>
-                                                )}
-                                            </>
-                                        )}
-
-                                        {/* Defect field for most categories */}
-                                        {(part.category !== 'Автохимия и масла' && part.category !== 'Аксессуары и тюннинг') && (
-                                            <>
-                                                {part.defect && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, x: -20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: 1.5, duration: 0.3 }}
-                                                        className="text-sm"
-                                                    >
-                                                        <div className="font-medium text-gray-600">Дефект</div>
-                                                        <div>{part.defect}</div>
-                                                    </motion.div>
-                                                )}
-                                            </>
-                                        )}
-
-                                        {/* Car release date for most categories */}
-                                        {(part.category !== 'Автохимия и масла' && part.category !== 'Аксессуары и тюннинг' && part.category !== 'Другое') && (
-                                            <>
-                                                {part.car_release_date && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, x: -20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: 1.55, duration: 0.3 }}
-                                                        className="text-sm"
-                                                    >
-                                                        <div className="font-medium text-gray-600">Дата выпуска автомобиля</div>
-                                                        <div>{part.car_release_date}</div>
-                                                    </motion.div>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
+                                        ))}
                                 </div>
                             </div>
                         </motion.div>
