@@ -71,3 +71,40 @@ export const flattenCatalogParts = (catalog?: PartCatalog): CatalogPartView[] =>
 
 export const reportBindingCategories = (catalog: PartCatalog | undefined, source: string) =>
   new Set(catalog?.report_bindings.find((binding) => binding.source === source)?.categories ?? [])
+
+export type DefectReportValues = Record<string, string | number | null | undefined>
+
+// Разворачиваем каталог на клиенте для совместимости с уже запущенными версиями
+// parts-service. Сервер также умеет это делать, но selectedParts гарантирует, что
+// характеристики шаблонов не потеряются между формой и очередью обработки.
+export const expandDefectReportParts = (
+  catalog: PartCatalog,
+  values: DefectReportValues,
+  supplierCode = Date.now().toString(),
+) => catalog.parts.map((template) => {
+  const specifications: Record<string, string> = {
+    ...(template.defaults ?? {}),
+    supplier_code: supplierCode,
+  }
+
+  for (const binding of catalog.report_bindings) {
+    const included = !binding.categories?.length || binding.categories.includes(template.category)
+    const excluded = binding.excluded_categories?.includes(template.category) ?? false
+    if (!included || excluded) continue
+
+    const rawValue = values[binding.source]
+    const value = rawValue == null || String(rawValue).trim() === ''
+      ? binding.default_value
+      : String(rawValue).trim()
+    if (value) specifications[binding.target] = value
+  }
+
+  return {
+    name: template.name,
+    category: template.category,
+    description: '',
+    quantity: template.quantity,
+    price: template.price,
+    ...specifications,
+  }
+})

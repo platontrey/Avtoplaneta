@@ -104,6 +104,17 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
 
     try {
       final catalog = await ref.read(partCatalogProvider.future);
+      final values = <String, dynamic>{
+        'body_brand': _bodyBrandCtrl.text.trim(),
+        'engine_brand': _engineBrandCtrl.text.trim(),
+        'year': int.tryParse(_yearCtrl.text) ?? 0,
+        'vin': _vinCtrl.text.trim(),
+        'transmission': _selectedTransmission,
+        'transmission_model': _transmissionModelCtrl.text.trim(),
+        'drive': _driveCtrl.text.trim(),
+        'interior_color': _selectedInteriorColor,
+        'body_color': _selectedBodyColor,
+      };
 
       final payload = {
         'brand': _selectedBrand,
@@ -120,6 +131,10 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
         'drive': _driveCtrl.text.trim(),
         'description': _descCtrl.text.trim(),
         'catalog_version': catalog.version,
+        'selectedParts': catalog.expandDefectReportParts(
+          values,
+          supplierCode: DateTime.now().millisecondsSinceEpoch.toString(),
+        ),
       };
 
       await apiClient.dio.post('/api/defect-reports', data: payload);

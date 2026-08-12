@@ -19,6 +19,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { API_BASE_URL } from '@/lib/api';
 import {
   flattenCatalogParts,
+  expandDefectReportParts,
   reportBindingCategories,
   usePartCatalog,
 } from '@/features/catalog/usePartCatalog';
@@ -134,6 +135,17 @@ export default function DefectReport() {
         drive: data.drive,
         description: data.description,
         catalog_version: partCatalog.version,
+        selectedParts: expandDefectReportParts(partCatalog, {
+          body_brand: data.body_brand,
+          engine_brand: data.engine_brand,
+          year: data.year,
+          vin: data.vin,
+          transmission: data.transmission,
+          transmission_model: data.transmission_model,
+          drive: data.drive,
+          interior_color: data.interior_color,
+          body_color: data.body_color,
+        }),
       };
 
       const response = await fetch(`${API_BASE_URL}/api/defect-reports`, {

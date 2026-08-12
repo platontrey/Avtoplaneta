@@ -3,6 +3,7 @@ import 'package:avtoplaneta_app/core/models/part.dart';
 import 'package:avtoplaneta_app/core/models/order.dart';
 import 'package:avtoplaneta_app/core/models/statistics.dart';
 import 'package:avtoplaneta_app/core/models/user.dart';
+import 'package:avtoplaneta_app/features/inventory/data/part_catalog.dart';
 import 'package:avtoplaneta_app/features/inventory/providers/inventory_provider.dart';
 
 void main() {
@@ -252,6 +253,60 @@ void main() {
       expect(operatorUser.isAdmin, false);
       expect(operatorUser.isManager, false);
       expect(operatorUser.isOperator, true);
+    });
+  });
+
+  group('Defect report catalog expansion', () {
+    test('keeps template and vehicle specifications in selected parts', () {
+      final catalog = PartCatalog.fromJson({
+        'version': 'test',
+        'attributes': const [],
+        'part_form_categories': const [],
+        'report_bindings': [
+          {
+            'source': 'year',
+            'target': 'car_release_date',
+          },
+          {
+            'source': 'drive',
+            'target': 'drive',
+            'categories': ['Трансмиссия'],
+          },
+        ],
+        'parts': [
+          {
+            'id': 'part_1',
+            'name': 'Привод',
+            'category': 'Трансмиссия',
+            'quantity': 0,
+            'price': 1000,
+            'defaults': {
+              'front_rear': 'F',
+              'left_right': 'L',
+            },
+          },
+          {
+            'id': 'part_2',
+            'name': 'Стекло',
+            'category': 'Стекла',
+            'quantity': 0,
+            'price': 2000,
+          },
+        ],
+      });
+
+      final parts = catalog.expandDefectReportParts(
+        {'year': 2011, 'drive': 'Задний'},
+        supplierCode: 'report-123',
+      );
+
+      expect(parts.first['front_rear'], 'F');
+      expect(parts.first['left_right'], 'L');
+      expect(parts.first['car_release_date'], '2011');
+      expect(parts.first['drive'], 'Задний');
+      expect(parts.first['supplier_code'], 'report-123');
+      expect(parts.last['car_release_date'], '2011');
+      expect(parts.last.containsKey('drive'), false);
     });
   });
 }

@@ -186,4 +186,38 @@ class PartCatalog {
     }
     return const [];
   }
+
+  List<Map<String, dynamic>> expandDefectReportParts(
+    Map<String, dynamic> values, {
+    required String supplierCode,
+  }) => parts.map((template) {
+    final specifications = <String, dynamic>{
+      ...template.defaults,
+      'supplier_code': supplierCode,
+    };
+
+    for (final binding in reportBindings) {
+      final included = binding.categories.isEmpty ||
+          binding.categories.contains(template.category);
+      final excluded = binding.excludedCategories.contains(template.category);
+      if (!included || excluded) continue;
+
+      final rawValue = values[binding.source];
+      final value = rawValue == null || rawValue.toString().trim().isEmpty
+          ? binding.defaultValue
+          : rawValue.toString().trim();
+      if (value != null && value.isNotEmpty) {
+        specifications[binding.target] = value;
+      }
+    }
+
+    return <String, dynamic>{
+      'name': template.name,
+      'category': template.category,
+      'description': '',
+      'quantity': template.quantity,
+      'price': template.price,
+      ...specifications,
+    };
+  }).toList();
 }
