@@ -109,16 +109,6 @@ jobs:
           flutter build apk --release --no-pub
           --build-number="${{ github.run_number }}"
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        continue-on-error: true
-        with:
-          name: avtoplaneta-android-${{ github.sha }}
-          path: AvtoplanetaApp/build/app/outputs/flutter-apk/app-release.apk
-          if-no-files-found: ignore
-          retention-days: 1
-          compression-level: 9
-
       - name: Prepare release asset
         if: github.event_name == 'push'
         shell: bash
