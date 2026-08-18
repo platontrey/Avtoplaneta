@@ -119,46 +119,37 @@ jobs:
           retention-days: 1
           compression-level: 9
 
-      - name: Publish APK to GitHub Release
+      - name: Prepare release asset
         if: github.event_name == 'push'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
         shell: bash
         run: |
-          apk_path="build/app/outputs/flutter-apk/app-release.apk"
+          mkdir -p release
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            release_asset="build/app/outputs/flutter-apk/avtoplaneta-${GITHUB_REF_NAME}.apk"
-            cp "${apk_path}" "${release_asset}"
-            if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-              gh release upload "${GITHUB_REF_NAME}" "${release_asset}" --clobber
-            else
-              gh release create "${GITHUB_REF_NAME}" "${release_asset}" \
-                --title "Автопланета ${GITHUB_REF_NAME}" \
-                --generate-notes
-            fi
-          elif [[ "${GITHUB_REF_NAME}" == "${{ github.event.repository.default_branch }}" || "${GITHUB_REF_NAME}" == "OptimizedBackend" ]]; then
-            release_asset="build/app/outputs/flutter-apk/avtoplaneta-latest.apk"
-            cp "${apk_path}" "${release_asset}"
-            release_tag="mobile-latest"
-            release_title="Автопланета — актуальная Android-сборка"
-            release_notes="Автоматическая сборка из ${GITHUB_REF_NAME} (${GITHUB_SHA})."
-
-            if gh release view "${release_tag}" >/dev/null 2>&1; then
-              gh api --method PATCH \
-                "repos/${GITHUB_REPOSITORY}/git/refs/tags/${release_tag}" \
-                -f sha="${GITHUB_SHA}" \
-                -F force=true >/dev/null 2>&1 || true
-              gh release upload "${release_tag}" "${release_asset}" --clobber
-              gh release edit "${release_tag}" \
-                --title "${release_title}" \
-                --notes "${release_notes}" \
-                --latest
-            else
-              gh release create "${release_tag}" "${release_asset}" \
-                --target "${GITHUB_SHA}" \
-                --title "${release_title}" \
-                --notes "${release_notes}" \
-                --latest
-            fi
+            cp build/app/outputs/flutter-apk/app-release.apk "release/avtoplaneta-${GITHUB_REF_NAME}.apk"
+          else
+            cp build/app/outputs/flutter-apk/app-release.apk "release/avtoplaneta-latest.apk"
           fi
+
+      - name: Publish tag release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: release/avtoplaneta-*.apk
+          name: Автопланета ${{ github.ref_name }}
+          generate_release_notes: true
+
+      - name: Publish latest mobile release
+        if: >-
+          github.event_name == 'push' &&
+          !startsWith(github.ref, 'refs/tags/') &&
+          (github.ref_name == github.event.repository.default_branch || github.ref_name == 'OptimizedBackend')
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: mobile-latest
+          target_commitish: ${{ github.sha }}
+          files: release/avtoplaneta-latest.apk
+          name: Автопланета — актуальная Android-сборка
+          body: Автоматическая сборка из ${{ github.ref_name }} (${{ github.sha }}).
+          make_latest: "true"
