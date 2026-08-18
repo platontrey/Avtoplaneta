@@ -24,6 +24,11 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
             ? const AsyncValue.loading()
             : AsyncValue.data(initialUser),
       ) {
+    apiClient.onUnauthorized = () {
+      if (mounted) {
+        state = const AsyncValue.data(null);
+      }
+    };
     if (initialize) {
       _init();
     }

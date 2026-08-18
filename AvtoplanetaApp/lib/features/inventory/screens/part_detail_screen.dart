@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -47,7 +48,41 @@ class PartDetailScreen extends ConsumerWidget {
       ),
       body: partAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Ошибка: $e')),
+        error: (e, _) {
+          String msg = 'Не удалось загрузить данные запчасти';
+          if (e is DioException && e.response?.statusCode == 401) {
+            msg = 'Сессия устарела. Пожалуйста, выполните вход заново.';
+          } else if (e is DioException &&
+              (e.type == DioExceptionType.connectionError ||
+                  e.type == DioExceptionType.connectionTimeout)) {
+            msg = 'Нет соединения с сервером';
+          }
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline,
+                      size: 48, color: Colors.orangeAccent),
+                  const SizedBox(height: 12),
+                  Text(
+                    msg,
+                    textAlign: TextAlign.center,
+                    style:
+                        const TextStyle(color: Colors.white70, fontSize: 15),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () => ref.invalidate(partProvider(id)),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Повторить'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
         data: (part) {
           final categoryAttrs = catalog?.attributesForCategory(part.category);
           bool shows(String field) {

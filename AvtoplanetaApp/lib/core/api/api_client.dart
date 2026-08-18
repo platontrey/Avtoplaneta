@@ -13,6 +13,7 @@ class ApiClient {
   factory ApiClient() => _instance;
 
   late final Dio _dio;
+  void Function()? onUnauthorized;
 
   ApiClient._internal() {
     _dio = Dio(BaseOptions(
@@ -87,15 +88,22 @@ class _AuthInterceptor extends Interceptor {
         final refreshToken = await SecureStorage.getRefreshToken();
         if (refreshToken == null || refreshToken.isEmpty) {
           await SecureStorage.clearTokens();
+          apiClient.onUnauthorized?.call();
           handler.next(err);
           return;
         }
 
-        // Запрашиваем новый токен
-        final response = await _dio.post(
+        // Запрашиваем новый токен через отдельный Dio
+        final refreshDio = Dio(BaseOptions(
+          baseUrl: _dio.options.baseUrl,
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+          headers: {'Content-Type': 'application/json'},
+        ));
+
+        final response = await refreshDio.post(
           '/auth/refresh',
           data: {'refresh_token': refreshToken},
-          options: Options(headers: {'Authorization': ''}), // без токена
         );
 
         final newToken = response.data['token'] as String;
@@ -110,6 +118,7 @@ class _AuthInterceptor extends Interceptor {
         handler.resolve(retryResponse);
       } catch (_) {
         await SecureStorage.clearTokens();
+        apiClient.onUnauthorized?.call();
         handler.next(err);
       } finally {
         _isRefreshing = false;
