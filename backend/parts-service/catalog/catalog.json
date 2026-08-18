@@ -177,56 +177,8 @@
   ],
   "part_form_categories": [
     {
-      "code": "form_01",
-      "name": "Тормоза",
-      "attributes": [
-        "front_rear",
-        "left_right",
-        "number",
-        "manufacturer",
-        "manufacturer_code",
-        "oem_code",
-        "condition",
-        "supplier_code",
-        "defect",
-        "drive",
-        "wear_percentage"
-      ]
-    },
-    {
-      "code": "form_02",
-      "name": "Двигатель",
-      "attributes": [
-        "engine_brand",
-        "car_release_date",
-        "number",
-        "manufacturer",
-        "manufacturer_code",
-        "oem_code",
-        "condition",
-        "supplier_code",
-        "defect",
-        "drive"
-      ]
-    },
-    {
-      "code": "form_03",
-      "name": "Подвеска",
-      "attributes": [
-        "front_rear",
-        "left_right",
-        "number",
-        "manufacturer",
-        "manufacturer_code",
-        "oem_code",
-        "condition",
-        "supplier_code",
-        "defect"
-      ]
-    },
-    {
-      "code": "form_04",
-      "name": "Подвеска ДВС/КПП",
+      "code": "form_exhaust",
+      "name": "Выхлопная система",
       "attributes": [
         "front_rear",
         "left_right",
@@ -235,63 +187,62 @@
         "manufacturer",
         "manufacturer_code",
         "oem_code",
+        "color",
         "condition",
         "supplier_code",
         "defect",
-        "transmission_model",
         "drive"
       ]
     },
     {
-      "code": "form_05",
-      "name": "Подвеска передних колес",
+      "code": "form_engine",
+      "name": "Двигатель",
+      "attributes": [
+        "engine_brand",
+        "car_release_date",
+        "front_rear",
+        "left_right",
+        "top_bottom",
+        "number",
+        "manufacturer",
+        "manufacturer_code",
+        "oem_code",
+        "color",
+        "condition",
+        "supplier_code",
+        "defect",
+        "drive"
+      ]
+    },
+    {
+      "code": "form_wheels",
+      "name": "Диски и шины",
       "attributes": [
         "front_rear",
         "left_right",
+        "diameter",
+        "width",
+        "profile",
+        "tire_quantity",
+        "drilling",
+        "offset",
+        "center_hole_diameter",
+        "tire_model",
+        "season",
         "number",
         "manufacturer",
         "manufacturer_code",
         "oem_code",
+        "color",
         "condition",
         "supplier_code",
         "defect",
-        "transmission_model",
-        "drive"
+        "wear_percentage"
       ]
     },
     {
-      "code": "form_06",
-      "name": "Подвеска задних колес",
-      "attributes": [
-        "front_rear",
-        "left_right",
-        "number",
-        "manufacturer",
-        "manufacturer_code",
-        "oem_code",
-        "condition",
-        "supplier_code",
-        "defect",
-        "drive"
-      ]
-    },
-    {
-      "code": "form_07",
-      "name": "Электрика",
-      "attributes": [
-        "number",
-        "manufacturer",
-        "manufacturer_code",
-        "oem_code",
-        "condition",
-        "supplier_code",
-        "defect",
-        "drive"
-      ]
-    },
-    {
-      "code": "form_08",
-      "name": "Кузов",
+      "code": "form_body_interior",
+      "name": "Кузов внутри",
       "attributes": [
         "body_brand",
         "front_rear",
@@ -308,7 +259,7 @@
       ]
     },
     {
-      "code": "form_09",
+      "code": "form_body_exterior",
       "name": "Кузов снаружи",
       "attributes": [
         "body_brand",
@@ -326,9 +277,12 @@
       ]
     },
     {
-      "code": "form_10",
-      "name": "Интерьер",
+      "code": "form_optics",
+      "name": "Оптика",
       "attributes": [
+        "body_brand",
+        "front_rear",
+        "left_right",
         "top_bottom",
         "number",
         "manufacturer",
@@ -341,7 +295,183 @@
       ]
     },
     {
-      "code": "form_11",
+      "code": "form_pneumatic",
+      "name": "Пневмосистема",
+      "attributes": [
+        "front_rear",
+        "left_right",
+        "top_bottom",
+        "number",
+        "manufacturer",
+        "manufacturer_code",
+        "oem_code",
+        "color",
+        "condition",
+        "supplier_code",
+        "defect"
+      ]
+    },
+    {
+      "code": "form_suspension_engine_trans",
+      "name": "Подвеска ДВС/КПП",
+      "attributes": [
+        "front_rear",
+        "left_right",
+        "top_bottom",
+        "number",
+        "manufacturer",
+        "manufacturer_code",
+        "oem_code",
+        "color",
+        "condition",
+        "supplier_code",
+        "defect",
+        "transmission_model",
+        "drive"
+      ]
+    },
+    {
+      "code": "form_suspension_rear",
+      "name": "Подвеска задних колес",
+      "attributes": [
+        "front_rear",
+        "left_right",
+        "top_bottom",
+        "number",
+        "manufacturer",
+        "manufacturer_code",
+        "oem_code",
+        "color",
+        "condition",
+        "supplier_code",
+        "defect",
+        "drive"
+      ]
+    },
+    {
+      "code": "form_suspension_front",
+      "name": "Подвеска передних колес",
+      "attributes": [
+        "front_rear",
+        "left_right",
+        "top_bottom",
+        "number",
+        "manufacturer",
+        "manufacturer_code",
+        "oem_code",
+        "color",
+        "condition",
+        "supplier_code",
+        "defect",
+        "transmission_model",
+        "drive"
+      ]
+    },
+    {
+      "code": "form_steering",
+      "name": "Рулевое управление",
+      "attributes": [
+        "front_rear",
+        "left_right",
+        "top_bottom",
+        "number",
+        "manufacturer",
+        "manufacturer_code",
+        "oem_code",
+        "color",
+        "condition",
+        "supplier_code",
+        "defect",
+        "drive"
+      ]
+    },
+    {
+      "code": "form_ac",
+      "name": "Система кондиционирования",
+      "attributes": [
+        "front_rear",
+        "left_right",
+        "number",
+        "manufacturer",
+        "manufacturer_code",
+        "oem_code",
+        "color",
+        "condition",
+        "supplier_code",
+        "defect"
+      ]
+    },
+    {
+      "code": "form_cooling",
+      "name": "Система охлаждения и отопления",
+      "attributes": [
+        "front_rear",
+        "left_right",
+        "top_bottom",
+        "number",
+        "manufacturer",
+        "manufacturer_code",
+        "oem_code",
+        "color",
+        "condition",
+        "supplier_code",
+        "defect"
+      ]
+    },
+    {
+      "code": "form_accessories",
+      "name": "Сопутствующие товары",
+      "attributes": [
+        "front_rear",
+        "left_right",
+        "number",
+        "manufacturer",
+        "manufacturer_code",
+        "oem_code",
+        "color",
+        "condition",
+        "supplier_code",
+        "defect"
+      ]
+    },
+    {
+      "code": "form_glass",
+      "name": "Стекла",
+      "attributes": [
+        "front_rear",
+        "left_right",
+        "top_bottom",
+        "number",
+        "manufacturer",
+        "manufacturer_code",
+        "oem_code",
+        "color",
+        "condition",
+        "supplier_code",
+        "defect"
+      ]
+    },
+    {
+      "code": "form_brakes",
+      "name": "Тормозная система",
+      "attributes": [
+        "front_rear",
+        "left_right",
+        "top_bottom",
+        "number",
+        "manufacturer",
+        "manufacturer_code",
+        "oem_code",
+        "color",
+        "condition",
+        "supplier_code",
+        "defect",
+        "drive",
+        "wear_percentage"
+      ]
+    },
+    {
+      "code": "form_transmission",
       "name": "Трансмиссия",
       "attributes": [
         "front_rear",
@@ -353,126 +483,6 @@
         "manufacturer",
         "manufacturer_code",
         "oem_code",
-        "condition",
-        "supplier_code",
-        "defect"
-      ]
-    },
-    {
-      "code": "form_12",
-      "name": "Система охлаждения и отопления",
-      "attributes": [
-        "number",
-        "manufacturer",
-        "manufacturer_code",
-        "oem_code",
-        "condition",
-        "supplier_code",
-        "defect"
-      ]
-    },
-    {
-      "code": "form_13",
-      "name": "Система выхлопа (Глушитель)",
-      "attributes": [
-        "number",
-        "manufacturer",
-        "manufacturer_code",
-        "oem_code",
-        "condition",
-        "supplier_code",
-        "defect",
-        "drive"
-      ]
-    },
-    {
-      "code": "form_14",
-      "name": "Система рулевого управления",
-      "attributes": [
-        "front_rear",
-        "left_right",
-        "number",
-        "manufacturer",
-        "manufacturer_code",
-        "oem_code",
-        "condition",
-        "supplier_code",
-        "defect",
-        "drive"
-      ]
-    },
-    {
-      "code": "form_15",
-      "name": "Рулевое управление",
-      "attributes": [
-        "front_rear",
-        "left_right",
-        "number",
-        "manufacturer",
-        "manufacturer_code",
-        "oem_code",
-        "condition",
-        "supplier_code",
-        "defect",
-        "drive"
-      ]
-    },
-    {
-      "code": "form_16",
-      "name": "Система фильтрации (Фильтры)",
-      "attributes": [
-        "number",
-        "manufacturer",
-        "manufacturer_code",
-        "oem_code",
-        "condition",
-        "supplier_code",
-        "defect"
-      ]
-    },
-    {
-      "code": "form_17",
-      "name": "Шины и диски",
-      "attributes": [
-        "front_rear",
-        "left_right",
-        "diameter",
-        "width",
-        "profile",
-        "tire_quantity",
-        "drilling",
-        "offset",
-        "center_hole_diameter",
-        "tire_model",
-        "season",
-        "manufacturer",
-        "manufacturer_code",
-        "oem_code",
-        "condition",
-        "supplier_code",
-        "defect",
-        "wear_percentage"
-      ]
-    },
-    {
-      "code": "form_18",
-      "name": "Автохимия и масла",
-      "attributes": [
-        "manufacturer",
-        "manufacturer_code",
-        "oem_code",
-        "condition",
-        "supplier_code"
-      ]
-    },
-    {
-      "code": "form_19",
-      "name": "Аксессуары и тюннинг",
-      "attributes": [
-        "number",
-        "manufacturer",
-        "manufacturer_code",
-        "oem_code",
         "color",
         "condition",
         "supplier_code",
@@ -480,12 +490,9 @@
       ]
     },
     {
-      "code": "form_20",
-      "name": "Другое",
+      "code": "form_electrical",
+      "name": "Электрооснащение",
       "attributes": [
-        "body_brand",
-        "engine_brand",
-        "car_release_date",
         "front_rear",
         "left_right",
         "top_bottom",
@@ -497,19 +504,7 @@
         "condition",
         "supplier_code",
         "defect",
-        "transmission",
-        "transmission_model",
-        "drive",
-        "wear_percentage",
-        "season",
-        "diameter",
-        "width",
-        "profile",
-        "tire_quantity",
-        "drilling",
-        "offset",
-        "center_hole_diameter",
-        "tire_model"
+        "drive"
       ]
     }
   ],

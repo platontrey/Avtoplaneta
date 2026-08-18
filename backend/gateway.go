@@ -26,6 +26,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	authv1 "avtoplaneta/gen/auth/v1"
 	partsv1 "avtoplaneta/gen/parts/v1"
@@ -262,6 +263,15 @@ func (g *Gateway) setupGRPCGatewayRoutes() {
 
 	// Создаем мультиплексор grpc-gateway
 	gwmux := runtime.NewServeMux(
+		runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{
+			MarshalOptions: protojson.MarshalOptions{
+				UseProtoNames:   true,
+				EmitUnpopulated: false,
+			},
+			UnmarshalOptions: protojson.UnmarshalOptions{
+				DiscardUnknown: true,
+			},
+		}),
 		// Маппинг заголовков HTTP -> gRPC metadata (например для Cookie и Authorization)
 		runtime.WithIncomingHeaderMatcher(func(key string) (string, bool) {
 			if strings.ToLower(key) == "cookie" || strings.ToLower(key) == "authorization" {

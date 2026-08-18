@@ -6,6 +6,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/utils/qr_signer.dart';
 import '../providers/inventory_provider.dart';
+import '../providers/part_catalog_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../orders/widgets/part_order_sheet.dart';
 
@@ -22,6 +23,8 @@ class PartDetailScreen extends ConsumerWidget {
     final filter = ref.watch(inventoryFilterProvider);
     final inventoryAsync = ref.watch(inventoryProvider(filter));
     final isOffline = inventoryAsync.valueOrNull?.isOffline ?? false;
+
+    final catalog = ref.watch(partCatalogProvider).valueOrNull;
 
     return Scaffold(
       appBar: AppBar(
@@ -45,133 +48,158 @@ class PartDetailScreen extends ConsumerWidget {
       body: partAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Ошибка: $e')),
-        data: (part) => RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(partProvider(id));
-            await ref.read(partProvider(id).future);
-          },
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Галерея фото
-                if (part.photos.isNotEmpty)
-                  SizedBox(
-                    height: 220,
-                    child: PageView.builder(
-                      itemCount: part.photos.length,
-                      itemBuilder: (_, i) => ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: CachedNetworkImage(
-                          imageUrl: apiClient.resolveUrl(part.photos[i]),
-                          fit: BoxFit.cover,
-                          placeholder: (ctx, url) => Container(
-                            color: const Color(0xFF16213E),
-                            child: const Icon(
-                              Icons.image_outlined,
-                              size: 64,
-                              color: Colors.white24,
+        data: (part) {
+          final categoryAttrs = catalog?.attributesForCategory(part.category);
+          bool shows(String field) {
+            if (categoryAttrs == null || categoryAttrs.isEmpty) {
+              return true;
+            }
+            return categoryAttrs.contains(field);
+          }
+          String val(String? v) => _notEmpty(v) ? v! : '—';
+
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(partProvider(id));
+              await ref.read(partProvider(id).future);
+            },
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Галерея фото
+                  if (part.photos.isNotEmpty)
+                    SizedBox(
+                      height: 220,
+                      child: PageView.builder(
+                        itemCount: part.photos.length,
+                        itemBuilder: (_, i) => ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: CachedNetworkImage(
+                            imageUrl: apiClient.resolveUrl(part.photos[i]),
+                            fit: BoxFit.cover,
+                            placeholder: (ctx, url) => Container(
+                              color: const Color(0xFF16213E),
+                              child: const Icon(
+                                Icons.image_outlined,
+                                size: 64,
+                                color: Colors.white24,
+                              ),
                             ),
-                          ),
-                          errorWidget: (ctx, url, err) => Container(
-                            color: const Color(0xFF16213E),
-                            child: const Icon(
-                              Icons.broken_image_outlined,
-                              size: 64,
-                              color: Colors.white24,
+                            errorWidget: (ctx, url, err) => Container(
+                              color: const Color(0xFF16213E),
+                              child: const Icon(
+                                Icons.broken_image_outlined,
+                                size: 64,
+                                color: Colors.white24,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  )
-                else
-                  Container(
-                    height: 160,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF16213E),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.directions_car_outlined,
-                        size: 64,
-                        color: Colors.white24,
+                    )
+                  else
+                    Container(
+                      height: 160,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF16213E),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.directions_car_outlined,
+                          size: 64,
+                          color: Colors.white24,
+                        ),
                       ),
                     ),
-                  ),
-                const SizedBox(height: 16),
-                Text(
-                  part.name,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Text(
-                      '${part.price.toStringAsFixed(0)} ₽',
-                      style: const TextStyle(
-                        color: Color(0xFF4F8EF7),
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  const SizedBox(height: 16),
+                  Text(
+                    part.name,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
                     ),
-                    const Spacer(),
-                    _statusChip(part.quantity),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _section('Основная информация', [
-                  if (part.category.isNotEmpty) _row('Категория', part.category),
-                  if (part.brand != null) _row('Бренд', part.brand!),
-                  if (part.model != null) _row('Модель', part.model!),
-                  if (part.color != null) _row('Цвет', part.color!),
-                  if (part.condition != null) _row('Состояние', part.condition!),
-                ]),
-                _section('Характеристики', [
-                  if (_notEmpty(part.bodyBrand))
-                    _row('Марка кузова', part.bodyBrand!),
-                  if (_notEmpty(part.engineBrand))
-                    _row('Марка двигателя', part.engineBrand!),
-                  if (_notEmpty(part.carReleaseDate))
-                    _row('Год выпуска', part.carReleaseDate!),
-                  if (_notEmpty(part.frontRear))
-                    _row('Перед / зад', part.frontRear!),
-                  if (_notEmpty(part.leftRight))
-                    _row('Лево / право', part.leftRight!),
-                  if (_notEmpty(part.topBottom))
-                    _row('Верх / низ', part.topBottom!),
-                  if (_notEmpty(part.number)) _row('Номер детали', part.number!),
-                  if (_notEmpty(part.manufacturer))
-                    _row('Производитель', part.manufacturer!),
-                  if (_notEmpty(part.manufacturerCode))
-                    _row('Код производителя', part.manufacturerCode!),
-                  if (_notEmpty(part.defect)) _row('Дефект', part.defect!),
-                  if (_notEmpty(part.transmission))
-                    _row('Тип трансмиссии', part.transmission!),
-                  if (_notEmpty(part.transmissionModel))
-                    _row('Модель трансмиссии', part.transmissionModel!),
-                  if (_notEmpty(part.drive)) _row('Привод', part.drive!),
-                  if (_notEmpty(part.wearPercentage))
-                    _row('Процент износа', '${part.wearPercentage!}%'),
-                  if (_notEmpty(part.season)) _row('Сезон', part.season!),
-                  if (_notEmpty(part.diameter)) _row('Диаметр', part.diameter!),
-                  if (_notEmpty(part.width)) _row('Ширина', part.width!),
-                  if (_notEmpty(part.profile)) _row('Профиль', part.profile!),
-                  if (_notEmpty(part.tireQuantity))
-                    _row('Количество шин', part.tireQuantity!),
-                  if (_notEmpty(part.drilling)) _row('Сверловка', part.drilling!),
-                  if (_notEmpty(part.offset)) _row('Вылет', part.offset!),
-                  if (_notEmpty(part.centerHoleDiameter))
-                    _row('Центральное отверстие', part.centerHoleDiameter!),
-                  if (_notEmpty(part.tireModel))
-                    _row('Модель шины', part.tireModel!),
-                ]),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Text(
+                        '${part.price.toStringAsFixed(0)} ₽',
+                        style: const TextStyle(
+                          color: Color(0xFF4F8EF7),
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      _statusChip(part.quantity),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _section('Основная информация', [
+                    if (part.category.isNotEmpty) _row('Категория', part.category),
+                    if (part.brand != null) _row('Бренд', part.brand!),
+                    if (part.model != null) _row('Модель', part.model!),
+                    if (part.color != null) _row('Цвет', part.color!),
+                    if (part.condition != null) _row('Состояние', part.condition!),
+                  ]),
+                  _section('Характеристики', [
+                    if (shows('body_brand'))
+                      _row('Марка кузова', val(part.bodyBrand)),
+                    if (shows('engine_brand'))
+                      _row('Марка двигателя', val(part.engineBrand)),
+                    if (shows('car_release_date'))
+                      _row('Год выпуска', val(part.carReleaseDate)),
+                    if (shows('front_rear'))
+                      _row('Перед / зад', val(part.frontRear)),
+                    if (shows('left_right'))
+                      _row('Лево / право', val(part.leftRight)),
+                    if (shows('top_bottom'))
+                      _row('Верх / низ', val(part.topBottom)),
+                    if (shows('number'))
+                      _row('Номер детали', val(part.number)),
+                    if (shows('manufacturer'))
+                      _row('Производитель', val(part.manufacturer)),
+                    if (shows('manufacturer_code'))
+                      _row('Код производителя', val(part.manufacturerCode)),
+                    if (shows('color'))
+                      _row('Цвет', val(part.color)),
+                    if (shows('condition'))
+                      _row('Состояние', val(part.condition)),
+                    if (shows('defect'))
+                      _row('Дефект', val(part.defect)),
+                    if (shows('supplier_code'))
+                      _row('Код поставки', val(part.supplierCode)),
+                    if (shows('transmission'))
+                      _row('Тип трансмиссии', val(part.transmission)),
+                    if (shows('transmission_model'))
+                      _row('Модель трансмиссии', val(part.transmissionModel)),
+                    if (shows('drive'))
+                      _row('Привод', val(part.drive)),
+                    if (shows('wear_percentage'))
+                      _row('Процент износа', _notEmpty(part.wearPercentage) ? '${part.wearPercentage}%' : '—'),
+                    if (shows('season'))
+                      _row('Сезон', val(part.season)),
+                    if (shows('diameter'))
+                      _row('Диаметр', val(part.diameter)),
+                    if (shows('width'))
+                      _row('Ширина', val(part.width)),
+                    if (shows('profile'))
+                      _row('Профиль', val(part.profile)),
+                    if (shows('tire_quantity'))
+                      _row('Количество шин', val(part.tireQuantity)),
+                    if (shows('drilling'))
+                      _row('Сверловка', val(part.drilling)),
+                    if (shows('offset'))
+                      _row('Вылет', val(part.offset)),
+                    if (shows('center_hole_diameter'))
+                      _row('Центральное отверстие', val(part.centerHoleDiameter)),
+                    if (shows('tire_model'))
+                      _row('Модель шины', val(part.tireModel)),
+                  ]),
                 if (part.oemCode != null || part.supplierCode != null)
                   _section('Коды', [
                     if (part.oemCode != null) _row('OEM код', part.oemCode!),
@@ -249,7 +277,8 @@ class PartDetailScreen extends ConsumerWidget {
               ],
             ),
           ),
-        ),
+        );
+        },
       ),
     );
   }

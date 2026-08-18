@@ -67,6 +67,19 @@ type ElasticsearchPart struct {
 	TransmissionModel string   `json:"transmission_model,omitempty"`
 	Drive             string   `json:"drive,omitempty"`
 	Defect            string   `json:"defect,omitempty"`
+	Number            string   `json:"number,omitempty"`
+	SupplierCode      string   `json:"supplier_code,omitempty"`
+	WearPercentage    string   `json:"wear_percentage,omitempty"`
+	VIN               string   `json:"vin,omitempty"`
+	Season            string   `json:"season,omitempty"`
+	Diameter          string   `json:"diameter,omitempty"`
+	Width             string   `json:"width,omitempty"`
+	Profile           string   `json:"profile,omitempty"`
+	TireQuantity      string   `json:"tire_quantity,omitempty"`
+	Drilling          string   `json:"drilling,omitempty"`
+	Offset            string   `json:"offset,omitempty"`
+	CenterHoleDiameter string  `json:"center_hole_diameter,omitempty"`
+	TireModel         string   `json:"tire_model,omitempty"`
 }
 
 // InitElasticsearch initializes the Elasticsearch client
@@ -346,6 +359,19 @@ func IndexPart(part *Part) error {
 		TransmissionModel: part.TransmissionModel,
 		Drive:             part.Drive,
 		Defect:            part.Defect,
+		Number:            part.Number,
+		SupplierCode:      part.SupplierCode,
+		WearPercentage:    part.WearPercentage,
+		VIN:               part.VIN,
+		Season:            part.Season,
+		Diameter:          part.Diameter,
+		Width:             part.Width,
+		Profile:           part.Profile,
+		TireQuantity:      part.TireQuantity,
+		Drilling:          part.Drilling,
+		Offset:            part.Offset,
+		CenterHoleDiameter: part.CenterHoleDiameter,
+		TireModel:         part.TireModel,
 	}
 
 	body, err := json.Marshal(esPart)

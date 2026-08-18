@@ -17,6 +17,7 @@ import type { Part } from "@/features/parts/types";
 import { API_BASE_URL } from "@/lib/api";
 import SelectUserDropdown from "./SelectUserDropdown";
 import type { User } from "@/features/messaging/types";
+import { usePartCatalog } from "@/features/catalog/usePartCatalog";
 
 interface EditPartDialogProps {
     partEdit: UsePartEditReturn;
@@ -30,6 +31,20 @@ interface EditPartDialogProps {
 
 export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, onDeletePhoto, originalFile }: EditPartDialogProps) {
     console.log('EditPartDialog render, part.photo:', part.photo, 'photoPreview:', partEdit.photoUpload.photoPreview);
+    const { data: partCatalog } = usePartCatalog();
+
+    const category = partEdit.editForm.category;
+    const visibleFields = category
+        ? partCatalog?.part_form_categories.find((item) => item.name === category)?.attributes ?? []
+        : partCatalog?.attributes.map((attribute) => attribute.code) ?? [];
+    const shows = (field: string) => visibleFields.length === 0 || visibleFields.includes(field);
+
+    const transmissionOptions = partCatalog?.attributes.find(
+        (attribute) => attribute.code === "transmission",
+    )?.options ?? ["МКПП", "АКПП", "Роботизированная", "Вариатор"];
+    const driveOptions = partCatalog?.attributes.find(
+        (attribute) => attribute.code === "drive",
+    )?.options ?? ["Передний", "Задний", "Полный"];
 
     return (
         <Dialog open={partEdit.isEditing} onOpenChange={(open) => { console.log('Edit dialog open state:', open); partEdit.setIsEditing(open); }}>
@@ -65,7 +80,6 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                         autoComplete="name"
                                         value={partEdit.editForm.name}
                                         onChange={(e) => partEdit.updateFormField('name', e.target.value)}
-                                        
                                     />
                                 </FormRow>
                                 <FormRow label="Бренд" htmlFor="brand-select">
@@ -104,7 +118,6 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                         autoComplete="off"
                                         value={partEdit.editForm.model || ''}
                                         onChange={(e) => partEdit.updateFormField('model', e.target.value)}
-                                        
                                     />
                                 </FormRow>
                                 <FormRow label="VIN" htmlFor="vin">
@@ -113,7 +126,6 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                         autoComplete="off"
                                         value={partEdit.editForm.vin || ''}
                                         onChange={(e) => partEdit.updateFormField('vin', e.target.value)}
-                                        
                                     />
                                 </FormRow>
                                 <FormRow label="Количество" htmlFor="quantity">
@@ -123,7 +135,6 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                         autoComplete="off"
                                         value={partEdit.editForm.quantity}
                                         onChange={(e) => partEdit.updateFormField('quantity', e.target.value)}
-                                        
                                     />
                                 </FormRow>
                                 <FormRow label="Описание" htmlFor="description">
@@ -132,36 +143,28 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                         autoComplete="off"
                                         value={partEdit.editForm.description}
                                         onChange={(e) => partEdit.updateFormField('description', e.target.value)}
-                                        
                                     />
                                 </FormRow>
                                 <FormRow label="Категория" htmlFor="category">
-                                    <div >
-                                        <Select value={partEdit.editForm.category || ""} onValueChange={(value) => { console.log('Category select changed:', value); partEdit.updateFormField('category', value); }} onOpenChange={(open) => console.log('Category select open state:', open)}>
+                                    <div>
+                                        <Select
+                                            value={partEdit.editForm.category || ""}
+                                            onValueChange={(value) => {
+                                                console.log('Category select changed:', value);
+                                                partEdit.updateFormField('category', value);
+                                            }}
+                                            onOpenChange={(open) => console.log('Category select open state:', open)}
+                                        >
                                             <SelectTrigger id="category" className="w-full">
                                                 <SelectValue placeholder="Выберите категорию" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="Тормоза">Тормоза</SelectItem>
-                                                <SelectItem value="Двигатель">Двигатель</SelectItem>
-                                                <SelectItem value="Подвеска">Подвеска</SelectItem>
-                                                <SelectItem value="Подвеска ДВС/КПП">Подвеска ДВС/КПП</SelectItem>
-                                                <SelectItem value="Подвеска передних колес">Подвеска передних колес</SelectItem>
-                                                <SelectItem value="Подвеска задних колес">Подвеска задних колес</SelectItem>
-                                                <SelectItem value="Электрика">Электрика</SelectItem>
-                                                <SelectItem value="Кузов">Кузов</SelectItem>
-                                                <SelectItem value="Кузов снаружи">Кузов снаружи</SelectItem>
-                                                <SelectItem value="Интерьер">Интерьер</SelectItem>
-                                                <SelectItem value="Трансмиссия">Трансмиссия</SelectItem>
-                                                <SelectItem value="Система охлаждения и отопления">Система охлаждения и отопления</SelectItem>
-                                                <SelectItem value="Система выхлопа (Глушитель)">Система выхлопа (Глушитель)</SelectItem>
-                                                <SelectItem value="Система рулевого управления">Система рулевого управления</SelectItem>
-                                                <SelectItem value="Рулевое управление">Рулевое управление</SelectItem>
-                                                <SelectItem value="Система фильтрации (Фильтры)">Система фильтрации (Фильтры)</SelectItem>
-                                                <SelectItem value="Шины и диски">Шины и диски</SelectItem>
-                                                <SelectItem value="Автохимия и масла">Автохимия и масла</SelectItem>
-                                                <SelectItem value="Аксессуары и тюннинг">Аксессуары и тюннинг</SelectItem>
-                                                <SelectItem value="Другое">Другое</SelectItem>
+                                                {partCatalog?.part_form_categories?.map((item) => (
+                                                    <SelectItem key={item.code || item.name} value={item.name}>{item.name}</SelectItem>
+                                                ))}
+                                                {partEdit.editForm.category && !partCatalog?.part_form_categories?.some(i => i.name === partEdit.editForm.category) && (
+                                                    <SelectItem value={partEdit.editForm.category}>{partEdit.editForm.category}</SelectItem>
+                                                )}
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -174,7 +177,6 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                         autoComplete="off"
                                         value={partEdit.editForm.price}
                                         onChange={(e) => partEdit.updateFormField('price', e.target.value)}
-                                        
                                     />
                                 </FormRow>
                                 <FormRow label="Местоположение" htmlFor="location">
@@ -183,11 +185,10 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                         autoComplete="address-line1"
                                         value={partEdit.editForm.location}
                                         onChange={(e) => partEdit.updateFormField('location', e.target.value)}
-                                        
                                     />
                                 </FormRow>
                                 <FormRow label="Статус" htmlFor="status">
-                                    <div >
+                                    <div>
                                         <Select value={partEdit.editForm.status ? "active" : "inactive"} onValueChange={(value) => { console.log('Status select changed:', value); partEdit.updateFormField('status', value === "active"); }} onOpenChange={(open) => console.log('Status select open state:', open)}>
                                             <SelectTrigger id="status" className="w-full">
                                                 <SelectValue />
@@ -200,7 +201,7 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                     </div>
                                 </FormRow>
                                 <FormRow label="Продавец" htmlFor="salesman-select">
-                                    <div >
+                                    <div>
                                         <SelectUserDropdown
                                             selectedUsers={
                                                 partEdit.editForm.seller_id
@@ -221,54 +222,6 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                             label=""
                                         />
                                     </div>
-                                </FormRow>
-                                <FormRow label="Производитель" htmlFor="manufacturer">
-                                    <Input
-                                        id="manufacturer"
-                                        value={partEdit.editForm.manufacturer || ''}
-                                        onChange={(e) => partEdit.updateFormField('manufacturer', e.target.value)}
-                                        
-                                    />
-                                </FormRow>
-                                <FormRow label="Код производителя" htmlFor="manufacturer_code">
-                                    <Input
-                                        id="manufacturer_code"
-                                        value={partEdit.editForm.manufacturer_code || ''}
-                                        onChange={(e) => partEdit.updateFormField('manufacturer_code', e.target.value)}
-                                        
-                                    />
-                                </FormRow>
-                                <FormRow label="OEM код" htmlFor="oem_code">
-                                    <Input
-                                        id="oem_code"
-                                        value={partEdit.editForm.oem_code || ''}
-                                        onChange={(e) => partEdit.updateFormField('oem_code', e.target.value)}
-                                        
-                                    />
-                                </FormRow>
-                                <FormRow label="Код поставки" htmlFor="supplier_code">
-                                    <Input
-                                        id="supplier_code"
-                                        value={partEdit.editForm.supplier_code || ''}
-                                        onChange={(e) => partEdit.updateFormField('supplier_code', e.target.value)}
-                                        
-                                    />
-                                </FormRow>
-                                <FormRow label="Состояние" htmlFor="condition">
-                                    <Input
-                                        id="condition"
-                                        value={partEdit.editForm.condition || ''}
-                                        onChange={(e) => partEdit.updateFormField('condition', e.target.value)}
-                                        
-                                    />
-                                </FormRow>
-                                <FormRow label="Процент износа (%)" htmlFor="wear_percentage">
-                                    <Input
-                                        id="wear_percentage"
-                                        value={partEdit.editForm.wear_percentage || ''}
-                                        onChange={(e) => partEdit.updateFormField('wear_percentage', e.target.value)}
-                                        
-                                    />
                                 </FormRow>
                                 <FormRow label="Фото" htmlFor="photo">
                                     <div className="sm:col-span-3 flex flex-col space-y-2">
@@ -344,56 +297,231 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
 
                         <TabsContent value="specifications" className="space-y-4 mt-4">
                             <div className="grid gap-3 sm:gap-4 py-4">
-                                {/* Category-specific fields */}
-                                {(partEdit.editForm.category === 'Двигатель' || partEdit.editForm.category === 'Трансмиссия') && (
-                                    <>
-                                        <FormRow label="Марка двигателя" htmlFor="engine_brand">
-                                            <Input
-                                                id="engine_brand"
-                                                value={partEdit.editForm.engine_brand || ''}
-                                                onChange={(e) => partEdit.updateFormField('engine_brand', e.target.value)}
-                                                
-                                            />
-                                        </FormRow>
-                                        <FormRow label="Трансмиссия" htmlFor="transmission">
-                                            <div className="relative">
-                                                <Select value={partEdit.editForm.transmission || ""} onValueChange={(value) => partEdit.updateFormField('transmission', value)}>
-                                                    <SelectTrigger className="w-full">
-                                                        <SelectValue placeholder="Выберите тип трансмиссии" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="МКПП">МКПП</SelectItem>
-                                                        <SelectItem value="АКПП">АКПП</SelectItem>
-                                                        <SelectItem value="Роботизированная">Роботизированная</SelectItem>
-                                                        <SelectItem value="Вариатор">Вариатор</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                {partEdit.editForm.transmission && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => partEdit.updateFormField('transmission', "")}
-                                                        className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
-                                                        title="Очистить"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                        </svg>
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </FormRow>
-                                        <FormRow label="Привод" htmlFor="drive">
-                                            <Input
-                                                id="drive"
-                                                value={partEdit.editForm.drive || ''}
-                                                onChange={(e) => partEdit.updateFormField('drive', e.target.value)}
-                                                
-                                            />
-                                        </FormRow>
-                                    </>
+                                {shows('body_brand') && (
+                                    <FormRow label="Марка кузова" htmlFor="body_brand">
+                                        <Input
+                                            id="body_brand"
+                                            value={partEdit.editForm.body_brand || ''}
+                                            onChange={(e) => partEdit.updateFormField('body_brand', e.target.value)}
+                                        />
+                                    </FormRow>
                                 )}
 
-                                {['Подвеска ДВС/КПП', 'Трансмиссия', 'Подвеска передних колес'].includes(partEdit.editForm.category) && (
+                                {shows('engine_brand') && (
+                                    <FormRow label="Марка двигателя" htmlFor="engine_brand">
+                                        <Input
+                                            id="engine_brand"
+                                            value={partEdit.editForm.engine_brand || ''}
+                                            onChange={(e) => partEdit.updateFormField('engine_brand', e.target.value)}
+                                        />
+                                    </FormRow>
+                                )}
+
+                                {shows('car_release_date') && (
+                                    <FormRow label="Год выпуска" htmlFor="car_release_date">
+                                        <Input
+                                            id="car_release_date"
+                                            value={partEdit.editForm.car_release_date || ''}
+                                            onChange={(e) => partEdit.updateFormField('car_release_date', e.target.value)}
+                                        />
+                                    </FormRow>
+                                )}
+
+                                {shows('front_rear') && (
+                                    <FormRow label="Перед/зад" htmlFor="front_rear">
+                                        <div className="relative">
+                                            <Select value={partEdit.editForm.front_rear || ""} onValueChange={(value) => partEdit.updateFormField('front_rear', value)}>
+                                                <SelectTrigger className="w-full">
+                                                    <SelectValue placeholder="Выберите" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="F">F (Перед)</SelectItem>
+                                                    <SelectItem value="R">R (Зад)</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            {partEdit.editForm.front_rear && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => partEdit.updateFormField('front_rear', "")}
+                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
+                                                    title="Очистить"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            )}
+                                        </div>
+                                    </FormRow>
+                                )}
+
+                                {shows('left_right') && (
+                                    <FormRow label="Право/лево" htmlFor="left_right">
+                                        <div className="relative">
+                                            <Select value={partEdit.editForm.left_right || ""} onValueChange={(value) => partEdit.updateFormField('left_right', value)}>
+                                                <SelectTrigger className="w-full">
+                                                    <SelectValue placeholder="Выберите" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="L">L (Лево)</SelectItem>
+                                                    <SelectItem value="R">R (Право)</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            {partEdit.editForm.left_right && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => partEdit.updateFormField('left_right', "")}
+                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
+                                                    title="Очистить"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            )}
+                                        </div>
+                                    </FormRow>
+                                )}
+
+                                {shows('top_bottom') && (
+                                    <FormRow label="Верх/низ" htmlFor="top_bottom">
+                                        <div className="relative">
+                                            <Select value={partEdit.editForm.top_bottom || ""} onValueChange={(value) => partEdit.updateFormField('top_bottom', value)}>
+                                                <SelectTrigger className="w-full">
+                                                    <SelectValue placeholder="Выберите" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Верх">Верх</SelectItem>
+                                                    <SelectItem value="Низ">Низ</SelectItem>
+                                                    <SelectItem value="Середина">Середина</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            {partEdit.editForm.top_bottom && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => partEdit.updateFormField('top_bottom', "")}
+                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
+                                                    title="Очистить"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            )}
+                                        </div>
+                                    </FormRow>
+                                )}
+
+                                {shows('number') && (
+                                    <FormRow label="Номер детали" htmlFor="number">
+                                        <Input
+                                            id="number"
+                                            value={partEdit.editForm.number || ''}
+                                            onChange={(e) => partEdit.updateFormField('number', e.target.value)}
+                                        />
+                                    </FormRow>
+                                )}
+
+                                {shows('manufacturer') && (
+                                    <FormRow label="Производитель" htmlFor="manufacturer">
+                                        <Input
+                                            id="manufacturer"
+                                            value={partEdit.editForm.manufacturer || ''}
+                                            onChange={(e) => partEdit.updateFormField('manufacturer', e.target.value)}
+                                        />
+                                    </FormRow>
+                                )}
+
+                                {shows('manufacturer_code') && (
+                                    <FormRow label="Код производителя" htmlFor="manufacturer_code">
+                                        <Input
+                                            id="manufacturer_code"
+                                            value={partEdit.editForm.manufacturer_code || ''}
+                                            onChange={(e) => partEdit.updateFormField('manufacturer_code', e.target.value)}
+                                        />
+                                    </FormRow>
+                                )}
+
+                                {shows('oem_code') && (
+                                    <FormRow label="OEM код" htmlFor="oem_code">
+                                        <Input
+                                            id="oem_code"
+                                            value={partEdit.editForm.oem_code || ''}
+                                            onChange={(e) => partEdit.updateFormField('oem_code', e.target.value)}
+                                        />
+                                    </FormRow>
+                                )}
+
+                                {shows('color') && (
+                                    <FormRow label="Цвет" htmlFor="color">
+                                        <Input
+                                            id="color"
+                                            value={partEdit.editForm.color || ''}
+                                            onChange={(e) => partEdit.updateFormField('color', e.target.value)}
+                                        />
+                                    </FormRow>
+                                )}
+
+                                {shows('condition') && (
+                                    <FormRow label="Состояние" htmlFor="condition">
+                                        <Input
+                                            id="condition"
+                                            value={partEdit.editForm.condition || ''}
+                                            onChange={(e) => partEdit.updateFormField('condition', e.target.value)}
+                                        />
+                                    </FormRow>
+                                )}
+
+                                {shows('supplier_code') && (
+                                    <FormRow label="Код поставки" htmlFor="supplier_code">
+                                        <Input
+                                            id="supplier_code"
+                                            value={partEdit.editForm.supplier_code || ''}
+                                            onChange={(e) => partEdit.updateFormField('supplier_code', e.target.value)}
+                                        />
+                                    </FormRow>
+                                )}
+
+                                {shows('defect') && (
+                                    <FormRow label="Дефект" htmlFor="defect">
+                                        <Input
+                                            id="defect"
+                                            value={partEdit.editForm.defect || ''}
+                                            onChange={(e) => partEdit.updateFormField('defect', e.target.value)}
+                                        />
+                                    </FormRow>
+                                )}
+
+                                {shows('transmission') && (
+                                    <FormRow label="Тип трансмиссии" htmlFor="transmission">
+                                        <div className="relative">
+                                            <Select value={partEdit.editForm.transmission || ""} onValueChange={(value) => partEdit.updateFormField('transmission', value)}>
+                                                <SelectTrigger className="w-full">
+                                                    <SelectValue placeholder="Выберите тип трансмиссии" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {transmissionOptions.map((opt) => (
+                                                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {partEdit.editForm.transmission && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => partEdit.updateFormField('transmission', "")}
+                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
+                                                    title="Очистить"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            )}
+                                        </div>
+                                    </FormRow>
+                                )}
+
+                                {shows('transmission_model') && (
                                     <FormRow label="Модель трансмиссии" htmlFor="transmission_model">
                                         <Input
                                             id="transmission_model"
@@ -404,214 +532,132 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                     </FormRow>
                                 )}
 
-                                {(partEdit.editForm.category === 'Кузов' || partEdit.editForm.category === 'Кузов снаружи' || partEdit.editForm.category === 'Интерьер') && (
-                                    <>
-                                        <FormRow label="Марка кузова" htmlFor="body_brand">
-                                            <Input
-                                                id="body_brand"
-                                                value={partEdit.editForm.body_brand || ''}
-                                                onChange={(e) => partEdit.updateFormField('body_brand', e.target.value)}
-                                                
-                                            />
-                                        </FormRow>
-                                        <FormRow label="Цвет" htmlFor="color">
-                                            <Input
-                                                id="color"
-                                                value={partEdit.editForm.color || ''}
-                                                onChange={(e) => partEdit.updateFormField('color', e.target.value)}
-                                                
-                                            />
-                                        </FormRow>
-                                    </>
+                                {shows('drive') && (
+                                    <FormRow label="Привод" htmlFor="drive">
+                                        <div className="relative">
+                                            <Select value={partEdit.editForm.drive || ""} onValueChange={(value) => partEdit.updateFormField('drive', value)}>
+                                                <SelectTrigger className="w-full">
+                                                    <SelectValue placeholder="Выберите привод" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {driveOptions.map((opt) => (
+                                                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {partEdit.editForm.drive && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => partEdit.updateFormField('drive', "")}
+                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
+                                                    title="Очистить"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            )}
+                                        </div>
+                                    </FormRow>
                                 )}
 
-                                {partEdit.editForm.category === 'Шины и диски' && (
-                                    <>
-                                        <FormRow label="Диаметр" htmlFor="diameter">
-                                            <Input
-                                                id="diameter"
-                                                value={partEdit.editForm.diameter || ''}
-                                                onChange={(e) => partEdit.updateFormField('diameter', e.target.value)}
-                                                
-                                            />
-                                        </FormRow>
-                                        <FormRow label="Ширина" htmlFor="width">
-                                            <Input
-                                                id="width"
-                                                value={partEdit.editForm.width || ''}
-                                                onChange={(e) => partEdit.updateFormField('width', e.target.value)}
-                                                
-                                            />
-                                        </FormRow>
-                                        <FormRow label="Профиль" htmlFor="profile">
-                                            <Input
-                                                id="profile"
-                                                value={partEdit.editForm.profile || ''}
-                                                onChange={(e) => partEdit.updateFormField('profile', e.target.value)}
-                                                
-                                            />
-                                        </FormRow>
-                                        <FormRow label="Количество" htmlFor="tire_quantity">
-                                            <Input
-                                                id="tire_quantity"
-                                                value={partEdit.editForm.tire_quantity || ''}
-                                                onChange={(e) => partEdit.updateFormField('tire_quantity', e.target.value)}
-                                                
-                                            />
-                                        </FormRow>
-                                        <FormRow label="Сверловка" htmlFor="drilling">
-                                            <Input
-                                                id="drilling"
-                                                value={partEdit.editForm.drilling || ''}
-                                                onChange={(e) => partEdit.updateFormField('drilling', e.target.value)}
-                                                
-                                            />
-                                        </FormRow>
-                                        <FormRow label="Вылет" htmlFor="offset">
-                                            <Input
-                                                id="offset"
-                                                value={partEdit.editForm.offset || ''}
-                                                onChange={(e) => partEdit.updateFormField('offset', e.target.value)}
-                                                
-                                            />
-                                        </FormRow>
-                                        <FormRow label="Диаметр ЦО" htmlFor="center_hole_diameter">
-                                            <Input
-                                                id="center_hole_diameter"
-                                                value={partEdit.editForm.center_hole_diameter || ''}
-                                                onChange={(e) => partEdit.updateFormField('center_hole_diameter', e.target.value)}
-                                                
-                                            />
-                                        </FormRow>
-                                        <FormRow label="Модель шины" htmlFor="tire_model">
-                                            <Input
-                                                id="tire_model"
-                                                value={partEdit.editForm.tire_model || ''}
-                                                onChange={(e) => partEdit.updateFormField('tire_model', e.target.value)}
-                                                
-                                            />
-                                        </FormRow>
-                                        <FormRow label="Сезон" htmlFor="season">
-                                            <Input
-                                                id="season"
-                                                value={partEdit.editForm.season || ''}
-                                                onChange={(e) => partEdit.updateFormField('season', e.target.value)}
-                                                
-                                            />
-                                        </FormRow>
-                                    </>
-                                )}
-
-                                {/* Position fields for most categories */}
-                                {(partEdit.editForm.category !== 'Автохимия и масла' && partEdit.editForm.category !== 'Аксессуары и тюннинг' && partEdit.editForm.category !== 'Другое') && (
-                                    <>
-                                        <FormRow label="Перед/зад" htmlFor="front_rear">
-                                            <div className="relative">
-                                                <Select value={partEdit.editForm.front_rear || ""} onValueChange={(value) => partEdit.updateFormField('front_rear', value)}>
-                                                    <SelectTrigger className="w-full">
-                                                        <SelectValue placeholder="Выберите" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="F">F (Перед)</SelectItem>
-                                                        <SelectItem value="R">R (Зад)</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                {partEdit.editForm.front_rear && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => partEdit.updateFormField('front_rear', "")}
-                                                        className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
-                                                        title="Очистить"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                        </svg>
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </FormRow>
-                                        <FormRow label="Право/лево" htmlFor="left_right">
-                                            <div className="relative">
-                                                <Select value={partEdit.editForm.left_right || ""} onValueChange={(value) => partEdit.updateFormField('left_right', value)}>
-                                                    <SelectTrigger className="w-full">
-                                                        <SelectValue placeholder="Выберите" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="L">L (Лево)</SelectItem>
-                                                        <SelectItem value="R">R (Право)</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                {partEdit.editForm.left_right && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => partEdit.updateFormField('left_right', "")}
-                                                        className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
-                                                        title="Очистить"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                        </svg>
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </FormRow>
-                                        <FormRow label="Верх/низ" htmlFor="top_bottom">
-                                            <div className="relative">
-                                                <Select value={partEdit.editForm.top_bottom || ""} onValueChange={(value) => partEdit.updateFormField('top_bottom', value)}>
-                                                    <SelectTrigger className="w-full">
-                                                        <SelectValue placeholder="Выберите" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="Верх">Верх</SelectItem>
-                                                        <SelectItem value="Низ">Низ</SelectItem>
-                                                        <SelectItem value="Середина">Середина</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                {partEdit.editForm.top_bottom && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => partEdit.updateFormField('top_bottom', "")}
-                                                        className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
-                                                        title="Очистить"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                        </svg>
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </FormRow>
-                                        <FormRow label="Номер" htmlFor="number">
-                                            <Input
-                                                id="number"
-                                                value={partEdit.editForm.number || ''}
-                                                onChange={(e) => partEdit.updateFormField('number', e.target.value)}
-                                                
-                                            />
-                                        </FormRow>
-                                    </>
-                                )}
-
-                                {/* Defect field for most categories */}
-                                {(partEdit.editForm.category !== 'Автохимия и масла' && partEdit.editForm.category !== 'Аксессуары и тюннинг') && (
-                                    <FormRow label="Дефект" htmlFor="defect">
+                                {shows('wear_percentage') && (
+                                    <FormRow label="Процент износа (%)" htmlFor="wear_percentage">
                                         <Input
-                                            id="defect"
-                                            value={partEdit.editForm.defect || ''}
-                                            onChange={(e) => partEdit.updateFormField('defect', e.target.value)}
-                                            
+                                            id="wear_percentage"
+                                            type="number"
+                                            value={partEdit.editForm.wear_percentage || ''}
+                                            onChange={(e) => partEdit.updateFormField('wear_percentage', e.target.value)}
                                         />
                                     </FormRow>
                                 )}
 
-                                {/* Car release date for most categories */}
-                                {(partEdit.editForm.category !== 'Автохимия и масла' && partEdit.editForm.category !== 'Аксессуары и тюннинг' && partEdit.editForm.category !== 'Другое') && (
-                                    <FormRow label="Дата выпуска автомобиля" htmlFor="car_release_date">
+                                {shows('diameter') && (
+                                    <FormRow label="Диаметр" htmlFor="diameter">
                                         <Input
-                                            id="car_release_date"
-                                            value={partEdit.editForm.car_release_date || ''}
-                                            onChange={(e) => partEdit.updateFormField('car_release_date', e.target.value)}
-                                            
+                                            id="diameter"
+                                            value={partEdit.editForm.diameter || ''}
+                                            onChange={(e) => partEdit.updateFormField('diameter', e.target.value)}
+                                        />
+                                    </FormRow>
+                                )}
+
+                                {shows('width') && (
+                                    <FormRow label="Ширина" htmlFor="width">
+                                        <Input
+                                            id="width"
+                                            value={partEdit.editForm.width || ''}
+                                            onChange={(e) => partEdit.updateFormField('width', e.target.value)}
+                                        />
+                                    </FormRow>
+                                )}
+
+                                {shows('profile') && (
+                                    <FormRow label="Профиль" htmlFor="profile">
+                                        <Input
+                                            id="profile"
+                                            value={partEdit.editForm.profile || ''}
+                                            onChange={(e) => partEdit.updateFormField('profile', e.target.value)}
+                                        />
+                                    </FormRow>
+                                )}
+
+                                {shows('tire_quantity') && (
+                                    <FormRow label="Количество шин" htmlFor="tire_quantity">
+                                        <Input
+                                            id="tire_quantity"
+                                            value={partEdit.editForm.tire_quantity || ''}
+                                            onChange={(e) => partEdit.updateFormField('tire_quantity', e.target.value)}
+                                        />
+                                    </FormRow>
+                                )}
+
+                                {shows('drilling') && (
+                                    <FormRow label="Сверловка" htmlFor="drilling">
+                                        <Input
+                                            id="drilling"
+                                            value={partEdit.editForm.drilling || ''}
+                                            onChange={(e) => partEdit.updateFormField('drilling', e.target.value)}
+                                        />
+                                    </FormRow>
+                                )}
+
+                                {shows('offset') && (
+                                    <FormRow label="Вылет" htmlFor="offset">
+                                        <Input
+                                            id="offset"
+                                            value={partEdit.editForm.offset || ''}
+                                            onChange={(e) => partEdit.updateFormField('offset', e.target.value)}
+                                        />
+                                    </FormRow>
+                                )}
+
+                                {shows('center_hole_diameter') && (
+                                    <FormRow label="Диаметр ЦО" htmlFor="center_hole_diameter">
+                                        <Input
+                                            id="center_hole_diameter"
+                                            value={partEdit.editForm.center_hole_diameter || ''}
+                                            onChange={(e) => partEdit.updateFormField('center_hole_diameter', e.target.value)}
+                                        />
+                                    </FormRow>
+                                )}
+
+                                {shows('tire_model') && (
+                                    <FormRow label="Модель шины" htmlFor="tire_model">
+                                        <Input
+                                            id="tire_model"
+                                            value={partEdit.editForm.tire_model || ''}
+                                            onChange={(e) => partEdit.updateFormField('tire_model', e.target.value)}
+                                        />
+                                    </FormRow>
+                                )}
+
+                                {shows('season') && (
+                                    <FormRow label="Сезон" htmlFor="season">
+                                        <Input
+                                            id="season"
+                                            value={partEdit.editForm.season || ''}
+                                            onChange={(e) => partEdit.updateFormField('season', e.target.value)}
                                         />
                                     </FormRow>
                                 )}

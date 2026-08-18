@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -420,6 +421,87 @@ func (s *partsGRPCServer) UpdateEarnings(ctx context.Context, req *partsv1.Updat
 func (s *partsGRPCServer) CreateDefectReport(ctx context.Context, req *partsv1.CreateDefectReportRequest) (*partsv1.CreateDefectReportResponse, error) {
 	var createdParts []*partsv1.Part
 	partsCreated := 0
+
+	if len(req.SelectedParts) == 0 {
+		year, _ := strconv.Atoi(req.Year)
+		mileage, _ := strconv.Atoi(req.Mileage)
+		report := DefectReportRequest{
+			Brand:       req.Brand,
+			Model:       req.Model,
+			Year:        year,
+			VIN:         req.Vin,
+			Mileage:     mileage,
+			Description: req.Description,
+			SellerName:  req.Salesman,
+			SellerID:    int64(req.SellerId),
+		}
+		cat, err := LoadPartCatalog()
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "не удалось загрузить каталог: %v", err)
+		}
+		expanded := cat.ExpandDefectReport(report)
+		for _, ep := range expanded {
+			part := &Part{
+				PartCore: PartCore{
+					Name:        ep.Name,
+					Category:    ep.Category,
+					Price:       ep.Price,
+					Quantity:    ep.Quantity,
+					Description: ep.Description,
+					Location:    "",
+					Brand:       req.Brand,
+					Model:       req.Model,
+					Salesman:    req.Salesman,
+					SellerID:    int64(req.SellerId),
+					VIN:         req.Vin,
+				},
+				PartSpecifications: PartSpecifications{
+					BodyBrand:         ep.BodyBrand,
+					EngineBrand:       ep.EngineBrand,
+					CarReleaseDate:    ep.CarReleaseDate,
+					FrontRear:         ep.FrontRear,
+					LeftRight:         ep.LeftRight,
+					TopBottom:         ep.TopBottom,
+					Number:            ep.Number,
+					Manufacturer:      ep.Manufacturer,
+					ManufacturerCode:  ep.ManufacturerCode,
+					OEMCode:           ep.OEMCode,
+					Color:             ep.Color,
+					Condition:         ep.Condition,
+					SupplierCode:      ep.SupplierCode,
+					Defect:            ep.Defect,
+					Transmission:      ep.Transmission,
+					TransmissionModel: ep.TransmissionModel,
+					Drive:             ep.Drive,
+					WearPercentage:    ep.WearPercentage,
+				},
+				PartTireSpecifications: PartTireSpecifications{
+					Season:             ep.Season,
+					Diameter:           ep.Diameter,
+					Width:              ep.Width,
+					Profile:            ep.Profile,
+					TireQuantity:       ep.TireQuantity,
+					Drilling:           ep.Drilling,
+					Offset:             ep.Offset,
+					CenterHoleDiameter: ep.CenterHoleDiameter,
+					TireModel:          ep.TireModel,
+				},
+			}
+
+			created, err := s.service.AddPart(ctx, part)
+			if err != nil {
+				logrus.WithError(err).WithField("part_name", ep.Name).Warn("Failed to create defect report part")
+				continue
+			}
+			createdParts = append(createdParts, partToProto(created))
+			partsCreated++
+		}
+
+		return &partsv1.CreateDefectReportResponse{
+			PartsCreated: int32(partsCreated),
+			Parts:        createdParts,
+		}, nil
+	}
 
 	for _, dp := range req.SelectedParts {
 		part := &Part{
