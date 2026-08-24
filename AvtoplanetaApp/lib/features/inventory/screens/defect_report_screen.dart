@@ -509,7 +509,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
                             ),
                           ),
                           Text(
-                            '${part['price'] ?? 1000} ₽',
+                            '${part['price'] ?? 0} ₽',
                             style: const TextStyle(
                               color: Color(0xFF4F8EF7),
                               fontSize: 13,

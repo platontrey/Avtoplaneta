@@ -114,6 +114,8 @@ func TestDefectReportHTTPThroughRedisConsumer(t *testing.T) {
 		require.Equal(t, "2011", part.CarReleaseDate)
 		require.Equal(t, "System", part.Salesman)
 		require.EqualValues(t, 1, part.SellerID)
+		require.EqualValues(t, 0, part.Price)
+		require.EqualValues(t, 0, part.Quantity)
 
 		if supplierCode == "" {
 			supplierCode = part.SupplierCode

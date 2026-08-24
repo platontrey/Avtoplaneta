@@ -59,6 +59,15 @@ func TestEmbeddedCatalogAndDefectExpansion(t *testing.T) {
 	if glass.CarReleaseDate != "2011" {
 		t.Errorf("glass release date = %q, want %q", glass.CarReleaseDate, "2011")
 	}
+
+	for _, part := range parts {
+		if part.Price != 0 {
+			t.Errorf("part %q has price %v, want 0", part.Name, part.Price)
+		}
+		if part.Quantity != 0 {
+			t.Errorf("part %q has quantity %d, want 0", part.Name, part.Quantity)
+		}
+	}
 }
 
 func TestCatalogValidationRejectsUnknownDependencyCategory(t *testing.T) {
