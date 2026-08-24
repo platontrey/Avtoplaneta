@@ -4,55 +4,54 @@ on:
   workflow_dispatch:
     inputs:
       auth_key:
-        description: 'Tailscale Auth Key (из tailscale.com/admin/settings/keys, опционально)'
+        description: 'Tailscale Auth Key (получите на login.tailscale.com/admin/settings/keys)'
+        required: true
+        type: string
+      hostname:
+        description: 'Имя сервера в сети Tailscale'
         required: false
         type: string
-        default: ''
-      enable_ssh:
-        description: 'Включить Tailscale SSH'
-        required: false
-        type: boolean
-        default: true
+        default: 'avtoplaneta-server'
 
 jobs:
-  install-tailscale:
+  setup-tailscale:
     runs-on: self-hosted
     steps:
-      - name: Install Tailscale
+      - name: Deploy Tailscale via Docker
         run: |
-          if ! command -v tailscale &> /dev/null; then
-            echo "Установка Tailscale..."
-            curl -fsSL https://tailscale.com/install.sh | sh
-          else
-            echo "Tailscale уже установлен."
-          fi
+          echo "Проверка доступности Docker..."
+          docker info > /dev/null
 
-      - name: Connect Tailscale
+          echo "Остановка предыдущего контейнера (если есть)..."
+          docker rm -f tailscale 2>/dev/null || true
+
+          echo "Запуск Tailscale в Docker (host network mode)..."
+          docker run -d \
+            --name=tailscale \
+            --restart=unless-stopped \
+            --network=host \
+            --cap-add=NET_ADMIN \
+            --cap-add=NET_RAW \
+            --device=/dev/net/tun:/dev/net/tun \
+            -v tailscale-state:/var/lib/tailscale \
+            -e TS_AUTHKEY="${{ inputs.auth_key }}" \
+            -e TS_HOSTNAME="${{ inputs.hostname }}" \
+            -e TS_EXTRA_ARGS="--ssh --accept-routes" \
+            -e TS_STATE_DIR=/var/lib/tailscale \
+            tailscale/tailscale:latest
+
+          echo "Ожидание инициализации (5 секунд)..."
+          sleep 5
+
+      - name: Verify Tailscale Connection
         run: |
-          SUDO=""
-          if [ "$(id -u)" -ne 0 ] && command -v sudo &> /dev/null; then
-            SUDO="sudo"
-          fi
+          echo "=== Логи контейнера ==="
+          docker logs tailscale --tail 20
 
-          SSH_FLAG=""
-          if [ "${{ inputs.enable_ssh }}" = "true" ]; then
-            SSH_FLAG="--ssh"
-          fi
+          echo "=== Статус Tailscale ==="
+          docker exec tailscale tailscale status || true
 
-          if [ -n "${{ inputs.auth_key }}" ]; then
-            echo "Подключение с использованием Auth Key..."
-            $SUDO tailscale up --authkey="${{ inputs.auth_key }}" $SSH_FLAG --accept-routes --reset
-          else
-            echo "Запуск подключения..."
-            echo "================================================================="
-            echo "ВНИМАНИЕ: Если появится ссылка для входа, перейдите по ней в браузере:"
-            echo "================================================================="
-            $SUDO tailscale up $SSH_FLAG --accept-routes --reset --timeout=180s || true
-          fi
-
-      - name: Display Status and IP
-        run: |
-          echo "=== Tailscale Status ==="
-          tailscale status || true
-          echo "=== Tailscale IPv4 ==="
-          tailscale ip -4 || true
+          echo "================================================================"
+          echo "=== IPv4 адрес сервера в сети Tailscale: ==="
+          docker exec tailscale tailscale ip -4
+          echo "================================================================"
