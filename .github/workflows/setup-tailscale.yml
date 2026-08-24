@@ -1,0 +1,58 @@
+name: Setup Tailscale on Server
+
+on:
+  workflow_dispatch:
+    inputs:
+      auth_key:
+        description: 'Tailscale Auth Key (из tailscale.com/admin/settings/keys, опционально)'
+        required: false
+        type: string
+        default: ''
+      enable_ssh:
+        description: 'Включить Tailscale SSH'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  install-tailscale:
+    runs-on: self-hosted
+    steps:
+      - name: Install Tailscale
+        run: |
+          if ! command -v tailscale &> /dev/null; then
+            echo "Установка Tailscale..."
+            curl -fsSL https://tailscale.com/install.sh | sh
+          else
+            echo "Tailscale уже установлен."
+          fi
+
+      - name: Connect Tailscale
+        run: |
+          SUDO=""
+          if [ "$(id -u)" -ne 0 ] && command -v sudo &> /dev/null; then
+            SUDO="sudo"
+          fi
+
+          SSH_FLAG=""
+          if [ "${{ inputs.enable_ssh }}" = "true" ]; then
+            SSH_FLAG="--ssh"
+          fi
+
+          if [ -n "${{ inputs.auth_key }}" ]; then
+            echo "Подключение с использованием Auth Key..."
+            $SUDO tailscale up --authkey="${{ inputs.auth_key }}" $SSH_FLAG --accept-routes --reset
+          else
+            echo "Запуск подключения..."
+            echo "================================================================="
+            echo "ВНИМАНИЕ: Если появится ссылка для входа, перейдите по ней в браузере:"
+            echo "================================================================="
+            $SUDO tailscale up $SSH_FLAG --accept-routes --reset --timeout=180s || true
+          fi
+
+      - name: Display Status and IP
+        run: |
+          echo "=== Tailscale Status ==="
+          tailscale status || true
+          echo "=== Tailscale IPv4 ==="
+          tailscale ip -4 || true

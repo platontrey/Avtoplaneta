@@ -1,0 +1,27 @@
+name: Run Command on Server
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: 'Команда для выполнения (например: docker compose ps)'
+        required: true
+        type: string
+        default: 'docker compose ps'
+      workdir:
+        description: 'Рабочая папка на сервере'
+        required: false
+        type: string
+        default: '/opt/avtoplaneta'
+
+jobs:
+  run-cmd:
+    runs-on: self-hosted
+    steps:
+      - name: Execute command
+        run: |
+          cd "${{ inputs.workdir }}"
+          echo "Рабочая директория: $(pwd)"
+          echo "Выполняется команда: ${{ inputs.command }}"
+          echo "=============================================="
+          eval "${{ inputs.command }}"
