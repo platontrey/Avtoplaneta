@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       clear_users:
-        description: 'Удалить также пользователей (аккаунты)?'
+        description: 'Удалить также пользователей (будет создан дефолтный admin)?'
         required: false
         type: boolean
         default: false
@@ -13,24 +13,32 @@ jobs:
   reset:
     runs-on: self-hosted
     steps:
-      - name: Clear Database and Elasticsearch
+      - name: Clear Database, Elasticsearch, and Redis
         run: |
           cd /opt/avtoplaneta
 
           if [ "${{ inputs.clear_users }}" = "true" ]; then
-            echo "Очистка ВСЕХ данных (включая пользователей)..."
+            echo "1. Очистка ВСЕХ таблиц в PostgreSQL (включая users)..."
             docker compose exec -T postgres psql -U postgres -d avtoplaneta -c "TRUNCATE TABLE parts, orders, order_items, earnings, messages, chats, activity_logs, users CASCADE;"
+            echo "Перезапуск auth-service для создания дефолтного администратора..."
+            docker compose restart auth-service
           else
-            echo "Очистка запчастей, заказов, чатов и логов (пользователи сохранены)..."
+            echo "1. Очистка запчастей, заказов, чатов и логов (пользователи сохранены)..."
             docker compose exec -T postgres psql -U postgres -d avtoplaneta -c "TRUNCATE TABLE parts, orders, order_items, earnings, messages, chats, activity_logs CASCADE;"
           fi
 
-          echo "Сброс индекса поиска в Elasticsearch..."
+          echo "2. Сброс индекса поиска в Elasticsearch..."
           docker compose exec -T elasticsearch curl -s -X DELETE "http://localhost:9200/parts" || true
 
-          echo "Перезапуск parts-service для инициализации чистого индекса..."
+          echo "3. Очистка кэша, сессий и очередей в Redis..."
+          docker compose exec -T redis redis-cli FLUSHALL || true
+
+          echo "4. Перезапуск parts-service для создания чистого индекса..."
           docker compose restart parts-service
 
-          echo "=========================================="
-          echo "База данных и поиск успешно очищены!"
-          echo "=========================================="
+          echo "======================================================="
+          echo "База данных, поиск и Redis успешно очищены!"
+          if [ "${{ inputs.clear_users }}" = "true" ]; then
+            echo "Создан дефолтный пользователь: bibidatrbib@gmail.com / qewret123"
+          fi
+          echo "======================================================="
