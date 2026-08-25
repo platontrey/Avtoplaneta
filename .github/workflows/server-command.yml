@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       command:
-        description: 'Команда для выполнения (например: docker compose ps)'
+        description: 'Команда для выполнения'
         required: true
         type: string
         default: 'docker compose ps'
@@ -22,6 +22,5 @@ jobs:
         run: |
           cd "${{ inputs.workdir }}"
           echo "Рабочая директория: $(pwd)"
-          echo "Выполняется команда: ${{ inputs.command }}"
           echo "=============================================="
-          eval "${{ inputs.command }}"
+          ${{ inputs.command }}

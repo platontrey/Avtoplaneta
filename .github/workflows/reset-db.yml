@@ -1,0 +1,36 @@
+name: Reset Database
+
+on:
+  workflow_dispatch:
+    inputs:
+      clear_users:
+        description: 'Удалить также пользователей (аккаунты)?'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  reset:
+    runs-on: self-hosted
+    steps:
+      - name: Clear Database and Elasticsearch
+        run: |
+          cd /opt/avtoplaneta
+
+          if [ "${{ inputs.clear_users }}" = "true" ]; then
+            echo "Очистка ВСЕХ данных (включая пользователей)..."
+            docker compose exec -T postgres psql -U postgres -d avtoplaneta -c "TRUNCATE TABLE parts, orders, order_items, earnings, messages, chats, activity_logs, users CASCADE;"
+          else
+            echo "Очистка запчастей, заказов, чатов и логов (пользователи сохранены)..."
+            docker compose exec -T postgres psql -U postgres -d avtoplaneta -c "TRUNCATE TABLE parts, orders, order_items, earnings, messages, chats, activity_logs CASCADE;"
+          fi
+
+          echo "Сброс индекса поиска в Elasticsearch..."
+          docker compose exec -T elasticsearch curl -s -X DELETE "http://localhost:9200/parts" || true
+
+          echo "Перезапуск parts-service для инициализации чистого индекса..."
+          docker compose restart parts-service
+
+          echo "=========================================="
+          echo "База данных и поиск успешно очищены!"
+          echo "=========================================="
