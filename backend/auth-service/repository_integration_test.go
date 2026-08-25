@@ -140,7 +140,7 @@ func (s *IntegrationTestSuite) TestCreateAndFindUser() {
 // ─── FindByEmailOrName ──────────────────────────────────────────────────────
 
 func (s *IntegrationTestSuite) TestFindByEmailOrName() {
-	user := &User{Email: "byemail@test.com", Name: "Email User", Provider: "local", Password: "x"}
+	user := &User{Email: "byemail@test.com", Name: "Email User", Initials: "EU", Provider: "local", Password: "x"}
 	s.userRepo.Create(user)
 
 	found, err := s.userRepo.FindByEmailOrName("byemail@test.com")
@@ -148,6 +148,21 @@ func (s *IntegrationTestSuite) TestFindByEmailOrName() {
 	assert.Equal(s.T(), "byemail@test.com", found.Email)
 
 	found, err = s.userRepo.FindByEmailOrName("Email User")
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), "Email User", found.Name)
+
+	// Case-insensitive & trimmed search by name
+	found, err = s.userRepo.FindByEmailOrName("  email user  ")
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), "Email User", found.Name)
+
+	// Case-insensitive & trimmed search by email
+	found, err = s.userRepo.FindByEmailOrName(" BYEMAIL@TEST.COM ")
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), "byemail@test.com", found.Email)
+
+	// Search by initials
+	found, err = s.userRepo.FindByEmailOrName("eu")
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "Email User", found.Name)
 }

@@ -11,7 +11,9 @@ WHERE id = $1;
 -- name: GetUserByEmailOrName :one
 SELECT id, email, name, initials, inn, provider, role, password
 FROM users
-WHERE email = $1 OR name = $2
+WHERE LOWER(TRIM(email)) = LOWER(TRIM(sqlc.arg(email)::text))
+   OR LOWER(TRIM(name)) = LOWER(TRIM(sqlc.arg(name)::text))
+   OR (initials != '' AND LOWER(TRIM(initials)) = LOWER(TRIM(sqlc.arg(email)::text)))
 LIMIT 1;
 
 -- name: UpdateUser :exec
@@ -33,10 +35,10 @@ FROM users
 ORDER BY id;
 
 -- name: ExistsByEmail :one
-SELECT COUNT(*) > 0 AS exists FROM users WHERE email = $1;
+SELECT COUNT(*) > 0 AS exists FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(sqlc.arg(email)::text));
 
 -- name: ExistsByName :one
-SELECT COUNT(*) > 0 AS exists FROM users WHERE name = $1;
+SELECT COUNT(*) > 0 AS exists FROM users WHERE LOWER(TRIM(name)) = LOWER(TRIM(sqlc.arg(name)::text));
 
 -- name: CountAllUsers :one
 SELECT COUNT(*)::BIGINT AS count FROM users;

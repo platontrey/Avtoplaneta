@@ -178,12 +178,18 @@ func (h *Handler) UserLoginHandler(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&loginReq); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Email и пароль обязательны"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Логин (email или имя пользователя) и пароль обязательны"})
+		return
+	}
+
+	loginReq.Email = strings.TrimSpace(loginReq.Email)
+	if loginReq.Email == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Логин не может быть пустым"})
 		return
 	}
 
 	logrus.WithFields(logrus.Fields{
-		"email":        loginReq.Email,
+		"identifier":   loginReq.Email,
 		"password_len": len(loginReq.Password),
 	}).Info("Login attempt")
 

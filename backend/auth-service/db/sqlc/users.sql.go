@@ -70,7 +70,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id int64) error {
 }
 
 const ExistsByEmail = `-- name: ExistsByEmail :one
-SELECT COUNT(*) > 0 AS exists FROM users WHERE email = $1
+SELECT COUNT(*) > 0 AS exists FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1::text))
 `
 
 func (q *Queries) ExistsByEmail(ctx context.Context, email string) (bool, error) {
@@ -81,7 +81,7 @@ func (q *Queries) ExistsByEmail(ctx context.Context, email string) (bool, error)
 }
 
 const ExistsByName = `-- name: ExistsByName :one
-SELECT COUNT(*) > 0 AS exists FROM users WHERE name = $1
+SELECT COUNT(*) > 0 AS exists FROM users WHERE LOWER(TRIM(name)) = LOWER(TRIM($1::text))
 `
 
 func (q *Queries) ExistsByName(ctx context.Context, name string) (bool, error) {
@@ -129,7 +129,9 @@ func (q *Queries) FindAllUsers(ctx context.Context) ([]User, error) {
 const GetUserByEmailOrName = `-- name: GetUserByEmailOrName :one
 SELECT id, email, name, initials, inn, provider, role, password
 FROM users
-WHERE email = $1 OR name = $2
+WHERE LOWER(TRIM(email)) = LOWER(TRIM($1::text))
+   OR LOWER(TRIM(name)) = LOWER(TRIM($2::text))
+   OR (initials != '' AND LOWER(TRIM(initials)) = LOWER(TRIM($1::text)))
 LIMIT 1
 `
 

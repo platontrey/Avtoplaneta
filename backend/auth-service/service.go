@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/sessions"
@@ -72,22 +73,24 @@ func NewAuthService(userRepo UserRepository, activityRepo ActivityLogRepository,
 }
 
 func (s *authService) AuthenticateUser(email, password string) (*User, error) {
-	clientIP := "unknown"
+	trimmedIdentifier := strings.TrimSpace(email)
+	if trimmedIdentifier == "" {
+		return nil, fmt.Errorf("логин не может быть пустым")
+	}
+
 	if s.rateLimiter != nil {
-		if limited, _ := s.rateLimiter.IsLimited(clientIP+":user", 10, time.Minute); limited {
+		if limited, _ := s.rateLimiter.IsLimited(strings.ToLower(trimmedIdentifier)+":user", 10, time.Minute); limited {
 			logrus.WithFields(logrus.Fields{
-				"email": email,
-				"ip":    clientIP,
+				"identifier": trimmedIdentifier,
 			}).Warn("Rate limit exceeded for user login")
 			return nil, fmt.Errorf("слишком много попыток входа")
 		}
 	}
 
-	user, err := s.userRepo.FindByEmailOrName(email)
+	user, err := s.userRepo.FindByEmailOrName(trimmedIdentifier)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
-			"email": email,
-			"ip":    clientIP,
+			"identifier": trimmedIdentifier,
 		}).Warn("User not found during login")
 		time.Sleep(time.Second)
 		return nil, fmt.Errorf("неверные учетные данные")
@@ -95,8 +98,7 @@ func (s *authService) AuthenticateUser(email, password string) (*User, error) {
 
 	if user.Provider != "local" || user.Password == "" {
 		logrus.WithFields(logrus.Fields{
-			"email": email,
-			"ip":    clientIP,
+			"identifier": trimmedIdentifier,
 		}).Warn("Attempt to login with non-local user")
 		time.Sleep(time.Second)
 		return nil, fmt.Errorf("неверные учетные данные")
@@ -104,8 +106,7 @@ func (s *authService) AuthenticateUser(email, password string) (*User, error) {
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		logrus.WithFields(logrus.Fields{
-			"email": email,
-			"ip":    clientIP,
+			"identifier": trimmedIdentifier,
 		}).Warn("Invalid password during login")
 		time.Sleep(time.Second)
 		return nil, fmt.Errorf("неверные учетные данные")
@@ -113,7 +114,7 @@ func (s *authService) AuthenticateUser(email, password string) (*User, error) {
 
 	logrus.WithFields(logrus.Fields{
 		"email": user.Email,
-		"ip":    clientIP,
+		"name":  user.Name,
 	}).Info("User authenticated successfully")
 
 	return user, nil

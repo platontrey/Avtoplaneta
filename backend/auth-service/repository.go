@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
@@ -70,9 +71,10 @@ func (r *userRepository) FindByID(id int64) (*User, error) {
 }
 
 func (r *userRepository) FindByEmailOrName(identifier string) (*User, error) {
+	trimmed := strings.TrimSpace(identifier)
 	result, err := r.queries.GetUserByEmailOrName(context.Background(), sqlc.GetUserByEmailOrNameParams{
-		Email: identifier,
-		Name:  identifier,
+		Email: trimmed,
+		Name:  trimmed,
 	})
 	if err != nil {
 		return nil, err
@@ -81,14 +83,15 @@ func (r *userRepository) FindByEmailOrName(identifier string) (*User, error) {
 }
 
 func (r *userRepository) FindByEmail(email string) (*User, error) {
+	trimmed := strings.TrimSpace(email)
 	result, err := r.queries.GetUserByEmailOrName(context.Background(), sqlc.GetUserByEmailOrNameParams{
-		Email: email,
+		Email: trimmed,
 		Name:  "",
 	})
 	if err != nil {
 		return nil, err
 	}
-	if result.Email != email {
+	if !strings.EqualFold(strings.TrimSpace(result.Email), trimmed) {
 		return nil, sql.ErrNoRows
 	}
 	return sqlcUserToDomain(result), nil
