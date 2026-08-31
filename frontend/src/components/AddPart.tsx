@@ -94,6 +94,7 @@ const partSchema = z.object({
     description: z.string().max(1000, "Описание слишком длинное (макс 1000 символов)").optional(),
     category: z.string().optional(),
     location: z.string().optional(),
+    address: z.string().optional(),
     price: z.number().optional(),
     seller_id: z.string().optional(),
     // Характеристики запчасти
@@ -137,6 +138,7 @@ interface Part {
     category?: string;
     model: string;
     location?: string;
+    address?: string;
     price?: number;
     seller_id?: number;
     photo?: string;
@@ -335,6 +337,7 @@ export default function AddPart() {
         const sanitizedName = sanitizeHtml(data.name, 'NAME');
         const sanitizedDescription = data.description ? sanitizeHtml(data.description, 'DESCRIPTION') : undefined;
         const sanitizedLocation = data.location ? sanitizeHtml(data.location, 'NAME') : undefined;
+        const sanitizedAddress = data.address ? sanitizeHtml(data.address, 'NAME') : undefined;
 
         const newPart: Part = {
             brand: data.brand,
@@ -344,6 +347,7 @@ export default function AddPart() {
             description: sanitizedDescription,
             category: data.category,
             location: sanitizedLocation,
+            address: sanitizedAddress,
             price: data.price,
             seller_id: data.seller_id ? parseInt(data.seller_id) : undefined,
             // Характеристики запчасти (теперь хранятся в основной таблице Part)
@@ -598,6 +602,18 @@ export default function AddPart() {
                                             placeholder="Shelf A-12"
                                             className="h-10"
                                             autoComplete="shipping location"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <Label htmlFor="address" className="min-w-[120px] mb-1">Адрес склада</Label>
+                                        <Input
+                                            id="address"
+                                            {...register("address")}
+                                            type="text"
+                                            placeholder="Профсоюзная 2/11"
+                                            className="h-10"
+                                            autoComplete="street-address"
                                         />
                                     </div>
 

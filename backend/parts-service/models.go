@@ -49,6 +49,7 @@ type PartCore struct {
 	Price       float64     `json:"price,omitempty"`
 	Salesman    string      `json:"salesman,omitempty"`
 	Location    string      `json:"location,omitempty"`
+	Address     string      `json:"address,omitempty"`
 	Status      bool        `json:"status,omitempty"`
 	Brand       string      `json:"brand,omitempty"`
 	Model       string      `json:"model,omitempty"`

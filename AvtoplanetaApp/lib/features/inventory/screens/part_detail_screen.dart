@@ -244,6 +244,7 @@ class PartDetailScreen extends ConsumerWidget {
                   ]),
                 _section('Расположение', [
                   if (part.location.isNotEmpty) _row('Место', part.location),
+                  if (part.address.isNotEmpty) _row('Адрес склада', part.address),
                   if (part.salesman != null) _row('Продавец', part.salesman!),
                 ]),
                 if (part.description != null && part.description!.isNotEmpty)

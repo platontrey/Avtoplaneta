@@ -187,6 +187,14 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                         onChange={(e) => partEdit.updateFormField('location', e.target.value)}
                                     />
                                 </FormRow>
+                                <FormRow label="Адрес склада" htmlFor="address">
+                                    <Input
+                                        id="address"
+                                        autoComplete="street-address"
+                                        value={partEdit.editForm.address}
+                                        onChange={(e) => partEdit.updateFormField('address', e.target.value)}
+                                    />
+                                </FormRow>
                                 <FormRow label="Статус" htmlFor="status">
                                     <div>
                                         <Select value={partEdit.editForm.status ? "active" : "inactive"} onValueChange={(value) => { console.log('Status select changed:', value); partEdit.updateFormField('status', value === "active"); }} onOpenChange={(open) => console.log('Status select open state:', open)}>

@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS parts (
     price DOUBLE PRECISION NOT NULL DEFAULT 0,
     salesman TEXT NOT NULL DEFAULT '',
     location TEXT NOT NULL DEFAULT '',
+    address TEXT NOT NULL DEFAULT '',
     status BOOLEAN NOT NULL DEFAULT false,
     brand TEXT NOT NULL DEFAULT '',
     model TEXT NOT NULL DEFAULT '',
@@ -67,6 +68,7 @@ CREATE INDEX IF NOT EXISTS idx_parts_category ON parts (category);
 CREATE INDEX IF NOT EXISTS idx_parts_brand ON parts (brand);
 CREATE INDEX IF NOT EXISTS idx_parts_model ON parts (model);
 CREATE INDEX IF NOT EXISTS idx_parts_location ON parts (location);
+CREATE INDEX IF NOT EXISTS idx_parts_address ON parts (address);
 CREATE INDEX IF NOT EXISTS idx_parts_salesman ON parts (salesman);
 CREATE INDEX IF NOT EXISTS idx_parts_status ON parts (status);
 CREATE INDEX IF NOT EXISTS idx_parts_supplier_code ON parts (supplier_code);

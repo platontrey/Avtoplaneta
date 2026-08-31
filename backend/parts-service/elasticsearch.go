@@ -40,46 +40,47 @@ func NewElasticsearchAdapter() ElasticsearchClient {
 }
 
 type ElasticsearchPart struct {
-	ID                int64    `json:"id"`
-	Name              string   `json:"name"`
-	Quantity          int      `json:"quantity"`
-	Description       string   `json:"description"`
-	Category          string   `json:"category"`
-	Price             float64  `json:"price"`
-	Salesman          string   `json:"salesman"`
-	Location          string   `json:"location"`
-	Status            bool     `json:"status"`
-	Brand             string   `json:"brand"`
-	Model             string   `json:"model"`
-	Photos            []string `json:"photos"`
-	FrontRear         string   `json:"front_rear,omitempty"`
-	LeftRight         string   `json:"left_right,omitempty"`
-	TopBottom         string   `json:"top_bottom,omitempty"`
-	OEMCode           string   `json:"oem_code,omitempty"`
-	ManufacturerCode  string   `json:"manufacturer_code,omitempty"`
-	Manufacturer      string   `json:"manufacturer,omitempty"`
-	Color             string   `json:"color,omitempty"`
-	Condition         string   `json:"condition,omitempty"`
-	BodyBrand         string   `json:"body_brand,omitempty"`
-	EngineBrand       string   `json:"engine_brand,omitempty"`
-	CarReleaseDate    string   `json:"car_release_date,omitempty"`
-	Transmission      string   `json:"transmission,omitempty"`
-	TransmissionModel string   `json:"transmission_model,omitempty"`
-	Drive             string   `json:"drive,omitempty"`
-	Defect            string   `json:"defect,omitempty"`
-	Number            string   `json:"number,omitempty"`
-	SupplierCode      string   `json:"supplier_code,omitempty"`
-	WearPercentage    string   `json:"wear_percentage,omitempty"`
-	VIN               string   `json:"vin,omitempty"`
-	Season            string   `json:"season,omitempty"`
-	Diameter          string   `json:"diameter,omitempty"`
-	Width             string   `json:"width,omitempty"`
-	Profile           string   `json:"profile,omitempty"`
-	TireQuantity      string   `json:"tire_quantity,omitempty"`
-	Drilling          string   `json:"drilling,omitempty"`
-	Offset            string   `json:"offset,omitempty"`
-	CenterHoleDiameter string  `json:"center_hole_diameter,omitempty"`
-	TireModel         string   `json:"tire_model,omitempty"`
+	ID                 int64    `json:"id"`
+	Name               string   `json:"name"`
+	Quantity           int      `json:"quantity"`
+	Description        string   `json:"description"`
+	Category           string   `json:"category"`
+	Price              float64  `json:"price"`
+	Salesman           string   `json:"salesman"`
+	Location           string   `json:"location"`
+	Address            string   `json:"address"`
+	Status             bool     `json:"status"`
+	Brand              string   `json:"brand"`
+	Model              string   `json:"model"`
+	Photos             []string `json:"photos"`
+	FrontRear          string   `json:"front_rear,omitempty"`
+	LeftRight          string   `json:"left_right,omitempty"`
+	TopBottom          string   `json:"top_bottom,omitempty"`
+	OEMCode            string   `json:"oem_code,omitempty"`
+	ManufacturerCode   string   `json:"manufacturer_code,omitempty"`
+	Manufacturer       string   `json:"manufacturer,omitempty"`
+	Color              string   `json:"color,omitempty"`
+	Condition          string   `json:"condition,omitempty"`
+	BodyBrand          string   `json:"body_brand,omitempty"`
+	EngineBrand        string   `json:"engine_brand,omitempty"`
+	CarReleaseDate     string   `json:"car_release_date,omitempty"`
+	Transmission       string   `json:"transmission,omitempty"`
+	TransmissionModel  string   `json:"transmission_model,omitempty"`
+	Drive              string   `json:"drive,omitempty"`
+	Defect             string   `json:"defect,omitempty"`
+	Number             string   `json:"number,omitempty"`
+	SupplierCode       string   `json:"supplier_code,omitempty"`
+	WearPercentage     string   `json:"wear_percentage,omitempty"`
+	VIN                string   `json:"vin,omitempty"`
+	Season             string   `json:"season,omitempty"`
+	Diameter           string   `json:"diameter,omitempty"`
+	Width              string   `json:"width,omitempty"`
+	Profile            string   `json:"profile,omitempty"`
+	TireQuantity       string   `json:"tire_quantity,omitempty"`
+	Drilling           string   `json:"drilling,omitempty"`
+	Offset             string   `json:"offset,omitempty"`
+	CenterHoleDiameter string   `json:"center_hole_diameter,omitempty"`
+	TireModel          string   `json:"tire_model,omitempty"`
 }
 
 // InitElasticsearch initializes the Elasticsearch client
@@ -269,6 +270,16 @@ func CreatePartsIndex() error {
 						}
 					}
 				},
+				"address": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
+						}
+					}
+				},
 				"status": {
 					"type": "boolean"
 				},
@@ -332,46 +343,47 @@ func CreatePartsIndex() error {
 // IndexPart indexes a single part in Elasticsearch
 func IndexPart(part *Part) error {
 	esPart := ElasticsearchPart{
-		ID:                part.ID,
-		Name:              part.Name,
-		Quantity:          part.Quantity,
-		Description:       part.Description,
-		Category:          part.Category,
-		Price:             part.Price,
-		Salesman:          part.Salesman,
-		Location:          part.Location,
-		Status:            part.Status,
-		Brand:             part.Brand,
-		Model:             part.Model,
-		Photos:            part.Photos,
-		FrontRear:         part.FrontRear,
-		LeftRight:         part.LeftRight,
-		TopBottom:         part.TopBottom,
-		OEMCode:           part.OEMCode,
-		ManufacturerCode:  part.ManufacturerCode,
-		Manufacturer:      part.Manufacturer,
-		Color:             part.Color,
-		Condition:         part.Condition,
-		BodyBrand:         part.BodyBrand,
-		EngineBrand:       part.EngineBrand,
-		CarReleaseDate:    part.CarReleaseDate,
-		Transmission:      part.Transmission,
-		TransmissionModel: part.TransmissionModel,
-		Drive:             part.Drive,
-		Defect:            part.Defect,
-		Number:            part.Number,
-		SupplierCode:      part.SupplierCode,
-		WearPercentage:    part.WearPercentage,
-		VIN:               part.VIN,
-		Season:            part.Season,
-		Diameter:          part.Diameter,
-		Width:             part.Width,
-		Profile:           part.Profile,
-		TireQuantity:      part.TireQuantity,
-		Drilling:          part.Drilling,
-		Offset:            part.Offset,
+		ID:                 part.ID,
+		Name:               part.Name,
+		Quantity:           part.Quantity,
+		Description:        part.Description,
+		Category:           part.Category,
+		Price:              part.Price,
+		Salesman:           part.Salesman,
+		Location:           part.Location,
+		Address:            part.Address,
+		Status:             part.Status,
+		Brand:              part.Brand,
+		Model:              part.Model,
+		Photos:             part.Photos,
+		FrontRear:          part.FrontRear,
+		LeftRight:          part.LeftRight,
+		TopBottom:          part.TopBottom,
+		OEMCode:            part.OEMCode,
+		ManufacturerCode:   part.ManufacturerCode,
+		Manufacturer:       part.Manufacturer,
+		Color:              part.Color,
+		Condition:          part.Condition,
+		BodyBrand:          part.BodyBrand,
+		EngineBrand:        part.EngineBrand,
+		CarReleaseDate:     part.CarReleaseDate,
+		Transmission:       part.Transmission,
+		TransmissionModel:  part.TransmissionModel,
+		Drive:              part.Drive,
+		Defect:             part.Defect,
+		Number:             part.Number,
+		SupplierCode:       part.SupplierCode,
+		WearPercentage:     part.WearPercentage,
+		VIN:                part.VIN,
+		Season:             part.Season,
+		Diameter:           part.Diameter,
+		Width:              part.Width,
+		Profile:            part.Profile,
+		TireQuantity:       part.TireQuantity,
+		Drilling:           part.Drilling,
+		Offset:             part.Offset,
 		CenterHoleDiameter: part.CenterHoleDiameter,
-		TireModel:         part.TireModel,
+		TireModel:          part.TireModel,
 	}
 
 	body, err := json.Marshal(esPart)

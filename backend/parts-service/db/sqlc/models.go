@@ -23,6 +23,7 @@ type Part struct {
 	Price              float64            `json:"price"`
 	Salesman           string             `json:"salesman"`
 	Location           string             `json:"location"`
+	Address            string             `json:"address"`
 	Status             bool               `json:"status"`
 	Brand              string             `json:"brand"`
 	Model              string             `json:"model"`

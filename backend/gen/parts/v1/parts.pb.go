@@ -40,6 +40,7 @@ type Part struct {
 	SellerId    uint32                 `protobuf:"varint,13,opt,name=seller_id,json=sellerId,proto3" json:"seller_id,omitempty"`
 	ToDeleteAt  *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=to_delete_at,json=toDeleteAt,proto3" json:"to_delete_at,omitempty"`
 	Vin         string                 `protobuf:"bytes,15,opt,name=vin,proto3" json:"vin,omitempty"`
+	Address     string                 `protobuf:"bytes,16,opt,name=address,proto3" json:"address,omitempty"`
 	// Specifications
 	BodyBrand         string `protobuf:"bytes,20,opt,name=body_brand,json=bodyBrand,proto3" json:"body_brand,omitempty"`
 	EngineBrand       string `protobuf:"bytes,21,opt,name=engine_brand,json=engineBrand,proto3" json:"engine_brand,omitempty"`
@@ -207,6 +208,13 @@ func (x *Part) GetToDeleteAt() *timestamppb.Timestamp {
 func (x *Part) GetVin() string {
 	if x != nil {
 		return x.Vin
+	}
+	return ""
+}
+
+func (x *Part) GetAddress() string {
+	if x != nil {
+		return x.Address
 	}
 	return ""
 }
@@ -426,6 +434,7 @@ type GetInventoryRequest struct {
 	HasPhoto      string                 `protobuf:"bytes,8,opt,name=has_photo,json=hasPhoto,proto3" json:"has_photo,omitempty"`
 	Page          int32                  `protobuf:"varint,9,opt,name=page,proto3" json:"page,omitempty"`
 	Limit         int32                  `protobuf:"varint,10,opt,name=limit,proto3" json:"limit,omitempty"`
+	Address       string                 `protobuf:"bytes,11,opt,name=address,proto3" json:"address,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -528,6 +537,13 @@ func (x *GetInventoryRequest) GetLimit() int32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *GetInventoryRequest) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
 }
 
 type InventoryResponse struct {
@@ -760,6 +776,7 @@ type AddPartRequest struct {
 	Model       string                 `protobuf:"bytes,10,opt,name=model,proto3" json:"model,omitempty"`
 	SellerId    uint32                 `protobuf:"varint,11,opt,name=seller_id,json=sellerId,proto3" json:"seller_id,omitempty"`
 	Vin         string                 `protobuf:"bytes,12,opt,name=vin,proto3" json:"vin,omitempty"`
+	Address     string                 `protobuf:"bytes,13,opt,name=address,proto3" json:"address,omitempty"`
 	// Specifications
 	BodyBrand         string `protobuf:"bytes,20,opt,name=body_brand,json=bodyBrand,proto3" json:"body_brand,omitempty"`
 	EngineBrand       string `protobuf:"bytes,21,opt,name=engine_brand,json=engineBrand,proto3" json:"engine_brand,omitempty"`
@@ -903,6 +920,13 @@ func (x *AddPartRequest) GetSellerId() uint32 {
 func (x *AddPartRequest) GetVin() string {
 	if x != nil {
 		return x.Vin
+	}
+	return ""
+}
+
+func (x *AddPartRequest) GetAddress() string {
+	if x != nil {
+		return x.Address
 	}
 	return ""
 }
@@ -1112,6 +1136,7 @@ type UpdatePartRequest struct {
 	Model              *string  `protobuf:"bytes,11,opt,name=model,proto3,oneof" json:"model,omitempty"`
 	SellerId           *uint32  `protobuf:"varint,12,opt,name=seller_id,json=sellerId,proto3,oneof" json:"seller_id,omitempty"`
 	Vin                *string  `protobuf:"bytes,13,opt,name=vin,proto3,oneof" json:"vin,omitempty"`
+	Address            *string  `protobuf:"bytes,14,opt,name=address,proto3,oneof" json:"address,omitempty"`
 	BodyBrand          *string  `protobuf:"bytes,20,opt,name=body_brand,json=bodyBrand,proto3,oneof" json:"body_brand,omitempty"`
 	EngineBrand        *string  `protobuf:"bytes,21,opt,name=engine_brand,json=engineBrand,proto3,oneof" json:"engine_brand,omitempty"`
 	CarReleaseDate     *string  `protobuf:"bytes,22,opt,name=car_release_date,json=carReleaseDate,proto3,oneof" json:"car_release_date,omitempty"`
@@ -1260,6 +1285,13 @@ func (x *UpdatePartRequest) GetSellerId() uint32 {
 func (x *UpdatePartRequest) GetVin() string {
 	if x != nil && x.Vin != nil {
 		return *x.Vin
+	}
+	return ""
+}
+
+func (x *UpdatePartRequest) GetAddress() string {
+	if x != nil && x.Address != nil {
+		return *x.Address
 	}
 	return ""
 }
@@ -2114,6 +2146,7 @@ type DefectReportPart struct {
 	OemCode       string                 `protobuf:"bytes,13,opt,name=oem_code,json=oemCode,proto3" json:"oem_code,omitempty"`
 	Manufacturer  string                 `protobuf:"bytes,14,opt,name=manufacturer,proto3" json:"manufacturer,omitempty"`
 	Color         string                 `protobuf:"bytes,15,opt,name=color,proto3" json:"color,omitempty"`
+	Address       string                 `protobuf:"bytes,16,opt,name=address,proto3" json:"address,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2249,6 +2282,13 @@ func (x *DefectReportPart) GetManufacturer() string {
 func (x *DefectReportPart) GetColor() string {
 	if x != nil {
 		return x.Color
+	}
+	return ""
+}
+
+func (x *DefectReportPart) GetAddress() string {
+	if x != nil {
+		return x.Address
 	}
 	return ""
 }
@@ -2989,7 +3029,7 @@ var File_parts_v1_parts_proto protoreflect.FileDescriptor
 
 const file_parts_v1_parts_proto_rawDesc = "" +
 	"\n" +
-	"\x14parts/v1/parts.proto\x12\bparts.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/api/annotations.proto\"\xde\n" +
+	"\x14parts/v1/parts.proto\x12\bparts.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/api/annotations.proto\"\xf8\n" +
 	"\n" +
 	"\x04Part\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x12\n" +
@@ -3008,7 +3048,8 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\tseller_id\x18\r \x01(\rR\bsellerId\x12<\n" +
 	"\fto_delete_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"toDeleteAt\x12\x10\n" +
-	"\x03vin\x18\x0f \x01(\tR\x03vin\x12\x1d\n" +
+	"\x03vin\x18\x0f \x01(\tR\x03vin\x12\x18\n" +
+	"\aaddress\x18\x10 \x01(\tR\aaddress\x12\x1d\n" +
 	"\n" +
 	"body_brand\x18\x14 \x01(\tR\tbodyBrand\x12!\n" +
 	"\fengine_brand\x18\x15 \x01(\tR\vengineBrand\x12(\n" +
@@ -3042,7 +3083,7 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\n" +
 	"tire_model\x180 \x01(\tR\ttireModel\x123\n" +
 	"\x16to_delete_at_formatted\x182 \x01(\tR\x13toDeleteAtFormatted\x12.\n" +
-	"\x13time_until_deletion\x183 \x01(\tR\x11timeUntilDeletion\"\x8c\x02\n" +
+	"\x13time_until_deletion\x183 \x01(\tR\x11timeUntilDeletion\"\xa6\x02\n" +
 	"\x13GetInventoryRequest\x12\x16\n" +
 	"\x06search\x18\x01 \x01(\tR\x06search\x12\x1a\n" +
 	"\bcategory\x18\x02 \x01(\tR\bcategory\x12\x14\n" +
@@ -3054,7 +3095,8 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\thas_photo\x18\b \x01(\tR\bhasPhoto\x12\x12\n" +
 	"\x04page\x18\t \x01(\x05R\x04page\x12\x14\n" +
 	"\x05limit\x18\n" +
-	" \x01(\x05R\x05limit\"y\n" +
+	" \x01(\x05R\x05limit\x12\x18\n" +
+	"\aaddress\x18\v \x01(\tR\aaddress\"y\n" +
 	"\x11InventoryResponse\x12$\n" +
 	"\x05parts\x18\x01 \x03(\v2\x0e.parts.v1.PartR\x05parts\x12\x14\n" +
 	"\x05total\x18\x02 \x01(\x05R\x05total\x12\x12\n" +
@@ -3067,7 +3109,7 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x06amount\x18\x02 \x01(\x05R\x06amount\"Y\n" +
 	"\x1aChangePartQuantityResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12!\n" +
-	"\fnew_quantity\x18\x02 \x01(\x05R\vnewQuantity\"\x9d\t\n" +
+	"\fnew_quantity\x18\x02 \x01(\x05R\vnewQuantity\"\xb7\t\n" +
 	"\x0eAddPartRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\bquantity\x18\x02 \x01(\x05R\bquantity\x12 \n" +
@@ -3081,7 +3123,8 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x05model\x18\n" +
 	" \x01(\tR\x05model\x12\x1b\n" +
 	"\tseller_id\x18\v \x01(\rR\bsellerId\x12\x10\n" +
-	"\x03vin\x18\f \x01(\tR\x03vin\x12\x1d\n" +
+	"\x03vin\x18\f \x01(\tR\x03vin\x12\x18\n" +
+	"\aaddress\x18\r \x01(\tR\aaddress\x12\x1d\n" +
 	"\n" +
 	"body_brand\x18\x14 \x01(\tR\tbodyBrand\x12!\n" +
 	"\fengine_brand\x18\x15 \x01(\tR\vengineBrand\x12(\n" +
@@ -3113,7 +3156,7 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x06offset\x18. \x01(\tR\x06offset\x120\n" +
 	"\x14center_hole_diameter\x18/ \x01(\tR\x12centerHoleDiameter\x12\x1d\n" +
 	"\n" +
-	"tire_model\x180 \x01(\tR\ttireModel\"\x9b\x0f\n" +
+	"tire_model\x180 \x01(\tR\ttireModel\"\xc6\x0f\n" +
 	"\x11UpdatePartRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12\x1f\n" +
@@ -3129,39 +3172,40 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x05model\x18\v \x01(\tH\tR\x05model\x88\x01\x01\x12 \n" +
 	"\tseller_id\x18\f \x01(\rH\n" +
 	"R\bsellerId\x88\x01\x01\x12\x15\n" +
-	"\x03vin\x18\r \x01(\tH\vR\x03vin\x88\x01\x01\x12\"\n" +
+	"\x03vin\x18\r \x01(\tH\vR\x03vin\x88\x01\x01\x12\x1d\n" +
+	"\aaddress\x18\x0e \x01(\tH\fR\aaddress\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"body_brand\x18\x14 \x01(\tH\fR\tbodyBrand\x88\x01\x01\x12&\n" +
-	"\fengine_brand\x18\x15 \x01(\tH\rR\vengineBrand\x88\x01\x01\x12-\n" +
-	"\x10car_release_date\x18\x16 \x01(\tH\x0eR\x0ecarReleaseDate\x88\x01\x01\x12\"\n" +
+	"body_brand\x18\x14 \x01(\tH\rR\tbodyBrand\x88\x01\x01\x12&\n" +
+	"\fengine_brand\x18\x15 \x01(\tH\x0eR\vengineBrand\x88\x01\x01\x12-\n" +
+	"\x10car_release_date\x18\x16 \x01(\tH\x0fR\x0ecarReleaseDate\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"front_rear\x18\x17 \x01(\tH\x0fR\tfrontRear\x88\x01\x01\x12\"\n" +
+	"front_rear\x18\x17 \x01(\tH\x10R\tfrontRear\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"left_right\x18\x18 \x01(\tH\x10R\tleftRight\x88\x01\x01\x12\"\n" +
+	"left_right\x18\x18 \x01(\tH\x11R\tleftRight\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"top_bottom\x18\x19 \x01(\tH\x11R\ttopBottom\x88\x01\x01\x12\x1b\n" +
-	"\x06number\x18\x1a \x01(\tH\x12R\x06number\x88\x01\x01\x12'\n" +
-	"\fmanufacturer\x18\x1b \x01(\tH\x13R\fmanufacturer\x88\x01\x01\x120\n" +
-	"\x11manufacturer_code\x18\x1c \x01(\tH\x14R\x10manufacturerCode\x88\x01\x01\x12\x1e\n" +
-	"\boem_code\x18\x1d \x01(\tH\x15R\aoemCode\x88\x01\x01\x12\x19\n" +
-	"\x05color\x18\x1e \x01(\tH\x16R\x05color\x88\x01\x01\x12!\n" +
-	"\tcondition\x18\x1f \x01(\tH\x17R\tcondition\x88\x01\x01\x12(\n" +
-	"\rsupplier_code\x18  \x01(\tH\x18R\fsupplierCode\x88\x01\x01\x12\x1b\n" +
-	"\x06defect\x18! \x01(\tH\x19R\x06defect\x88\x01\x01\x12'\n" +
-	"\ftransmission\x18\" \x01(\tH\x1aR\ftransmission\x88\x01\x01\x12\x19\n" +
-	"\x05drive\x18# \x01(\tH\x1bR\x05drive\x88\x01\x01\x12,\n" +
-	"\x0fwear_percentage\x18$ \x01(\tH\x1cR\x0ewearPercentage\x88\x01\x01\x122\n" +
-	"\x12transmission_model\x18% \x01(\tH\x1dR\x11transmissionModel\x88\x01\x01\x12\x1b\n" +
-	"\x06season\x18( \x01(\tH\x1eR\x06season\x88\x01\x01\x12\x1f\n" +
-	"\bdiameter\x18) \x01(\tH\x1fR\bdiameter\x88\x01\x01\x12\x19\n" +
-	"\x05width\x18* \x01(\tH R\x05width\x88\x01\x01\x12\x1d\n" +
-	"\aprofile\x18+ \x01(\tH!R\aprofile\x88\x01\x01\x12(\n" +
-	"\rtire_quantity\x18, \x01(\tH\"R\ftireQuantity\x88\x01\x01\x12\x1f\n" +
-	"\bdrilling\x18- \x01(\tH#R\bdrilling\x88\x01\x01\x12\x1b\n" +
-	"\x06offset\x18. \x01(\tH$R\x06offset\x88\x01\x01\x125\n" +
-	"\x14center_hole_diameter\x18/ \x01(\tH%R\x12centerHoleDiameter\x88\x01\x01\x12\"\n" +
+	"top_bottom\x18\x19 \x01(\tH\x12R\ttopBottom\x88\x01\x01\x12\x1b\n" +
+	"\x06number\x18\x1a \x01(\tH\x13R\x06number\x88\x01\x01\x12'\n" +
+	"\fmanufacturer\x18\x1b \x01(\tH\x14R\fmanufacturer\x88\x01\x01\x120\n" +
+	"\x11manufacturer_code\x18\x1c \x01(\tH\x15R\x10manufacturerCode\x88\x01\x01\x12\x1e\n" +
+	"\boem_code\x18\x1d \x01(\tH\x16R\aoemCode\x88\x01\x01\x12\x19\n" +
+	"\x05color\x18\x1e \x01(\tH\x17R\x05color\x88\x01\x01\x12!\n" +
+	"\tcondition\x18\x1f \x01(\tH\x18R\tcondition\x88\x01\x01\x12(\n" +
+	"\rsupplier_code\x18  \x01(\tH\x19R\fsupplierCode\x88\x01\x01\x12\x1b\n" +
+	"\x06defect\x18! \x01(\tH\x1aR\x06defect\x88\x01\x01\x12'\n" +
+	"\ftransmission\x18\" \x01(\tH\x1bR\ftransmission\x88\x01\x01\x12\x19\n" +
+	"\x05drive\x18# \x01(\tH\x1cR\x05drive\x88\x01\x01\x12,\n" +
+	"\x0fwear_percentage\x18$ \x01(\tH\x1dR\x0ewearPercentage\x88\x01\x01\x122\n" +
+	"\x12transmission_model\x18% \x01(\tH\x1eR\x11transmissionModel\x88\x01\x01\x12\x1b\n" +
+	"\x06season\x18( \x01(\tH\x1fR\x06season\x88\x01\x01\x12\x1f\n" +
+	"\bdiameter\x18) \x01(\tH R\bdiameter\x88\x01\x01\x12\x19\n" +
+	"\x05width\x18* \x01(\tH!R\x05width\x88\x01\x01\x12\x1d\n" +
+	"\aprofile\x18+ \x01(\tH\"R\aprofile\x88\x01\x01\x12(\n" +
+	"\rtire_quantity\x18, \x01(\tH#R\ftireQuantity\x88\x01\x01\x12\x1f\n" +
+	"\bdrilling\x18- \x01(\tH$R\bdrilling\x88\x01\x01\x12\x1b\n" +
+	"\x06offset\x18. \x01(\tH%R\x06offset\x88\x01\x01\x125\n" +
+	"\x14center_hole_diameter\x18/ \x01(\tH&R\x12centerHoleDiameter\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"tire_model\x180 \x01(\tH&R\ttireModel\x88\x01\x01B\a\n" +
+	"tire_model\x180 \x01(\tH'R\ttireModel\x88\x01\x01B\a\n" +
 	"\x05_nameB\v\n" +
 	"\t_quantityB\x0e\n" +
 	"\f_descriptionB\v\n" +
@@ -3174,7 +3218,9 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x06_modelB\f\n" +
 	"\n" +
 	"_seller_idB\x06\n" +
-	"\x04_vinB\r\n" +
+	"\x04_vinB\n" +
+	"\n" +
+	"\b_addressB\r\n" +
 	"\v_body_brandB\x0f\n" +
 	"\r_engine_brandB\x13\n" +
 	"\x11_car_release_dateB\r\n" +
@@ -3242,7 +3288,7 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x15UpdateEarningsRequest\x12\x16\n" +
 	"\x06amount\x18\x01 \x01(\x01R\x06amount\"?\n" +
 	"\x16UpdateEarningsResponse\x12%\n" +
-	"\x0etotal_earnings\x18\x01 \x01(\x01R\rtotalEarnings\"\xb2\x03\n" +
+	"\x0etotal_earnings\x18\x01 \x01(\x01R\rtotalEarnings\"\xcc\x03\n" +
 	"\x10DefectReportPart\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\bcategory\x18\x02 \x01(\tR\bcategory\x12\x14\n" +
@@ -3262,7 +3308,8 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x06number\x18\f \x01(\tR\x06number\x12\x19\n" +
 	"\boem_code\x18\r \x01(\tR\aoemCode\x12\"\n" +
 	"\fmanufacturer\x18\x0e \x01(\tR\fmanufacturer\x12\x14\n" +
-	"\x05color\x18\x0f \x01(\tR\x05color\"\xa5\x02\n" +
+	"\x05color\x18\x0f \x01(\tR\x05color\x12\x18\n" +
+	"\aaddress\x18\x10 \x01(\tR\aaddress\"\xa5\x02\n" +
 	"\x19CreateDefectReportRequest\x12\x14\n" +
 	"\x05brand\x18\x01 \x01(\tR\x05brand\x12\x14\n" +
 	"\x05model\x18\x02 \x01(\tR\x05model\x12\x12\n" +

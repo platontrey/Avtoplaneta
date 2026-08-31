@@ -97,7 +97,7 @@ func TestDefectReportHTTPThroughRedisConsumer(t *testing.T) {
 
 	createdParts := recordingService.snapshot()
 	require.Len(t, createdParts, len(catalog.Parts))
-	require.Len(t, createdParts, 1442)
+	require.Len(t, createdParts, 2992)
 
 	transmissionModelCategories := bindingCategories(catalog, "transmission_model")
 	driveCategories := bindingCategories(catalog, "drive")
@@ -165,7 +165,7 @@ func TestPartCatalogHTTPRevalidation(t *testing.T) {
 	var received PartCatalog
 	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &received))
 	require.Equal(t, catalog.Version, received.Version)
-	require.Len(t, received.Parts, 1442)
+	require.Len(t, received.Parts, 2992)
 	require.Equal(t, []string{"Передний", "Задний", "Полный"}, attributeOptions(&received, "drive"))
 	require.Equal(t, []string{"МКПП", "АКПП", "Роботизированная", "Вариатор"}, attributeOptions(&received, "transmission"))
 

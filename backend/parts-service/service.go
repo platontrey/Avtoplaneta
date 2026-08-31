@@ -67,6 +67,7 @@ type InventoryQueryParams struct {
 	Brand    string
 	Model    string
 	Location string
+	Address  string
 	Salesman string
 	Status   string
 	HasPhoto string
@@ -169,7 +170,7 @@ func (s *inventoryService) formatPartsForDisplay(parts []Part) {
 // shouldUseElasticsearch определяет, использовать ли Elasticsearch
 func (s *inventoryService) shouldUseElasticsearch(params InventoryQueryParams) bool {
 	return params.Search != "" || params.Category != "" || params.Brand != "" ||
-		params.Model != "" || params.Location != "" || params.Salesman != "" ||
+		params.Model != "" || params.Location != "" || params.Address != "" || params.Salesman != "" ||
 		params.Status != "" || params.HasPhoto != ""
 }
 
@@ -425,6 +426,14 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 		})
 	}
 
+	if params.Address != "" {
+		filter = append(filter, map[string]interface{}{
+			"match": map[string]interface{}{
+				"address.text": params.Address,
+			},
+		})
+	}
+
 	if params.Salesman != "" {
 		filter = append(filter, map[string]interface{}{
 			"match": map[string]interface{}{
@@ -496,6 +505,9 @@ func (s *inventoryService) buildDatabaseFilters(params InventoryQueryParams) map
 	}
 	if params.Location != "" {
 		filters["location_ilike"] = params.Location
+	}
+	if params.Address != "" {
+		filters["address_ilike"] = params.Address
 	}
 	if params.Salesman != "" {
 		filters["salesman_ilike"] = params.Salesman

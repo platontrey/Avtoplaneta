@@ -26,6 +26,7 @@ export function useParts(filters?: {
   brand?: string;
   model?: string;
   location?: string;
+  address?: string;
   salesman?: string;
   status?: string;
 }) {

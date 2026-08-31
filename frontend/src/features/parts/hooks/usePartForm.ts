@@ -24,6 +24,7 @@ const createInitialFormData = (part?: Part): PartFormData => ({
   price: part?.price?.toString() || '',
   salesman: part?.salesman || '',
   location: part?.location || '',
+  address: part?.address || '',
   status: part?.status ?? true,
 });
 
@@ -51,6 +52,7 @@ export function usePartForm(options: UsePartFormOptions = {}): UsePartFormReturn
     price: formData.price ? parseFloat(formData.price) : undefined,
     salesman: formData.salesman || undefined,
     location: formData.location || undefined,
+    address: formData.address || undefined,
     status: formData.status,
   }), [formData]);
 

@@ -37,6 +37,7 @@ class Part {
   final String? tireModel;
   final String? vin;
   final String location;
+  final String address;
   final String? salesman;
   final List<String> photos;
   final DateTime? createdAt;
@@ -81,6 +82,7 @@ class Part {
     this.tireModel,
     this.vin,
     this.location = '',
+    this.address = '',
     this.salesman,
     this.photos = const [],
     this.createdAt,
@@ -141,6 +143,7 @@ class Part {
       tireModel: (json['tire_model'] ?? json['tireModel']) as String?,
       vin: json['vin'] as String?,
       location: json['location'] as String? ?? '',
+      address: json['address'] as String? ?? '',
       salesman: json['salesman'] as String?,
       photos: photosList,
       createdAt: (json['created_at'] ?? json['createdAt']) != null
@@ -192,6 +195,7 @@ class Part {
     'tire_model': tireModel,
     'vin': vin,
     'location': location,
+    'address': address,
     'salesman': salesman,
   };
 

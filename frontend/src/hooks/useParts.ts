@@ -38,6 +38,8 @@ export function useParts(filters?: {
   model?: string;
   /** Местоположение */
   location?: string;
+  /** Адрес склада */
+  address?: string;
   /** Продавец */
   salesman?: string;
   /** Статус запчасти */
@@ -76,6 +78,8 @@ export function useInfiniteParts(filters?: {
   model?: string;
   /** Местоположение */
   location?: string;
+  /** Адрес склада */
+  address?: string;
   /** Продавец */
   salesman?: string;
   /** Статус запчасти */

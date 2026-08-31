@@ -7,7 +7,7 @@ func TestEmbeddedCatalogAndDefectExpansion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load embedded catalog: %v", err)
 	}
-	if got, want := len(catalog.Parts), 1442; got != want {
+	if got, want := len(catalog.Parts), 2992; got != want {
 		t.Fatalf("catalog parts count = %d, want %d", got, want)
 	}
 

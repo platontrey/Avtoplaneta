@@ -16,6 +16,7 @@ interface UseAddPartReturn {
     description: string;
     category: string;
     location: string;
+    address: string;
     price: string;
     salesman: string;
   };
@@ -42,6 +43,7 @@ export function useAddPart(): UseAddPartReturn {
     description: '',
     category: '',
     location: '',
+    address: '',
     price: '',
     salesman: '',
   });
@@ -133,6 +135,7 @@ export function useAddPart(): UseAddPartReturn {
         description: formData.description,
         category: formData.category,
         location: formData.location || undefined,
+        address: formData.address || undefined,
         price: formData.price ? parseFloat(formData.price) : undefined,
         salesman: formData.salesman || undefined,
       };

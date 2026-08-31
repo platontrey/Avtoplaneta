@@ -12,6 +12,7 @@ export interface Part {
   salesman?: string;
   seller_id?: number;
   location?: string;
+  address?: string;
   status?: boolean;
   brand?: string;
   model?: string;
@@ -58,6 +59,7 @@ export interface PartFormData {
    salesman: string;
    seller_id?: number;
    location: string;
+   address: string;
    status: boolean;
    photos?: string[];
    photo?: string; // Для обратной совместимости

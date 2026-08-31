@@ -80,6 +80,7 @@ interface PartsSearchProps {
         brand: string;
         model: string;
         location: string;
+        address: string;
         status: string;
         hasPhoto?: string;
     }) => void;
@@ -93,6 +94,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
     const [brand, setBrand] = useState('');
     const [model, setModel] = useState('');
     const [location, setLocation] = useState('');
+    const [address, setAddress] = useState('');
     const [status, setStatus] = useState('');
     const [hasPhoto, setHasPhoto] = useState('with');
     const [isSearching, setIsSearching] = useState(false);
@@ -208,11 +210,12 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                 brand,
                 model,
                 location,
+                address,
                 status,
                 hasPhoto
             });
         }
-    }, [searchQuery, category, brand, model, location, status, hasPhoto, onFiltersChange]);
+    }, [searchQuery, category, brand, model, location, address, status, hasPhoto, onFiltersChange]);
 
     // Поиск с автодополнением (только для dropdown)
     const performSearch = useCallback(async (query: string) => {
@@ -285,7 +288,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         return () => {
             clearTimeout(timeoutId);
         };
-    }, [searchQuery, category, brand, model, location, status, hasPhoto, applyFilters]);
+    }, [searchQuery, category, brand, model, location, address, status, hasPhoto, applyFilters]);
 
     // Очистка при размонтировании
     useEffect(() => {
@@ -384,6 +387,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         setBrand('');
         setModel('');
         setLocation('');
+        setAddress('');
         setStatus('');
         setHasPhoto('with');
         clearResults();
@@ -414,9 +418,10 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         brand,
         model,
         location,
+        address,
         status,
         hasPhoto && hasPhoto !== 'with' ? hasPhoto : ''
-    ].filter(Boolean).length, [category, brand, model, location, status, hasPhoto]);
+    ].filter(Boolean).length, [category, brand, model, location, address, status, hasPhoto]);
 
     const handleDisplayLimitChange = (value: string) => {
         const limit = parseInt(value) || 0;
@@ -763,6 +768,19 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                                                 />
                                             </div>
 
+                                            {/* Адрес склада */}
+                                            <div>
+                                                <Label htmlFor="address-filter">Адрес склада</Label>
+                                                <Input
+                                                    id="address-filter"
+                                                    type="text"
+                                                    value={address}
+                                                    onChange={(e) => setAddress(e.target.value)}
+                                                    placeholder="Профсоюзная 2/11..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
 
                                             {/* Статус */}
                                             <div>
@@ -846,6 +864,28 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                                                     className="h-3 w-3"
                                                 />
                                                 <span>Поиск: {searchQuery}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {address && (
+                                        <motion.div
+                                            key="address"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setAddress('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Адрес: {address}</span>
                                             </Badge>
                                         </motion.div>
                                     )}

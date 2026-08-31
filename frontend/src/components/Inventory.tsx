@@ -21,6 +21,7 @@ function Inventory() {
           brand: string;
           model: string;
           location: string;
+          address: string;
           status: string;
           hasPhoto?: string;
       }>({
@@ -29,6 +30,7 @@ function Inventory() {
           brand: '',
           model: '',
           location: '',
+          address: '',
           status: ''
       });
 
@@ -110,6 +112,7 @@ function Inventory() {
          brand: string;
          model: string;
          location: string;
+         address: string;
          status: string;
          hasPhoto?: string;
      }) => {

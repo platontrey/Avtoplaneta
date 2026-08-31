@@ -729,6 +729,7 @@ function PartBlock({
                                             { code: 'tire_model', label: 'Модель шины', value: part.tire_model },
                                             { code: 'vin', label: 'VIN', value: part.vin },
                                             { code: 'location', label: 'Местоположение', value: part.location },
+                                            { code: 'address', label: 'Адрес склада', value: part.address },
                                             { code: 'salesman', label: 'Продавец', value: part.salesman },
                                         ];
 
@@ -736,7 +737,7 @@ function PartBlock({
                                             .filter(item => {
                                                 if (!item.value) return false;
                                                 if (categoryAttrs && categoryAttrs.length > 0) {
-                                                    if (['location', 'salesman', 'vin'].includes(item.code)) return true;
+                                                    if (['location', 'address', 'salesman', 'vin'].includes(item.code)) return true;
                                                     return categoryAttrs.includes(item.code);
                                                 }
                                                 return true;

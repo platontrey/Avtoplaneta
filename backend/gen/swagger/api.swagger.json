@@ -1,12 +1,12 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "orders/v1/orders.proto",
+    "title": "messaging/v1/messaging.proto",
     "version": "version not set"
   },
   "tags": [
     {
-      "name": "OrdersService"
+      "name": "MessagingService"
     }
   ],
   "consumes": [

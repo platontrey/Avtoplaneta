@@ -143,6 +143,7 @@ message Part {
   uint32 seller_id = 13;
   google.protobuf.Timestamp to_delete_at = 14;
   string vin = 15;
+  string address = 16;
 
   // Specifications
   string body_brand = 20;
@@ -193,6 +194,7 @@ message GetInventoryRequest {
   string has_photo = 8;
   int32 page = 9;
   int32 limit = 10;
+  string address = 11;
 }
 
 message InventoryResponse {
@@ -231,6 +233,7 @@ message AddPartRequest {
   string model = 10;
   uint32 seller_id = 11;
   string vin = 12;
+  string address = 13;
 
   // Specifications
   string body_brand = 20;
@@ -279,6 +282,7 @@ message UpdatePartRequest {
   optional string model = 11;
   optional uint32 seller_id = 12;
   optional string vin = 13;
+  optional string address = 14;
 
   optional string body_brand = 20;
   optional string engine_brand = 21;
@@ -390,6 +394,7 @@ message DefectReportPart {
   string oem_code = 13;
   string manufacturer = 14;
   string color = 15;
+  string address = 16;
 }
 
 message CreateDefectReportRequest {

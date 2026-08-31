@@ -59,6 +59,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
   final _supplierCtrl = TextEditingController();
   final _vinCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
+  final _addressCtrl = TextEditingController();
   final _salesmanCtrl = TextEditingController();
 
   // Управление фото
@@ -170,6 +171,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
         _supplierCtrl.text = data['supplier_code'] ?? data['supplierCode'] ?? '';
         _vinCtrl.text = data['vin'] ?? '';
         _locationCtrl.text = data['location'] ?? '';
+        _addressCtrl.text = data['address'] ?? '';
         _salesmanCtrl.text = data['salesman'] ?? '';
 
         _existingPhotos.clear();
@@ -229,6 +231,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       _supplierCtrl,
       _vinCtrl,
       _locationCtrl,
+      _addressCtrl,
       _salesmanCtrl,
     ]) {
       c.dispose();
@@ -395,6 +398,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
         'supplier_code': _supplierCtrl.text.trim(),
         'vin': _vinCtrl.text.trim(),
         'location': _locationCtrl.text.trim(),
+        'address': _addressCtrl.text.trim(),
         'salesman': _salesmanCtrl.text.trim(),
       };
 
@@ -561,6 +565,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
 
             _section('Расположение'),
             _field(_locationCtrl, 'Место хранения'),
+            _field(_addressCtrl, 'Адрес склада'),
             _field(_salesmanCtrl, 'Продавец'),
 
             const SizedBox(height: 80),

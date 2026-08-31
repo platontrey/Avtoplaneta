@@ -67,6 +67,7 @@ func (h *Handler) logUserActivity(c *gin.Context, action, resourceType, details 
 // @Param brand query string false "Фильтр по бренду"
 // @Param model query string false "Фильтр по модели"
 // @Param location query string false "Фильтр по расположению"
+// @Param address query string false "Фильтр по адресу склада"
 // @Param salesman query string false "Фильтр по продавцу"
 // @Param status query string false "Фильтр по статусу"
 // @Param hasPhoto query string false "Фильтр по наличию фото (with/without/all)"
@@ -83,6 +84,7 @@ func (h *Handler) GetInventoryHandler(c *gin.Context) {
 		Brand:    c.Query("brand"),
 		Model:    c.Query("model"),
 		Location: c.Query("location"),
+		Address:  c.Query("address"),
 		Salesman: c.Query("salesman"),
 		Status:   c.Query("status"),
 		HasPhoto: c.Query("hasPhoto"),
@@ -93,8 +95,8 @@ func (h *Handler) GetInventoryHandler(c *gin.Context) {
 	queryParams.Page = page
 	queryParams.Limit = limit
 
-	fmt.Printf("GetInventory: search='%s', category='%s', brand='%s', model='%s', location='%s', salesman='%s', status='%s', hasPhoto='%s'\n",
-		queryParams.Search, queryParams.Category, queryParams.Brand, queryParams.Model, queryParams.Location, queryParams.Salesman, queryParams.Status, queryParams.HasPhoto)
+	fmt.Printf("GetInventory: search='%s', category='%s', brand='%s', model='%s', location='%s', address='%s', salesman='%s', status='%s', hasPhoto='%s'\n",
+		queryParams.Search, queryParams.Category, queryParams.Brand, queryParams.Model, queryParams.Location, queryParams.Address, queryParams.Salesman, queryParams.Status, queryParams.HasPhoto)
 
 	ctx := c.Request.Context()
 	parts, err := h.inventoryService.GetInventory(ctx, queryParams)

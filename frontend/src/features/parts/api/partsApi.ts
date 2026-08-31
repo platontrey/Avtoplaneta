@@ -16,6 +16,7 @@ export const partsApi = {
     brand?: string;
     model?: string;
     location?: string;
+    address?: string;
     salesman?: string;
     status?: string;
     hasPhoto?: string;
@@ -29,6 +30,7 @@ export const partsApi = {
     if (filters?.brand) params.append('brand', filters.brand);
     if (filters?.model) params.append('model', filters.model);
     if (filters?.location) params.append('location', filters.location);
+    if (filters?.address) params.append('address', filters.address);
     if (filters?.salesman) params.append('salesman', filters.salesman);
     if (filters?.status) params.append('status', filters.status);
     if (filters?.hasPhoto) params.append('hasPhoto', filters.hasPhoto);

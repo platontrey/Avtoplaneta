@@ -39,6 +39,7 @@ func (s *partsGRPCServer) GetInventory(ctx context.Context, req *partsv1.GetInve
 		Brand:    req.Brand,
 		Model:    req.Model,
 		Location: req.Location,
+		Address:  req.Address,
 		Salesman: req.Salesman,
 		Status:   req.Status,
 		HasPhoto: req.HasPhoto,
@@ -119,6 +120,7 @@ func (s *partsGRPCServer) AddPart(ctx context.Context, req *partsv1.AddPartReque
 			Price:       req.Price,
 			Salesman:    req.Salesman,
 			Location:    req.Location,
+			Address:     req.Address,
 			Status:      req.Status,
 			Brand:       req.Brand,
 			Model:       req.Model,
@@ -190,6 +192,9 @@ func (s *partsGRPCServer) UpdatePart(ctx context.Context, req *partsv1.UpdatePar
 	}
 	if req.Location != nil {
 		updates["location"] = *req.Location
+	}
+	if req.Address != nil {
+		updates["address"] = *req.Address
 	}
 	if req.Status != nil {
 		updates["status"] = *req.Status
@@ -512,6 +517,7 @@ func (s *partsGRPCServer) CreateDefectReport(ctx context.Context, req *partsv1.C
 				Quantity:    int(dp.Quantity),
 				Description: dp.Description,
 				Location:    dp.Location,
+				Address:     dp.Address,
 				Brand:       req.Brand,
 				Model:       req.Model,
 				Salesman:    req.Salesman,
@@ -611,6 +617,7 @@ func partToProto(p *Part) *partsv1.Part {
 		Price:       p.Price,
 		Salesman:    p.Salesman,
 		Location:    p.Location,
+		Address:     p.Address,
 		Status:      p.Status,
 		Brand:       p.Brand,
 		Model:       p.Model,

@@ -11,6 +11,7 @@ export interface Part {
   price?: number;
   salesman?: string;
   location?: string;
+  address?: string;
   status?: boolean;
   brand?: string;
   model?: string;

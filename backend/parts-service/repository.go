@@ -62,7 +62,7 @@ func NewPartRepository(pool *pgxpool.Pool) PartRepository {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-var partColumns = `id, name, quantity, description, category, price, salesman, location, status,
+var partColumns = `id, name, quantity, description, category, price, salesman, location, address, status,
 	brand, model, photos, seller_id, to_delete_at, vin,
 	body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom,
 	number, manufacturer, manufacturer_code, oem_code, color, condition,
@@ -79,7 +79,7 @@ func scanPart(row pgx.Row) (*Part, error) {
 
 	err := row.Scan(
 		&p.ID, &p.Name, &p.Quantity, &p.Description, &p.Category, &p.Price,
-		&p.Salesman, &p.Location, &p.Status, &p.Brand, &p.Model, &photos,
+		&p.Salesman, &p.Location, &p.Address, &p.Status, &p.Brand, &p.Model, &photos,
 		&p.SellerID, &toDeleteAt, &p.VIN,
 		&p.BodyBrand, &p.EngineBrand, &p.CarReleaseDate, &p.FrontRear, &p.LeftRight, &p.TopBottom,
 		&p.Number, &p.Manufacturer, &p.ManufacturerCode, &p.OEMCode, &p.Color, &p.Condition,
@@ -113,7 +113,7 @@ func scanParts(rows pgx.Rows) ([]Part, error) {
 
 		err := rows.Scan(
 			&p.ID, &p.Name, &p.Quantity, &p.Description, &p.Category, &p.Price,
-			&p.Salesman, &p.Location, &p.Status, &p.Brand, &p.Model, &photos,
+			&p.Salesman, &p.Location, &p.Address, &p.Status, &p.Brand, &p.Model, &photos,
 			&p.SellerID, &toDeleteAt, &p.VIN,
 			&p.BodyBrand, &p.EngineBrand, &p.CarReleaseDate, &p.FrontRear, &p.LeftRight, &p.TopBottom,
 			&p.Number, &p.Manufacturer, &p.ManufacturerCode, &p.OEMCode, &p.Color, &p.Condition,
@@ -159,7 +159,7 @@ func (r *partRepository) Create(ctx context.Context, part *Part) error {
 
 	row := r.pool.QueryRow(ctx, `
 		INSERT INTO parts (
-			name, quantity, description, category, price, salesman, location, status,
+			name, quantity, description, category, price, salesman, location, address, status,
 			brand, model, photos, seller_id, to_delete_at, vin,
 			body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom,
 			number, manufacturer, manufacturer_code, oem_code, color, condition,
@@ -167,12 +167,12 @@ func (r *partRepository) Create(ctx context.Context, part *Part) error {
 			season, diameter, width, profile, tire_quantity, drilling, "offset",
 			center_hole_diameter, tire_model, created_at, updated_at
 		) VALUES (
-			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,
-			$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,
-			$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,NOW(),NOW()
+			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
+			$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,
+			$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,NOW(),NOW()
 		) RETURNING id, created_at, updated_at`,
 		part.Name, part.Quantity, part.Description, part.Category, part.Price,
-		part.Salesman, part.Location, part.Status, part.Brand, part.Model,
+		part.Salesman, part.Location, part.Address, part.Status, part.Brand, part.Model,
 		photosJSON, part.SellerID, toDeleteAt, part.VIN,
 		part.BodyBrand, part.EngineBrand, part.CarReleaseDate, part.FrontRear, part.LeftRight, part.TopBottom,
 		part.Number, part.Manufacturer, part.ManufacturerCode, part.OEMCode, part.Color, part.Condition,
@@ -275,6 +275,8 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 			builder = builder.Where("model ILIKE ?", "%"+value.(string)+"%")
 		case "location_ilike":
 			builder = builder.Where("location ILIKE ?", "%"+value.(string)+"%")
+		case "address_ilike":
+			builder = builder.Where("address ILIKE ?", "%"+value.(string)+"%")
 		case "salesman_ilike":
 			builder = builder.Where("salesman ILIKE ?", "%"+value.(string)+"%")
 		case "status":
@@ -411,7 +413,7 @@ func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]in
 		CREATE TEMP TABLE temp_parts_update (
 			id BIGINT PRIMARY KEY,
 			name TEXT, quantity INTEGER, description TEXT, category TEXT,
-			price DOUBLE PRECISION, brand TEXT, model TEXT, location TEXT,
+			price DOUBLE PRECISION, brand TEXT, model TEXT, location TEXT, address TEXT,
 			salesman TEXT, status TEXT, photos JSONB,
 			body_brand TEXT, engine_brand TEXT, car_release_date TEXT,
 			front_rear TEXT, left_right TEXT, top_bottom TEXT,
@@ -452,14 +454,14 @@ func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]in
 		delete(update, "id")
 
 		_, err = tx.Exec(ctx, `
-			INSERT INTO temp_parts_update (id, name, quantity, description, category, price, brand, model, location, salesman, status, photos,
+			INSERT INTO temp_parts_update (id, name, quantity, description, category, price, brand, model, location, address, salesman, status, photos,
 				body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer,
 				manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage,
 				season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39)`,
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40)`,
 			id,
 			update["name"], update["quantity"], update["description"], update["category"],
-			update["price"], update["brand"], update["model"], update["location"],
+			update["price"], update["brand"], update["model"], update["location"], update["address"],
 			update["salesman"], update["status"], update["photos"],
 			update["body_brand"], update["engine_brand"], update["car_release_date"],
 			update["front_rear"], update["left_right"], update["top_bottom"],
@@ -488,6 +490,7 @@ func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]in
 			brand = COALESCE(t.brand, parts.brand),
 			model = COALESCE(t.model, parts.model),
 			location = COALESCE(t.location, parts.location),
+			address = COALESCE(t.address, parts.address),
 			salesman = COALESCE(t.salesman, parts.salesman),
 			status = COALESCE(t.status, parts.status),
 			photos = COALESCE(t.photos, parts.photos),
