@@ -26,3 +26,29 @@ psql -v ON_ERROR_STOP=1 -f /tmp/import_joomshopping.sql
 ```
 
 Restart the parts service after importing so the Elasticsearch index is rebuilt.
+
+## GitHub Actions
+
+The `Migrate Joomla catalog` workflow runs manually on the target server's
+self-hosted runner. It always exports and validates both parts and the matching
+photo manifest. Available modes are:
+
+- `dry-run`: export and validate without changing the target;
+- `data-only`: back up and upsert parts while preserving existing photos;
+- `data-and-photos`: upsert parts, rsync referenced images into the persistent
+  `parts-uploads` Docker volume, import photo URLs, and rebuild Elasticsearch.
+
+The photo variant can be `optimized` (the normal JoomShopping image, recommended)
+or `full` (`full_` original with a fallback to the normal image). Existing files
+are updated idempotently and unrelated uploads are never deleted.
+
+Configure these repository settings before running the workflow:
+
+- secret `JOOMLA_SSH_PASSWORD` (required);
+- secret `JOOMLA_SSH_KNOWN_HOSTS` (recommended; output of `ssh-keyscan -H`);
+- variable `JOOMLA_SSH_HOST` (defaults to the legacy host in the workflow);
+- variable `JOOMLA_SSH_USER` (defaults to `root`).
+
+The `data-and-photos` mode additionally requires the dispatch confirmation
+`MIGRATE_WITH_PHOTOS`. Every mutating run creates a PostgreSQL custom-format
+backup under `/home/avtoplaneta/backups` before importing.

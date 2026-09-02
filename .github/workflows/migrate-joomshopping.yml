@@ -1,0 +1,187 @@
+name: Migrate Joomla catalog
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Migration mode
+        required: true
+        type: choice
+        options:
+          - dry-run
+          - data-only
+          - data-and-photos
+        default: dry-run
+      photo_variant:
+        description: Image quality used by data-and-photos
+        required: true
+        type: choice
+        options:
+          - optimized
+          - full
+        default: optimized
+      confirmation:
+        description: Type MIGRATE_WITH_PHOTOS for data-and-photos
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: joomshopping-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: self-hosted
+    timeout-minutes: 240
+    env:
+      SOURCE_HOST: ${{ vars.JOOMLA_SSH_HOST }}
+      SOURCE_USER: ${{ vars.JOOMLA_SSH_USER }}
+      SOURCE_PASSWORD: ${{ secrets.JOOMLA_SSH_PASSWORD }}
+      SOURCE_KNOWN_HOSTS: ${{ secrets.JOOMLA_SSH_KNOWN_HOSTS }}
+      SOURCE_CONFIG: /var/www/www-root/data/www/avtoplaneta70.ru/configuration.php
+      SOURCE_IMAGES: /var/www/www-root/data/www/avtoplaneta70.ru/components/com_jshopping/files/img_products
+      TARGET_PROJECT: /opt/avtoplaneta
+      TARGET_VOLUME: avtoplaneta_parts-uploads
+    steps:
+      - name: Checkout migration scripts
+        uses: actions/checkout@v4
+
+      - name: Export, validate and migrate
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          SOURCE_HOST="${SOURCE_HOST:-134.0.118.237}"
+          SOURCE_USER="${SOURCE_USER:-root}"
+          MODE="${{ inputs.mode }}"
+          PHOTO_VARIANT="${{ inputs.photo_variant }}"
+
+          if [ -z "$SOURCE_PASSWORD" ]; then
+            echo "Missing GitHub secret JOOMLA_SSH_PASSWORD" >&2
+            exit 1
+          fi
+          if [ "$MODE" = "data-and-photos" ] && [ "${{ inputs.confirmation }}" != "MIGRATE_WITH_PHOTOS" ]; then
+            echo "Full migration requires confirmation MIGRATE_WITH_PHOTOS" >&2
+            exit 1
+          fi
+
+          command -v sshpass >/dev/null || {
+            sudo apt-get update
+            sudo apt-get install -y sshpass
+          }
+
+          WORK_DIR="$(mktemp -d "$RUNNER_TEMP/joomshopping.XXXXXX")"
+          KNOWN_HOSTS="$WORK_DIR/known_hosts"
+          REMOTE_BASE="/tmp/avtoplaneta-migration-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          export SSHPASS="$SOURCE_PASSWORD"
+
+          if [ -n "$SOURCE_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$SOURCE_KNOWN_HOSTS" > "$KNOWN_HOSTS"
+          else
+            ssh-keyscan -H "$SOURCE_HOST" > "$KNOWN_HOSTS"
+            echo "::warning::JOOMLA_SSH_KNOWN_HOSTS is not configured; ssh-keyscan result was used"
+          fi
+
+          SSH_OPTIONS=(
+            -o "UserKnownHostsFile=$KNOWN_HOSTS"
+            -o StrictHostKeyChecking=yes
+            -o ConnectTimeout=20
+            -o ServerAliveInterval=30
+            -o ServerAliveCountMax=6
+          )
+
+          cleanup() {
+            sshpass -e ssh "${SSH_OPTIONS[@]}" "$SOURCE_USER@$SOURCE_HOST" \
+              "rm -f '${REMOTE_BASE}-export.php' '${REMOTE_BASE}-photos.php' '${REMOTE_BASE}-parts.csv' '${REMOTE_BASE}-parts.csv.gz' '${REMOTE_BASE}-photos.csv' '${REMOTE_BASE}-photos.csv.gz' '${REMOTE_BASE}-files.txt'" \
+              >/dev/null 2>&1 || true
+            rm -rf "$WORK_DIR"
+          }
+          trap cleanup EXIT
+
+          sshpass -e scp "${SSH_OPTIONS[@]}" \
+            scripts/migration/export_joomshopping.php \
+            "$SOURCE_USER@$SOURCE_HOST:${REMOTE_BASE}-export.php"
+          sshpass -e scp "${SSH_OPTIONS[@]}" \
+            scripts/migration/export_joomshopping_photos.php \
+            "$SOURCE_USER@$SOURCE_HOST:${REMOTE_BASE}-photos.php"
+
+          sshpass -e ssh "${SSH_OPTIONS[@]}" "$SOURCE_USER@$SOURCE_HOST" \
+            "php '${REMOTE_BASE}-export.php' '$SOURCE_CONFIG' '${REMOTE_BASE}-parts.csv' && php '${REMOTE_BASE}-photos.php' '$SOURCE_CONFIG' '$SOURCE_IMAGES' '$PHOTO_VARIANT' '${REMOTE_BASE}-photos.csv' '${REMOTE_BASE}-files.txt' && gzip -c '${REMOTE_BASE}-parts.csv' > '${REMOTE_BASE}-parts.csv.gz' && gzip -c '${REMOTE_BASE}-photos.csv' > '${REMOTE_BASE}-photos.csv.gz'"
+
+          sshpass -e scp "${SSH_OPTIONS[@]}" \
+            "$SOURCE_USER@$SOURCE_HOST:${REMOTE_BASE}-parts.csv.gz" "$WORK_DIR/parts.csv.gz"
+          sshpass -e scp "${SSH_OPTIONS[@]}" \
+            "$SOURCE_USER@$SOURCE_HOST:${REMOTE_BASE}-photos.csv.gz" "$WORK_DIR/photos.csv.gz"
+          sshpass -e scp "${SSH_OPTIONS[@]}" \
+            "$SOURCE_USER@$SOURCE_HOST:${REMOTE_BASE}-files.txt" "$WORK_DIR/photo-files.txt"
+
+          python3 scripts/migration/validate_joomshopping_export.py \
+            "$WORK_DIR/parts.csv.gz" "$WORK_DIR/photos.csv.gz" | tee "$WORK_DIR/validation.json"
+          EXPECTED_PARTS="$(jq -r '.parts' "$WORK_DIR/validation.json")"
+          EXPECTED_PHOTOS="$(jq -r '.photo_rows' "$WORK_DIR/validation.json")"
+          EXPECTED_BYTES="$(jq -r '.photo_bytes' "$WORK_DIR/validation.json")"
+
+          {
+            echo "### Joomla migration"
+            echo "- Mode: $MODE"
+            echo "- Parts: $EXPECTED_PARTS"
+            echo "- Photo references: $EXPECTED_PHOTOS"
+            echo "- Selected bytes: $EXPECTED_BYTES"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$MODE" = "dry-run" ]; then
+            exit 0
+          fi
+
+          cd "$TARGET_PROJECT"
+          BACKUP_DIR="/home/avtoplaneta/backups"
+          BACKUP_FILE="$BACKUP_DIR/avtoplaneta_before_joomshopping_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}.dump"
+          mkdir -p "$BACKUP_DIR"
+          docker exec avtoplaneta-postgres pg_dump -U postgres -d avtoplaneta -Fc > "$BACKUP_FILE"
+
+          gzip -dc "$WORK_DIR/parts.csv.gz" > "$WORK_DIR/parts.csv"
+          docker cp "$WORK_DIR/parts.csv" avtoplaneta-postgres:/tmp/joomshopping_parts.csv
+          docker cp scripts/migration/import_joomshopping.sql avtoplaneta-postgres:/tmp/import_joomshopping.sql
+          docker exec avtoplaneta-postgres psql -U postgres -d avtoplaneta \
+            -f /tmp/import_joomshopping.sql
+
+          if [ "$MODE" = "data-and-photos" ]; then
+            UPLOADS_DIR="$(docker volume inspect "$TARGET_VOLUME" --format '{{.Mountpoint}}')/joomla"
+            sudo mkdir -p "$UPLOADS_DIR"
+            sudo chown "$(id -u):$(id -g)" "$UPLOADS_DIR"
+
+            export RSYNC_RSH="sshpass -e ssh -o UserKnownHostsFile=$KNOWN_HOSTS -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=6"
+            rsync -a --partial --human-readable --info=stats2 \
+              --files-from="$WORK_DIR/photo-files.txt" \
+              "$SOURCE_USER@$SOURCE_HOST:$SOURCE_IMAGES/" "$UPLOADS_DIR/"
+
+            gzip -dc "$WORK_DIR/photos.csv.gz" > "$WORK_DIR/photos.csv"
+            docker cp "$WORK_DIR/photos.csv" avtoplaneta-postgres:/tmp/joomshopping_photos.csv
+            docker cp scripts/migration/import_joomshopping_photos.sql avtoplaneta-postgres:/tmp/import_joomshopping_photos.sql
+            docker exec avtoplaneta-postgres psql -U postgres -d avtoplaneta \
+              -f /tmp/import_joomshopping_photos.sql
+          fi
+
+          docker restart avtoplaneta-parts
+          for attempt in $(seq 1 80); do
+            HEALTH="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' avtoplaneta-parts)"
+            INDEXED="$(docker exec avtoplaneta-elasticsearch curl -fsS http://127.0.0.1:9200/parts/_count | jq -r '.count')"
+            echo "health=$HEALTH indexed=$INDEXED expected=$EXPECTED_PARTS"
+            if [ "$HEALTH" = "healthy" ] && [ "$INDEXED" = "$EXPECTED_PARTS" ]; then
+              break
+            fi
+            if [ "$attempt" = 80 ]; then
+              echo "Timed out waiting for parts-service reindex" >&2
+              exit 1
+            fi
+            sleep 20
+          done
+
+          DB_COUNTS="$(docker exec avtoplaneta-postgres psql -U postgres -d avtoplaneta -At -F '|' -c \
+            "SELECT COUNT(*), COUNT(*) FILTER (WHERE photos <> '[]'::jsonb), COUNT(*) FILTER (WHERE address ~ '^[0-9]+$') FROM parts WHERE deleted_at IS NULL")"
+          echo "- PostgreSQL (parts|with_photos|numeric_addresses): $DB_COUNTS" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Backup: $BACKUP_FILE" >> "$GITHUB_STEP_SUMMARY"
+

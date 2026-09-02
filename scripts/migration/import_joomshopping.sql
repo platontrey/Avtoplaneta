@@ -117,7 +117,7 @@ ON CONFLICT (id) DO UPDATE SET
     status = EXCLUDED.status,
     brand = EXCLUDED.brand,
     model = EXCLUDED.model,
-    photos = EXCLUDED.photos,
+    -- Photos are imported separately so a data-only refresh never erases them.
     seller_id = EXCLUDED.seller_id,
     vin = EXCLUDED.vin,
     body_brand = EXCLUDED.body_brand,
