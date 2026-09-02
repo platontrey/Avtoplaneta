@@ -110,7 +110,7 @@ function resolveAddress($values, $rawValue)
     if (isset($historicalAliases[$raw])) {
         return $historicalAliases[$raw];
     }
-    return resolveExtra($values, 44, $raw);
+    return cleanScalar(resolveExtra($values, 44, $raw));
 }
 
 function cleanDescription($parts)
