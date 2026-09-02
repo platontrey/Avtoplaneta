@@ -149,14 +149,22 @@ jobs:
             -f /tmp/import_joomshopping.sql
 
           if [ "$MODE" = "data-and-photos" ]; then
-            UPLOADS_DIR="$(docker volume inspect "$TARGET_VOLUME" --format '{{.Mountpoint}}')/joomla"
-            sudo mkdir -p "$UPLOADS_DIR"
-            sudo chown "$(id -u):$(id -g)" "$UPLOADS_DIR"
-
-            export RSYNC_RSH="sshpass -e ssh -o UserKnownHostsFile=$KNOWN_HOSTS -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=6"
-            rsync -a --partial --human-readable --info=stats2 \
-              --files-from="$WORK_DIR/photo-files.txt" \
-              "$SOURCE_USER@$SOURCE_HOST:$SOURCE_IMAGES/" "$UPLOADS_DIR/"
+            docker run --rm --network host \
+              -e SSHPASS="$SOURCE_PASSWORD" \
+              -e SOURCE_HOST="$SOURCE_HOST" \
+              -e SOURCE_USER="$SOURCE_USER" \
+              -e SOURCE_IMAGES="$SOURCE_IMAGES" \
+              -v "$KNOWN_HOSTS:/root/.ssh/known_hosts:ro" \
+              -v "$WORK_DIR/photo-files.txt:/work/photo-files.txt:ro" \
+              -v "$TARGET_VOLUME:/dest" \
+              alpine:3.20 sh -ec '
+                apk add --no-cache openssh-client rsync sshpass >/dev/null
+                mkdir -p /dest/joomla
+                export RSYNC_RSH="sshpass -e ssh -o UserKnownHostsFile=/root/.ssh/known_hosts -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=6"
+                rsync -a --partial --human-readable --info=stats2 \
+                  --files-from=/work/photo-files.txt \
+                  "$SOURCE_USER@$SOURCE_HOST:$SOURCE_IMAGES/" /dest/joomla/
+              '
 
             gzip -dc "$WORK_DIR/photos.csv.gz" > "$WORK_DIR/photos.csv"
             docker cp "$WORK_DIR/photos.csv" avtoplaneta-postgres:/tmp/joomshopping_photos.csv
@@ -184,4 +192,3 @@ jobs:
             "SELECT COUNT(*), COUNT(*) FILTER (WHERE photos <> '[]'::jsonb), COUNT(*) FILTER (WHERE address ~ '^[0-9]+$') FROM parts WHERE deleted_at IS NULL")"
           echo "- PostgreSQL (parts|with_photos|numeric_addresses): $DB_COUNTS" >> "$GITHUB_STEP_SUMMARY"
           echo "- Backup: $BACKUP_FILE" >> "$GITHUB_STEP_SUMMARY"
-

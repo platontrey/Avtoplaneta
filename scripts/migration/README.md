@@ -40,7 +40,9 @@ photo manifest. Available modes are:
 
 The photo variant can be `optimized` (the normal JoomShopping image, recommended)
 or `full` (`full_` original with a fallback to the normal image). Existing files
-are updated idempotently and unrelated uploads are never deleted.
+are updated idempotently and unrelated uploads are never deleted. Rsync runs in
+an ephemeral Alpine toolbox container with the named upload volume mounted at
+`/dest`; host permissions under `/var/lib/docker/volumes` are not weakened.
 
 Configure these repository settings before running the workflow:
 
