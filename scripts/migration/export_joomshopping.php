@@ -96,6 +96,24 @@ function resolveExtra($values, $fieldId, $rawValue)
     return isset($values[$fieldId][$raw]) ? $values[$fieldId][$raw] : $raw;
 }
 
+function normalizeVehicleText($value)
+{
+    $value = cleanScalar($value);
+    if ($value === '' || !function_exists('mb_strtolower')) {
+        return $value;
+    }
+
+    // Legacy Joomla stores many makes/models in all caps. Convert only those
+    // values, preserving mixed-case model codes and known automotive acronyms.
+    if (preg_match('/^[A-ZА-ЯЁ0-9 ._\/-]+$/u', $value)) {
+        $value = mb_convert_case(mb_strtolower($value, 'UTF-8'), MB_CASE_TITLE, 'UTF-8');
+        foreach (['Bmw' => 'BMW', 'Gmc' => 'GMC', 'Daf' => 'DAF', 'Man' => 'MAN', 'Ud' => 'UD'] as $from => $to) {
+            $value = preg_replace('/\b' . preg_quote($from, '/') . '\b/u', $to, $value);
+        }
+    }
+    return $value;
+}
+
 function resolveAddress($values, $rawValue)
 {
     $raw = cleanScalar($rawValue);
@@ -262,8 +280,8 @@ while ($row = $products->fetch_assoc()) {
         $shelf,
         $address,
         $quantity > 0 ? 'true' : 'false',
-        resolveExtra($values, 30, $row['extra_field_30']),
-        resolveExtra($values, 31, $row['extra_field_31']),
+        normalizeVehicleText(resolveExtra($values, 30, $row['extra_field_30'])),
+        normalizeVehicleText(resolveExtra($values, 31, $row['extra_field_31'])),
         '[]',
         '0',
         resolveExtra($values, 32, $row['extra_field_32']),

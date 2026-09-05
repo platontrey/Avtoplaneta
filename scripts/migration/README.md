@@ -12,6 +12,7 @@ This migration moves published products from the legacy Joomla/JoomShopping MySQ
 - Deleted legacy address options are normalized to the three current warehouse
   addresses. IDs 1239 and 1336 were recovered from an older SQL backup; IDs 878
   and 880 are mapped by the matching shelf prefixes in the affected products.
+- Legacy all-caps vehicle makes/models are normalized to readable case during export.
 
 The exporter reads database credentials directly from Joomla's `configuration.php`; credentials are not copied into the repository or command output.
 
