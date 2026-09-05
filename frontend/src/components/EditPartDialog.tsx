@@ -120,7 +120,7 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                         onChange={(e) => partEdit.updateFormField('model', e.target.value)}
                                     />
                                 </FormRow>
-                                <FormRow label="VIN" htmlFor="vin">
+                                <FormRow label="VIN / Марка кузова" htmlFor="vin">
                                     <Input
                                         id="vin"
                                         autoComplete="off"
@@ -305,15 +305,6 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
 
                         <TabsContent value="specifications" className="space-y-4 mt-4">
                             <div className="grid gap-3 sm:gap-4 py-4">
-                                {shows('body_brand') && (
-                                    <FormRow label="Марка кузова" htmlFor="body_brand">
-                                        <Input
-                                            id="body_brand"
-                                            value={partEdit.editForm.body_brand || ''}
-                                            onChange={(e) => partEdit.updateFormField('body_brand', e.target.value)}
-                                        />
-                                    </FormRow>
-                                )}
 
                                 {shows('engine_brand') && (
                                     <FormRow label="Марка двигателя" htmlFor="engine_brand">

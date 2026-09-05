@@ -2,12 +2,6 @@
   "version": "2026-08-31.1",
   "attributes": [
     {
-      "code": "body_brand",
-      "label": "Марка кузова",
-      "input_type": "text",
-      "sort_order": 1
-    },
-    {
       "code": "engine_brand",
       "label": "Марка двигателя",
       "input_type": "text",
@@ -244,7 +238,6 @@
       "code": "form_body_interior",
       "name": "Кузов внутри",
       "attributes": [
-        "body_brand",
         "front_rear",
         "left_right",
         "top_bottom",
@@ -262,7 +255,6 @@
       "code": "form_body_exterior",
       "name": "Кузов снаружи",
       "attributes": [
-        "body_brand",
         "front_rear",
         "left_right",
         "top_bottom",
@@ -280,7 +272,6 @@
       "code": "form_optics",
       "name": "Оптика",
       "attributes": [
-        "body_brand",
         "front_rear",
         "left_right",
         "top_bottom",
@@ -511,7 +502,7 @@
   "report_bindings": [
     {
       "source": "body_brand",
-      "target": "body_brand"
+      "target": "vin"
     },
     {
       "source": "engine_brand",

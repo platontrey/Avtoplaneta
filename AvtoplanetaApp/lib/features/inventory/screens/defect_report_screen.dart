@@ -240,7 +240,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
               required: true,
               keyboard: TextInputType.number,
             ),
-            _buildTextField(_vinCtrl, 'VIN'),
+            _buildTextField(_vinCtrl, 'VIN / Марка кузова'),
             _buildTextField(
               _mileageCtrl,
               'Пробег (км) *',

@@ -92,7 +92,7 @@ export function usePartEdit(options: UsePartEditOptions): UsePartEditReturn {
     status: initialPart.status ?? true,
     brand: initialPart.brand || '',
     model: initialPart.model || '',
-    vin: initialPart.vin || '',
+    vin: initialPart.vin || initialPart.body_brand || '',
     photo: initialPart.photo || '',
     // Характеристики запчасти
     body_brand: initialPart.body_brand || '',
@@ -139,7 +139,7 @@ export function usePartEdit(options: UsePartEditOptions): UsePartEditReturn {
       status: initialPart.status ?? true,
       brand: initialPart.brand || '',
       model: initialPart.model || '',
-      vin: initialPart.vin || '',
+      vin: initialPart.vin || initialPart.body_brand || '',
       photo: initialPart.photo || '',
       // Характеристики запчасти
       body_brand: initialPart.body_brand || '',

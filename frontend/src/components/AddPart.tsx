@@ -566,7 +566,7 @@ export default function AddPart() {
                                     </div>
 
                                     <div>
-                                        <Label htmlFor="vin" className="min-w-[120px] mb-1">VIN</Label>
+                                        <Label htmlFor="vin" className="min-w-[120px] mb-1">VIN / Марка кузова</Label>
                                         <Input
                                             id="vin"
                                             {...register("vin")}
@@ -779,18 +779,6 @@ export default function AddPart() {
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {visibleFields.includes("body_brand") && (
-                                        <div>
-                                            <Label htmlFor="body_brand" className="mb-1">Марка кузова</Label>
-                                            <Input
-                                                id="body_brand"
-                                                {...register("body_brand")}
-                                                type="text"
-                                                className="h-10"
-                                                autoComplete="off"
-                                            />
-                                        </div>
-                                    )}
 
                                     {visibleFields.includes("engine_brand") && (
                                         <div>

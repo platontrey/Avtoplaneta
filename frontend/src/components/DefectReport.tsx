@@ -232,18 +232,6 @@ export default function DefectReport() {
               </div>
 
               <div>
-                <Label htmlFor="body-brand">Марка кузова</Label>
-                <Input
-                  id="body-brand"
-                  {...register("body_brand")}
-                  type="text"
-                  placeholder="Например: Toyota Corolla"
-                  className="h-10"
-                  autoComplete="off"
-                />
-              </div>
-
-              <div>
                 <Label htmlFor="engine-brand">Марка двигателя</Label>
                 <Input
                   id="engine-brand"
@@ -258,7 +246,7 @@ export default function DefectReport() {
 
             <div className="space-y-4">
               <div>
-                <Label htmlFor="vin">VIN</Label>
+                <Label htmlFor="vin">VIN / Марка кузова</Label>
                 <Input
                   id="vin"
                   {...register("vin")}
