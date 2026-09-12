@@ -3,6 +3,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
 import { partsApi } from '@/features/parts/api/partsApi';
 import type { Part } from '@/features/parts/types';
 
@@ -21,6 +22,53 @@ export const partsKeys = {
   /** Ключ для конкретной запчасти */
   detail: (id: number) => [...partsKeys.details(), id] as const,
 };
+
+function replacePartInCache(queryClient: QueryClient, updatedPart: Partial<Part> & { id: number }) {
+  queryClient.setQueryData(partsKeys.detail(updatedPart.id), (oldData: Part | undefined) =>
+    oldData ? { ...oldData, ...updatedPart } : updatedPart,
+  );
+  queryClient.setQueriesData({ queryKey: partsKeys.lists() }, (oldData: unknown) => {
+    if (Array.isArray(oldData)) {
+      return oldData.map((part) =>
+        typeof part === 'object' && part !== null && 'id' in part && part.id === updatedPart.id
+          ? { ...part, ...updatedPart }
+          : part,
+      );
+    }
+
+    if (
+      oldData &&
+      typeof oldData === 'object' &&
+      'pages' in oldData &&
+      Array.isArray((oldData as { pages: unknown[] }).pages)
+    ) {
+      const infiniteData = oldData as { pages: unknown[] };
+      return {
+        ...oldData,
+        pages: infiniteData.pages.map((page) =>
+          Array.isArray(page)
+            ? page.map((part) =>
+                typeof part === 'object' && part !== null && 'id' in part && part.id === updatedPart.id
+                  ? { ...part, ...updatedPart }
+                  : part,
+              )
+            : page,
+        ),
+      };
+    }
+
+    return oldData;
+  });
+}
+
+function isPartResponse(value: unknown): value is Part {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'id' in value &&
+    typeof value.id === 'number'
+  );
+}
 
 /**
  * Хук для получения списка запчастей с фильтрами
@@ -132,10 +180,11 @@ export function useUpdatePart() {
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<Part> }) =>
       partsApi.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: partsKeys.lists() });
+    onSuccess: (updatedPart, { id, data }) => {
+      replacePartInCache(queryClient, isPartResponse(updatedPart) ? updatedPart : { ...data, id } as Part);
+      void queryClient.invalidateQueries({ queryKey: partsKeys.lists() });
       // Also refetch immediately to ensure UI updates
-      queryClient.refetchQueries({ queryKey: partsKeys.lists() });
+      void queryClient.refetchQueries({ queryKey: partsKeys.lists() });
     },
   });
 }

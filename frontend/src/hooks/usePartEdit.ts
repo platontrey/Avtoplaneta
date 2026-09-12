@@ -4,9 +4,9 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useUpdatePart } from './useParts';
+import { partsKeys } from './useParts';
 import { usePhotoUpload } from './usePhotoUpload';
 import { useQueryClient } from '@tanstack/react-query';
-import { partsKeys } from '@/features/parts/hooks/usePartsQueries';
 import { logUserActivity } from '@/features/admin/api/adminApi';
 import type { Part } from '@/features/parts/types';
 

@@ -9,7 +9,7 @@ import { AlertTriangle } from "lucide-react";
 import { getAuthHeaders } from "@/lib/csrf";
 import { logUserActivity } from "@/features/admin/api/adminApi";
 import { useQueryClient } from '@tanstack/react-query';
-import { partsKeys } from '@/features/parts/hooks/usePartsQueries';
+import { partsKeys } from '@/hooks/useParts';
 import { API_BASE_URL } from '@/lib/api';
 
 interface BulkDeleteDialogProps {

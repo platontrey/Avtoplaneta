@@ -121,6 +121,43 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     });
   }
 
+  bool _sameStringList(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  bool _samePartContent(Part a, Part b) {
+    return a.id == b.id &&
+        a.name == b.name &&
+        a.description == b.description &&
+        a.category == b.category &&
+        a.price == b.price &&
+        a.quantity == b.quantity &&
+        a.status == b.status &&
+        a.brand == b.brand &&
+        a.model == b.model &&
+        a.location == b.location &&
+        a.address == b.address &&
+        a.salesman == b.salesman &&
+        a.vin == b.vin &&
+        a.oemCode == b.oemCode &&
+        a.supplierCode == b.supplierCode &&
+        a.defect == b.defect &&
+        a.markedForDeletion == b.markedForDeletion &&
+        _sameStringList(a.photos, b.photos);
+  }
+
+  bool _samePartPrefix(List<Part> currentParts, List<Part> nextParts) {
+    if (currentParts.length < nextParts.length) return false;
+    for (var i = 0; i < nextParts.length; i++) {
+      if (!_samePartContent(currentParts[i], nextParts[i])) return false;
+    }
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final filter = ref.watch(inventoryFilterProvider);
@@ -144,6 +181,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         _lastFilter = filter;
         _infiniteParts = List.from(data.parts);
         _nextInfinitePage = 2;
+        _hasMoreInfinite = data.parts.length >= 20;
+      } else if (!_samePartPrefix(_infiniteParts, data.parts)) {
+        _infiniteParts = [
+          ...data.parts,
+          ..._infiniteParts.skip(data.parts.length),
+        ];
         _hasMoreInfinite = data.parts.length >= 20;
       }
     }

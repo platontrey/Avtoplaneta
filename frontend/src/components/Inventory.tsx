@@ -11,6 +11,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { partsKeys } from '@/hooks/useParts';
 import type { Part } from '@/lib/types';
 
+const hasSamePartObjects = (currentParts: Part[], nextParts: Part[]) =>
+    currentParts.length === nextParts.length &&
+    currentParts.every((part, index) => part === nextParts[index]);
+
 function Inventory() {
     const containerRef = useRef<HTMLDivElement>(null);
     const queryClient = useQueryClient();
@@ -83,7 +87,7 @@ function Inventory() {
              setAllParts(prev => {
                  // Если это первая страница или данные полностью заменились (например, при фильтрации)
                  if (!isInfiniteMode) {
-                     if (prev.length === partsData.length && prev.every((p, i) => p.id === partsData[i].id)) {
+                     if (hasSamePartObjects(prev, partsData)) {
                          return prev;
                      }
                      return partsData;
@@ -92,7 +96,7 @@ function Inventory() {
                  // Для бесконечной прокрутки:
                  // partsData содержит все загруженные страницы (flat).
                  // Просто обновляем состояние, если оно отличается.
-                 if (prev.length === partsData.length && prev.every((p, i) => p.id === partsData[i].id)) {
+                 if (hasSamePartObjects(prev, partsData)) {
                      return prev;
                  }
                  return partsData;
