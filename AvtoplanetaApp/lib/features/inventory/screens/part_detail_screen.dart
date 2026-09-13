@@ -238,6 +238,9 @@ class PartDetailScreen extends ConsumerWidget {
                     if (part.oemCode != null) _row('OEM код', part.oemCode!),
                     if (part.supplierCode != null)
                       _row('Код поставщика', part.supplierCode!),
+                  ]),
+                if (part.vin != null || part.bodyBrand != null)
+                  _section('Идентификация', [
                     if (part.vin != null) _row('VIN / Номер кузова', part.vin!),
                     if (part.bodyBrand != null) _row('Марка кузова', part.bodyBrand!),
                   ]),
