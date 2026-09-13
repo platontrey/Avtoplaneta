@@ -525,7 +525,6 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
             if (_shows('manufacturer_code'))
               _field(_manufacturerCodeCtrl, 'Код производителя'),
             if (_shows('oem_code')) _field(_oemCtrl, 'OEM код'),
-            if (_shows('color')) _field(_colorCtrl, 'Цвет'),
             if (_shows('condition')) _field(_conditionCtrl, 'Состояние'),
             if (_shows('supplier_code'))
               _field(_supplierCtrl, 'Код поставщика'),
@@ -538,6 +537,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
                 hint: 'Введите номер трансмиссии',
               ),
             if (_shows('drive')) _driveField(),
+            if (_shows('color')) _field(_colorCtrl, 'Цвет кузовных деталей'),
             if (_shows('wear_percentage'))
               _field(
                 _wearPercentageCtrl,

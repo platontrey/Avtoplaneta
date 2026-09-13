@@ -191,6 +191,7 @@ class PartDetailScreen extends ConsumerWidget {
                       _row('Тип трансмиссии', val(part.transmission)),
                     if (shows('transmission_model'))
                       _row('Модель трансмиссии', val(part.transmissionModel)),
+                    if (shows('drive')) _row('Привод', val(part.drive)),
                     if (part.color != null) _row('Цвет кузовных деталей', part.color!),
                     if (shows('front_rear'))
                       _row('Перед / зад', val(part.frontRear)),
@@ -212,8 +213,6 @@ class PartDetailScreen extends ConsumerWidget {
                       _row('Дефект', val(part.defect)),
                     if (shows('supplier_code'))
                       _row('Код поставки', val(part.supplierCode)),
-                    if (shows('drive'))
-                      _row('Привод', val(part.drive)),
                     if (shows('wear_percentage'))
                       _row('Процент износа', _notEmpty(part.wearPercentage) ? '${part.wearPercentage}%' : '—'),
                     if (shows('season'))
