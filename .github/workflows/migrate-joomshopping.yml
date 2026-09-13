@@ -176,7 +176,7 @@ jobs:
           docker restart avtoplaneta-parts
           for attempt in $(seq 1 80); do
             HEALTH="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' avtoplaneta-parts)"
-            INDEXED="$(docker exec avtoplaneta-elasticsearch curl -fsS http://127.0.0.1:9200/parts/_count | jq -r '.count')"
+            INDEXED="$(docker exec avtoplaneta-elasticsearch sh -c 'curl -fsS http://127.0.0.1:9200/parts/_count 2>/dev/null || true' | jq -r '.count // 0')"
             echo "health=$HEALTH indexed=$INDEXED expected=$EXPECTED_PARTS"
             if [ "$HEALTH" = "healthy" ] && [ "$INDEXED" = "$EXPECTED_PARTS" ]; then
               break
