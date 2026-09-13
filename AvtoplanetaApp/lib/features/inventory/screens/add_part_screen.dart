@@ -99,14 +99,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
     }
     // Editing must expose the same complete set of existing fields as a new
     // part form; category templates only control the compact add flow.
-    if (widget.editId != null) {
-      return catalog.attributes.map((attribute) => attribute.code).toSet();
-    }
-    final category = _categoryCtrl.text.trim();
-    if (category.isEmpty) {
-      return catalog.attributes.map((attribute) => attribute.code).toSet();
-    }
-    return catalog.attributesForCategory(category);
+    return catalog.attributes.map((attribute) => attribute.code).toSet();
   }
 
   Future<void> _loadCatalog() async {

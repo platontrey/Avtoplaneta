@@ -210,9 +210,7 @@ export default function AddPart() {
     const sellerId = watch("seller_id");
 
 
-    const visibleFields = category
-        ? partCatalog?.part_form_categories.find((item) => item.name === category)?.attributes ?? []
-        : partCatalog?.attributes.map((attribute) => attribute.code) ?? [];
+    const visibleFields = partCatalog?.attributes.map((attribute) => attribute.code) ?? [];
     const transmissionOptions = partCatalog?.attributes.find(
         (attribute) => attribute.code === "transmission",
     )?.options ?? [];

@@ -34,9 +34,7 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
     const { data: partCatalog } = usePartCatalog();
 
     const category = partEdit.editForm.category;
-    const visibleFields = category
-        ? partCatalog?.part_form_categories.find((item) => item.name === category)?.attributes ?? []
-        : partCatalog?.attributes.map((attribute) => attribute.code) ?? [];
+    const visibleFields = partCatalog?.attributes.map((attribute) => attribute.code) ?? [];
     const shows = (field: string) => visibleFields.length === 0 || visibleFields.includes(field);
 
     const transmissionOptions = partCatalog?.attributes.find(
