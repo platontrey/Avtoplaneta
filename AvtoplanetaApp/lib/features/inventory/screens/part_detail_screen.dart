@@ -84,12 +84,8 @@ class PartDetailScreen extends ConsumerWidget {
           );
         },
         data: (part) {
-          final categoryAttrs = catalog?.attributesForCategory(part.category);
           bool shows(String field) {
-            if (categoryAttrs == null || categoryAttrs.isEmpty) {
-              return true;
-            }
-            return categoryAttrs.contains(field);
+            return true;
           }
           String val(String? v) => _notEmpty(v) ? v! : '—';
 

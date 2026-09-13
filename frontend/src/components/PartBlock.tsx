@@ -696,10 +696,6 @@ function PartBlock({
                                             return val;
                                         };
 
-                                        const categoryAttrs = part.category
-                                            ? partCatalog?.part_form_categories.find((c) => c.name === part.category)?.attributes
-                                            : undefined;
-
                                         const allSpecs = [
                                             { code: 'body_brand', label: 'Марка кузова', value: part.body_brand },
                                             { code: 'engine_brand', label: 'Марка двигателя', value: part.engine_brand },
@@ -736,10 +732,6 @@ function PartBlock({
                                         return allSpecs
                                             .filter(item => {
                                                 if (!item.value) return false;
-                                                if (categoryAttrs && categoryAttrs.length > 0) {
-                                                    if (['location', 'address', 'salesman', 'vin', 'body_brand'].includes(item.code)) return true;
-                                                    return categoryAttrs.includes(item.code);
-                                                }
                                                 return true;
                                             })
                                             .map((item, idx) => (
