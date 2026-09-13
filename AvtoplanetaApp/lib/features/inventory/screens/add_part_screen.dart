@@ -560,7 +560,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
             if (_shows('tire_model')) _field(_tireModelCtrl, 'Модель шины'),
 
             _section('Идентификация'),
-            _field(_vinCtrl, 'VIN / Марка кузова'),
+            _field(_vinCtrl, 'VIN / Номер кузова'),
 
             _section('Расположение'),
             _field(_locationCtrl, 'Место хранения'),

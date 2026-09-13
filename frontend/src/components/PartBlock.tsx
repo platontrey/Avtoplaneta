@@ -726,7 +726,8 @@ function PartBlock({
                                             { code: 'offset', label: 'Вылет', value: part.offset },
                                             { code: 'center_hole_diameter', label: 'Диаметр ЦО', value: part.center_hole_diameter },
                                             { code: 'tire_model', label: 'Модель шины', value: part.tire_model },
-                                            { code: 'vin', label: 'VIN / Марка кузова', value: part.vin || part.body_brand },
+                                            { code: 'body_brand', label: 'Марка кузова', value: part.body_brand },
+                                            { code: 'vin', label: 'VIN / Номер кузова', value: part.vin },
                                             { code: 'location', label: 'Местоположение', value: part.location },
                                             { code: 'address', label: 'Адрес склада', value: part.address },
                                             { code: 'salesman', label: 'Продавец', value: part.salesman },
@@ -736,7 +737,7 @@ function PartBlock({
                                             .filter(item => {
                                                 if (!item.value) return false;
                                                 if (categoryAttrs && categoryAttrs.length > 0) {
-                                                    if (['location', 'address', 'salesman', 'vin'].includes(item.code)) return true;
+                                                    if (['location', 'address', 'salesman', 'vin', 'body_brand'].includes(item.code)) return true;
                                                     return categoryAttrs.includes(item.code);
                                                 }
                                                 return true;
