@@ -314,8 +314,29 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 			},
 		}
 
+		// Every term in a multi-word query must match somewhere in the same
+		// part. Without this guard, "АКПП ACV30" matched any АКПП (for
+		// example Nissan) even when ACV30 was absent.
+		requiredFields := []string{
+			"name", "name.ngram", "brand.text", "model.text", "body_brand",
+			"engine_brand", "number", "oem_code", "manufacturer_code",
+			"supplier_code", "vin", "category.text", "description",
+		}
+		requiredQueries := []map[string]interface{}{
+			{"multi_match": map[string]interface{}{
+				"query": params.Search, "fields": requiredFields,
+				"type": "cross_fields", "operator": "and",
+			}},
+		}
+
 		// Если введен латинский текст, добавляем варианты транслитерации и смены раскладки в кириллицу
 		if transliteratedSearch != strings.ToLower(params.Search) {
+			requiredQueries = append(requiredQueries, map[string]interface{}{
+				"multi_match": map[string]interface{}{
+					"query": transliteratedSearch, "fields": requiredFields,
+					"type": "cross_fields", "operator": "and",
+				},
+			})
 			shouldQueries = append(shouldQueries,
 				map[string]interface{}{
 					"match": map[string]interface{}{
@@ -338,6 +359,12 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 		}
 
 		if qwertySearch != strings.ToLower(params.Search) && qwertySearch != transliteratedSearch {
+			requiredQueries = append(requiredQueries, map[string]interface{}{
+				"multi_match": map[string]interface{}{
+					"query": qwertySearch, "fields": requiredFields,
+					"type": "cross_fields", "operator": "and",
+				},
+			})
 			shouldQueries = append(shouldQueries,
 				map[string]interface{}{
 					"match": map[string]interface{}{
@@ -365,6 +392,12 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 
 		searchQuery := map[string]interface{}{
 			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{{
+					"bool": map[string]interface{}{
+						"should":               requiredQueries,
+						"minimum_should_match": 1,
+					},
+				}},
 				"should":               shouldQueries,
 				"minimum_should_match": 1,
 			},
