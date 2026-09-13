@@ -33,7 +33,6 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
     console.log('EditPartDialog render, part.photo:', part.photo, 'photoPreview:', partEdit.photoUpload.photoPreview);
     const { data: partCatalog } = usePartCatalog();
 
-    const category = partEdit.editForm.category;
     const visibleFields = partCatalog?.attributes.map((attribute) => attribute.code) ?? [];
     const shows = (field: string) => visibleFields.length === 0 || visibleFields.includes(field);
 

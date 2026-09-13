@@ -38,7 +38,6 @@ import type { Part } from "@/features/parts/types";
 import { API_BASE_URL } from "@/lib/api";
 import { useQueryClient } from '@tanstack/react-query';
 import { getAuthHeaders } from '@/lib/csrf';
-import { usePartCatalog } from "@/features/catalog/usePartCatalog";
 
 interface PartBlockProps {
     part: Part;
@@ -71,8 +70,6 @@ function PartBlock({
 
     // Для множественных фото используем partsApi напрямую
     const [photoUploadTimestamp, setPhotoUploadTimestamp] = useState<number>(Date.now());
-    const { data: partCatalog } = usePartCatalog();
-
     const partEdit = usePartEdit({
         initialPart: part,
     });
