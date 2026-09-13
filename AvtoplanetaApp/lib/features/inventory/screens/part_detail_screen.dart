@@ -7,7 +7,6 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/utils/qr_signer.dart';
 import '../providers/inventory_provider.dart';
-import '../providers/part_catalog_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../orders/widgets/part_order_sheet.dart';
 
@@ -24,8 +23,6 @@ class PartDetailScreen extends ConsumerWidget {
     final filter = ref.watch(inventoryFilterProvider);
     final inventoryAsync = ref.watch(inventoryProvider(filter));
     final isOffline = inventoryAsync.valueOrNull?.isOffline ?? false;
-
-    final catalog = ref.watch(partCatalogProvider).valueOrNull;
 
     return Scaffold(
       appBar: AppBar(
