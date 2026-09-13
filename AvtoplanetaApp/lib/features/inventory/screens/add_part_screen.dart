@@ -511,6 +511,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
             _section('Характеристики'),
             _field(_brandCtrl, 'Бренд'),
             _field(_modelCtrl, 'Модель'),
+            _field(_bodyBrandCtrl, 'Марка кузова'),
             if (_shows('engine_brand'))
               _field(_engineBrandCtrl, 'Марка двигателя'),
             if (_shows('car_release_date'))

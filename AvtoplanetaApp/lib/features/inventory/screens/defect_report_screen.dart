@@ -235,6 +235,16 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
             ),
             _buildTextField(_modelCtrl, 'Модель *', required: true),
             _buildTextField(
+              _bodyBrandCtrl,
+              'Марка кузова',
+              hint: 'Например: E90',
+            ),
+            _buildTextField(
+              _engineBrandCtrl,
+              'Марка двигателя',
+              hint: 'Например: Toyota 1NZ-FE',
+            ),
+            _buildTextField(
               _yearCtrl,
               'Год выпуска *',
               required: true,
@@ -259,25 +269,6 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
               hint:
                   'Применяется к подвеске ДВС/КПП, трансмиссии и передней подвеске',
             ),
-            _buildDropdown(
-              value: driveOptions.contains(_driveCtrl.text.trim())
-                  ? _driveCtrl.text.trim()
-                  : null,
-              label: 'Привод',
-              items: driveOptions,
-              onChanged: (val) => setState(() => _driveCtrl.text = val ?? ''),
-            ),
-            _buildTextField(
-              _engineBrandCtrl,
-              'Марка двигателя',
-              hint: 'Например: Toyota 1NZ-FE',
-            ),
-            _buildTextField(
-              _bodyBrandCtrl,
-              'Марка кузова',
-              hint: 'Например: Toyota Corolla',
-            ),
-
             const SizedBox(height: 12),
             _sectionTitle('Цвета деталей'),
             _buildDropdown(
@@ -291,6 +282,14 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
               label: 'Цвет кузовных деталей',
               items: _availableColors,
               onChanged: (val) => setState(() => _selectedBodyColor = val),
+            ),
+            _buildDropdown(
+              value: driveOptions.contains(_driveCtrl.text.trim())
+                  ? _driveCtrl.text.trim()
+                  : null,
+              label: 'Привод',
+              items: driveOptions,
+              onChanged: (val) => setState(() => _driveCtrl.text = val ?? ''),
             ),
 
             const SizedBox(height: 12),

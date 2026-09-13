@@ -178,7 +178,7 @@ class PartDetailScreen extends ConsumerWidget {
                     if (part.category.isNotEmpty) _row('Категория', part.category),
                     if (part.brand != null) _row('Бренд', part.brand!),
                     if (part.model != null) _row('Модель', part.model!),
-                    if (part.color != null) _row('Цвет', part.color!),
+                    if (part.bodyBrand != null) _row('Марка кузова', part.bodyBrand!),
                     if (part.condition != null) _row('Состояние', part.condition!),
                   ]),
                   _section('Характеристики', [
@@ -186,6 +186,12 @@ class PartDetailScreen extends ConsumerWidget {
                       _row('Марка двигателя', val(part.engineBrand)),
                     if (shows('car_release_date'))
                       _row('Год выпуска', val(part.carReleaseDate)),
+                    if (part.vin != null) _row('VIN / Номер кузова', part.vin!),
+                    if (shows('transmission'))
+                      _row('Тип трансмиссии', val(part.transmission)),
+                    if (shows('transmission_model'))
+                      _row('Модель трансмиссии', val(part.transmissionModel)),
+                    if (part.color != null) _row('Цвет кузовных деталей', part.color!),
                     if (shows('front_rear'))
                       _row('Перед / зад', val(part.frontRear)),
                     if (shows('left_right'))
@@ -206,10 +212,6 @@ class PartDetailScreen extends ConsumerWidget {
                       _row('Дефект', val(part.defect)),
                     if (shows('supplier_code'))
                       _row('Код поставки', val(part.supplierCode)),
-                    if (shows('transmission'))
-                      _row('Тип трансмиссии', val(part.transmission)),
-                    if (shows('transmission_model'))
-                      _row('Модель трансмиссии', val(part.transmissionModel)),
                     if (shows('drive'))
                       _row('Привод', val(part.drive)),
                     if (shows('wear_percentage'))
@@ -238,11 +240,6 @@ class PartDetailScreen extends ConsumerWidget {
                     if (part.oemCode != null) _row('OEM код', part.oemCode!),
                     if (part.supplierCode != null)
                       _row('Код поставщика', part.supplierCode!),
-                  ]),
-                if (part.vin != null || part.bodyBrand != null)
-                  _section('Идентификация', [
-                    if (part.vin != null) _row('VIN / Номер кузова', part.vin!),
-                    if (part.bodyBrand != null) _row('Марка кузова', part.bodyBrand!),
                   ]),
                 _section('Расположение', [
                   if (part.location.isNotEmpty) _row('Место', part.location),
