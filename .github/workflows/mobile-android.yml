@@ -66,6 +66,8 @@ jobs:
       - Linux
       - X64
     timeout-minutes: 30
+    permissions:
+      contents: write
 
     defaults:
       run:
@@ -138,6 +140,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: mobile-latest
+          target_commitish: ${{ github.sha }}
           files: AvtoplanetaApp/release/avtoplaneta-latest.apk
           name: Автопланета — сборка #${{ github.run_number }}
           body: |
