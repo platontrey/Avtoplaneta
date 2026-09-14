@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,9 +21,14 @@ type csrfToken struct {
 }
 
 var userRepo UserRepository
+var authConfig *Config
 
 func SetUserRepo(repo UserRepository) {
 	userRepo = repo
+}
+
+func SetAuthConfig(cfg *Config) {
+	authConfig = cfg
 }
 
 func CORSMiddleware(config *Config) gin.HandlerFunc {
@@ -90,6 +96,40 @@ func getUserIDFromSessionValue(v interface{}) (int64, bool) {
 
 func authMiddleware(c *gin.Context) {
 	log.Printf("ОТЛАДКА: authMiddleware вызван для %s %s от %s", c.Request.Method, c.Request.URL.Path, c.ClientIP())
+
+	// 1. Проверяем заголовок Authorization (JWT Bearer токен от мобильного приложения / API-клиентов)
+	authHeader := c.GetHeader("Authorization")
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		var secret string
+		if authConfig != nil && authConfig.JWTSecret != "" {
+			secret = authConfig.JWTSecret
+		} else {
+			secret = os.Getenv("JWT_SECRET")
+		}
+
+		claims, err := ValidateJWTToken(tokenString, secret)
+		if err != nil {
+			log.Printf("БЕЗОПАСНОСТЬ: Недействительный токен Bearer от %s: %v", c.ClientIP(), err)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Недействительный токен"})
+			c.Abort()
+			return
+		}
+
+		user, err := userRepo.FindByID(claims.UserID)
+		if err != nil || user == nil {
+			log.Printf("БЕЗОПАСНОСТЬ: Пользователь ID %d из токена не найден: %v", claims.UserID, err)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Пользователь не найден"})
+			c.Abort()
+			return
+		}
+
+		log.Printf("ОТЛАДКА: authMiddleware успешно аутентифицировал пользователя %s (ID=%d, Role=%s) по Bearer токену", user.Email, user.ID, user.Role)
+		c.Set("user", *user)
+		c.Set("user_email", user.Email)
+		c.Next()
+		return
+	}
 
 	session, err := store.Get(c.Request, "auth-session")
 	if err != nil {
@@ -170,6 +210,13 @@ func csrfMiddleware(c *gin.Context) {
 		c.Request.URL.Path == "/auth/logout" ||
 		c.Request.URL.Path == "/auth/refresh" {
 		log.Printf("ОТЛАДКА CSRF: Пропуск CSRF для endpoint входа/выхода/обновления: %s", c.Request.URL.Path)
+		c.Next()
+		return
+	}
+
+	// Пропуск CSRF для запросов с Bearer токеном (мобильные приложения и API не используют браузерные cookies)
+	if strings.HasPrefix(c.GetHeader("Authorization"), "Bearer ") {
+		log.Printf("ОТЛАДКА CSRF: Пропуск CSRF для запроса с Bearer-токеном: %s", c.Request.URL.Path)
 		c.Next()
 		return
 	}

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_filex/open_filex.dart';
@@ -367,14 +368,6 @@ class UpdateService {
     final tempDir = await getTemporaryDirectory();
     final targetFile = File('${tempDir.path}/avtoplaneta-update.apk');
 
-    if (await targetFile.exists()) {
-      try {
-        await targetFile.delete();
-      } catch (e) {
-        debugPrint('Не удалось удалить предыдущий APK: $e');
-      }
-    }
-
     String finalUrl = info.downloadUrl;
     if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
       final uri = Uri.tryParse(finalUrl);
@@ -387,24 +380,96 @@ class UpdateService {
 
     final downloadDio = Dio(BaseOptions(
       connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(minutes: 5),
+      receiveTimeout: const Duration(minutes: 10),
       followRedirects: true,
       maxRedirects: 5,
     ));
 
-    await downloadDio.download(
-      finalUrl,
-      targetFile.path,
-      cancelToken: cancelToken,
-      onReceiveProgress: (received, total) {
-        if (total > 0) {
-          final progress = received / total;
-          onProgress(progress, received, total);
-        } else {
-          onProgress(0, received, total);
+    if (!kIsWeb) {
+      downloadDio.httpClientAdapter = IOHttpClientAdapter(
+        createHttpClient: () {
+          final client = HttpClient();
+          client.idleTimeout = const Duration(seconds: 60);
+          client.connectionTimeout = const Duration(seconds: 30);
+          client.autoUncompress = false;
+          return client;
+        },
+      );
+    }
+
+    int retries = 0;
+    const maxRetries = 3;
+    bool downloadSuccess = false;
+
+    while (retries < maxRetries && !downloadSuccess) {
+      if (cancelToken?.isCancelled ?? false) {
+        throw DioException(
+          requestOptions: RequestOptions(path: finalUrl),
+          type: DioExceptionType.cancel,
+          error: 'Загрузка отменена пользователем',
+        );
+      }
+
+      try {
+        final currentBytes = targetFile.existsSync() ? targetFile.lengthSync() : 0;
+        final headers = <String, dynamic>{};
+        bool isResuming = false;
+
+        // Если файл частично скачан (более 2 МБ) и это первая попытка докачки, пробуем Range
+        if (currentBytes > 2 * 1024 * 1024 && retries == 1) {
+          headers['Range'] = 'bytes=$currentBytes-';
+          isResuming = true;
+          debugPrint('Попытка докачки APK с байта $currentBytes (Range)');
+        } else if (retries == 0 || retries > 1) {
+          // При первой попытке или после неудачной докачки начинаем начисто
+          if (targetFile.existsSync()) {
+            try {
+              await targetFile.delete();
+            } catch (_) {}
+          }
         }
-      },
-    );
+
+        final response = await downloadDio.download(
+          finalUrl,
+          targetFile.path,
+          fileAccessMode: isResuming ? FileAccessMode.append : FileAccessMode.write,
+          options: Options(headers: headers),
+          cancelToken: cancelToken,
+          deleteOnError: false,
+          onReceiveProgress: (received, total) {
+            final effectiveReceived = isResuming ? currentBytes + received : received;
+            final effectiveTotal = isResuming && total > 0 ? currentBytes + total : total;
+            if (effectiveTotal > 0) {
+              final progress = (effectiveReceived / effectiveTotal).clamp(0.0, 1.0);
+              onProgress(progress, effectiveReceived, effectiveTotal);
+            } else {
+              onProgress(0, effectiveReceived, effectiveTotal);
+            }
+          },
+        );
+
+        if (response.statusCode == 200 || response.statusCode == 206) {
+          downloadSuccess = true;
+        }
+      } on DioException catch (e) {
+        if (CancelToken.isCancel(e)) {
+          rethrow;
+        }
+        retries++;
+        debugPrint('Сбой загрузки APK (попытка $retries из $maxRetries): $e');
+        if (retries >= maxRetries) {
+          rethrow;
+        }
+        await Future.delayed(Duration(seconds: retries));
+      } catch (e) {
+        retries++;
+        debugPrint('Неожиданный сбой загрузки APK (попытка $retries из $maxRetries): $e');
+        if (retries >= maxRetries) {
+          rethrow;
+        }
+        await Future.delayed(Duration(seconds: retries));
+      }
+    }
 
     final openResult = await OpenFilex.open(
       targetFile.path,

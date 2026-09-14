@@ -92,7 +92,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Ошибка загрузки: $e';
+          _errorMessage = _formatErrorMessage(e);
         });
       }
     } finally {
@@ -100,6 +100,36 @@ class _UpdateDialogState extends State<UpdateDialog> {
         setState(() => _isDownloading = false);
       }
     }
+  }
+
+  String _formatErrorMessage(dynamic error) {
+    if (error is DioException) {
+      if (CancelToken.isCancel(error)) {
+        return 'Ошибка загрузки: операция отменена';
+      }
+      final underlying = error.error?.toString() ?? '';
+      if (underlying.contains('Connection closed') ||
+          underlying.contains('Software caused connection abort') ||
+          underlying.contains('SocketException') ||
+          underlying.contains('Broken pipe')) {
+        return 'Ошибка загрузки: связь с сервером прервана. Нажмите «Повторить загрузку».';
+      }
+      if (error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.receiveTimeout ||
+          error.type == DioExceptionType.sendTimeout) {
+        return 'Ошибка загрузки: превышено время ожидания ответа сервера. Нажмите «Повторить загрузку».';
+      }
+      if (error.response?.statusCode == 404) {
+        return 'Ошибка загрузки: файл обновления не найден на сервере (код 404).';
+      }
+      return 'Ошибка загрузки: сетевой сбой. Нажмите «Повторить загрузку».';
+    }
+
+    final str = error.toString();
+    if (str.contains('Connection closed') || str.contains('SocketException')) {
+      return 'Ошибка загрузки: соединение с сервером прервано. Нажмите «Повторить загрузку».';
+    }
+    return 'Ошибка загрузки: $str';
   }
 
   @override
@@ -260,8 +290,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
           if (!_isDownloading)
             FilledButton.icon(
               onPressed: _startDownload,
-              icon: const Icon(Icons.download_rounded, size: 18),
-              label: const Text('Обновить'),
+              icon: Icon(_errorMessage != null ? Icons.refresh_rounded : Icons.download_rounded, size: 18),
+              label: Text(_errorMessage != null ? 'Повторить загрузку' : 'Обновить'),
             ),
         ],
       ),

@@ -124,6 +124,7 @@ func (suite *HandlersTestSuite) SetupTest() {
 	store.MaxAge(maxAge)
 
 	SetUserRepo(suite.mockUserRepo)
+	SetAuthConfig(config)
 
 	suite.handler = NewHandler(suite.mockService, config)
 	suite.router = gin.New()

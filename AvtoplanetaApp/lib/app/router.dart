@@ -11,6 +11,7 @@ import '../features/orders/screens/orders_screen.dart';
 import '../features/statistics/screens/statistics_screen.dart';
 import '../features/messaging/screens/messaging_screen.dart';
 import '../features/admin/screens/admin_screen.dart';
+import '../features/admin/screens/app_logs_screen.dart';
 import '../shared/widgets/main_scaffold.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -78,6 +79,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/admin',
             builder: (context, state) => const AdminScreen(),
+            routes: [
+              GoRoute(
+                path: 'logs',
+                builder: (context, state) => const AppLogsScreen(),
+              ),
+            ],
           ),
         ],
       ),

@@ -235,6 +235,9 @@ func (g *Gateway) setupRoutes() {
 	// Mobile app update routes
 	g.setupAppUpdateRoutes()
 
+	// Mobile app error logs routes
+	g.setupClientLogRoutes()
+
 	// Список пользователей нужен клиентам мессенджера и не должен быть публичным.
 	g.router.GET("/api/users", g.authMiddleware, requireRole("operator"), g.getUsersHandler)
 
@@ -327,17 +330,24 @@ func (g *Gateway) setupAuthRoutes() {
 
 // setupAdminRoutes настраивает административные маршруты
 func (g *Gateway) setupAdminRoutes() {
+	// GET /admin/users доступен менеджерам и администраторам
+	g.router.GET("/admin/users", g.authMiddleware, requireRole("manager"), g.proxyToAuthService)
+
 	adminRoutes := []string{
-		"/admin/users",
 		"/admin/users/*path",
 		"/admin/status",
 		"/admin/logs",
 		"/admin/user-activity-logs",
 	}
 
-		for _, route := range adminRoutes {
+	for _, route := range adminRoutes {
 		g.router.Any(route, g.authMiddleware, requireRole("admin"), g.proxyToAuthService)
 	}
+
+	// Создание, редактирование и удаление пользователей требуют прав администратора
+	g.router.POST("/admin/users", g.authMiddleware, requireRole("admin"), g.proxyToAuthService)
+	g.router.PUT("/admin/users", g.authMiddleware, requireRole("admin"), g.proxyToAuthService)
+	g.router.DELETE("/admin/users", g.authMiddleware, requireRole("admin"), g.proxyToAuthService)
 }
 
 // setupPartsRoutes настраивает маршруты для работы с запчастями
@@ -456,6 +466,121 @@ func (g *Gateway) downloadAppHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusNotFound, gin.H{"error": "файл обновления APK не найден на сервере"})
+}
+
+// setupClientLogRoutes настраивает маршруты для приема и просмотра логов ошибок от мобильных клиентов
+func (g *Gateway) setupClientLogRoutes() {
+	g.router.POST("/api/app/logs", g.recordClientLogsHandler)
+	g.router.GET("/api/admin/client-logs", g.authMiddleware, requireRole("admin"), g.getClientLogsHandler)
+}
+
+// ClientErrorLog структура отдельной записи об ошибке клиента
+type ClientErrorLog struct {
+	ID           string `json:"id"`
+	Timestamp    string `json:"timestamp"`
+	Type         string `json:"type"`
+	Message      string `json:"message"`
+	StackTrace   string `json:"stack_trace,omitempty"`
+	Endpoint     string `json:"endpoint,omitempty"`
+	StatusCode   int    `json:"status_code,omitempty"`
+	Method       string `json:"method,omitempty"`
+	ResponseBody string `json:"response_body,omitempty"`
+	DeviceInfo   string `json:"device_info,omitempty"`
+	AppVersion   string `json:"app_version,omitempty"`
+	BuildNumber  int    `json:"build_number,omitempty"`
+}
+
+// ClientLogsBatchRequest пакетный запрос логов от приложения
+type ClientLogsBatchRequest struct {
+	Client  string           `json:"client"`
+	Version string           `json:"version"`
+	Build   int              `json:"build"`
+	Device  string           `json:"device"`
+	Logs    []ClientErrorLog `json:"logs"`
+}
+
+func (g *Gateway) recordClientLogsHandler(c *gin.Context) {
+	var req ClientLogsBatchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный формат пакета логов"})
+		return
+	}
+
+	if len(req.Logs) == 0 {
+		c.JSON(http.StatusOK, gin.H{"status": "ok", "received": 0})
+		return
+	}
+
+	if len(req.Logs) > 100 {
+		req.Logs = req.Logs[:100]
+	}
+
+	logDir := "./logs"
+	_ = os.MkdirAll(logDir, 0755)
+	today := time.Now().Format("2006-01-02")
+	logFilePath := fmt.Sprintf("%s/client_errors_%s.log", logDir, today)
+
+	f, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err == nil {
+		defer f.Close()
+	}
+
+	for _, entry := range req.Logs {
+		logrus.WithFields(logrus.Fields{
+			"source":      "mobile-client",
+			"client":      req.Client,
+			"version":     req.Version,
+			"build":       req.Build,
+			"device":      req.Device,
+			"type":        entry.Type,
+			"endpoint":    entry.Endpoint,
+			"status_code": entry.StatusCode,
+			"method":      entry.Method,
+			"client_ip":   c.ClientIP(),
+		}).Warn(entry.Message)
+
+		if f != nil {
+			lineBytes, _ := json.Marshal(entry)
+			f.Write(lineBytes)
+			f.WriteString("\n")
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":   "ok",
+		"received": len(req.Logs),
+	})
+}
+
+func (g *Gateway) getClientLogsHandler(c *gin.Context) {
+	logDir := "./logs"
+	today := time.Now().Format("2006-01-02")
+	logFilePath := fmt.Sprintf("%s/client_errors_%s.log", logDir, today)
+
+	data, err := os.ReadFile(logFilePath)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"logs": []ClientErrorLog{}})
+		return
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	var result []ClientErrorLog
+	start := len(lines) - 100
+	if start < 0 {
+		start = 0
+	}
+	for i := len(lines) - 1; i >= start; i-- {
+		line := strings.TrimSpace(lines[i])
+		if line == "" {
+			continue
+		}
+		var item ClientErrorLog
+		if err := json.Unmarshal([]byte(line), &item); err == nil {
+			result = append(result, item)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"logs": result})
 }
 
 // securityHeadersMiddleware добавляет заголовки безопасности
@@ -873,7 +998,13 @@ func (g *Gateway) authMiddlewareHTTP(c *gin.Context) {
 	c.Next()
 }
 
-// requireRole проверяет наличие требуемой роли
+var roleHierarchy = map[string]int{
+	"operator": 1,
+	"manager":  2,
+	"admin":    3,
+}
+
+// requireRole проверяет наличие требуемой роли с учетом иерархии ролей
 func requireRole(requiredRole string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user, exists := c.Get("user")
@@ -884,7 +1015,16 @@ func requireRole(requiredRole string) gin.HandlerFunc {
 		}
 
 		userObj := user.(User)
-		if userObj.Role != requiredRole && userObj.Role != "admin" {
+		userLevel := roleHierarchy[userObj.Role]
+		requiredLevel := roleHierarchy[requiredRole]
+
+		if requiredLevel == 0 {
+			if userObj.Role != requiredRole && userObj.Role != "admin" {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Insufficient permissions"})
+				c.Abort()
+				return
+			}
+		} else if userLevel < requiredLevel {
 			logrus.WithFields(logrus.Fields{
 				"path":      c.Request.URL.Path,
 				"required":  requiredRole,

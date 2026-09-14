@@ -1,5 +1,8 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../app/theme.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/user.dart';
 import '../../../core/services/update_service.dart';
@@ -56,24 +59,85 @@ class AdminScreen extends ConsumerWidget {
         title: const Text('Администрирование'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.receipt_long_rounded),
+            tooltip: 'Журнал ошибок',
+            onPressed: () => context.go('/admin/logs'),
+          ),
+          IconButton(
             icon: const Icon(Icons.system_update_rounded),
             tooltip: 'Проверить обновления',
             onPressed: () => _checkAppUpdates(context, ref),
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
+            tooltip: 'Обновить список',
             onPressed: () => ref.invalidate(usersListProvider),
           ),
         ],
       ),
       body: usersAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Ошибка: $e')),
+        error: (e, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline_rounded, size: 64, color: Colors.orange.shade400),
+                const SizedBox(height: 16),
+                const Text(
+                  'Не удалось загрузить пользователей',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _formatError(e),
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: () => ref.invalidate(usersListProvider),
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Повторить'),
+                    ),
+                    const SizedBox(width: 12),
+                    OutlinedButton.icon(
+                      onPressed: () => context.go('/admin/logs'),
+                      icon: const Icon(Icons.receipt_long_rounded),
+                      label: const Text('Журнал ошибок'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
         data: (users) => ListView(
           padding: const EdgeInsets.all(8),
           children: [
+            Card(
+              margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              color: AppTheme.surfaceColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: Colors.white10),
+              ),
+              child: ListTile(
+                leading: const Icon(Icons.receipt_long_rounded, color: AppTheme.primaryColor),
+                title: const Text('Журнал ошибок приложения', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text('Логи сетевых сбоев, крашей и экспорт отчета', style: TextStyle(fontSize: 12)),
+                trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+                onTap: () => context.go('/admin/logs'),
+              ),
+            ),
+            const SizedBox(height: 8),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: Text(
                 'Пользователи (${users.length})',
                 style: Theme.of(
@@ -95,6 +159,20 @@ class AdminScreen extends ConsumerWidget {
         child: const Icon(Icons.person_add),
       ),
     );
+  }
+
+  String _formatError(dynamic e) {
+    if (e is DioException) {
+      final code = e.response?.statusCode;
+      if (code == 401) {
+        return 'Ошибка 401: Сессия устарела или требуется повторная авторизация.';
+      }
+      if (code == 403) {
+        return 'Ошибка 403: Недостаточно прав для просмотра списка пользователей.';
+      }
+      return 'Сетевой сбой ($code): ${e.message}';
+    }
+    return e.toString();
   }
 
   void _showCreateUser(BuildContext context, WidgetRef ref) {

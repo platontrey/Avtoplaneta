@@ -39,6 +39,7 @@ func main() {
 
 	userRepo := NewUserRepository(dbPool)
 	SetUserRepo(userRepo)
+	SetAuthConfig(config)
 
 	CreateDefaultUser()
 

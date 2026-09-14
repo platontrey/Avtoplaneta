@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import '../services/error_reporter.dart';
 import '../storage/secure_storage.dart';
 
 const _baseUrl = String.fromEnvironment(
@@ -24,6 +25,7 @@ class ApiClient {
     ));
 
     _dio.interceptors.add(_AuthInterceptor(_dio));
+    _dio.interceptors.add(_ErrorLoggingInterceptor());
 
     if (kDebugMode) {
       _dio.interceptors.add(LogInterceptor(
@@ -126,6 +128,25 @@ class _AuthInterceptor extends Interceptor {
     } else {
       handler.next(err);
     }
+  }
+}
+
+/// Перехватчик для автоматической фиксации сетевых ошибок API в ErrorReporter
+class _ErrorLoggingInterceptor extends Interceptor {
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    // Исключаем эндпоинт отправки самих логов, чтобы избежать рекурсии
+    final path = err.requestOptions.path;
+    if (!path.contains('/api/app/logs')) {
+      ErrorReporter.instance.recordNetworkError(
+        method: err.requestOptions.method,
+        endpoint: path,
+        statusCode: err.response?.statusCode,
+        error: err,
+        responseData: err.response?.data,
+      );
+    }
+    handler.next(err);
   }
 }
 
