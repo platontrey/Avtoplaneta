@@ -744,7 +744,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 title: const Text('Администрирование'),
                 onTap: () {
                   Navigator.pop(context);
-                  context.go('/admin');
+                  context.push('/admin');
                 },
               ),
             ListTile(

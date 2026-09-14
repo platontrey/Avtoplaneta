@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../app/theme.dart';
 import '../../../core/services/error_reporter.dart';
@@ -20,9 +21,31 @@ class _AppLogsScreenState extends ConsumerState<AppLogsScreen> {
   Widget build(BuildContext context) {
     final reporter = ref.watch(errorReporterProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Журнал ошибок приложения'),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/admin');
+          }
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Назад',
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/admin');
+              }
+            },
+          ),
+          title: const Text('Журнал ошибок приложения'),
         actions: [
           IconButton(
             icon: const Icon(Icons.copy_rounded),
@@ -153,8 +176,9 @@ class _AppLogsScreenState extends ConsumerState<AppLogsScreen> {
           );
         },
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildFilterChip(String filterId, String label) {
     final isSelected = _selectedFilter == filterId;

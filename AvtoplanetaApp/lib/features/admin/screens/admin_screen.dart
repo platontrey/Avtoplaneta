@@ -54,10 +54,32 @@ class AdminScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final usersAsync = ref.watch(usersListProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Администрирование'),
-        actions: [
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/inventory');
+          }
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Назад',
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/inventory');
+              }
+            },
+          ),
+          title: const Text('Администрирование'),
+          actions: [
           IconButton(
             icon: const Icon(Icons.receipt_long_rounded),
             tooltip: 'Журнал ошибок',
@@ -158,8 +180,9 @@ class AdminScreen extends ConsumerWidget {
         onPressed: () => _showCreateUser(context, ref),
         child: const Icon(Icons.person_add),
       ),
-    );
-  }
+    ),
+  );
+}
 
   String _formatError(dynamic e) {
     if (e is DioException) {
