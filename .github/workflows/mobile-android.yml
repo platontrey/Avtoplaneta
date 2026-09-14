@@ -138,8 +138,9 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: mobile-latest
-          target_commitish: ${{ github.sha }}
           files: AvtoplanetaApp/release/avtoplaneta-latest.apk
-          name: Автопланета — актуальная Android-сборка
-          body: Автоматическая сборка из ${{ github.ref_name }} (${{ github.sha }}).
+          name: Автопланета — сборка #${{ github.run_number }}
+          body: |
+            Автоматическая сборка build: ${{ github.run_number }}
+            Ветка: ${{ github.ref_name }} (${{ github.sha }}).
           make_latest: "true"
