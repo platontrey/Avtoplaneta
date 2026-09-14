@@ -309,4 +309,26 @@ void main() {
       expect(parts.last.containsKey('drive'), false);
     });
   });
+
+  group('InventoryFilter and Categories', () {
+    test('InventoryFilter activeFilterCount with category', () {
+      const filter = InventoryFilter(
+        category: 'Тормозная система',
+        brand: 'Toyota',
+      );
+      expect(filter.activeFilterCount, 2);
+    });
+
+    test('InventoryFilter toQueryParameters includes search and category', () {
+      const filter = InventoryFilter(
+        search: 'АКПП ACV30',
+        category: 'Трансмиссия',
+        brand: 'Toyota',
+      );
+      final params = filter.toQueryParameters();
+      expect(params['search'], 'АКПП ACV30');
+      expect(params['category'], 'Трансмиссия');
+      expect(params['brand'], 'Toyota');
+    });
+  });
 }

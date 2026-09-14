@@ -271,6 +271,113 @@ func (suite *ServiceTestSuite) TestBuildElasticsearchQuery_Category() {
 	filters, ok := boolQuery["filter"].([]map[string]interface{})
 	assert.True(suite.T(), ok)
 	assert.GreaterOrEqual(suite.T(), len(filters), 2)
+
+	// Проверяем наличие фильтрации и по keyword, и по text
+	categoryFilter := filters[1]
+	catBool, ok := categoryFilter["bool"].(map[string]interface{})
+	assert.True(suite.T(), ok)
+	shouldList, ok := catBool["should"].([]map[string]interface{})
+	assert.True(suite.T(), ok)
+	assert.Len(suite.T(), shouldList, 2)
+}
+
+// TestBuildElasticsearchQuery_TransliterationAndQwerty - тест транслитерации и исправления раскладки
+func (suite *ServiceTestSuite) TestBuildElasticsearchQuery_TransliterationAndQwerty() {
+	s := suite.service.(*inventoryService)
+
+	// Тест латиницы (должна транслитерироваться в кириллицу)
+	paramsLatin := InventoryQueryParams{
+		Search: "bamper toyota",
+	}
+	queryLatin := s.buildElasticsearchQuery(paramsLatin)
+	boolLatin := queryLatin["bool"].(map[string]interface{})
+	mustLatin := boolLatin["must"].([]map[string]interface{})
+	assert.Equal(suite.T(), 2, len(mustLatin))
+
+	// В первом терме "bamper" должно быть условие для "бампер"
+	term1Bool := mustLatin[0]["bool"].(map[string]interface{})
+	term1Should := term1Bool["should"].([]map[string]interface{})
+	assert.GreaterOrEqual(suite.T(), len(term1Should), 2) // оригинал + транслитерация
+
+	// Тест неверной раскладки QWERTY: "gthtlybq" -> "передний"
+	paramsQwerty := InventoryQueryParams{
+		Search: "gthtlybq",
+	}
+	queryQwerty := s.buildElasticsearchQuery(paramsQwerty)
+	boolQwerty := queryQwerty["bool"].(map[string]interface{})
+	mustQwerty := boolQwerty["must"].([]map[string]interface{})
+	assert.Equal(suite.T(), 1, len(mustQwerty))
+
+	termQwertyBool := mustQwerty[0]["bool"].(map[string]interface{})
+	termQwertyShould := termQwertyBool["should"].([]map[string]interface{})
+	assert.GreaterOrEqual(suite.T(), len(termQwertyShould), 2)
+}
+
+// TestBuildElasticsearchQuery_AllFilters - тест добавления всех фильтров
+func (suite *ServiceTestSuite) TestBuildElasticsearchQuery_AllFilters() {
+	s := suite.service.(*inventoryService)
+	params := InventoryQueryParams{
+		Category: "Кузов снаружи",
+		Brand:    "Toyota",
+		Model:    "Camry",
+		Location: "Стеллаж A-1",
+		Address:  "Склад 2",
+		Salesman: "Иванов",
+		Status:   "true",
+		HasPhoto: "with",
+	}
+	query := s.buildElasticsearchQuery(params)
+	boolQuery := query["bool"].(map[string]interface{})
+	filters := boolQuery["filter"].([]map[string]interface{})
+
+	// range(quantity >= 0) + category + hasPhoto + brand + model + location + address + salesman + status = 9 фильтров
+	assert.Equal(suite.T(), 9, len(filters))
+
+	// Проверяем hasPhoto == "without"
+	paramsWithoutPhoto := InventoryQueryParams{
+		HasPhoto: "without",
+	}
+	queryWithoutPhoto := s.buildElasticsearchQuery(paramsWithoutPhoto)
+	filtersWithout := queryWithoutPhoto["bool"].(map[string]interface{})["filter"].([]map[string]interface{})
+	assert.Equal(suite.T(), 2, len(filtersWithout)) // quantity >= 0 + must_not exists photo
+}
+
+// TestTransliterationHelpers - тест функций транслитерации и переключения раскладки
+func (suite *ServiceTestSuite) TestTransliterationHelpers() {
+	assert.Equal(suite.T(), "бампер", TransliterateLatinToCyrillic("bamper"))
+	assert.Equal(suite.T(), "сирена", TransliterateLatinToCyrillic("sirena"))
+	assert.Equal(suite.T(), "щетка", TransliterateLatinToCyrillic("shchetka"))
+
+	assert.Equal(suite.T(), "передний", ConvertQwertyToRussian("gthtlybq"))
+	assert.Equal(suite.T(), "тойота", ConvertQwertyToRussian("njqjnf"))
+	assert.Equal(suite.T(), "капот", ConvertQwertyToRussian("rfgjn"))
+}
+
+// TestBuildDatabaseFilters - тест сборки фильтров для базы данных
+func (suite *ServiceTestSuite) TestBuildDatabaseFilters() {
+	s := suite.service.(*inventoryService)
+	params := InventoryQueryParams{
+		Search:   "АКПП",
+		Category: "Трансмиссия",
+		Brand:    "Honda",
+		Model:    "Civic",
+		Location: "Стеллаж 5",
+		Address:  "Центральный склад",
+		Salesman: "Петров",
+		Status:   "true",
+		HasPhoto: "with",
+	}
+
+	filters := s.buildDatabaseFilters(params)
+	assert.Equal(suite.T(), "АКПП", filters["search"])
+	assert.Equal(suite.T(), "Трансмиссия", filters["category_ilike"])
+	assert.Equal(suite.T(), "Honda", filters["brand_ilike"])
+	assert.Equal(suite.T(), "Civic", filters["model_ilike"])
+	assert.Equal(suite.T(), "Стеллаж 5", filters["location_ilike"])
+	assert.Equal(suite.T(), "Центральный склад", filters["address_ilike"])
+	assert.Equal(suite.T(), "Петров", filters["salesman_ilike"])
+	assert.Equal(suite.T(), "true", filters["status"])
+	assert.Equal(suite.T(), true, filters["has_photo"])
 }
 
 // TestRunSuite - запуск всех тестов сервиса
