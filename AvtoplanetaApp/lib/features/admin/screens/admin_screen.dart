@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/user.dart';
+import '../../../core/services/update_service.dart';
+import '../../updater/widgets/update_dialog.dart';
 
 final usersListProvider = FutureProvider<List<User>>((ref) async {
   final response = await apiClient.dio.get('/admin/users');
@@ -13,6 +15,38 @@ final usersListProvider = FutureProvider<List<User>>((ref) async {
 class AdminScreen extends ConsumerWidget {
   const AdminScreen({super.key});
 
+  Future<void> _checkAppUpdates(BuildContext context, WidgetRef ref) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    scaffoldMessenger.showSnackBar(
+      const SnackBar(
+        content: Text('Проверка наличия обновлений...'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+
+    final updateService = ref.read(updateServiceProvider);
+    final result = await updateService.checkForUpdates();
+
+    if (!context.mounted) return;
+
+    if (result.hasUpdate && result.updateInfo != null) {
+      UpdateDialog.show(
+        context: context,
+        info: result.updateInfo!,
+        updateService: updateService,
+      );
+    } else {
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'У вас установлена последняя версия (v${result.currentVersion}+${result.currentBuildNumber})',
+          ),
+          backgroundColor: Colors.green.shade800,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final usersAsync = ref.watch(usersListProvider);
@@ -21,6 +55,11 @@ class AdminScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Администрирование'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.system_update_rounded),
+            tooltip: 'Проверить обновления',
+            onPressed: () => _checkAppUpdates(context, ref),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => ref.invalidate(usersListProvider),

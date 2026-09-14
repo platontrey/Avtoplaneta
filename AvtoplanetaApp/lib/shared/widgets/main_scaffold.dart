@@ -1,11 +1,44 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../app/theme.dart';
+import '../../core/services/update_service.dart';
+import '../../features/updater/widgets/update_dialog.dart';
 import 'ai_assistant_sheet.dart';
 
-class MainScaffold extends StatelessWidget {
+class MainScaffold extends ConsumerStatefulWidget {
   final Widget child;
   const MainScaffold({super.key, required this.child});
+
+  @override
+  ConsumerState<MainScaffold> createState() => _MainScaffoldState();
+}
+
+class _MainScaffoldState extends ConsumerState<MainScaffold> {
+  static bool _hasCheckedForUpdates = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!_hasCheckedForUpdates) {
+      _hasCheckedForUpdates = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkUpdates();
+      });
+    }
+  }
+
+  Future<void> _checkUpdates() async {
+    final updateService = ref.read(updateServiceProvider);
+    final result = await updateService.checkForUpdates();
+    if (result.hasUpdate && result.updateInfo != null && mounted) {
+      UpdateDialog.show(
+        context: context,
+        info: result.updateInfo!,
+        updateService: updateService,
+      );
+    }
+  }
 
   int _locationToIndex(String location) {
     if (location.startsWith('/inventory/add') ||
@@ -84,7 +117,7 @@ class MainScaffold extends StatelessWidget {
     final location = GoRouterState.of(context).matchedLocation;
     final currentIndex = _locationToIndex(location);
 
-    if (location.startsWith('/admin')) return Scaffold(body: child);
+    if (location.startsWith('/admin')) return Scaffold(body: widget.child);
 
     const destinations = [
       NavigationDestination(
@@ -120,7 +153,7 @@ class MainScaffold extends StatelessWidget {
     ];
 
     return Scaffold(
-      body: child,
+      body: widget.child,
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           border: Border(top: BorderSide(color: AppTheme.borderColor)),

@@ -59,3 +59,7 @@ scripts/ICatsParser/downloaded_files/
 
 # Backend migration scripts
 backend/migration/
+
+# Mobile releases
+*.apk
+backend/downloads/*.apk

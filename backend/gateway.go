@@ -232,6 +232,9 @@ func (g *Gateway) setupRoutes() {
 	// Static files
 	g.setupStaticRoutes()
 
+	// Mobile app update routes
+	g.setupAppUpdateRoutes()
+
 	// Список пользователей нужен клиентам мессенджера и не должен быть публичным.
 	g.router.GET("/api/users", g.authMiddleware, requireRole("operator"), g.getUsersHandler)
 
@@ -402,6 +405,57 @@ func (g *Gateway) setupMessagingRoutes() {
 func (g *Gateway) setupStaticRoutes() {
 	g.router.StaticFile("/robots.txt", "./robots.txt")
 	g.router.StaticFile("/sitemap.xml", "./sitemap.xml")
+}
+
+// setupAppUpdateRoutes настраивает маршруты для автообновления мобильных приложений
+func (g *Gateway) setupAppUpdateRoutes() {
+	g.router.GET("/api/v1/app/version", g.getAppVersionHandler)
+	g.router.GET("/api/v1/app/download", g.downloadAppHandler)
+}
+
+func (g *Gateway) getAppVersionHandler(c *gin.Context) {
+	configPaths := []string{
+		"./config/app_version.json",
+		"backend/config/app_version.json",
+		"/app/config/app_version.json",
+	}
+
+	var data []byte
+	var err error
+	for _, p := range configPaths {
+		if data, err = os.ReadFile(p); err == nil {
+			break
+		}
+	}
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "файл конфигурации версий не найден"})
+		return
+	}
+
+	c.Data(http.StatusOK, "application/json; charset=utf-8", data)
+}
+
+func (g *Gateway) downloadAppHandler(c *gin.Context) {
+	apkPaths := []string{
+		"./downloads/avtoplaneta-release.apk",
+		"./downloads/app-release.apk",
+		"backend/downloads/avtoplaneta-release.apk",
+		"backend/downloads/app-release.apk",
+		"/app/downloads/avtoplaneta-release.apk",
+		"/app/downloads/app-release.apk",
+	}
+
+	for _, p := range apkPaths {
+		if _, err := os.Stat(p); err == nil {
+			c.Header("Content-Disposition", "attachment; filename=\"avtoplaneta-release.apk\"")
+			c.Header("Content-Type", "application/vnd.android.package-archive")
+			c.File(p)
+			return
+		}
+	}
+
+	c.JSON(http.StatusNotFound, gin.H{"error": "файл обновления APK не найден на сервере"})
 }
 
 // securityHeadersMiddleware добавляет заголовки безопасности
