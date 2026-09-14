@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Masterminds/squirrel"
@@ -288,8 +289,17 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 				builder = builder.Where("(photos IS NULL OR CASE WHEN jsonb_typeof(photos) = 'array' THEN jsonb_array_length(photos) = 0 ELSE true END)")
 			}
 		case "search":
-			searchTerm := "%" + value.(string) + "%"
-			builder = builder.Where("(name ILIKE ? OR description ILIKE ?)", searchTerm, searchTerm)
+			searchStr := strings.TrimSpace(value.(string))
+			if searchStr != "" {
+				terms := strings.Fields(searchStr)
+				for _, term := range terms {
+					termPattern := "%" + term + "%"
+					builder = builder.Where(
+						"(name ILIKE ? OR description ILIKE ? OR brand ILIKE ? OR model ILIKE ? OR number ILIKE ? OR oem_code ILIKE ? OR vin ILIKE ? OR category ILIKE ?)",
+						termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern,
+					)
+				}
+			}
 		}
 	}
 

@@ -233,6 +233,46 @@ func (suite *ServiceTestSuite) TestUpdateEarnings() {
 	assert.NoError(suite.T(), err)
 }
 
+// TestBuildElasticsearchQuery_MultiTerm - тест генерации запроса с раздельными словами
+func (suite *ServiceTestSuite) TestBuildElasticsearchQuery_MultiTerm() {
+	s := suite.service.(*inventoryService)
+	params := InventoryQueryParams{
+		Search: "АКПП ACV30",
+	}
+	query := s.buildElasticsearchQuery(params)
+	assert.NotNil(suite.T(), query)
+
+	boolQuery, ok := query["bool"].(map[string]interface{})
+	assert.True(suite.T(), ok)
+
+	mustClauses, ok := boolQuery["must"].([]map[string]interface{})
+	assert.True(suite.T(), ok)
+	// Должно быть 2 must clauses: по одному для каждого терма ("АКПП" и "ACV30")
+	assert.Equal(suite.T(), 2, len(mustClauses))
+
+	// Должны присутствовать should-клаузы верхнего уровня для релевантности
+	shouldClauses, ok := boolQuery["should"].([]map[string]interface{})
+	assert.True(suite.T(), ok)
+	assert.NotEmpty(suite.T(), shouldClauses)
+}
+
+// TestBuildElasticsearchQuery_Category - тест фильтрации по категории
+func (suite *ServiceTestSuite) TestBuildElasticsearchQuery_Category() {
+	s := suite.service.(*inventoryService)
+	params := InventoryQueryParams{
+		Category: "Тормозная система",
+	}
+	query := s.buildElasticsearchQuery(params)
+	assert.NotNil(suite.T(), query)
+
+	boolQuery, ok := query["bool"].(map[string]interface{})
+	assert.True(suite.T(), ok)
+
+	filters, ok := boolQuery["filter"].([]map[string]interface{})
+	assert.True(suite.T(), ok)
+	assert.GreaterOrEqual(suite.T(), len(filters), 2)
+}
+
 // TestRunSuite - запуск всех тестов сервиса
 func TestServiceTestSuite(t *testing.T) {
 	suite.Run(t, new(ServiceTestSuite))

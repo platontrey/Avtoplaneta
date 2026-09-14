@@ -312,6 +312,117 @@ func CreatePartsIndex() error {
 							"analyzer": "standard"
 						}
 					}
+				},
+				"number": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"oem_code": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"manufacturer_code": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"supplier_code": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"vin": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"body_brand": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "standard"
+						}
+					}
+				},
+				"engine_brand": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "standard"
+						}
+					}
+				},
+				"manufacturer": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "standard"
+						}
+					}
+				},
+				"transmission": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
+						}
+					}
+				},
+				"transmission_model": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "standard"
+						}
+					}
+				},
+				"defect": {
+					"type": "text",
+					"analyzer": "custom_russian_index",
+					"search_analyzer": "custom_russian_search"
+				},
+				"color": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
+						}
+					}
 				}
 			}
 		}

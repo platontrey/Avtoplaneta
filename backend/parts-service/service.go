@@ -270,6 +270,8 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 	must := []map[string]interface{}{}
 	filter := []map[string]interface{}{}
 
+	should := []map[string]interface{}{}
+
 	// Фильтр для отображения валидных запчастей (quantity >= 0)
 	filter = append(filter, map[string]interface{}{
 		"range": map[string]interface{}{
@@ -280,12 +282,78 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 	})
 
 	if params.Search != "" {
+		terms := strings.Fields(params.Search)
 		transliteratedSearch := TransliterateLatinToCyrillic(params.Search)
 		qwertySearch := ConvertQwertyToRussian(params.Search)
 
-		shouldQueries := []map[string]interface{}{
-			// 1. Абсолютное точное совпадение слова/слов в названии детали (Максимальный приоритет 100.0)
-			{
+		searchableFields := []string{
+			"name^10", "name.ngram^5",
+			"brand^4", "brand.text^4",
+			"model^4", "model.text^4",
+			"body_brand^3", "body_brand.text^3",
+			"engine_brand^3", "engine_brand.text^3",
+			"number^4", "number.text^4",
+			"oem_code^4", "oem_code.text^4",
+			"manufacturer_code^3", "manufacturer_code.text^3",
+			"supplier_code^2", "supplier_code.text^2",
+			"vin^3", "vin.text^3",
+			"category^3", "category.text^3",
+			"description^1",
+			"manufacturer^2", "manufacturer.text^2",
+		}
+
+		// 1. Обязательное совпадение: каждый терм поискового запроса должен присутствовать
+		// в запчасти (хотя бы в одном из полей: название, марка, модель, кузов, ДВС, артикул, OEM, VIN и т.д.).
+		// Использование type: "best_fields" исключает проблемы несовпадения анализаторов между полями.
+		for _, term := range terms {
+			if strings.TrimSpace(term) == "" {
+				continue
+			}
+			termQueries := []map[string]interface{}{
+				{
+					"multi_match": map[string]interface{}{
+						"query":  term,
+						"fields": searchableFields,
+						"type":   "best_fields",
+					},
+				},
+			}
+
+			tTrans := TransliterateLatinToCyrillic(term)
+			if tTrans != strings.ToLower(term) {
+				termQueries = append(termQueries, map[string]interface{}{
+					"multi_match": map[string]interface{}{
+						"query":  tTrans,
+						"fields": searchableFields,
+						"type":   "best_fields",
+					},
+				})
+			}
+
+			tQwerty := ConvertQwertyToRussian(term)
+			if tQwerty != strings.ToLower(term) && tQwerty != tTrans {
+				termQueries = append(termQueries, map[string]interface{}{
+					"multi_match": map[string]interface{}{
+						"query":  tQwerty,
+						"fields": searchableFields,
+						"type":   "best_fields",
+					},
+				})
+			}
+
+			must = append(must, map[string]interface{}{
+				"bool": map[string]interface{}{
+					"should":               termQueries,
+					"minimum_should_match": 1,
+				},
+			})
+		}
+
+		// 2. Для ранжирования и релевантности добавляем should-запросы
+		// с высокими весами для точного совпадения названия, фразового поиска и опечаток
+		should = append(should,
+			// Точное совпадение в названии (Максимальный приоритет 100.0)
+			map[string]interface{}{
 				"match": map[string]interface{}{
 					"name": map[string]interface{}{
 						"query": params.Search,
@@ -293,8 +361,8 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 					},
 				},
 			},
-			// 2. Фразовое совпадение с префиксом в названии
-			{
+			// Фразовое совпадение с префиксом в названии
+			map[string]interface{}{
 				"match_phrase_prefix": map[string]interface{}{
 					"name": map[string]interface{}{
 						"query": params.Search,
@@ -302,42 +370,19 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 					},
 				},
 			},
-			// 3. Кросс-полейный поиск по названию, брендам, моделям и артикулам
-			{
+			// Совпадение всей поисковой фразы целиком по всем полям
+			map[string]interface{}{
 				"multi_match": map[string]interface{}{
-					"query":    params.Search,
-					"fields":   []string{"name^10", "name.ngram^5", "brand.text^3", "model.text^3", "category.text^2", "description^1"},
-					"type":     "cross_fields",
-					"operator": "or",
-					"boost":    10.0,
+					"query":  params.Search,
+					"fields": searchableFields,
+					"type":   "best_fields",
+					"boost":  15.0,
 				},
 			},
-		}
+		)
 
-		// Every term in a multi-word query must match somewhere in the same
-		// part. Without this guard, "АКПП ACV30" matched any АКПП (for
-		// example Nissan) even when ACV30 was absent.
-		requiredFields := []string{
-			"name", "name.ngram", "brand.text", "model.text", "body_brand",
-			"engine_brand", "number", "oem_code", "manufacturer_code",
-			"supplier_code", "vin", "category.text", "description",
-		}
-		requiredQueries := []map[string]interface{}{
-			{"multi_match": map[string]interface{}{
-				"query": params.Search, "fields": requiredFields,
-				"type": "cross_fields", "operator": "and",
-			}},
-		}
-
-		// Если введен латинский текст, добавляем варианты транслитерации и смены раскладки в кириллицу
 		if transliteratedSearch != strings.ToLower(params.Search) {
-			requiredQueries = append(requiredQueries, map[string]interface{}{
-				"multi_match": map[string]interface{}{
-					"query": transliteratedSearch, "fields": requiredFields,
-					"type": "cross_fields", "operator": "and",
-				},
-			})
-			shouldQueries = append(shouldQueries,
+			should = append(should,
 				map[string]interface{}{
 					"match": map[string]interface{}{
 						"name": map[string]interface{}{
@@ -348,24 +393,17 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 				},
 				map[string]interface{}{
 					"multi_match": map[string]interface{}{
-						"query":    transliteratedSearch,
-						"fields":   []string{"name^8", "name.ngram^4", "brand.text^3", "model.text^3", "category.text^2"},
-						"type":     "cross_fields",
-						"operator": "or",
-						"boost":    8.0,
+						"query":  transliteratedSearch,
+						"fields": searchableFields,
+						"type":   "best_fields",
+						"boost":  10.0,
 					},
 				},
 			)
 		}
 
 		if qwertySearch != strings.ToLower(params.Search) && qwertySearch != transliteratedSearch {
-			requiredQueries = append(requiredQueries, map[string]interface{}{
-				"multi_match": map[string]interface{}{
-					"query": qwertySearch, "fields": requiredFields,
-					"type": "cross_fields", "operator": "and",
-				},
-			})
-			shouldQueries = append(shouldQueries,
+			should = append(should,
 				map[string]interface{}{
 					"match": map[string]interface{}{
 						"name": map[string]interface{}{
@@ -374,11 +412,19 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 						},
 					},
 				},
+				map[string]interface{}{
+					"multi_match": map[string]interface{}{
+						"query":  qwertySearch,
+						"fields": searchableFields,
+						"type":   "best_fields",
+						"boost":  8.0,
+					},
+				},
 			)
 		}
 
-		// 4. Фоновый нечёткий поиск для опечаток
-		shouldQueries = append(shouldQueries, map[string]interface{}{
+		// Нечёткий поиск для компенсации опечаток
+		should = append(should, map[string]interface{}{
 			"multi_match": map[string]interface{}{
 				"query":                params.Search,
 				"fields":               []string{"name^2", "brand.text^1", "model.text^1"},
@@ -389,26 +435,24 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 				"boost":                0.1,
 			},
 		})
-
-		searchQuery := map[string]interface{}{
-			"bool": map[string]interface{}{
-				"must": []map[string]interface{}{{
-					"bool": map[string]interface{}{
-						"should":               requiredQueries,
-						"minimum_should_match": 1,
-					},
-				}},
-				"should":               shouldQueries,
-				"minimum_should_match": 1,
-			},
-		}
-		must = append(must, searchQuery)
 	}
 
 	if params.Category != "" {
 		filter = append(filter, map[string]interface{}{
-			"match": map[string]interface{}{
-				"category.text": params.Category,
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{
+						"term": map[string]interface{}{
+							"category": params.Category,
+						},
+					},
+					{
+						"match": map[string]interface{}{
+							"category.text": params.Category,
+						},
+					},
+				},
+				"minimum_should_match": 1,
 			},
 		})
 	}
@@ -490,6 +534,9 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 	}
 	if len(filter) > 0 {
 		boolQuery["filter"] = filter
+	}
+	if len(should) > 0 {
+		boolQuery["should"] = should
 	}
 
 	return map[string]interface{}{

@@ -775,6 +775,39 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   }
 }
 
+const _defaultPartCategories = [
+  'Выхлопная система',
+  'Двигатель',
+  'Диски и шины',
+  'Кузов',
+  'Кузов внутри',
+  'Кузов снаружи',
+  'Оптика',
+  'Пневмосистема',
+  'Подвеска',
+  'Подвеска ДВС/КПП',
+  'Подвеска задних колес',
+  'Подвеска передних колес',
+  'Рулевое управление',
+  'Система кондиционирования',
+  'Система охлаждения и отопления',
+  'Система выхлопа (Глушитель)',
+  'Система рулевого управления',
+  'Система фильтрации (Фильтры)',
+  'Сопутствующие товары',
+  'Стекла',
+  'Тормоза',
+  'Тормозная система',
+  'Трансмиссия',
+  'Шины и диски',
+  'Электрика',
+  'Электрооснащение',
+  'Автохимия и масла',
+  'Аксессуары и тюннинг',
+  'Интерьер',
+  'Другое',
+];
+
 class _InventoryFilterSheet extends StatefulWidget {
   final InventoryFilter current;
   final List<String> categories;
@@ -853,6 +886,7 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
   @override
   Widget build(BuildContext context) {
     final categories = {
+      ..._defaultPartCategories,
       ...widget.categories.where((category) => category.isNotEmpty),
       if (_category.isNotEmpty) _category,
     }.toList()..sort();

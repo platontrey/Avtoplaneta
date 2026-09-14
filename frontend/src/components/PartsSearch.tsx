@@ -71,6 +71,7 @@ import type { SelectOption } from './ui/searchable-select';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_BASE_URL } from '@/lib/api';
+import { usePartCatalog } from '@/features/catalog/usePartCatalog';
 
 interface PartsSearchProps {
     onSearchChange?: (searchQuery: string) => void;
@@ -113,24 +114,47 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
     const SEARCH_DEBOUNCE_DELAY = 500;
     const FILTER_DEBOUNCE_DELAY = 300;
 
-    // Опции для выпадающих списков
-    const categoryOptions: SelectOption[] = [
-      { value: "Тормоза", label: "Тормоза" },
-      { value: "Двигатель", label: "Двигатель" },
-      { value: "Подвеска", label: "Подвеска" },
-      { value: "Электрика", label: "Электрика" },
-      { value: "Кузов", label: "Кузов" },
-      { value: "Интерьер", label: "Интерьер" },
-      { value: "Трансмиссия", label: "Трансмиссия" },
-      { value: "Система охлаждения и отопления", label: "Система охлаждения и отопления" },
-      { value: "Система выхлопа (Глушитель)", label: "Система выхлопа (Глушитель)" },
-      { value: "Система рулевого управления", label: "Система рулевого управления" },
-      { value: "Система фильтрации (Фильтры)", label: "Система фильтрации (Фильтры)" },
-      { value: "Шины и диски", label: "Шины и диски" },
-      { value: "Автохимия и масла", label: "Автохимия и масла" },
-      { value: "Аксессуары и тюннинг", label: "Аксессуары и тюннинг" },
-      { value: "Другое", label: "Другое" },
-    ];
+    const { data: partCatalog } = usePartCatalog();
+
+    // Опции для выпадающих списков категорий (все категории каталога + исторические)
+    const categoryOptions: SelectOption[] = useMemo(() => {
+        const catalogCategories = partCatalog?.part_form_categories?.map(c => c.name) ?? [];
+        const allCategories = Array.from(new Set([
+            ...catalogCategories,
+            "Выхлопная система",
+            "Двигатель",
+            "Диски и шины",
+            "Кузов",
+            "Кузов внутри",
+            "Кузов снаружи",
+            "Оптика",
+            "Пневмосистема",
+            "Подвеска",
+            "Подвеска ДВС/КПП",
+            "Подвеска задних колес",
+            "Подвеска передних колес",
+            "Рулевое управление",
+            "Система кондиционирования",
+            "Система охлаждения и отопления",
+            "Система выхлопа (Глушитель)",
+            "Система рулевого управления",
+            "Система фильтрации (Фильтры)",
+            "Сопутствующие товары",
+            "Стекла",
+            "Тормоза",
+            "Тормозная система",
+            "Трансмиссия",
+            "Шины и диски",
+            "Электрика",
+            "Электрооснащение",
+            "Автохимия и масла",
+            "Аксессуары и тюннинг",
+            "Интерьер",
+            "Другое",
+        ])).filter(Boolean).sort((a, b) => a.localeCompare(b, 'ru'));
+
+        return allCategories.map(cat => ({ value: cat, label: cat }));
+    }, [partCatalog]);
 
     const brandOptions: SelectOption[] = [
         { value: "Acura", label: "Acura" },
