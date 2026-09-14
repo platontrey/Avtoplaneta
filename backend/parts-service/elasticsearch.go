@@ -480,9 +480,8 @@ func CreatePartsIndex() error {
 	return nil
 }
 
-// IndexPart indexes a single part in Elasticsearch
-func IndexPart(part *Part) error {
-	esPart := ElasticsearchPart{
+func partToESPart(part *Part) ElasticsearchPart {
+	return ElasticsearchPart{
 		ID:                 part.ID,
 		Name:               part.Name,
 		Quantity:           part.Quantity,
@@ -525,6 +524,11 @@ func IndexPart(part *Part) error {
 		CenterHoleDiameter: part.CenterHoleDiameter,
 		TireModel:          part.TireModel,
 	}
+}
+
+// IndexPart indexes a single part in Elasticsearch
+func IndexPart(part *Part) error {
+	esPart := partToESPart(part)
 
 	body, err := json.Marshal(esPart)
 	if err != nil {
@@ -553,6 +557,120 @@ func IndexPart(part *Part) error {
 		return fmt.Errorf("error response: %s", res.String())
 	}
 
+	return nil
+}
+
+// BulkIndexParts пакетно индексирует срез запчастей через Elasticsearch Bulk API.
+// Во время батч-загрузки refresh отключен; один refresh выполняется по окончании.
+func BulkIndexParts(ctx context.Context, parts []Part) error {
+	if esClient == nil || len(parts) == 0 {
+		return nil
+	}
+
+	const batchSize = 2000
+	total := len(parts)
+
+	for i := 0; i < total; i += batchSize {
+		end := i + batchSize
+		if end > total {
+			end = total
+		}
+
+		batch := parts[i:end]
+		var buf bytes.Buffer
+
+		for j := range batch {
+			part := &batch[j]
+			meta := fmt.Sprintf(`{"index":{"_index":"parts","_id":"%d"}}`+"\n", part.ID)
+			buf.WriteString(meta)
+
+			esPart := partToESPart(part)
+			docBytes, err := json.Marshal(esPart)
+			if err != nil {
+				log.Printf("Предупреждение: ошибка сериализации запчасти %d: %v", part.ID, err)
+				continue
+			}
+			buf.Write(docBytes)
+			buf.WriteByte('\n')
+		}
+
+		req := esapi.BulkRequest{
+			Index: "parts",
+			Body:  &buf,
+		}
+
+		res, err := req.Do(ctx, esClient)
+		if err != nil {
+			return fmt.Errorf("ошибка отправки bulk-запроса (%d-%d): %w", i+1, end, err)
+		}
+
+		if res.IsError() {
+			errStr := res.String()
+			res.Body.Close()
+			return fmt.Errorf("ошибка Elasticsearch при bulk-индексации (%d-%d): %s", i+1, end, errStr)
+		}
+
+		var bulkRes struct {
+			Errors bool `json:"errors"`
+			Items  []map[string]struct {
+				Status int `json:"status"`
+				Error  struct {
+					Type   string `json:"type"`
+					Reason string `json:"reason"`
+				} `json:"error"`
+			} `json:"items"`
+		}
+
+		if err := json.NewDecoder(res.Body).Decode(&bulkRes); err != nil {
+			res.Body.Close()
+			log.Printf("Предупреждение: не удалось декодировать ответ bulk: %v", err)
+		} else {
+			res.Body.Close()
+			if bulkRes.Errors {
+				errCount := 0
+				for _, item := range bulkRes.Items {
+					for _, op := range item {
+						if op.Error.Reason != "" {
+							errCount++
+							if errCount <= 5 {
+								log.Printf("Предупреждение: ошибка индексации документа (%d): %s: %s", op.Status, op.Error.Type, op.Error.Reason)
+							}
+						}
+					}
+				}
+				if errCount > 5 {
+					log.Printf("Предупреждение: всего ошибок в пакете: %d", errCount)
+				}
+			}
+		}
+
+		log.Printf("Bulk-индексация: успешно обработано %d из %d запчастей", end, total)
+	}
+
+	return RefreshPartsIndex(ctx)
+}
+
+// RefreshPartsIndex выполняет refresh индекса parts для обновления видимости документов в поиске
+func RefreshPartsIndex(ctx context.Context) error {
+	if esClient == nil {
+		return nil
+	}
+	req := esapi.IndicesRefreshRequest{
+		Index: []string{"parts"},
+	}
+	res, err := req.Do(ctx, esClient)
+	if err != nil {
+		return fmt.Errorf("ошибка refresh индекса: %w", err)
+	}
+	defer func() {
+		if closeErr := res.Body.Close(); closeErr != nil {
+			log.Printf("Error closing refresh response body: %v", closeErr)
+		}
+	}()
+
+	if res.IsError() {
+		return fmt.Errorf("ошибка при refresh индекса: %s", res.String())
+	}
 	return nil
 }
 

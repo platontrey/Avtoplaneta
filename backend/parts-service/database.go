@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"log"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -75,7 +74,7 @@ func runMigrations() {
 	}
 }
 
-// ReindexAllParts переиндексирует все существующие запчасти в Elasticsearch
+// ReindexAllParts переиндексирует все существующие запчасти в Elasticsearch через Bulk API
 func ReindexAllParts() error {
 	repo := NewPartRepository(dbPool)
 	parts, err := repo.FindAll(context.Background())
@@ -83,31 +82,13 @@ func ReindexAllParts() error {
 		return fmt.Errorf("не удалось получить запчасти: %v", err)
 	}
 
-	fmt.Printf("Переиндексация %d запчастей...\n", len(parts))
+	start := time.Now()
+	log.Printf("Переиндексация %d запчастей через Bulk API...", len(parts))
 
-	// Используем пул воркеров для параллельной отправки запросов в Elasticsearch
-	numWorkers := 16
-	partsChan := make(chan Part, len(parts))
-	for _, part := range parts {
-		partsChan <- part
-	}
-	close(partsChan)
-
-	var wg sync.WaitGroup
-	wg.Add(numWorkers)
-
-	for i := 0; i < numWorkers; i++ {
-		go func() {
-			defer wg.Done()
-			for part := range partsChan {
-				if err := IndexPart(&part); err != nil {
-					log.Printf("Предупреждение: Не удалось проиндексировать запчасть %d: %v\n", part.ID, err)
-				}
-			}
-		}()
+	if err := BulkIndexParts(context.Background(), parts); err != nil {
+		return fmt.Errorf("ошибка при пакетной переиндексации: %w", err)
 	}
 
-	wg.Wait()
-	fmt.Println("Переиндексация завершена")
+	log.Printf("Переиндексация %d запчастей успешно завершена за %v", len(parts), time.Since(start))
 	return nil
 }

@@ -173,19 +173,22 @@ jobs:
               -f /tmp/import_joomshopping_photos.sql
           fi
 
+          DB_PARTS="$(docker exec avtoplaneta-postgres psql -U postgres -d avtoplaneta -At -c \
+            "SELECT COUNT(*) FROM parts WHERE deleted_at IS NULL" | tr -d '\r' || echo "0")"
+
           docker restart avtoplaneta-parts
-          for attempt in $(seq 1 80); do
+          for attempt in $(seq 1 60); do
             HEALTH="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' avtoplaneta-parts)"
             INDEXED="$(docker exec avtoplaneta-elasticsearch sh -c 'curl -fsS http://127.0.0.1:9200/parts/_count 2>/dev/null || true' | jq -r '.count // 0')"
-            echo "health=$HEALTH indexed=$INDEXED expected=$EXPECTED_PARTS"
-            if [ "$HEALTH" = "healthy" ] && [ "$INDEXED" = "$EXPECTED_PARTS" ]; then
+            echo "health=$HEALTH indexed=$INDEXED db_parts=$DB_PARTS expected_from_csv=$EXPECTED_PARTS"
+            if [ "$HEALTH" = "healthy" ] && [ "$INDEXED" -ge "$EXPECTED_PARTS" ] && [ "$INDEXED" -ge "$DB_PARTS" ]; then
               break
             fi
-            if [ "$attempt" = 80 ]; then
-              echo "Timed out waiting for parts-service reindex" >&2
+            if [ "$attempt" = 60 ]; then
+              echo "Timed out waiting for parts-service reindex (health=$HEALTH, indexed=$INDEXED, db_parts=$DB_PARTS, expected=$EXPECTED_PARTS)" >&2
               exit 1
             fi
-            sleep 20
+            sleep 5
           done
 
           DB_COUNTS="$(docker exec avtoplaneta-postgres psql -U postgres -d avtoplaneta -At -F '|' -c \
