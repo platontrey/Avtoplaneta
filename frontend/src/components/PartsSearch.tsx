@@ -71,6 +71,7 @@ import type { SelectOption } from './ui/searchable-select';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_BASE_URL } from '@/lib/api';
+import { brandOptions } from '@/lib/constants';
 import { usePartCatalog } from '@/features/catalog/usePartCatalog';
 import type { PartFilters } from '@/hooks/useParts';
 
@@ -159,64 +160,6 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
 
         return allCategories.map(cat => ({ value: cat, label: cat }));
     }, [partCatalog]);
-
-    const brandOptions: SelectOption[] = [
-        { value: "Acura", label: "Acura" },
-        { value: "Aston Martin", label: "Aston Martin" },
-        { value: "Audi", label: "Audi" },
-        { value: "Bentley", label: "Bentley" },
-        { value: "BMW", label: "BMW" },
-        { value: "Buick", label: "Buick" },
-        { value: "Cadillac", label: "Cadillac" },
-        { value: "Chevrolet", label: "Chevrolet" },
-        { value: "Chrysler", label: "Chrysler" },
-        { value: "Citroen", label: "Citroën" },
-        { value: "DAF", label: "DAF" },
-        { value: "Daihatsu", label: "Daihatsu" },
-        { value: "Dodge", label: "Dodge" },
-        { value: "Ferrari", label: "Ferrari" },
-        { value: "Fiat", label: "Fiat" },
-        { value: "Ford", label: "Ford" },
-        { value: "GMC", label: "GMC" },
-        { value: "Hino", label: "Hino" },
-        { value: "Honda", label: "Honda" },
-        { value: "Hyundai", label: "Hyundai" },
-        { value: "Infiniti", label: "Infiniti" },
-        { value: "Isuzu", label: "Isuzu" },
-        { value: "Iveco", label: "Iveco" },
-        { value: "Jaguar", label: "Jaguar" },
-        { value: "Jeep", label: "Jeep" },
-        { value: "Kenworth", label: "Kenworth" },
-        { value: "Kia", label: "Kia" },
-        { value: "Lamborghini", label: "Lamborghini" },
-        { value: "Land Rover", label: "Land Rover" },
-        { value: "Lexus", label: "Lexus" },
-        { value: "Lincoln", label: "Lincoln" },
-        { value: "Mack", label: "Mack" },
-        { value: "MAN", label: "MAN" },
-        { value: "Mazda", label: "Mazda" },
-        { value: "Mercedes", label: "Mercedes-Benz" },
-        { value: "Mercedes-Benz Trucks", label: "Mercedes-Benz Trucks" },
-        { value: "Mitsubishi", label: "Mitsubishi" },
-        { value: "Nissan", label: "Nissan" },
-        { value: "Opel", label: "Opel" },
-        { value: "Peterbilt", label: "Peterbilt" },
-        { value: "Peugeot", label: "Peugeot" },
-        { value: "Porsche", label: "Porsche" },
-        { value: "Ram", label: "Ram" },
-        { value: "Renault", label: "Renault" },
-        { value: "Rolls-Royce", label: "Rolls-Royce" },
-        { value: "Scania", label: "Scania" },
-        { value: "Subaru", label: "Subaru" },
-        { value: "Suzuki", label: "Suzuki" },
-        { value: "Tesla", label: "Tesla" },
-        { value: "Toyota", label: "Toyota" },
-        { value: "UD Trucks", label: "UD Trucks" },
-        { value: "Volkswagen", label: "Volkswagen" },
-        { value: "Volvo", label: "Volvo" },
-        { value: "Volvo Trucks", label: "Volvo Trucks" },
-        { value: "Western Star", label: "Western Star" }
-    ];
 
     const statusOptions: SelectOption[] = [
       { value: "true", label: "Доступно" },
@@ -807,6 +750,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                                                         placeholder="Все бренды"
                                                         searchPlaceholder="Поиск бренда..."
                                                         emptyMessage="Бренд не найден"
+                                                        allowCustom={true}
                                                         className="bg-transparent border border-gray-300"
                                                     />
                                                 </div>

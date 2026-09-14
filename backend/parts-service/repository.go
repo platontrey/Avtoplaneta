@@ -319,8 +319,8 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 				for _, term := range terms {
 					termPattern := "%" + term + "%"
 					builder = builder.Where(
-						"(name ILIKE ? OR description ILIKE ? OR brand ILIKE ? OR model ILIKE ? OR number ILIKE ? OR oem_code ILIKE ? OR vin ILIKE ? OR category ILIKE ?)",
-						termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern,
+						"(name ILIKE ? OR description ILIKE ? OR brand ILIKE ? OR model ILIKE ? OR number ILIKE ? OR oem_code ILIKE ? OR vin ILIKE ? OR category ILIKE ? OR car_release_date ILIKE ? OR body_brand ILIKE ? OR engine_brand ILIKE ?)",
+						termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern,
 					)
 				}
 			}

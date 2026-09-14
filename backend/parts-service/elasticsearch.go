@@ -159,7 +159,7 @@ func CreatePartsIndex() error {
 					},
 					"code_ngram": {
 						"type": "edge_ngram",
-						"min_gram": 2,
+						"min_gram": 1,
 						"max_gram": 15
 					},
 					"oem_delimiter": {
@@ -289,6 +289,11 @@ func CreatePartsIndex() error {
 						"text": {
 							"type": "text",
 							"analyzer": "standard"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
 						}
 					}
 				},
@@ -298,6 +303,11 @@ func CreatePartsIndex() error {
 						"text": {
 							"type": "text",
 							"analyzer": "standard"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
 						}
 					}
 				},
@@ -440,6 +450,11 @@ func CreatePartsIndex() error {
 						"text": {
 							"type": "text",
 							"analyzer": "standard"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
 						}
 					}
 				},

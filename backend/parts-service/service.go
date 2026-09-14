@@ -183,7 +183,10 @@ func (s *inventoryService) formatPartsForDisplay(parts []Part) {
 func (s *inventoryService) shouldUseElasticsearch(params InventoryQueryParams) bool {
 	return params.Search != "" || params.Category != "" || params.Brand != "" ||
 		params.Model != "" || params.Location != "" || params.Address != "" || params.Salesman != "" ||
-		params.Status != "" || params.HasPhoto != ""
+		params.Status != "" || params.HasPhoto != "" || params.Number != "" || params.OEMCode != "" ||
+		params.VIN != "" || params.BodyBrand != "" || params.EngineBrand != "" ||
+		params.CarReleaseDate != "" || params.Transmission != "" || params.Drive != "" ||
+		params.Condition != "" || params.Manufacturer != "" || params.Defect != "" || params.Color != ""
 }
 
 // getInventoryFromElasticsearch получает данные из Elasticsearch
@@ -300,8 +303,8 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 
 		searchableFields := []string{
 			"name^10", "name.ngram^5",
-			"brand^4", "brand.text^4",
-			"model^4", "model.text^4",
+			"brand^4", "brand.text^4", "brand.ngram^3",
+			"model^4", "model.text^4", "model.ngram^3",
 			"body_brand^3", "body_brand.text^3",
 			"engine_brand^3", "engine_brand.text^3",
 			"number^4", "number.text^4",
@@ -310,6 +313,7 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 			"supplier_code^2", "supplier_code.text^2",
 			"vin^3", "vin.text^3",
 			"category^3", "category.text^3",
+			"car_release_date^3", "car_release_date.text^3", "car_release_date.ngram^2",
 			"description^1",
 			"manufacturer^2", "manufacturer.text^2",
 		}
@@ -439,7 +443,7 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 		should = append(should, map[string]interface{}{
 			"multi_match": map[string]interface{}{
 				"query":                params.Search,
-				"fields":               []string{"name^2", "brand.text^1", "model.text^1"},
+				"fields":               []string{"name^2", "brand.text^1", "model.text^1", "car_release_date.text^1"},
 				"type":                 "best_fields",
 				"fuzziness":            "AUTO:4,7",
 				"prefix_length":        2,
@@ -493,16 +497,28 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 
 	if params.Brand != "" {
 		filter = append(filter, map[string]interface{}{
-			"match": map[string]interface{}{
-				"brand.text": params.Brand,
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"brand": params.Brand}},
+					{"match": map[string]interface{}{"brand.text": params.Brand}},
+					{"match": map[string]interface{}{"brand.ngram": params.Brand}},
+					{"wildcard": map[string]interface{}{"brand": "*" + strings.ToLower(params.Brand) + "*"}},
+				},
+				"minimum_should_match": 1,
 			},
 		})
 	}
 
 	if params.Model != "" {
 		filter = append(filter, map[string]interface{}{
-			"match": map[string]interface{}{
-				"model.text": params.Model,
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"model": params.Model}},
+					{"match": map[string]interface{}{"model.text": params.Model}},
+					{"match": map[string]interface{}{"model.ngram": params.Model}},
+					{"wildcard": map[string]interface{}{"model": "*" + strings.ToLower(params.Model) + "*"}},
+				},
+				"minimum_should_match": 1,
 			},
 		})
 	}
@@ -594,8 +610,14 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 
 	if params.CarReleaseDate != "" {
 		filter = append(filter, map[string]interface{}{
-			"match": map[string]interface{}{
-				"car_release_date": params.CarReleaseDate,
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"car_release_date": params.CarReleaseDate}},
+					{"match": map[string]interface{}{"car_release_date.text": params.CarReleaseDate}},
+					{"match": map[string]interface{}{"car_release_date.ngram": params.CarReleaseDate}},
+					{"wildcard": map[string]interface{}{"car_release_date": "*" + params.CarReleaseDate + "*"}},
+				},
+				"minimum_should_match": 1,
 			},
 		})
 	}

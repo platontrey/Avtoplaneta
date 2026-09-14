@@ -416,6 +416,86 @@ func (suite *ServiceTestSuite) TestBuildDatabaseFilters() {
 	assert.Equal(suite.T(), "Черный", filters["color_ilike"])
 }
 
+// TestBuildElasticsearchQuery_DigitsAndReleaseDate - тест поиска с цифрами и годом выпуска
+func (suite *ServiceTestSuite) TestBuildElasticsearchQuery_DigitsAndReleaseDate() {
+	s := suite.service.(*inventoryService)
+	params := InventoryQueryParams{
+		Search: "Audi 2010",
+	}
+	query := s.buildElasticsearchQuery(params)
+	assert.NotNil(suite.T(), query)
+
+	boolQuery := query["bool"].(map[string]interface{})
+	mustClauses := boolQuery["must"].([]map[string]interface{})
+	assert.Equal(suite.T(), 2, len(mustClauses))
+
+	// Проверяем, что car_release_date и model.ngram присутствуют в searchableFields
+	term0 := mustClauses[0]["bool"].(map[string]interface{})
+	shouldList := term0["should"].([]map[string]interface{})
+	firstMatch := shouldList[0]["multi_match"].(map[string]interface{})
+	fields := firstMatch["fields"].([]string)
+
+	assert.Contains(suite.T(), fields, "car_release_date^3")
+	assert.Contains(suite.T(), fields, "car_release_date.text^3")
+	assert.Contains(suite.T(), fields, "car_release_date.ngram^2")
+	assert.Contains(suite.T(), fields, "model.ngram^3")
+	assert.Contains(suite.T(), fields, "brand.ngram^3")
+}
+
+// TestBuildElasticsearchQuery_BrandAndModelFilters - тест гибкой фильтрации бренда, модели и года
+func (suite *ServiceTestSuite) TestBuildElasticsearchQuery_BrandAndModelFilters() {
+	s := suite.service.(*inventoryService)
+	params := InventoryQueryParams{
+		Brand:          "Audi",
+		Model:          "A6",
+		CarReleaseDate: "2015",
+	}
+	query := s.buildElasticsearchQuery(params)
+	assert.NotNil(suite.T(), query)
+
+	boolQuery := query["bool"].(map[string]interface{})
+	filters := boolQuery["filter"].([]map[string]interface{})
+	// range(quantity >= 0) + brand + model + car_release_date = 4 фильтра
+	assert.Equal(suite.T(), 4, len(filters))
+
+	// Проверяем структуру фильтра Brand (должен быть bool should с 4 вариантами: term, text, ngram, wildcard)
+	brandFilter := filters[1]["bool"].(map[string]interface{})
+	brandShould := brandFilter["should"].([]map[string]interface{})
+	assert.Equal(suite.T(), 4, len(brandShould))
+
+	// Проверяем структуру фильтра Model
+	modelFilter := filters[2]["bool"].(map[string]interface{})
+	modelShould := modelFilter["should"].([]map[string]interface{})
+	assert.Equal(suite.T(), 4, len(modelShould))
+
+	// Проверяем структуру фильтра CarReleaseDate
+	yearFilter := filters[3]["bool"].(map[string]interface{})
+	yearShould := yearFilter["should"].([]map[string]interface{})
+	assert.Equal(suite.T(), 4, len(yearShould))
+}
+
+// TestShouldUseElasticsearch_Specifications - тест переключения на Elasticsearch при фильтрации по спецификациям
+func (suite *ServiceTestSuite) TestShouldUseElasticsearch_Specifications() {
+	s := suite.service.(*inventoryService)
+
+	// Пустые параметры -> false
+	assert.False(suite.T(), s.shouldUseElasticsearch(InventoryQueryParams{}))
+
+	// Спецификации по отдельности -> true
+	assert.True(suite.T(), s.shouldUseElasticsearch(InventoryQueryParams{CarReleaseDate: "2010"}))
+	assert.True(suite.T(), s.shouldUseElasticsearch(InventoryQueryParams{Number: "12345"}))
+	assert.True(suite.T(), s.shouldUseElasticsearch(InventoryQueryParams{OEMCode: "OEM999"}))
+	assert.True(suite.T(), s.shouldUseElasticsearch(InventoryQueryParams{VIN: "VIN123"}))
+	assert.True(suite.T(), s.shouldUseElasticsearch(InventoryQueryParams{BodyBrand: "E90"}))
+	assert.True(suite.T(), s.shouldUseElasticsearch(InventoryQueryParams{EngineBrand: "1NZ"}))
+	assert.True(suite.T(), s.shouldUseElasticsearch(InventoryQueryParams{Transmission: "АКПП"}))
+	assert.True(suite.T(), s.shouldUseElasticsearch(InventoryQueryParams{Drive: "Передний"}))
+	assert.True(suite.T(), s.shouldUseElasticsearch(InventoryQueryParams{Condition: "Б/у"}))
+	assert.True(suite.T(), s.shouldUseElasticsearch(InventoryQueryParams{Manufacturer: "Toyota"}))
+	assert.True(suite.T(), s.shouldUseElasticsearch(InventoryQueryParams{Defect: "Царапина"}))
+	assert.True(suite.T(), s.shouldUseElasticsearch(InventoryQueryParams{Color: "Белый"}))
+}
+
 // TestRunSuite - запуск всех тестов сервиса
 func TestServiceTestSuite(t *testing.T) {
 	suite.Run(t, new(ServiceTestSuite))

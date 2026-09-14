@@ -17,6 +17,7 @@ import { Link } from "react-router-dom";
 import { getAuthHeaders } from "@/lib/csrf";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { API_BASE_URL } from '@/lib/api';
+import { brandOptions } from '@/lib/constants';
 import {
   flattenCatalogParts,
   expandDefectReportParts,
@@ -197,19 +198,15 @@ export default function DefectReport() {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="brand-select">Бренд *</Label>
-                <ClearableSelect
-    value={brand || ""}
-    onValueChange={(value) => setValue("brand", value)}
-    placeholder="Выберите бренд" id="brand-select" className="h-10 w-full"
->
-    <SelectItem value="BMW">BMW</SelectItem>
-                    <SelectItem value="Audi">Audi</SelectItem>
-                    <SelectItem value="Mercedes">Mercedes</SelectItem>
-                    <SelectItem value="Toyota">Toyota</SelectItem>
-                    <SelectItem value="Volkswagen">Volkswagen</SelectItem>
-                    <SelectItem value="Honda">Honda</SelectItem>
-                    <SelectItem value="Ford">Ford</SelectItem>
-</ClearableSelect>
+                <SearchableSelect
+                  value={brand || ""}
+                  onValueChange={(value) => setValue("brand", value, { shouldValidate: true })}
+                  options={brandOptions}
+                  placeholder="Выберите или введите бренд"
+                  searchPlaceholder="Поиск бренда или ввод нового..."
+                  allowCustom={true}
+                  className="h-10 w-full"
+                />
                 <input
                   type="hidden"
                   {...register("brand")}
