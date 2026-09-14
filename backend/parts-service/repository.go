@@ -319,8 +319,8 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 				for _, term := range terms {
 					termPattern := "%" + term + "%"
 					builder = builder.Where(
-						"(name ILIKE ? OR description ILIKE ? OR brand ILIKE ? OR model ILIKE ? OR number ILIKE ? OR oem_code ILIKE ? OR vin ILIKE ? OR category ILIKE ? OR car_release_date ILIKE ? OR body_brand ILIKE ? OR engine_brand ILIKE ?)",
-						termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern,
+						"(name ILIKE ? OR description ILIKE ? OR brand ILIKE ? OR model ILIKE ? OR number ILIKE ? OR oem_code ILIKE ? OR vin ILIKE ? OR category ILIKE ? OR car_release_date ILIKE ? OR body_brand ILIKE ? OR engine_brand ILIKE ? OR front_rear ILIKE ? OR left_right ILIKE ? OR top_bottom ILIKE ? OR color ILIKE ? OR condition ILIKE ? OR transmission ILIKE ? OR transmission_model ILIKE ? OR drive ILIKE ? OR defect ILIKE ? OR wear_percentage ILIKE ? OR season ILIKE ? OR diameter ILIKE ? OR width ILIKE ? OR profile ILIKE ? OR drilling ILIKE ? OR \"offset\" ILIKE ? OR center_hole_diameter ILIKE ? OR tire_model ILIKE ? OR tire_quantity ILIKE ? OR location ILIKE ? OR address ILIKE ? OR salesman ILIKE ? OR manufacturer ILIKE ? OR manufacturer_code ILIKE ? OR supplier_code ILIKE ?)",
+						termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern,
 					)
 				}
 			}

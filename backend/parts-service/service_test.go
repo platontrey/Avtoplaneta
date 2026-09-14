@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -440,6 +441,59 @@ func (suite *ServiceTestSuite) TestBuildElasticsearchQuery_DigitsAndReleaseDate(
 	assert.Contains(suite.T(), fields, "car_release_date.ngram^2")
 	assert.Contains(suite.T(), fields, "model.ngram^3")
 	assert.Contains(suite.T(), fields, "brand.ngram^3")
+	assert.Contains(suite.T(), fields, "front_rear^3")
+	assert.Contains(suite.T(), fields, "color^3")
+	assert.Contains(suite.T(), fields, "transmission^3")
+	assert.Contains(suite.T(), fields, "season^3")
+	assert.Contains(suite.T(), fields, "tire_model^3")
+
+	// Проверяем наличие префиксного поиска bool_prefix и wildcard в termQueries
+	hasBoolPrefix := false
+	hasWildcardQuery := false
+	for _, q := range shouldList {
+		if mm, ok := q["multi_match"].(map[string]interface{}); ok {
+			if mm["type"] == "bool_prefix" {
+				hasBoolPrefix = true
+			}
+		}
+		if qs, ok := q["query_string"].(map[string]interface{}); ok {
+			if queryString, ok := qs["query"].(string); ok && strings.HasSuffix(queryString, "*") {
+				hasWildcardQuery = true
+			}
+		}
+	}
+	assert.True(suite.T(), hasBoolPrefix, "должен присутствовать bool_prefix для недописанных слов")
+	assert.True(suite.T(), hasWildcardQuery, "должен присутствовать wildcard query для префиксов недописанных слов")
+}
+
+// TestBuildElasticsearchQuery_IncompleteWords - тест поиска по недописанным словам (автодополнение/префикс)
+func (suite *ServiceTestSuite) TestBuildElasticsearchQuery_IncompleteWords() {
+	s := suite.service.(*inventoryService)
+	// Пользователь ввел "Toyota cam" - второе слово недописано
+	params := InventoryQueryParams{
+		Search: "Toyota cam",
+	}
+	query := s.buildElasticsearchQuery(params)
+	assert.NotNil(suite.T(), query)
+
+	boolQuery := query["bool"].(map[string]interface{})
+	mustClauses := boolQuery["must"].([]map[string]interface{})
+	assert.Equal(suite.T(), 2, len(mustClauses))
+
+	// Клауза для "cam"
+	termCam := mustClauses[1]["bool"].(map[string]interface{})
+	shouldList := termCam["should"].([]map[string]interface{})
+
+	// Должен быть query_string с cam*
+	foundPrefix := false
+	for _, q := range shouldList {
+		if qs, ok := q["query_string"].(map[string]interface{}); ok {
+			if qs["query"] == "cam*" {
+				foundPrefix = true
+			}
+		}
+	}
+	assert.True(suite.T(), foundPrefix, "должен присутствовать query_string с cam* для поиска недописанного слова")
 }
 
 // TestBuildElasticsearchQuery_BrandAndModelFilters - тест гибкой фильтрации бренда, модели и года

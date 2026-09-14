@@ -280,6 +280,21 @@ func ConvertQwertyToRussian(text string) string {
 	return builder.String()
 }
 
+// escapeESQuery экранирует спецсимволы синтаксиса Lucene для безопасного использования в query_string
+func escapeESQuery(s string) string {
+	var sb strings.Builder
+	for _, r := range s {
+		switch r {
+		case '+', '-', '=', '!', '(', ')', '{', '}', '[', ']', '^', '"', '~', '*', '?', ':', '\\', '/', '&', '|', '<', '>':
+			sb.WriteRune('\\')
+			sb.WriteRune(r)
+		default:
+			sb.WriteRune(r)
+		}
+	}
+	return sb.String()
+}
+
 // buildElasticsearchQuery строит запрос для Elasticsearch
 func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) map[string]interface{} {
 	must := []map[string]interface{}{}
@@ -305,56 +320,103 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 			"name^10", "name.ngram^5",
 			"brand^4", "brand.text^4", "brand.ngram^3",
 			"model^4", "model.text^4", "model.ngram^3",
-			"body_brand^3", "body_brand.text^3",
-			"engine_brand^3", "engine_brand.text^3",
+			"body_brand^3", "body_brand.text^3", "body_brand.ngram^2",
+			"engine_brand^3", "engine_brand.text^3", "engine_brand.ngram^2",
 			"number^4", "number.text^4",
 			"oem_code^4", "oem_code.text^4",
 			"manufacturer_code^3", "manufacturer_code.text^3",
 			"supplier_code^2", "supplier_code.text^2",
 			"vin^3", "vin.text^3",
-			"category^3", "category.text^3",
+			"category^3", "category.text^3", "category.ngram^2",
 			"car_release_date^3", "car_release_date.text^3", "car_release_date.ngram^2",
+			"front_rear^3", "front_rear.text^3", "front_rear.ngram^2",
+			"left_right^3", "left_right.text^3", "left_right.ngram^2",
+			"top_bottom^3", "top_bottom.text^3", "top_bottom.ngram^2",
+			"color^3", "color.text^3", "color.ngram^2",
+			"condition^2", "condition.text^2", "condition.ngram^1",
+			"transmission^3", "transmission.text^3", "transmission.ngram^2",
+			"transmission_model^3", "transmission_model.text^3", "transmission_model.ngram^2",
+			"drive^3", "drive.text^3", "drive.ngram^2",
+			"manufacturer^2", "manufacturer.text^2", "manufacturer.ngram^1",
+			"defect^2", "defect.text^2",
+			"season^3", "season.text^3", "season.ngram^2",
+			"diameter^2", "diameter.text^2",
+			"width^2", "width.text^2",
+			"profile^2", "profile.text^2",
+			"drilling^2", "drilling.text^2",
+			"offset^2", "offset.text^2",
+			"center_hole_diameter^2", "center_hole_diameter.text^2",
+			"tire_model^3", "tire_model.text^3", "tire_model.ngram^2",
+			"tire_quantity^1", "tire_quantity.text^1",
+			"wear_percentage^1", "wear_percentage.text^1",
+			"location^1", "location.text^1",
+			"address^1", "address.text^1",
+			"salesman^1", "salesman.text^1",
 			"description^1",
-			"manufacturer^2", "manufacturer.text^2",
 		}
 
 		// 1. Обязательное совпадение: каждый терм поискового запроса должен присутствовать
-		// в запчасти (хотя бы в одном из полей: название, марка, модель, кузов, ДВС, артикул, OEM, VIN и т.д.).
-		// Использование type: "best_fields" исключает проблемы несовпадения анализаторов между полями.
+		// в запчасти (по любому из полей или как префикс не завершенного слова).
 		for _, term := range terms {
 			if strings.TrimSpace(term) == "" {
 				continue
 			}
-			termQueries := []map[string]interface{}{
-				{
-					"multi_match": map[string]interface{}{
-						"query":  term,
-						"fields": searchableFields,
-						"type":   "best_fields",
-					},
-				},
-			}
 
+			variants := []string{term}
 			tTrans := TransliterateLatinToCyrillic(term)
 			if tTrans != strings.ToLower(term) {
-				termQueries = append(termQueries, map[string]interface{}{
-					"multi_match": map[string]interface{}{
-						"query":  tTrans,
-						"fields": searchableFields,
-						"type":   "best_fields",
-					},
-				})
+				variants = append(variants, tTrans)
 			}
-
 			tQwerty := ConvertQwertyToRussian(term)
 			if tQwerty != strings.ToLower(term) && tQwerty != tTrans {
+				variants = append(variants, tQwerty)
+			}
+
+			termQueries := []map[string]interface{}{}
+			for _, variant := range variants {
+				escapedVar := escapeESQuery(variant)
+
+				// 1. Точное / ngram / стеммированное совпадение по всем полям
 				termQueries = append(termQueries, map[string]interface{}{
 					"multi_match": map[string]interface{}{
-						"query":  tQwerty,
+						"query":  variant,
 						"fields": searchableFields,
 						"type":   "best_fields",
 					},
 				})
+
+				// 2. Префиксный поиск через match_bool_prefix (когда слово не дописано)
+				termQueries = append(termQueries, map[string]interface{}{
+					"multi_match": map[string]interface{}{
+						"query":  variant,
+						"fields": searchableFields,
+						"type":   "bool_prefix",
+					},
+				})
+
+				// 3. Префиксный wildcard (слово*) через query_string по всем полям
+				termQueries = append(termQueries, map[string]interface{}{
+					"query_string": map[string]interface{}{
+						"query":            escapedVar + "*",
+						"fields":           searchableFields,
+						"default_operator": "OR",
+						"analyze_wildcard": true,
+						"boost":            2.0,
+					},
+				})
+
+				// 4. Подстрочный wildcard (*слово*) для фрагментов от 3 символов
+				if len([]rune(variant)) >= 3 {
+					termQueries = append(termQueries, map[string]interface{}{
+						"query_string": map[string]interface{}{
+							"query":            "*" + escapedVar + "*",
+							"fields":           searchableFields,
+							"default_operator": "OR",
+							"analyze_wildcard": true,
+							"boost":            1.0,
+						},
+					})
+				}
 			}
 
 			must = append(must, map[string]interface{}{
@@ -384,6 +446,15 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 						"query": params.Search,
 						"boost": 50.0,
 					},
+				},
+			},
+			// Фразовое совпадение с префиксом по всей строке по всем полям
+			map[string]interface{}{
+				"multi_match": map[string]interface{}{
+					"query":  params.Search,
+					"fields": searchableFields,
+					"type":   "bool_prefix",
+					"boost":  40.0,
 				},
 			},
 			// Совпадение всей поисковой фразы целиком по всем полям
@@ -443,7 +514,7 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 		should = append(should, map[string]interface{}{
 			"multi_match": map[string]interface{}{
 				"query":                params.Search,
-				"fields":               []string{"name^2", "brand.text^1", "model.text^1", "car_release_date.text^1"},
+				"fields":               []string{"name^2", "brand.text^1", "model.text^1", "car_release_date.text^1", "front_rear.text^1", "color.text^1", "transmission.text^1"},
 				"type":                 "best_fields",
 				"fuzziness":            "AUTO:4,7",
 				"prefix_length":        2,

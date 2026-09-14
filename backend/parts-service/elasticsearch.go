@@ -244,6 +244,11 @@ func CreatePartsIndex() error {
 							"type": "text",
 							"analyzer": "custom_russian_index",
 							"search_analyzer": "custom_russian_search"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
 						}
 					}
 				},
@@ -379,6 +384,11 @@ func CreatePartsIndex() error {
 						"text": {
 							"type": "text",
 							"analyzer": "standard"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
 						}
 					}
 				},
@@ -388,6 +398,11 @@ func CreatePartsIndex() error {
 						"text": {
 							"type": "text",
 							"analyzer": "standard"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
 						}
 					}
 				},
@@ -397,6 +412,11 @@ func CreatePartsIndex() error {
 						"text": {
 							"type": "text",
 							"analyzer": "standard"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
 						}
 					}
 				},
@@ -407,6 +427,11 @@ func CreatePartsIndex() error {
 							"type": "text",
 							"analyzer": "custom_russian_index",
 							"search_analyzer": "custom_russian_search"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
 						}
 					}
 				},
@@ -416,6 +441,11 @@ func CreatePartsIndex() error {
 						"text": {
 							"type": "text",
 							"analyzer": "standard"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
 						}
 					}
 				},
@@ -431,6 +461,11 @@ func CreatePartsIndex() error {
 							"type": "text",
 							"analyzer": "custom_russian_index",
 							"search_analyzer": "custom_russian_search"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
 						}
 					}
 				},
@@ -441,6 +476,11 @@ func CreatePartsIndex() error {
 							"type": "text",
 							"analyzer": "custom_russian_index",
 							"search_analyzer": "custom_russian_search"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
 						}
 					}
 				},
@@ -465,6 +505,163 @@ func CreatePartsIndex() error {
 							"type": "text",
 							"analyzer": "custom_russian_index",
 							"search_analyzer": "custom_russian_search"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"front_rear": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"left_right": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"top_bottom": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"season": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"diameter": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"width": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"profile": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"drilling": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"offset": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"center_hole_diameter": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"tire_model": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "standard"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"tire_quantity": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "standard"
+						}
+					}
+				},
+				"wear_percentage": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "standard"
 						}
 					}
 				}
