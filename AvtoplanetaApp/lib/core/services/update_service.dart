@@ -139,6 +139,7 @@ class UpdateCheckResult {
 class UpdateService {
   final String _baseUrl;
   final Dio _dio;
+  final Dio? _downloadDio;
   final String githubRepo;
   final bool checkGitHubReleases;
   final bool checkPlatform;
@@ -146,13 +147,12 @@ class UpdateService {
   UpdateService({
     String? baseUrl,
     Dio? dio,
+    Dio? downloadDio,
     this.githubRepo = 'platontrey/Avtoplaneta',
     this.checkGitHubReleases = true,
     this.checkPlatform = true,
   })  : _baseUrl = baseUrl ?? apiClient.dio.options.baseUrl,
-        // UpdateService использует ИЗОЛИРОВАННЫЙ экземпляр Dio без AuthInterceptor,
-        // чтобы сетевые ошибки или 401 на непроверенном эндпоинте обновления
-        // никогда не могли сбросить авторизацию пользователя.
+        _downloadDio = downloadDio,
         _dio = dio ??
             Dio(BaseOptions(
               baseUrl: baseUrl ?? apiClient.dio.options.baseUrl,
@@ -378,14 +378,14 @@ class UpdateService {
       }
     }
 
-    final downloadDio = Dio(BaseOptions(
+    final downloadDio = _downloadDio ?? Dio(BaseOptions(
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(minutes: 10),
       followRedirects: true,
       maxRedirects: 5,
     ));
 
-    if (!kIsWeb) {
+    if (_downloadDio == null && !kIsWeb) {
       downloadDio.httpClientAdapter = IOHttpClientAdapter(
         createHttpClient: () {
           final client = HttpClient();
