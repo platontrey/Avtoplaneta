@@ -30,7 +30,7 @@ class AppUpdateInfo {
     this.publishedAt,
   });
 
-  /// Парсинг ответа от собственного бэкенда (/api/v1/app/version)
+  /// Парсинг ответа от собственного бэкенда (/api/app/version)
   factory AppUpdateInfo.fromJson(Map<String, dynamic> json) {
     return AppUpdateInfo(
       version: json['version'] as String? ?? '',
@@ -136,20 +136,29 @@ class UpdateCheckResult {
 }
 
 class UpdateService {
-  final ApiClient? _apiClient;
+  final String _baseUrl;
   final Dio _dio;
   final String githubRepo;
   final bool checkGitHubReleases;
   final bool checkPlatform;
 
   UpdateService({
-    ApiClient? apiClient,
+    String? baseUrl,
     Dio? dio,
     this.githubRepo = 'platontrey/Avtoplaneta',
     this.checkGitHubReleases = true,
     this.checkPlatform = true,
-  })  : _apiClient = apiClient,
-        _dio = dio ?? (apiClient?.dio ?? Dio());
+  })  : _baseUrl = baseUrl ?? apiClient.dio.options.baseUrl,
+        // UpdateService использует ИЗОЛИРОВАННЫЙ экземпляр Dio без AuthInterceptor,
+        // чтобы сетевые ошибки или 401 на непроверенном эндпоинте обновления
+        // никогда не могли сбросить авторизацию пользователя.
+        _dio = dio ??
+            Dio(BaseOptions(
+              baseUrl: baseUrl ?? apiClient.dio.options.baseUrl,
+              connectTimeout: const Duration(seconds: 10),
+              receiveTimeout: const Duration(seconds: 15),
+              headers: {'Content-Type': 'application/json'},
+            ));
 
   /// Получает информацию о текущей установленной версии приложения
   Future<PackageInfo> getCurrentPackageInfo() async {
@@ -239,7 +248,7 @@ class UpdateService {
     // 1. Сначала пробуем получить конфигурацию с собственного бэкенда
     try {
       final response = await _dio.get(
-        '/api/v1/app/version',
+        '/api/app/version',
         options: Options(responseType: ResponseType.json),
       );
 
@@ -307,7 +316,6 @@ class UpdateService {
       },
     ));
 
-    // Проверяем сначала тег mobile-latest, затем latest релиз
     final urls = [
       'https://api.github.com/repos/$githubRepo/releases/tags/mobile-latest',
       'https://api.github.com/repos/$githubRepo/releases/latest',
@@ -367,13 +375,16 @@ class UpdateService {
       }
     }
 
-    // Если URL относительный (/api/v1/app/download), резолвим через ApiClient
     String finalUrl = info.downloadUrl;
-    if (_apiClient != null && !finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
-      finalUrl = _apiClient.resolveUrl(info.downloadUrl);
+    if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+      final uri = Uri.tryParse(finalUrl);
+      if (uri != null && uri.hasScheme) {
+        finalUrl = uri.toString();
+      } else {
+        finalUrl = Uri.parse(_baseUrl).resolve(finalUrl).toString();
+      }
     }
 
-    // Для GitHub Releases и скачивания больших файлов используем отдельный Dio с увеличенным таймаутом
     final downloadDio = Dio(BaseOptions(
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(minutes: 5),
@@ -395,7 +406,6 @@ class UpdateService {
       },
     );
 
-    // Запускаем системную установку через Android PackageInstaller
     final openResult = await OpenFilex.open(
       targetFile.path,
       type: 'application/vnd.android.package-archive',
@@ -405,7 +415,7 @@ class UpdateService {
   }
 }
 
-/// Провайдер сервиса автообновлений
+/// Провайдер сервиса автообновлений (использует независимый чистый Dio без AuthInterceptor)
 final updateServiceProvider = Provider<UpdateService>((ref) {
-  return UpdateService(apiClient: apiClient);
+  return UpdateService();
 });

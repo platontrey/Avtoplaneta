@@ -21,10 +21,24 @@ func setupTestUpdateRouter() *gin.Engine {
 	return r
 }
 
+func TestRouterConflict(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("Gin panicked: %v", r)
+		}
+	}()
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	// Проверяем, что /api/app не конфликтует с /api/v1/*any
+	r.GET("/api/app/version", func(c *gin.Context) {})
+	r.GET("/api/app/download", func(c *gin.Context) {})
+	r.Any("/api/v1/*any", func(c *gin.Context) {})
+}
+
 func TestGetAppVersionHandler(t *testing.T) {
 	router := setupTestUpdateRouter()
 
-	req, err := http.NewRequest(http.MethodGet, "/api/v1/app/version", nil)
+	req, err := http.NewRequest(http.MethodGet, "/api/app/version", nil)
 	if err != nil {
 		t.Fatalf("failed to create request: %v", err)
 	}
@@ -60,7 +74,7 @@ func TestGetAppVersionHandler(t *testing.T) {
 func TestDownloadAppHandler_NotFound(t *testing.T) {
 	router := setupTestUpdateRouter()
 
-	req, err := http.NewRequest(http.MethodGet, "/api/v1/app/download", nil)
+	req, err := http.NewRequest(http.MethodGet, "/api/app/download", nil)
 	if err != nil {
 		t.Fatalf("failed to create request: %v", err)
 	}
@@ -87,7 +101,7 @@ func TestDownloadAppHandler_SuccessWithAPK(t *testing.T) {
 	}
 	defer os.Remove(testApkPath)
 
-	req, err := http.NewRequest(http.MethodGet, "/api/v1/app/download", nil)
+	req, err := http.NewRequest(http.MethodGet, "/api/app/download", nil)
 	if err != nil {
 		t.Fatalf("failed to create request: %v", err)
 	}

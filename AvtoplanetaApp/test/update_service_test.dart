@@ -8,7 +8,7 @@ void main() {
       final json = {
         'version': '1.2.0',
         'build_number': 42,
-        'download_url': '/api/v1/app/download',
+        'download_url': '/api/app/download',
         'force_update': true,
         'min_supported_build': 30,
         'changelog': '• Исправлены ошибки в инвентаре\n• Добавлен поиск по OEM',
@@ -20,7 +20,7 @@ void main() {
 
       expect(info.version, '1.2.0');
       expect(info.buildNumber, 42);
-      expect(info.downloadUrl, '/api/v1/app/download');
+      expect(info.downloadUrl, '/api/app/download');
       expect(info.forceUpdate, true);
       expect(info.minSupportedBuild, 30);
       expect(info.changelog, contains('OEM'));
@@ -191,12 +191,12 @@ void main() {
     test('успешное обнаружение новой версии на бэкенде', () async {
       final dio = Dio();
       dio.httpClientAdapter = _MockHttpAdapter((options) {
-        if (options.path.endsWith('/api/v1/app/version')) {
+        if (options.path.endsWith('/api/app/version')) {
           return ResponseBody.fromString(
             '''{
               "version": "1.0.5",
               "build_number": 10,
-              "download_url": "/api/v1/app/download",
+              "download_url": "/api/app/download",
               "force_update": false,
               "min_supported_build": 1,
               "changelog": "Добавлены улучшения"
@@ -225,18 +225,18 @@ void main() {
       expect(result.isForced, isFalse);
       expect(result.updateInfo?.version, '1.0.5');
       expect(result.updateInfo?.buildNumber, 10);
-      expect(result.updateInfo?.downloadUrl, '/api/v1/app/download');
+      expect(result.updateInfo?.downloadUrl, '/api/app/download');
     });
 
     test('обнаружение обязательного обновления (force_update: true)', () async {
       final dio = Dio();
       dio.httpClientAdapter = _MockHttpAdapter((options) {
-        if (options.path.endsWith('/api/v1/app/version')) {
+        if (options.path.endsWith('/api/app/version')) {
           return ResponseBody.fromString(
             '''{
               "version": "2.0.0",
               "build_number": 50,
-              "download_url": "/api/v1/app/download",
+              "download_url": "/api/app/download",
               "force_update": true,
               "min_supported_build": 40,
               "changelog": "Критическое обновление безопасности"
@@ -273,7 +273,7 @@ void main() {
           '''{
             "version": "1.5.0",
             "build_number": 20,
-            "download_url": "/api/v1/app/download",
+            "download_url": "/api/app/download",
             "force_update": false,
             "min_supported_build": 15,
             "changelog": "Обновление API"
@@ -308,7 +308,7 @@ void main() {
           '''{
             "version": "1.0.5",
             "build_number": 10,
-            "download_url": "/api/v1/app/download"
+            "download_url": "/api/app/download"
           }''',
           200,
           headers: {

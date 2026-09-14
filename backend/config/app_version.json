@@ -1,7 +1,7 @@
 {
   "version": "1.0.1",
   "build_number": 2,
-  "download_url": "/api/v1/app/download",
+  "download_url": "/api/app/download",
   "force_update": false,
   "min_supported_build": 1,
   "changelog": "• Поддержка системы автообновления\n• Повышена общая стабильность приложения",

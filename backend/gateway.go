@@ -409,8 +409,8 @@ func (g *Gateway) setupStaticRoutes() {
 
 // setupAppUpdateRoutes настраивает маршруты для автообновления мобильных приложений
 func (g *Gateway) setupAppUpdateRoutes() {
-	g.router.GET("/api/v1/app/version", g.getAppVersionHandler)
-	g.router.GET("/api/v1/app/download", g.downloadAppHandler)
+	g.router.GET("/api/app/version", g.getAppVersionHandler)
+	g.router.GET("/api/app/download", g.downloadAppHandler)
 }
 
 func (g *Gateway) getAppVersionHandler(c *gin.Context) {
