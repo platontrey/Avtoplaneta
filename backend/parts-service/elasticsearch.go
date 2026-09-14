@@ -414,6 +414,35 @@ func CreatePartsIndex() error {
 					"analyzer": "custom_russian_index",
 					"search_analyzer": "custom_russian_search"
 				},
+				"drive": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
+						}
+					}
+				},
+				"condition": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
+						}
+					}
+				},
+				"car_release_date": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "standard"
+						}
+					}
+				},
 				"color": {
 					"type": "keyword",
 					"fields": {

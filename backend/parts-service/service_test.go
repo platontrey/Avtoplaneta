@@ -317,21 +317,33 @@ func (suite *ServiceTestSuite) TestBuildElasticsearchQuery_TransliterationAndQwe
 func (suite *ServiceTestSuite) TestBuildElasticsearchQuery_AllFilters() {
 	s := suite.service.(*inventoryService)
 	params := InventoryQueryParams{
-		Category: "Кузов снаружи",
-		Brand:    "Toyota",
-		Model:    "Camry",
-		Location: "Стеллаж A-1",
-		Address:  "Склад 2",
-		Salesman: "Иванов",
-		Status:   "true",
-		HasPhoto: "with",
+		Category:       "Кузов снаружи",
+		Brand:          "Toyota",
+		Model:          "Camry",
+		Location:       "Стеллаж A-1",
+		Address:        "Склад 2",
+		Salesman:       "Иванов",
+		Status:         "true",
+		HasPhoto:       "with",
+		Number:         "52119-33939",
+		OEMCode:        "5211933939",
+		VIN:            "JTM53REV",
+		BodyBrand:      "ACV40",
+		EngineBrand:    "2AZ-FE",
+		CarReleaseDate: "2008",
+		Transmission:   "АКПП",
+		Drive:          "Передний",
+		Condition:      "Контрактная",
+		Manufacturer:   "Toyota",
+		Defect:         "Царапина",
+		Color:          "Белый",
 	}
 	query := s.buildElasticsearchQuery(params)
 	boolQuery := query["bool"].(map[string]interface{})
 	filters := boolQuery["filter"].([]map[string]interface{})
 
-	// range(quantity >= 0) + category + hasPhoto + brand + model + location + address + salesman + status = 9 фильтров
-	assert.Equal(suite.T(), 9, len(filters))
+	// range(quantity >= 0) + category + hasPhoto + brand + model + location + address + salesman + status + 12 характеристик = 21 фильтр
+	assert.Equal(suite.T(), 21, len(filters))
 
 	// Проверяем hasPhoto == "without"
 	paramsWithoutPhoto := InventoryQueryParams{
@@ -357,15 +369,27 @@ func (suite *ServiceTestSuite) TestTransliterationHelpers() {
 func (suite *ServiceTestSuite) TestBuildDatabaseFilters() {
 	s := suite.service.(*inventoryService)
 	params := InventoryQueryParams{
-		Search:   "АКПП",
-		Category: "Трансмиссия",
-		Brand:    "Honda",
-		Model:    "Civic",
-		Location: "Стеллаж 5",
-		Address:  "Центральный склад",
-		Salesman: "Петров",
-		Status:   "true",
-		HasPhoto: "with",
+		Search:         "АКПП",
+		Category:       "Трансмиссия",
+		Brand:          "Honda",
+		Model:          "Civic",
+		Location:       "Стеллаж 5",
+		Address:        "Центральный склад",
+		Salesman:       "Петров",
+		Status:         "true",
+		HasPhoto:       "with",
+		Number:         "12345",
+		OEMCode:        "OEM123",
+		VIN:            "VIN123",
+		BodyBrand:      "EK3",
+		EngineBrand:    "D15B",
+		CarReleaseDate: "1999",
+		Transmission:   "МКПП",
+		Drive:          "Передний",
+		Condition:      "Б/у",
+		Manufacturer:   "Honda",
+		Defect:         "Нет",
+		Color:          "Черный",
 	}
 
 	filters := s.buildDatabaseFilters(params)
@@ -378,6 +402,18 @@ func (suite *ServiceTestSuite) TestBuildDatabaseFilters() {
 	assert.Equal(suite.T(), "Петров", filters["salesman_ilike"])
 	assert.Equal(suite.T(), "true", filters["status"])
 	assert.Equal(suite.T(), true, filters["has_photo"])
+	assert.Equal(suite.T(), "12345", filters["number_ilike"])
+	assert.Equal(suite.T(), "OEM123", filters["oem_code_ilike"])
+	assert.Equal(suite.T(), "VIN123", filters["vin_ilike"])
+	assert.Equal(suite.T(), "EK3", filters["body_brand_ilike"])
+	assert.Equal(suite.T(), "D15B", filters["engine_brand_ilike"])
+	assert.Equal(suite.T(), "1999", filters["car_release_date_ilike"])
+	assert.Equal(suite.T(), "МКПП", filters["transmission_ilike"])
+	assert.Equal(suite.T(), "Передний", filters["drive_ilike"])
+	assert.Equal(suite.T(), "Б/у", filters["condition_ilike"])
+	assert.Equal(suite.T(), "Honda", filters["manufacturer_ilike"])
+	assert.Equal(suite.T(), "Нет", filters["defect_ilike"])
+	assert.Equal(suite.T(), "Черный", filters["color_ilike"])
 }
 
 // TestRunSuite - запуск всех тестов сервиса

@@ -16,7 +16,7 @@ export const partsKeys = {
   /** Ключ для списков запчастей */
   lists: () => [...partsKeys.all, 'list'] as const,
   /** Ключ для списка с фильтрами */
-  list: (filters: Record<string, unknown>) => [...partsKeys.lists(), filters] as const,
+  list: (filters: Record<string, unknown> | PartFilters) => [...partsKeys.lists(), filters] as const,
   /** Ключ для деталей запчастей */
   details: () => [...partsKeys.all, 'detail'] as const,
   /** Ключ для конкретной запчасти */
@@ -69,13 +69,7 @@ function isPartResponse(value: unknown): value is Part {
     typeof value.id === 'number'
   );
 }
-
-/**
- * Хук для получения списка запчастей с фильтрами
- * @param filters - Объект с фильтрами для поиска запчастей
- * @returns Объект с данными, состоянием загрузки и ошибками
- */
-export function useParts(filters?: {
+export interface PartFilters {
   /** Строка поиска */
   search?: string;
   /** Категория запчасти */
@@ -94,11 +88,42 @@ export function useParts(filters?: {
   status?: string;
   /** Фильтр по наличию фото */
   hasPhoto?: string;
+  /** Номер детали */
+  number?: string;
+  /** OEM код */
+  oem_code?: string;
+  /** VIN / Номер кузова */
+  vin?: string;
+  /** Марка кузова */
+  body_brand?: string;
+  /** Марка двигателя */
+  engine_brand?: string;
+  /** Год выпуска */
+  car_release_date?: string;
+  /** Трансмиссия */
+  transmission?: string;
+  /** Привод */
+  drive?: string;
+  /** Состояние */
+  condition?: string;
+  /** Производитель */
+  manufacturer?: string;
+  /** Дефект */
+  defect?: string;
+  /** Цвет */
+  color?: string;
   /** Лимит результатов */
   limit?: number;
   /** Страница для пагинации */
   page?: number;
-}) {
+}
+
+/**
+ * Хук для получения списка запчастей с фильтрами
+ * @param filters - Объект с фильтрами для поиска запчастей
+ * @returns Объект с данными, состоянием загрузки и ошибками
+ */
+export function useParts(filters?: PartFilters) {
   console.log('useParts called with filters:', filters);
   return useQuery({
     queryKey: partsKeys.list(filters || {}),
@@ -115,26 +140,7 @@ export function useParts(filters?: {
  * @param filters - Объект с фильтрами для поиска запчастей
  * @returns Объект с данными, функциями для загрузки следующей страницы
  */
-export function useInfiniteParts(filters?: {
-  /** Строка поиска */
-  search?: string;
-  /** Категория запчасти */
-  category?: string;
-  /** Бренд автомобиля */
-  brand?: string;
-  /** Модель автомобиля */
-  model?: string;
-  /** Местоположение */
-  location?: string;
-  /** Адрес склада */
-  address?: string;
-  /** Продавец */
-  salesman?: string;
-  /** Статус запчасти */
-  status?: string;
-  /** Фильтр по наличию фото */
-  hasPhoto?: string;
-}) {
+export function useInfiniteParts(filters?: Omit<PartFilters, 'limit' | 'page'>) {
   console.log('useInfiniteParts called with filters:', filters);
   return useInfiniteQuery({
     queryKey: [...partsKeys.lists(), 'infinite', filters || {}],

@@ -79,24 +79,33 @@ func (h *Handler) logUserActivity(c *gin.Context, action, resourceType, details 
 func (h *Handler) GetInventoryHandler(c *gin.Context) {
 	// Парсим параметры запроса
 	queryParams := InventoryQueryParams{
-		Search:   c.Query("search"),
-		Category: c.Query("category"),
-		Brand:    c.Query("brand"),
-		Model:    c.Query("model"),
-		Location: c.Query("location"),
-		Address:  c.Query("address"),
-		Salesman: c.Query("salesman"),
-		Status:   c.Query("status"),
-		HasPhoto: c.Query("hasPhoto"),
+		Search:         c.Query("search"),
+		Category:       c.Query("category"),
+		Brand:          c.Query("brand"),
+		Model:          c.Query("model"),
+		Location:       c.Query("location"),
+		Address:        c.Query("address"),
+		Salesman:       c.Query("salesman"),
+		Status:         c.Query("status"),
+		HasPhoto:       c.Query("hasPhoto"),
+		Number:         c.Query("number"),
+		OEMCode:        c.Query("oem_code"),
+		VIN:            c.Query("vin"),
+		BodyBrand:      c.Query("body_brand"),
+		EngineBrand:    c.Query("engine_brand"),
+		CarReleaseDate: c.Query("car_release_date"),
+		Transmission:   c.Query("transmission"),
+		Drive:          c.Query("drive"),
+		Condition:      c.Query("condition"),
+		Manufacturer:   c.Query("manufacturer"),
+		Defect:         c.Query("defect"),
+		Color:          c.Query("color"),
 	}
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	queryParams.Page = page
 	queryParams.Limit = limit
-
-	fmt.Printf("GetInventory: search='%s', category='%s', brand='%s', model='%s', location='%s', address='%s', salesman='%s', status='%s', hasPhoto='%s'\n",
-		queryParams.Search, queryParams.Category, queryParams.Brand, queryParams.Model, queryParams.Location, queryParams.Address, queryParams.Salesman, queryParams.Status, queryParams.HasPhoto)
 
 	ctx := c.Request.Context()
 	parts, err := h.inventoryService.GetInventory(ctx, queryParams)

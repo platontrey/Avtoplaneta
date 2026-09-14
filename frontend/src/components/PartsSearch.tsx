@@ -72,19 +72,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_BASE_URL } from '@/lib/api';
 import { usePartCatalog } from '@/features/catalog/usePartCatalog';
+import type { PartFilters } from '@/hooks/useParts';
 
 interface PartsSearchProps {
     onSearchChange?: (searchQuery: string) => void;
-    onFiltersChange?: (filters: {
-        search: string;
-        category: string;
-        brand: string;
-        model: string;
-        location: string;
-        address: string;
-        status: string;
-        hasPhoto?: string;
-    }) => void;
+    onFiltersChange?: (filters: PartFilters) => void;
     onDisplayLimitChange?: (limit: number | undefined) => void;
     currentDisplayLimit?: number | undefined;
 }
@@ -98,6 +90,18 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
     const [address, setAddress] = useState('');
     const [status, setStatus] = useState('');
     const [hasPhoto, setHasPhoto] = useState('with');
+    const [number, setNumber] = useState('');
+    const [oemCode, setOemCode] = useState('');
+    const [vin, setVin] = useState('');
+    const [bodyBrand, setBodyBrand] = useState('');
+    const [engineBrand, setEngineBrand] = useState('');
+    const [carReleaseDate, setCarReleaseDate] = useState('');
+    const [transmission, setTransmission] = useState('');
+    const [drive, setDrive] = useState('');
+    const [condition, setCondition] = useState('');
+    const [manufacturer, setManufacturer] = useState('');
+    const [defect, setDefect] = useState('');
+    const [color, setColor] = useState('');
     const [isSearching, setIsSearching] = useState(false);
     const [isResultsVisible, setIsResultsVisible] = useState(false);
     const [isFiltersOpen, setIsFiltersOpen] = useState(false);
@@ -225,6 +229,21 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
       { value: "all", label: "Все" },
     ];
 
+    const transmissionOptions: SelectOption[] = [
+      { value: "", label: "Все типы КПП" },
+      { value: "АКПП", label: "АКПП" },
+      { value: "МКПП", label: "МКПП" },
+      { value: "Вариатор", label: "Вариатор" },
+      { value: "Роботизированная", label: "Роботизированная" },
+    ];
+
+    const driveOptions: SelectOption[] = [
+      { value: "", label: "Все приводы" },
+      { value: "Передний", label: "Передний" },
+      { value: "Задний", label: "Задний" },
+      { value: "Полный", label: "Полный" },
+    ];
+
     // Функция применения фильтров
     const applyFilters = useCallback(() => {
         if (onFiltersChange) {
@@ -236,10 +255,27 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                 location,
                 address,
                 status,
-                hasPhoto
+                hasPhoto,
+                number,
+                oem_code: oemCode,
+                vin,
+                body_brand: bodyBrand,
+                engine_brand: engineBrand,
+                car_release_date: carReleaseDate,
+                transmission,
+                drive,
+                condition,
+                manufacturer,
+                defect,
+                color,
             });
         }
-    }, [searchQuery, category, brand, model, location, address, status, hasPhoto, onFiltersChange]);
+    }, [
+        searchQuery, category, brand, model, location, address, status, hasPhoto,
+        number, oemCode, vin, bodyBrand, engineBrand, carReleaseDate,
+        transmission, drive, condition, manufacturer, defect, color,
+        onFiltersChange
+    ]);
 
     // Поиск с автодополнением (только для dropdown)
     const performSearch = useCallback(async (query: string) => {
@@ -414,6 +450,18 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         setAddress('');
         setStatus('');
         setHasPhoto('with');
+        setNumber('');
+        setOemCode('');
+        setVin('');
+        setBodyBrand('');
+        setEngineBrand('');
+        setCarReleaseDate('');
+        setTransmission('');
+        setDrive('');
+        setCondition('');
+        setManufacturer('');
+        setDefect('');
+        setColor('');
         clearResults();
     };
 
@@ -444,8 +492,24 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         location,
         address,
         status,
-        hasPhoto && hasPhoto !== 'with' ? hasPhoto : ''
-    ].filter(Boolean).length, [category, brand, model, location, address, status, hasPhoto]);
+        hasPhoto && hasPhoto !== 'with' ? hasPhoto : '',
+        number,
+        oemCode,
+        vin,
+        bodyBrand,
+        engineBrand,
+        carReleaseDate,
+        transmission,
+        drive,
+        condition,
+        manufacturer,
+        defect,
+        color,
+    ].filter(Boolean).length, [
+        category, brand, model, location, address, status, hasPhoto,
+        number, oemCode, vin, bodyBrand, engineBrand, carReleaseDate,
+        transmission, drive, condition, manufacturer, defect, color,
+    ]);
 
     const handleDisplayLimitChange = (value: string) => {
         const limit = parseInt(value) || 0;
@@ -805,6 +869,168 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                                                 />
                                             </div>
 
+                                            {/* Номер детали */}
+                                            <div>
+                                                <Label htmlFor="number-filter">Номер детали</Label>
+                                                <Input
+                                                    id="number-filter"
+                                                    type="text"
+                                                    value={number}
+                                                    onChange={(e) => setNumber(e.target.value)}
+                                                    placeholder="52119-33939..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* OEM код */}
+                                            <div>
+                                                <Label htmlFor="oem-filter">OEM код</Label>
+                                                <Input
+                                                    id="oem-filter"
+                                                    type="text"
+                                                    value={oemCode}
+                                                    onChange={(e) => setOemCode(e.target.value)}
+                                                    placeholder="89661-06G80..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* VIN / Номер кузова */}
+                                            <div>
+                                                <Label htmlFor="vin-filter">VIN / Номер кузова</Label>
+                                                <Input
+                                                    id="vin-filter"
+                                                    type="text"
+                                                    value={vin}
+                                                    onChange={(e) => setVin(e.target.value)}
+                                                    placeholder="WVWZZZ1JZ3W386549..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Марка кузова */}
+                                            <div>
+                                                <Label htmlFor="body-brand-filter">Марка кузова</Label>
+                                                <Input
+                                                    id="body-brand-filter"
+                                                    type="text"
+                                                    value={bodyBrand}
+                                                    onChange={(e) => setBodyBrand(e.target.value)}
+                                                    placeholder="ACV40, E90, W212..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Марка двигателя */}
+                                            <div>
+                                                <Label htmlFor="engine-brand-filter">Марка двигателя</Label>
+                                                <Input
+                                                    id="engine-brand-filter"
+                                                    type="text"
+                                                    value={engineBrand}
+                                                    onChange={(e) => setEngineBrand(e.target.value)}
+                                                    placeholder="2AZ-FE, N46, 1JZ..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Год выпуска */}
+                                            <div>
+                                                <Label htmlFor="release-date-filter">Год выпуска</Label>
+                                                <Input
+                                                    id="release-date-filter"
+                                                    type="text"
+                                                    value={carReleaseDate}
+                                                    onChange={(e) => setCarReleaseDate(e.target.value)}
+                                                    placeholder="2010..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Трансмиссия */}
+                                            <div>
+                                                <Label htmlFor="transmission-filter">Трансмиссия</Label>
+                                                <div className="mt-1.5">
+                                                    <SearchableSelect
+                                                        value={transmission}
+                                                        onValueChange={(value) => setTransmission(value)}
+                                                        options={transmissionOptions}
+                                                        placeholder="Все типы КПП"
+                                                        searchPlaceholder="Поиск КПП..."
+                                                        emptyMessage="Тип КПП не найден"
+                                                        className="bg-transparent border border-gray-300"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Привод */}
+                                            <div>
+                                                <Label htmlFor="drive-filter">Привод</Label>
+                                                <div className="mt-1.5">
+                                                    <SearchableSelect
+                                                        value={drive}
+                                                        onValueChange={(value) => setDrive(value)}
+                                                        options={driveOptions}
+                                                        placeholder="Все приводы"
+                                                        searchPlaceholder="Поиск привода..."
+                                                        emptyMessage="Привод не найден"
+                                                        className="bg-transparent border border-gray-300"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Состояние */}
+                                            <div>
+                                                <Label htmlFor="condition-filter">Состояние</Label>
+                                                <Input
+                                                    id="condition-filter"
+                                                    type="text"
+                                                    value={condition}
+                                                    onChange={(e) => setCondition(e.target.value)}
+                                                    placeholder="Контрактная, б/у, новая..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Производитель */}
+                                            <div>
+                                                <Label htmlFor="manufacturer-filter">Производитель</Label>
+                                                <Input
+                                                    id="manufacturer-filter"
+                                                    type="text"
+                                                    value={manufacturer}
+                                                    onChange={(e) => setManufacturer(e.target.value)}
+                                                    placeholder="Denso, Bosch, Brembo..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Дефект */}
+                                            <div>
+                                                <Label htmlFor="defect-filter">Дефект</Label>
+                                                <Input
+                                                    id="defect-filter"
+                                                    type="text"
+                                                    value={defect}
+                                                    onChange={(e) => setDefect(e.target.value)}
+                                                    placeholder="Царапина, скол, трещина..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Цвет */}
+                                            <div>
+                                                <Label htmlFor="color-filter">Цвет</Label>
+                                                <Input
+                                                    id="color-filter"
+                                                    type="text"
+                                                    value={color}
+                                                    onChange={(e) => setColor(e.target.value)}
+                                                    placeholder="Черный, белый, серебристый..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
 
                                             {/* Статус */}
                                             <div>
@@ -998,6 +1224,270 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                                                     className="h-3 w-3"
                                                 />
                                                 <span>Местоположение: {location}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {number && (
+                                        <motion.div
+                                            key="number"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setNumber('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Номер: {number}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {oemCode && (
+                                        <motion.div
+                                            key="oemCode"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setOemCode('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>OEM: {oemCode}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {vin && (
+                                        <motion.div
+                                            key="vin"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setVin('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>VIN: {vin}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {bodyBrand && (
+                                        <motion.div
+                                            key="bodyBrand"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setBodyBrand('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Кузов: {bodyBrand}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {engineBrand && (
+                                        <motion.div
+                                            key="engineBrand"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setEngineBrand('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>ДВС: {engineBrand}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {carReleaseDate && (
+                                        <motion.div
+                                            key="carReleaseDate"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setCarReleaseDate('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Год: {carReleaseDate}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {transmission && (
+                                        <motion.div
+                                            key="transmission"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setTransmission('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>КПП: {transmission}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {drive && (
+                                        <motion.div
+                                            key="drive"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setDrive('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Привод: {drive}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {condition && (
+                                        <motion.div
+                                            key="condition"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setCondition('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Состояние: {condition}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {manufacturer && (
+                                        <motion.div
+                                            key="manufacturer"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setManufacturer('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Производитель: {manufacturer}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {defect && (
+                                        <motion.div
+                                            key="defect"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setDefect('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Дефект: {defect}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {color && (
+                                        <motion.div
+                                            key="color"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setColor('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Цвет: {color}</span>
                                             </Badge>
                                         </motion.div>
                                     )}

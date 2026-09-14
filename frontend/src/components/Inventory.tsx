@@ -5,7 +5,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import PartsSearch from './PartsSearch';
 import PartsList from './PartsList';
-import { useParts, useInfiniteParts } from '@/hooks/useParts';
+import { useParts, useInfiniteParts, type PartFilters } from '@/hooks/useParts';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useQueryClient } from '@tanstack/react-query';
 import { partsKeys } from '@/hooks/useParts';
@@ -19,16 +19,7 @@ function Inventory() {
     const containerRef = useRef<HTMLDivElement>(null);
     const queryClient = useQueryClient();
 
-    const [filters, setFilters] = useState<{
-          search: string;
-          category: string;
-          brand: string;
-          model: string;
-          location: string;
-          address: string;
-          status: string;
-          hasPhoto?: string;
-      }>({
+    const [filters, setFilters] = useState<PartFilters>({
           search: '',
           category: '',
           brand: '',
@@ -110,16 +101,7 @@ function Inventory() {
      }, [bindPullToRefresh]);
 
      // Обработчик применения фильтров
-     const handleFiltersChange = useCallback((newFilters: {
-         search: string;
-         category: string;
-         brand: string;
-         model: string;
-         location: string;
-         address: string;
-         status: string;
-         hasPhoto?: string;
-     }) => {
+     const handleFiltersChange = useCallback((newFilters: PartFilters) => {
          setFilters(newFilters);
          setAllParts([]);
      }, []);

@@ -62,17 +62,29 @@ type InventoryService interface {
 
 // InventoryQueryParams параметры запроса для инвентаря
 type InventoryQueryParams struct {
-	Search   string
-	Category string
-	Brand    string
-	Model    string
-	Location string
-	Address  string
-	Salesman string
-	Status   string
-	HasPhoto string
-	Page     int
-	Limit    int
+	Search         string
+	Category       string
+	Brand          string
+	Model          string
+	Location       string
+	Address        string
+	Salesman       string
+	Status         string
+	HasPhoto       string
+	Number         string
+	OEMCode        string
+	VIN            string
+	BodyBrand      string
+	EngineBrand    string
+	CarReleaseDate string
+	Transmission   string
+	Drive          string
+	Condition      string
+	Manufacturer   string
+	Defect         string
+	Color          string
+	Page           int
+	Limit          int
 }
 
 // inventoryService реализует InventoryService
@@ -528,6 +540,122 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 		})
 	}
 
+	if params.Number != "" {
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"number": params.Number}},
+					{"match": map[string]interface{}{"number.text": params.Number}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
+	if params.OEMCode != "" {
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"oem_code": params.OEMCode}},
+					{"match": map[string]interface{}{"oem_code.text": params.OEMCode}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
+	if params.VIN != "" {
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"vin": params.VIN}},
+					{"match": map[string]interface{}{"vin.text": params.VIN}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
+	if params.BodyBrand != "" {
+		filter = append(filter, map[string]interface{}{
+			"match": map[string]interface{}{
+				"body_brand.text": params.BodyBrand,
+			},
+		})
+	}
+
+	if params.EngineBrand != "" {
+		filter = append(filter, map[string]interface{}{
+			"match": map[string]interface{}{
+				"engine_brand.text": params.EngineBrand,
+			},
+		})
+	}
+
+	if params.CarReleaseDate != "" {
+		filter = append(filter, map[string]interface{}{
+			"match": map[string]interface{}{
+				"car_release_date": params.CarReleaseDate,
+			},
+		})
+	}
+
+	if params.Transmission != "" {
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"transmission": params.Transmission}},
+					{"match": map[string]interface{}{"transmission.text": params.Transmission}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
+	if params.Drive != "" {
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"drive": params.Drive}},
+					{"match": map[string]interface{}{"drive.text": params.Drive}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
+	if params.Condition != "" {
+		filter = append(filter, map[string]interface{}{
+			"match": map[string]interface{}{
+				"condition": params.Condition,
+			},
+		})
+	}
+
+	if params.Manufacturer != "" {
+		filter = append(filter, map[string]interface{}{
+			"match": map[string]interface{}{
+				"manufacturer.text": params.Manufacturer,
+			},
+		})
+	}
+
+	if params.Defect != "" {
+		filter = append(filter, map[string]interface{}{
+			"match": map[string]interface{}{
+				"defect": params.Defect,
+			},
+		})
+	}
+
+	if params.Color != "" {
+		filter = append(filter, map[string]interface{}{
+			"match": map[string]interface{}{
+				"color.text": params.Color,
+			},
+		})
+	}
+
 	boolQuery := map[string]interface{}{}
 	if len(must) > 0 {
 		boolQuery["must"] = must
@@ -603,6 +731,42 @@ func (s *inventoryService) buildDatabaseFilters(params InventoryQueryParams) map
 			hasPhotoBool = false
 		}
 		filters["has_photo"] = hasPhotoBool
+	}
+	if params.Number != "" {
+		filters["number_ilike"] = params.Number
+	}
+	if params.OEMCode != "" {
+		filters["oem_code_ilike"] = params.OEMCode
+	}
+	if params.VIN != "" {
+		filters["vin_ilike"] = params.VIN
+	}
+	if params.BodyBrand != "" {
+		filters["body_brand_ilike"] = params.BodyBrand
+	}
+	if params.EngineBrand != "" {
+		filters["engine_brand_ilike"] = params.EngineBrand
+	}
+	if params.CarReleaseDate != "" {
+		filters["car_release_date_ilike"] = params.CarReleaseDate
+	}
+	if params.Transmission != "" {
+		filters["transmission_ilike"] = params.Transmission
+	}
+	if params.Drive != "" {
+		filters["drive_ilike"] = params.Drive
+	}
+	if params.Condition != "" {
+		filters["condition_ilike"] = params.Condition
+	}
+	if params.Manufacturer != "" {
+		filters["manufacturer_ilike"] = params.Manufacturer
+	}
+	if params.Defect != "" {
+		filters["defect_ilike"] = params.Defect
+	}
+	if params.Color != "" {
+		filters["color_ilike"] = params.Color
 	}
 
 	return filters

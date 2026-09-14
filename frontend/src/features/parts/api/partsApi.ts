@@ -20,6 +20,18 @@ export const partsApi = {
     salesman?: string;
     status?: string;
     hasPhoto?: string;
+    number?: string;
+    oem_code?: string;
+    vin?: string;
+    body_brand?: string;
+    engine_brand?: string;
+    car_release_date?: string;
+    transmission?: string;
+    drive?: string;
+    condition?: string;
+    manufacturer?: string;
+    defect?: string;
+    color?: string;
     limit?: number;
     page?: number;
   }): Promise<Part[]> => {
@@ -34,6 +46,18 @@ export const partsApi = {
     if (filters?.salesman) params.append('salesman', filters.salesman);
     if (filters?.status) params.append('status', filters.status);
     if (filters?.hasPhoto) params.append('hasPhoto', filters.hasPhoto);
+    if (filters?.number) params.append('number', filters.number);
+    if (filters?.oem_code) params.append('oem_code', filters.oem_code);
+    if (filters?.vin) params.append('vin', filters.vin);
+    if (filters?.body_brand) params.append('body_brand', filters.body_brand);
+    if (filters?.engine_brand) params.append('engine_brand', filters.engine_brand);
+    if (filters?.car_release_date) params.append('car_release_date', filters.car_release_date);
+    if (filters?.transmission) params.append('transmission', filters.transmission);
+    if (filters?.drive) params.append('drive', filters.drive);
+    if (filters?.condition) params.append('condition', filters.condition);
+    if (filters?.manufacturer) params.append('manufacturer', filters.manufacturer);
+    if (filters?.defect) params.append('defect', filters.defect);
+    if (filters?.color) params.append('color', filters.color);
     if (filters?.limit && filters.limit > 0) {
       params.append('limit', filters.limit.toString());
     }

@@ -13,6 +13,18 @@ class InventoryFilter {
   final String salesman;
   final String status;
   final String hasPhoto;
+  final String number;
+  final String oemCode;
+  final String vin;
+  final String bodyBrand;
+  final String engineBrand;
+  final String carReleaseDate;
+  final String transmission;
+  final String drive;
+  final String condition;
+  final String manufacturer;
+  final String defect;
+  final String color;
   final String pageSize; // 'all' (бесконечная лента), '20', '50', '100'
   final int page;
 
@@ -25,6 +37,18 @@ class InventoryFilter {
     this.salesman = '',
     this.status = '',
     this.hasPhoto = 'all',
+    this.number = '',
+    this.oemCode = '',
+    this.vin = '',
+    this.bodyBrand = '',
+    this.engineBrand = '',
+    this.carReleaseDate = '',
+    this.transmission = '',
+    this.drive = '',
+    this.condition = '',
+    this.manufacturer = '',
+    this.defect = '',
+    this.color = '',
     this.pageSize = 'all',
     this.page = 1,
   });
@@ -38,6 +62,18 @@ class InventoryFilter {
     String? salesman,
     String? status,
     String? hasPhoto,
+    String? number,
+    String? oemCode,
+    String? vin,
+    String? bodyBrand,
+    String? engineBrand,
+    String? carReleaseDate,
+    String? transmission,
+    String? drive,
+    String? condition,
+    String? manufacturer,
+    String? defect,
+    String? color,
     String? pageSize,
     int? page,
   }) => InventoryFilter(
@@ -49,6 +85,18 @@ class InventoryFilter {
     salesman: salesman ?? this.salesman,
     status: status ?? this.status,
     hasPhoto: hasPhoto ?? this.hasPhoto,
+    number: number ?? this.number,
+    oemCode: oemCode ?? this.oemCode,
+    vin: vin ?? this.vin,
+    bodyBrand: bodyBrand ?? this.bodyBrand,
+    engineBrand: engineBrand ?? this.engineBrand,
+    carReleaseDate: carReleaseDate ?? this.carReleaseDate,
+    transmission: transmission ?? this.transmission,
+    drive: drive ?? this.drive,
+    condition: condition ?? this.condition,
+    manufacturer: manufacturer ?? this.manufacturer,
+    defect: defect ?? this.defect,
+    color: color ?? this.color,
     pageSize: pageSize ?? this.pageSize,
     page: page ?? this.page,
   );
@@ -61,6 +109,18 @@ class InventoryFilter {
     salesman,
     status,
     hasPhoto == 'all' ? '' : hasPhoto,
+    number,
+    oemCode,
+    vin,
+    bodyBrand,
+    engineBrand,
+    carReleaseDate,
+    transmission,
+    drive,
+    condition,
+    manufacturer,
+    defect,
+    color,
     pageSize == 'all' ? '' : pageSize,
   ].where((value) => value.isNotEmpty).length;
 
@@ -77,6 +137,18 @@ class InventoryFilter {
       if (salesman.isNotEmpty) 'salesman': salesman,
       if (status.isNotEmpty) 'status': status,
       if (hasPhoto != 'all') 'hasPhoto': hasPhoto,
+      if (number.isNotEmpty) 'number': number,
+      if (oemCode.isNotEmpty) 'oem_code': oemCode,
+      if (vin.isNotEmpty) 'vin': vin,
+      if (bodyBrand.isNotEmpty) 'body_brand': bodyBrand,
+      if (engineBrand.isNotEmpty) 'engine_brand': engineBrand,
+      if (carReleaseDate.isNotEmpty) 'car_release_date': carReleaseDate,
+      if (transmission.isNotEmpty) 'transmission': transmission,
+      if (drive.isNotEmpty) 'drive': drive,
+      if (condition.isNotEmpty) 'condition': condition,
+      if (manufacturer.isNotEmpty) 'manufacturer': manufacturer,
+      if (defect.isNotEmpty) 'defect': defect,
+      if (color.isNotEmpty) 'color': color,
     };
   }
 }
@@ -200,6 +272,78 @@ final inventoryProvider =
           } else if (filter.hasPhoto == 'without') {
             filteredList = filteredList
                 .where((part) => part.photos.isEmpty)
+                .toList();
+          }
+          if (filter.number.isNotEmpty) {
+            final value = filter.number.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.number?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.oemCode.isNotEmpty) {
+            final value = filter.oemCode.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.oemCode?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.vin.isNotEmpty) {
+            final value = filter.vin.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.vin?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.bodyBrand.isNotEmpty) {
+            final value = filter.bodyBrand.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.bodyBrand?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.engineBrand.isNotEmpty) {
+            final value = filter.engineBrand.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.engineBrand?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.carReleaseDate.isNotEmpty) {
+            final value = filter.carReleaseDate.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.carReleaseDate?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.transmission.isNotEmpty) {
+            final value = filter.transmission.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.transmission?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.drive.isNotEmpty) {
+            final value = filter.drive.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.drive?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.condition.isNotEmpty) {
+            final value = filter.condition.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.condition?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.manufacturer.isNotEmpty) {
+            final value = filter.manufacturer.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.manufacturer?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.defect.isNotEmpty) {
+            final value = filter.defect.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.defect?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.color.isNotEmpty) {
+            final value = filter.color.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.color?.toLowerCase().contains(value) == true)
                 .toList();
           }
 

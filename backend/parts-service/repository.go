@@ -288,6 +288,30 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 			} else {
 				builder = builder.Where("(photos IS NULL OR CASE WHEN jsonb_typeof(photos) = 'array' THEN jsonb_array_length(photos) = 0 ELSE true END)")
 			}
+		case "number_ilike":
+			builder = builder.Where("number ILIKE ?", "%"+value.(string)+"%")
+		case "oem_code_ilike":
+			builder = builder.Where("oem_code ILIKE ?", "%"+value.(string)+"%")
+		case "vin_ilike":
+			builder = builder.Where("vin ILIKE ?", "%"+value.(string)+"%")
+		case "body_brand_ilike":
+			builder = builder.Where("body_brand ILIKE ?", "%"+value.(string)+"%")
+		case "engine_brand_ilike":
+			builder = builder.Where("engine_brand ILIKE ?", "%"+value.(string)+"%")
+		case "car_release_date_ilike":
+			builder = builder.Where("car_release_date ILIKE ?", "%"+value.(string)+"%")
+		case "transmission_ilike":
+			builder = builder.Where("transmission ILIKE ?", "%"+value.(string)+"%")
+		case "drive_ilike":
+			builder = builder.Where("drive ILIKE ?", "%"+value.(string)+"%")
+		case "condition_ilike":
+			builder = builder.Where("condition ILIKE ?", "%"+value.(string)+"%")
+		case "manufacturer_ilike":
+			builder = builder.Where("manufacturer ILIKE ?", "%"+value.(string)+"%")
+		case "defect_ilike":
+			builder = builder.Where("defect ILIKE ?", "%"+value.(string)+"%")
+		case "color_ilike":
+			builder = builder.Where("color ILIKE ?", "%"+value.(string)+"%")
 		case "search":
 			searchStr := strings.TrimSpace(value.(string))
 			if searchStr != "" {

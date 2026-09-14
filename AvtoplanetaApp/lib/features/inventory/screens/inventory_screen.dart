@@ -646,6 +646,42 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         filter.copyWith(pageSize: 'all', page: 1),
       );
     }
+    if (filter.number.isNotEmpty) {
+      addChip('Номер: ${filter.number}', filter.copyWith(number: '', page: 1));
+    }
+    if (filter.oemCode.isNotEmpty) {
+      addChip('OEM: ${filter.oemCode}', filter.copyWith(oemCode: '', page: 1));
+    }
+    if (filter.vin.isNotEmpty) {
+      addChip('VIN: ${filter.vin}', filter.copyWith(vin: '', page: 1));
+    }
+    if (filter.bodyBrand.isNotEmpty) {
+      addChip('Кузов: ${filter.bodyBrand}', filter.copyWith(bodyBrand: '', page: 1));
+    }
+    if (filter.engineBrand.isNotEmpty) {
+      addChip('Двигатель: ${filter.engineBrand}', filter.copyWith(engineBrand: '', page: 1));
+    }
+    if (filter.carReleaseDate.isNotEmpty) {
+      addChip('Год: ${filter.carReleaseDate}', filter.copyWith(carReleaseDate: '', page: 1));
+    }
+    if (filter.transmission.isNotEmpty) {
+      addChip('КПП: ${filter.transmission}', filter.copyWith(transmission: '', page: 1));
+    }
+    if (filter.drive.isNotEmpty) {
+      addChip('Привод: ${filter.drive}', filter.copyWith(drive: '', page: 1));
+    }
+    if (filter.condition.isNotEmpty) {
+      addChip('Состояние: ${filter.condition}', filter.copyWith(condition: '', page: 1));
+    }
+    if (filter.manufacturer.isNotEmpty) {
+      addChip('Производитель: ${filter.manufacturer}', filter.copyWith(manufacturer: '', page: 1));
+    }
+    if (filter.defect.isNotEmpty) {
+      addChip('Дефект: ${filter.defect}', filter.copyWith(defect: '', page: 1));
+    }
+    if (filter.color.isNotEmpty) {
+      addChip('Цвет: ${filter.color}', filter.copyWith(color: '', page: 1));
+    }
 
     return SizedBox(
       height: 46,
@@ -826,7 +862,19 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
   late final TextEditingController _modelController;
   late final TextEditingController _locationController;
   late final TextEditingController _salesmanController;
+  late final TextEditingController _numberController;
+  late final TextEditingController _oemCodeController;
+  late final TextEditingController _vinController;
+  late final TextEditingController _bodyBrandController;
+  late final TextEditingController _engineBrandController;
+  late final TextEditingController _carReleaseDateController;
+  late final TextEditingController _conditionController;
+  late final TextEditingController _manufacturerController;
+  late final TextEditingController _defectController;
+  late final TextEditingController _colorController;
   late String _category;
+  late String _transmission;
+  late String _drive;
   late String _status;
   late String _hasPhoto;
   late String _pageSize;
@@ -838,7 +886,19 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
     _modelController = TextEditingController(text: widget.current.model);
     _locationController = TextEditingController(text: widget.current.location);
     _salesmanController = TextEditingController(text: widget.current.salesman);
+    _numberController = TextEditingController(text: widget.current.number);
+    _oemCodeController = TextEditingController(text: widget.current.oemCode);
+    _vinController = TextEditingController(text: widget.current.vin);
+    _bodyBrandController = TextEditingController(text: widget.current.bodyBrand);
+    _engineBrandController = TextEditingController(text: widget.current.engineBrand);
+    _carReleaseDateController = TextEditingController(text: widget.current.carReleaseDate);
+    _conditionController = TextEditingController(text: widget.current.condition);
+    _manufacturerController = TextEditingController(text: widget.current.manufacturer);
+    _defectController = TextEditingController(text: widget.current.defect);
+    _colorController = TextEditingController(text: widget.current.color);
     _category = widget.current.category;
+    _transmission = widget.current.transmission;
+    _drive = widget.current.drive;
     _status = widget.current.status;
     _hasPhoto = widget.current.hasPhoto;
     _pageSize = widget.current.pageSize;
@@ -850,6 +910,16 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
     _modelController.dispose();
     _locationController.dispose();
     _salesmanController.dispose();
+    _numberController.dispose();
+    _oemCodeController.dispose();
+    _vinController.dispose();
+    _bodyBrandController.dispose();
+    _engineBrandController.dispose();
+    _carReleaseDateController.dispose();
+    _conditionController.dispose();
+    _manufacturerController.dispose();
+    _defectController.dispose();
+    _colorController.dispose();
     super.dispose();
   }
 
@@ -859,7 +929,19 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
       _modelController.clear();
       _locationController.clear();
       _salesmanController.clear();
+      _numberController.clear();
+      _oemCodeController.clear();
+      _vinController.clear();
+      _bodyBrandController.clear();
+      _engineBrandController.clear();
+      _carReleaseDateController.clear();
+      _conditionController.clear();
+      _manufacturerController.clear();
+      _defectController.clear();
+      _colorController.clear();
       _category = '';
+      _transmission = '';
+      _drive = '';
       _status = '';
       _hasPhoto = 'all';
       _pageSize = 'all';
@@ -875,6 +957,18 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
         model: _modelController.text.trim(),
         location: _locationController.text.trim(),
         salesman: _salesmanController.text.trim(),
+        number: _numberController.text.trim(),
+        oemCode: _oemCodeController.text.trim(),
+        vin: _vinController.text.trim(),
+        bodyBrand: _bodyBrandController.text.trim(),
+        engineBrand: _engineBrandController.text.trim(),
+        carReleaseDate: _carReleaseDateController.text.trim(),
+        transmission: _transmission,
+        drive: _drive,
+        condition: _conditionController.text.trim(),
+        manufacturer: _manufacturerController.text.trim(),
+        defect: _defectController.text.trim(),
+        color: _colorController.text.trim(),
         status: _status,
         hasPhoto: _hasPhoto,
         pageSize: _pageSize,
@@ -979,6 +1073,113 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
                 decoration: const InputDecoration(
                   labelText: 'Модель',
                   hintText: 'E90, A4…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _numberController,
+                decoration: const InputDecoration(
+                  labelText: 'Номер детали',
+                  hintText: '51117188830…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _oemCodeController,
+                decoration: const InputDecoration(
+                  labelText: 'OEM код',
+                  hintText: '17117559273…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _vinController,
+                decoration: const InputDecoration(
+                  labelText: 'VIN / Номер кузова',
+                  hintText: 'WBA…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _bodyBrandController,
+                decoration: const InputDecoration(
+                  labelText: 'Марка кузова',
+                  hintText: 'E90, W204, G05…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _engineBrandController,
+                decoration: const InputDecoration(
+                  labelText: 'Марка двигателя',
+                  hintText: 'N52B30, 2JZ…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _carReleaseDateController,
+                decoration: const InputDecoration(
+                  labelText: 'Год выпуска',
+                  hintText: '2015…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                key: ValueKey('transmission-$_transmission'),
+                initialValue: _transmission,
+                decoration: const InputDecoration(labelText: 'Трансмиссия'),
+                items: const [
+                  DropdownMenuItem(value: '', child: Text('Все типы трансмиссии')),
+                  DropdownMenuItem(value: 'АКПП', child: Text('АКПП (Автомат)')),
+                  DropdownMenuItem(value: 'МКПП', child: Text('МКПП (Механика)')),
+                  DropdownMenuItem(value: 'Вариатор', child: Text('Вариатор (CVT)')),
+                  DropdownMenuItem(value: 'Робот', child: Text('Робот')),
+                ],
+                onChanged: (value) => setState(() => _transmission = value ?? ''),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                key: ValueKey('drive-$_drive'),
+                initialValue: _drive,
+                decoration: const InputDecoration(labelText: 'Привод'),
+                items: const [
+                  DropdownMenuItem(value: '', child: Text('Все приводы')),
+                  DropdownMenuItem(value: 'Передний', child: Text('Передний привод')),
+                  DropdownMenuItem(value: 'Задний', child: Text('Задний привод')),
+                  DropdownMenuItem(value: 'Полный', child: Text('Полный привод')),
+                ],
+                onChanged: (value) => setState(() => _drive = value ?? ''),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _conditionController,
+                decoration: const InputDecoration(
+                  labelText: 'Состояние',
+                  hintText: 'Контрактная, б/у, новая…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _manufacturerController,
+                decoration: const InputDecoration(
+                  labelText: 'Производитель',
+                  hintText: 'Bosch, Denso, Lemforder…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _defectController,
+                decoration: const InputDecoration(
+                  labelText: 'Дефект',
+                  hintText: 'Царапины, трещина…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _colorController,
+                decoration: const InputDecoration(
+                  labelText: 'Цвет',
+                  hintText: 'Черный, серебристый…',
                 ),
               ),
               const SizedBox(height: 12),
