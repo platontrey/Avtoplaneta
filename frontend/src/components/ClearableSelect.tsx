@@ -34,11 +34,13 @@ export function ClearableSelect({
                 </SelectTrigger>
                 <SelectContent>
                     {children ? children : (
-                        options?.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                                {opt.label}
-                            </SelectItem>
-                        ))
+                        options
+                            ?.filter((opt) => Boolean(opt.value))
+                            .map(opt => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </SelectItem>
+                            ))
                     )}
                 </SelectContent>
             </Select>

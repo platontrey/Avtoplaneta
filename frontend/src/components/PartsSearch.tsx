@@ -230,7 +230,6 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
     ];
 
     const transmissionOptions: SelectOption[] = [
-      { value: "", label: "Все типы КПП" },
       { value: "АКПП", label: "АКПП" },
       { value: "МКПП", label: "МКПП" },
       { value: "Вариатор", label: "Вариатор" },
@@ -238,7 +237,6 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
     ];
 
     const driveOptions: SelectOption[] = [
-      { value: "", label: "Все приводы" },
       { value: "Передний", label: "Передний" },
       { value: "Задний", label: "Задний" },
       { value: "Полный", label: "Полный" },
