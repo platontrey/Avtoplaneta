@@ -26,6 +26,7 @@ export const partsApi = {
     body_brand?: string;
     engine_brand?: string;
     car_release_date?: string;
+    car_release_period?: string;
     transmission?: string;
     drive?: string;
     condition?: string;
@@ -72,6 +73,7 @@ export const partsApi = {
     if (filters?.body_brand) params.append('body_brand', filters.body_brand);
     if (filters?.engine_brand) params.append('engine_brand', filters.engine_brand);
     if (filters?.car_release_date) params.append('car_release_date', filters.car_release_date);
+    if (filters?.car_release_period) params.append('car_release_period', filters.car_release_period);
     if (filters?.transmission) params.append('transmission', filters.transmission);
     if (filters?.drive) params.append('drive', filters.drive);
     if (filters?.condition) params.append('condition', filters.condition);

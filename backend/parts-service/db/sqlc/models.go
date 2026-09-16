@@ -61,4 +61,5 @@ type Part struct {
 	CreatedAt          pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt          pgtype.Timestamptz `json:"deleted_at"`
+	CarReleasePeriod   string             `json:"car_release_period"`
 }

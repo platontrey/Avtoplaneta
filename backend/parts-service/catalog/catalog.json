@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-16.2",
+  "version": "2026-09-16.3",
   "attributes": [
     {
       "code": "body_brand",
@@ -553,34 +553,15 @@
     },
     {
       "source": "transmission",
-      "target": "transmission",
-      "categories": [
-        "Трансмиссия"
-      ]
+      "target": "transmission"
     },
     {
       "source": "transmission_model",
-      "target": "transmission_model",
-      "categories": [
-        "Подвеска ДВС/КПП",
-        "Трансмиссия",
-        "Подвеска передних колес"
-      ]
+      "target": "transmission_model"
     },
     {
       "source": "drive",
-      "target": "drive",
-      "categories": [
-        "Подвеска ДВС/КПП",
-        "Трансмиссия",
-        "Подвеска передних колес",
-        "Подвеска задних колес",
-        "Рулевое управление",
-        "Выхлопная система",
-        "Тормозная система",
-        "Электрооснащение",
-        "Двигатель"
-      ]
+      "target": "drive"
     },
     {
       "source": "interior_color",

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -31,20 +32,62 @@ func NewPartsGRPCServer(service InventoryService) *partsGRPCServer {
 	return &partsGRPCServer{service: service}
 }
 
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
+}
+
 // GetInventory возвращает список запчастей с фильтрами
 func (s *partsGRPCServer) GetInventory(ctx context.Context, req *partsv1.GetInventoryRequest) (*partsv1.InventoryResponse, error) {
 	params := InventoryQueryParams{
-		Search:   req.Search,
-		Category: req.Category,
-		Brand:    req.Brand,
-		Model:    req.Model,
-		Location: req.Location,
-		Address:  req.Address,
-		Salesman: req.Salesman,
-		Status:   req.Status,
-		HasPhoto: req.HasPhoto,
-		Page:     int(req.Page),
-		Limit:    int(req.Limit),
+		Search:             req.Search,
+		Category:           req.Category,
+		Brand:              req.Brand,
+		Model:              req.Model,
+		Location:           req.Location,
+		Address:            req.Address,
+		Salesman:           req.Salesman,
+		Status:             req.Status,
+		HasPhoto:           req.HasPhoto,
+		Number:             req.Number,
+		OEMCode:            req.OemCode,
+		VIN:                req.Vin,
+		BodyBrand:          req.BodyBrand,
+		EngineBrand:        req.EngineBrand,
+		CarReleaseDate:     req.CarReleaseDate,
+		CarReleasePeriod:   req.CarReleasePeriod,
+		Transmission:       req.Transmission,
+		Drive:              req.Drive,
+		Condition:          req.Condition,
+		Manufacturer:       req.Manufacturer,
+		Defect:             req.Defect,
+		Color:              req.Color,
+		MinPrice:           req.MinPrice,
+		MaxPrice:           req.MaxPrice,
+		MinQuantity:        req.MinQuantity,
+		MaxQuantity:        req.MaxQuantity,
+		FrontRear:          req.FrontRear,
+		LeftRight:          req.LeftRight,
+		TopBottom:          req.TopBottom,
+		ManufacturerCode:   req.ManufacturerCode,
+		SupplierCode:       req.SupplierCode,
+		TransmissionModel:  req.TransmissionModel,
+		WearPercentage:     req.WearPercentage,
+		Season:             req.Season,
+		Diameter:           req.Diameter,
+		Width:              req.Width,
+		Profile:            req.Profile,
+		TireQuantity:       req.TireQuantity,
+		Drilling:           req.Drilling,
+		Offset:             req.Offset,
+		CenterHoleDiameter: req.CenterHoleDiameter,
+		TireModel:          req.TireModel,
+		Page:               int(req.Page),
+		Limit:              int(req.Limit),
 	}
 
 	if params.Page == 0 {
@@ -131,6 +174,7 @@ func (s *partsGRPCServer) AddPart(ctx context.Context, req *partsv1.AddPartReque
 			BodyBrand:         req.BodyBrand,
 			EngineBrand:       req.EngineBrand,
 			CarReleaseDate:    req.CarReleaseDate,
+			CarReleasePeriod:  req.CarReleasePeriod,
 			FrontRear:         req.FrontRear,
 			LeftRight:         req.LeftRight,
 			TopBottom:         req.TopBottom,
@@ -220,6 +264,9 @@ func (s *partsGRPCServer) UpdatePart(ctx context.Context, req *partsv1.UpdatePar
 	}
 	if req.CarReleaseDate != nil {
 		updates["car_release_date"] = *req.CarReleaseDate
+	}
+	if req.CarReleasePeriod != nil {
+		updates["car_release_period"] = *req.CarReleasePeriod
 	}
 	if req.FrontRear != nil {
 		updates["front_rear"] = *req.FrontRear
@@ -431,14 +478,23 @@ func (s *partsGRPCServer) CreateDefectReport(ctx context.Context, req *partsv1.C
 		year, _ := strconv.Atoi(req.Year)
 		mileage, _ := strconv.Atoi(req.Mileage)
 		report := DefectReportRequest{
-			Brand:       req.Brand,
-			Model:       req.Model,
-			Year:        year,
-			VIN:         req.Vin,
-			Mileage:     mileage,
-			Description: req.Description,
-			SellerName:  req.Salesman,
-			SellerID:    int64(req.SellerId),
+			Brand:             req.Brand,
+			Model:             req.Model,
+			Year:              year,
+			CarReleasePeriod:  req.CarReleasePeriod,
+			VIN:               req.Vin,
+			Mileage:           mileage,
+			Description:       req.Description,
+			EngineBrand:       req.EngineBrand,
+			BodyBrand:         req.BodyBrand,
+			InteriorColor:     req.InteriorColor,
+			BodyColor:         req.BodyColor,
+			Transmission:      req.Transmission,
+			TransmissionModel: req.TransmissionModel,
+			Drive:             req.Drive,
+			CatalogVersion:    req.CatalogVersion,
+			SellerName:        req.Salesman,
+			SellerID:          int64(req.SellerId),
 		}
 		cat, err := LoadPartCatalog()
 		if err != nil {
@@ -523,19 +579,39 @@ func (s *partsGRPCServer) CreateDefectReport(ctx context.Context, req *partsv1.C
 				Model:       req.Model,
 				Salesman:    req.Salesman,
 				SellerID:    int64(req.SellerId),
-				VIN:         req.Vin,
+				VIN:         firstNonEmpty(dp.Vin, req.Vin),
 			},
 			PartSpecifications: PartSpecifications{
-				Condition:      dp.Condition,
-				Defect:         dp.Defect,
-				FrontRear:      dp.FrontRear,
-				LeftRight:      dp.LeftRight,
-				TopBottom:      dp.TopBottom,
-				Number:         dp.Number,
-				OEMCode:        dp.OemCode,
-				Manufacturer:   dp.Manufacturer,
-				Color:          dp.Color,
-				CarReleaseDate: req.Year,
+				BodyBrand:         firstNonEmpty(dp.BodyBrand, req.BodyBrand),
+				EngineBrand:       firstNonEmpty(dp.EngineBrand, req.EngineBrand),
+				CarReleaseDate:    firstNonEmpty(dp.CarReleaseDate, req.Year),
+				CarReleasePeriod:  firstNonEmpty(dp.CarReleasePeriod, req.CarReleasePeriod),
+				Condition:         dp.Condition,
+				Defect:            dp.Defect,
+				FrontRear:         dp.FrontRear,
+				LeftRight:         dp.LeftRight,
+				TopBottom:         dp.TopBottom,
+				Number:            dp.Number,
+				OEMCode:           dp.OemCode,
+				Manufacturer:      dp.Manufacturer,
+				ManufacturerCode:  dp.ManufacturerCode,
+				SupplierCode:      dp.SupplierCode,
+				Color:             dp.Color,
+				Transmission:      firstNonEmpty(dp.Transmission, req.Transmission),
+				TransmissionModel: firstNonEmpty(dp.TransmissionModel, req.TransmissionModel),
+				Drive:             firstNonEmpty(dp.Drive, req.Drive),
+				WearPercentage:    dp.WearPercentage,
+			},
+			PartTireSpecifications: PartTireSpecifications{
+				Season:             dp.Season,
+				Diameter:           dp.Diameter,
+				Width:              dp.Width,
+				Profile:            dp.Profile,
+				TireQuantity:       dp.TireQuantity,
+				Drilling:           dp.Drilling,
+				Offset:             dp.Offset,
+				CenterHoleDiameter: dp.CenterHoleDiameter,
+				TireModel:          dp.TireModel,
 			},
 		}
 
@@ -629,6 +705,7 @@ func partToProto(p *Part) *partsv1.Part {
 		BodyBrand:         p.BodyBrand,
 		EngineBrand:       p.EngineBrand,
 		CarReleaseDate:    p.CarReleaseDate,
+		CarReleasePeriod:  p.CarReleasePeriod,
 		FrontRear:         p.FrontRear,
 		LeftRight:         p.LeftRight,
 		TopBottom:         p.TopBottom,

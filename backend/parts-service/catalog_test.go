@@ -46,7 +46,7 @@ func TestEmbeddedCatalogAndDefectExpansion(t *testing.T) {
 		t.Errorf("transmission drive = %q, want %q", transmission.Drive, report.Drive)
 	}
 
-	// 2. Двигатель: должен содержать car_release_period, drive, но НЕ transmission и transmission_model
+	// 2. Двигатель: все автомобильные характеристики копируются в каждую запчасть
 	engine := findExpandedPart(t, parts, "Двигатель")
 	if engine.CarReleasePeriod != report.CarReleasePeriod {
 		t.Errorf("engine release period = %q, want %q", engine.CarReleasePeriod, report.CarReleasePeriod)
@@ -54,14 +54,14 @@ func TestEmbeddedCatalogAndDefectExpansion(t *testing.T) {
 	if engine.Drive != report.Drive {
 		t.Errorf("engine drive = %q, want %q", engine.Drive, report.Drive)
 	}
-	if engine.Transmission != "" {
-		t.Errorf("engine transmission leaked: %q", engine.Transmission)
+	if engine.Transmission != report.Transmission {
+		t.Errorf("engine transmission = %q, want %q", engine.Transmission, report.Transmission)
 	}
-	if engine.TransmissionModel != "" {
-		t.Errorf("engine transmission model leaked: %q", engine.TransmissionModel)
+	if engine.TransmissionModel != report.TransmissionModel {
+		t.Errorf("engine transmission model = %q, want %q", engine.TransmissionModel, report.TransmissionModel)
 	}
 
-	// 3. Подвеска передних колес: должна содержать transmission_model и drive, но НЕ transmission
+	// 3. Подвеска передних колес также получает все трансмиссионные поля
 	suspFront := findExpandedPart(t, parts, "Подвеска передних колес")
 	if suspFront.CarReleasePeriod != report.CarReleasePeriod {
 		t.Errorf("suspension front release period = %q, want %q", suspFront.CarReleasePeriod, report.CarReleasePeriod)
@@ -72,11 +72,11 @@ func TestEmbeddedCatalogAndDefectExpansion(t *testing.T) {
 	if suspFront.Drive != report.Drive {
 		t.Errorf("suspension front drive = %q, want %q", suspFront.Drive, report.Drive)
 	}
-	if suspFront.Transmission != "" {
-		t.Errorf("suspension front transmission leaked: %q", suspFront.Transmission)
+	if suspFront.Transmission != report.Transmission {
+		t.Errorf("suspension front transmission = %q, want %q", suspFront.Transmission, report.Transmission)
 	}
 
-	// 4. Подвеска ДВС/КПП: должна содержать transmission_model и drive, но НЕ transmission
+	// 4. Подвеска ДВС/КПП
 	suspEngine := findExpandedPart(t, parts, "Подвеска ДВС/КПП")
 	if suspEngine.CarReleasePeriod != report.CarReleasePeriod {
 		t.Errorf("suspension engine release period = %q, want %q", suspEngine.CarReleasePeriod, report.CarReleasePeriod)
@@ -87,11 +87,11 @@ func TestEmbeddedCatalogAndDefectExpansion(t *testing.T) {
 	if suspEngine.Drive != report.Drive {
 		t.Errorf("suspension engine drive = %q, want %q", suspEngine.Drive, report.Drive)
 	}
-	if suspEngine.Transmission != "" {
-		t.Errorf("suspension engine transmission leaked: %q", suspEngine.Transmission)
+	if suspEngine.Transmission != report.Transmission {
+		t.Errorf("suspension engine transmission = %q, want %q", suspEngine.Transmission, report.Transmission)
 	}
 
-	// 5. Рулевое управление: должно содержать drive, но НЕ transmission_model и transmission
+	// 5. Рулевое управление
 	steering := findExpandedPart(t, parts, "Рулевое управление")
 	if steering.CarReleasePeriod != report.CarReleasePeriod {
 		t.Errorf("steering release period = %q, want %q", steering.CarReleasePeriod, report.CarReleasePeriod)
@@ -99,26 +99,26 @@ func TestEmbeddedCatalogAndDefectExpansion(t *testing.T) {
 	if steering.Drive != report.Drive {
 		t.Errorf("steering drive = %q, want %q", steering.Drive, report.Drive)
 	}
-	if steering.TransmissionModel != "" {
-		t.Errorf("steering transmission model leaked: %q", steering.TransmissionModel)
+	if steering.TransmissionModel != report.TransmissionModel {
+		t.Errorf("steering transmission model = %q, want %q", steering.TransmissionModel, report.TransmissionModel)
 	}
-	if steering.Transmission != "" {
-		t.Errorf("steering transmission leaked: %q", steering.Transmission)
+	if steering.Transmission != report.Transmission {
+		t.Errorf("steering transmission = %q, want %q", steering.Transmission, report.Transmission)
 	}
 
-	// 6. Стекла: должны содержать car_release_period, VIN, год, но НЕ drive, transmission_model, transmission
+	// 6. Стекла: должны содержать все автомобильные данные
 	glass := findExpandedPart(t, parts, "Стекла")
 	if glass.CarReleasePeriod != report.CarReleasePeriod {
 		t.Errorf("glass release period = %q, want %q", glass.CarReleasePeriod, report.CarReleasePeriod)
 	}
-	if glass.Drive != "" {
-		t.Errorf("glass drive leaked: %q", glass.Drive)
+	if glass.Drive != report.Drive {
+		t.Errorf("glass drive = %q, want %q", glass.Drive, report.Drive)
 	}
-	if glass.Transmission != "" {
-		t.Errorf("glass transmission leaked: %q", glass.Transmission)
+	if glass.Transmission != report.Transmission {
+		t.Errorf("glass transmission = %q, want %q", glass.Transmission, report.Transmission)
 	}
-	if glass.TransmissionModel != "" {
-		t.Errorf("glass transmission model leaked: %q", glass.TransmissionModel)
+	if glass.TransmissionModel != report.TransmissionModel {
+		t.Errorf("glass transmission model = %q, want %q", glass.TransmissionModel, report.TransmissionModel)
 	}
 	if glass.VIN != report.VIN {
 		t.Errorf("glass VIN = %q, want %q", glass.VIN, report.VIN)
@@ -127,19 +127,23 @@ func TestEmbeddedCatalogAndDefectExpansion(t *testing.T) {
 		t.Errorf("glass release date = %q, want %q", glass.CarReleaseDate, "2011")
 	}
 
-	// 7. Диски и шины: должны содержать car_release_period, но НЕ drive, transmission, transmission_model
+	// 7. Диски и шины
 	wheels := findExpandedPart(t, parts, "Диски и шины")
 	if wheels.CarReleasePeriod != report.CarReleasePeriod {
 		t.Errorf("wheels release period = %q, want %q", wheels.CarReleasePeriod, report.CarReleasePeriod)
 	}
-	if wheels.Drive != "" {
-		t.Errorf("wheels drive leaked: %q", wheels.Drive)
+	if wheels.Drive != report.Drive {
+		t.Errorf("wheels drive = %q, want %q", wheels.Drive, report.Drive)
 	}
 
 	// Проверяем, что car_release_period применился ко ВСЕМ созданным запчастям
 	for _, part := range parts {
 		if part.CarReleasePeriod != report.CarReleasePeriod {
 			t.Errorf("part %q (category %q) has car_release_period = %q, want %q", part.Name, part.Category, part.CarReleasePeriod, report.CarReleasePeriod)
+			break
+		}
+		if part.Transmission != report.Transmission || part.TransmissionModel != report.TransmissionModel || part.Drive != report.Drive {
+			t.Errorf("part %q did not receive transmission data: transmission=%q model=%q drive=%q", part.Name, part.Transmission, part.TransmissionModel, part.Drive)
 			break
 		}
 		if part.Price != 0 {
@@ -192,12 +196,12 @@ func TestApplyBindingsToParts(t *testing.T) {
 		t.Errorf("parts[0].Drive = %q, want Задний", parts[0].Drive)
 	}
 
-	// Подвеска передних колес: car_release_period, transmission_model, drive, но НЕ transmission
+	// Подвеска передних колес: все поля из ведомости
 	if parts[1].CarReleasePeriod != "2005-2011" {
 		t.Errorf("parts[1].CarReleasePeriod = %q, want 2005-2011", parts[1].CarReleasePeriod)
 	}
-	if parts[1].Transmission != "" {
-		t.Errorf("parts[1].Transmission leaked: %q", parts[1].Transmission)
+	if parts[1].Transmission != "АКПП" {
+		t.Errorf("parts[1].Transmission = %q, want АКПП", parts[1].Transmission)
 	}
 	if parts[1].TransmissionModel != "6HP19" {
 		t.Errorf("parts[1].TransmissionModel = %q, want 6HP19", parts[1].TransmissionModel)
@@ -206,32 +210,32 @@ func TestApplyBindingsToParts(t *testing.T) {
 		t.Errorf("parts[1].Drive = %q, want Задний", parts[1].Drive)
 	}
 
-	// Выхлопная система: car_release_period, drive, но НЕ transmission, transmission_model
+	// Выхлопная система: все поля из ведомости
 	if parts[2].CarReleasePeriod != "2005-2011" {
 		t.Errorf("parts[2].CarReleasePeriod = %q, want 2005-2011", parts[2].CarReleasePeriod)
 	}
 	if parts[2].Drive != "Задний" {
 		t.Errorf("parts[2].Drive = %q, want Задний", parts[2].Drive)
 	}
-	if parts[2].Transmission != "" {
-		t.Errorf("parts[2].Transmission leaked: %q", parts[2].Transmission)
+	if parts[2].Transmission != "АКПП" {
+		t.Errorf("parts[2].Transmission = %q, want АКПП", parts[2].Transmission)
 	}
-	if parts[2].TransmissionModel != "" {
-		t.Errorf("parts[2].TransmissionModel leaked: %q", parts[2].TransmissionModel)
+	if parts[2].TransmissionModel != "6HP19" {
+		t.Errorf("parts[2].TransmissionModel = %q, want 6HP19", parts[2].TransmissionModel)
 	}
 
-	// Стекла: car_release_period, но НЕ drive, transmission, transmission_model
+	// Стекла: все поля из ведомости
 	if parts[3].CarReleasePeriod != "2005-2011" {
 		t.Errorf("parts[3].CarReleasePeriod = %q, want 2005-2011", parts[3].CarReleasePeriod)
 	}
-	if parts[3].Drive != "" {
-		t.Errorf("parts[3].Drive leaked: %q", parts[3].Drive)
+	if parts[3].Drive != "Задний" {
+		t.Errorf("parts[3].Drive = %q, want Задний", parts[3].Drive)
 	}
-	if parts[3].Transmission != "" {
-		t.Errorf("parts[3].Transmission leaked: %q", parts[3].Transmission)
+	if parts[3].Transmission != "АКПП" {
+		t.Errorf("parts[3].Transmission = %q, want АКПП", parts[3].Transmission)
 	}
-	if parts[3].TransmissionModel != "" {
-		t.Errorf("parts[3].TransmissionModel leaked: %q", parts[3].TransmissionModel)
+	if parts[3].TransmissionModel != "6HP19" {
+		t.Errorf("parts[3].TransmissionModel = %q, want 6HP19", parts[3].TransmissionModel)
 	}
 }
 

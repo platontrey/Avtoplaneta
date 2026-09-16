@@ -207,7 +207,7 @@ func (s *inventoryService) shouldUseElasticsearch(params InventoryQueryParams) b
 		params.Model != "" || params.Location != "" || params.Address != "" || params.Salesman != "" ||
 		params.Status != "" || params.HasPhoto != "" || params.Number != "" || params.OEMCode != "" ||
 		params.VIN != "" || params.BodyBrand != "" || params.EngineBrand != "" ||
-		params.CarReleaseDate != "" || params.Transmission != "" || params.Drive != "" ||
+		params.CarReleaseDate != "" || params.CarReleasePeriod != "" || params.Transmission != "" || params.Drive != "" ||
 		params.Condition != "" || params.Manufacturer != "" || params.Defect != "" || params.Color != "" ||
 		params.MinPrice != "" || params.MaxPrice != "" || params.MinQuantity != "" || params.MaxQuantity != "" ||
 		params.FrontRear != "" || params.LeftRight != "" || params.TopBottom != "" ||

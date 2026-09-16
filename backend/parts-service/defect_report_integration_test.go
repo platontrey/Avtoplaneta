@@ -100,11 +100,6 @@ func TestDefectReportHTTPThroughRedisConsumer(t *testing.T) {
 	require.Len(t, createdParts, len(catalog.Parts))
 	require.Len(t, createdParts, 2992)
 
-	transmissionModelCategories := bindingCategories(catalog, "transmission_model")
-	driveCategories := bindingCategories(catalog, "drive")
-	require.Len(t, transmissionModelCategories, 3)
-	require.Len(t, driveCategories, 9)
-
 	var supplierCode string
 	for _, part := range createdParts {
 		require.Equal(t, "BMW", part.Brand)
@@ -125,23 +120,9 @@ func TestDefectReportHTTPThroughRedisConsumer(t *testing.T) {
 		require.NotEmpty(t, part.SupplierCode)
 		require.Equal(t, supplierCode, part.SupplierCode)
 
-		if transmissionModelCategories[part.Category] {
-			require.Equal(t, "6HP19", part.TransmissionModel, part.Category)
-		} else {
-			require.Empty(t, part.TransmissionModel, part.Category)
-		}
-
-		if driveCategories[part.Category] {
-			require.Equal(t, "Задний", part.Drive, part.Category)
-		} else {
-			require.Empty(t, part.Drive, part.Category)
-		}
-
-		if part.Category == "Трансмиссия" {
-			require.Equal(t, "АКПП", part.Transmission)
-		} else {
-			require.Empty(t, part.Transmission, part.Category)
-		}
+		require.Equal(t, "АКПП", part.Transmission, part.Category)
+		require.Equal(t, "6HP19", part.TransmissionModel, part.Category)
+		require.Equal(t, "Задний", part.Drive, part.Category)
 	}
 
 	require.Equal(t, "Бежевый", findRecordedPart(t, createdParts, "Электрооснащение").Color)
@@ -245,41 +226,12 @@ func TestDefectReportHTTPThroughRedisConsumer_WithSelectedParts(t *testing.T) {
 		require.EqualValues(t, 42, part.SellerID)
 	}
 
-	// Проверяем детальные характеристики по категориям
-	transPart := findRecordedPart(t, createdParts, "Трансмиссия")
-	require.Equal(t, "Роботизированная", transPart.Transmission)
-	require.Equal(t, "DL501", transPart.TransmissionModel)
-	require.Equal(t, "Полный", transPart.Drive)
-
-	suspFrontPart := findRecordedPart(t, createdParts, "Подвеска передних колес")
-	require.Empty(t, suspFrontPart.Transmission)
-	require.Equal(t, "DL501", suspFrontPart.TransmissionModel)
-	require.Equal(t, "Полный", suspFrontPart.Drive)
-
-	suspEnginePart := findRecordedPart(t, createdParts, "Подвеска ДВС/КПП")
-	require.Empty(t, suspEnginePart.Transmission)
-	require.Equal(t, "DL501", suspEnginePart.TransmissionModel)
-	require.Equal(t, "Полный", suspEnginePart.Drive)
-
-	suspRearPart := findRecordedPart(t, createdParts, "Подвеска задних колес")
-	require.Empty(t, suspRearPart.Transmission)
-	require.Empty(t, suspRearPart.TransmissionModel)
-	require.Equal(t, "Полный", suspRearPart.Drive)
-
-	steeringPart := findRecordedPart(t, createdParts, "Рулевое управление")
-	require.Empty(t, steeringPart.Transmission)
-	require.Empty(t, steeringPart.TransmissionModel)
-	require.Equal(t, "Полный", steeringPart.Drive)
-
-	enginePart := findRecordedPart(t, createdParts, "Двигатель")
-	require.Empty(t, enginePart.Transmission)
-	require.Empty(t, enginePart.TransmissionModel)
-	require.Equal(t, "Полный", enginePart.Drive)
-
-	exteriorPart := findRecordedPart(t, createdParts, "Кузов снаружи")
-	require.Empty(t, exteriorPart.Transmission)
-	require.Empty(t, exteriorPart.TransmissionModel)
-	require.Empty(t, exteriorPart.Drive)
+	// Трансмиссионные данные описывают автомобиль и должны быть доступны для фильтрации любой запчасти.
+	for _, part := range createdParts {
+		require.Equal(t, "Роботизированная", part.Transmission, part.Category)
+		require.Equal(t, "DL501", part.TransmissionModel, part.Category)
+		require.Equal(t, "Полный", part.Drive, part.Category)
+	}
 }
 
 func TestPartCatalogHTTPRevalidation(t *testing.T) {
@@ -373,18 +325,6 @@ func (service *recordingInventoryService) IncreasePartQuantity(context.Context, 
 }
 func (service *recordingInventoryService) UpdateEarnings(context.Context, float64) error {
 	return nil
-}
-
-func bindingCategories(catalog *PartCatalog, source string) map[string]bool {
-	result := make(map[string]bool)
-	for _, binding := range catalog.ReportBindings {
-		if binding.Source == source {
-			for _, category := range binding.Categories {
-				result[category] = true
-			}
-		}
-	}
-	return result
 }
 
 func attributeOptions(catalog *PartCatalog, code string) []string {

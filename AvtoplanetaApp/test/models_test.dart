@@ -267,29 +267,11 @@ void main() {
         'attributes': const [],
         'part_form_categories': const [],
         'report_bindings': [
-          {
-            'source': 'year',
-            'target': 'car_release_date',
-          },
-          {
-            'source': 'car_release_period',
-            'target': 'car_release_period',
-          },
-          {
-            'source': 'transmission',
-            'target': 'transmission',
-            'categories': ['Трансмиссия'],
-          },
-          {
-            'source': 'transmission_model',
-            'target': 'transmission_model',
-            'categories': ['Трансмиссия'],
-          },
-          {
-            'source': 'drive',
-            'target': 'drive',
-            'categories': ['Трансмиссия'],
-          },
+          {'source': 'year', 'target': 'car_release_date'},
+          {'source': 'car_release_period', 'target': 'car_release_period'},
+          {'source': 'transmission', 'target': 'transmission'},
+          {'source': 'transmission_model', 'target': 'transmission_model'},
+          {'source': 'drive', 'target': 'drive'},
         ],
         'parts': [
           {
@@ -298,10 +280,7 @@ void main() {
             'category': 'Трансмиссия',
             'quantity': 0,
             'price': 1000,
-            'defaults': {
-              'front_rear': 'F',
-              'left_right': 'L',
-            },
+            'defaults': {'front_rear': 'F', 'left_right': 'L'},
           },
           {
             'id': 'part_2',
@@ -313,16 +292,13 @@ void main() {
         ],
       });
 
-      final parts = catalog.expandDefectReportParts(
-        {
-          'year': 2011,
-          'car_release_period': '2008-2015',
-          'transmission': 'АКПП',
-          'transmission_model': '6HP19',
-          'drive': 'Задний',
-        },
-        supplierCode: 'report-123',
-      );
+      final parts = catalog.expandDefectReportParts({
+        'year': 2011,
+        'car_release_period': '2008-2015',
+        'transmission': 'АКПП',
+        'transmission_model': '6HP19',
+        'drive': 'Задний',
+      }, supplierCode: 'report-123');
 
       expect(parts.first['front_rear'], 'F');
       expect(parts.first['left_right'], 'L');
@@ -334,9 +310,9 @@ void main() {
       expect(parts.first['supplier_code'], 'report-123');
       expect(parts.last['car_release_date'], '2011');
       expect(parts.last['car_release_period'], '2008-2015');
-      expect(parts.last.containsKey('transmission'), false);
-      expect(parts.last.containsKey('transmission_model'), false);
-      expect(parts.last.containsKey('drive'), false);
+      expect(parts.last['transmission'], 'АКПП');
+      expect(parts.last['transmission_model'], '6HP19');
+      expect(parts.last['drive'], 'Задний');
     });
   });
 

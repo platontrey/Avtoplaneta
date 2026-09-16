@@ -356,20 +356,16 @@ func (c *RedisEventConsumer) handleDefectReportCreated(ctx context.Context, msg 
 				engineBrand = strings.TrimSpace(defectReportData.EngineBrand)
 			}
 			transmission := strings.TrimSpace(selectedPart.Transmission)
-			if transmission == "" && selectedPart.Category == "Трансмиссия" {
+			if transmission == "" {
 				transmission = strings.TrimSpace(defectReportData.Transmission)
 			}
 			transmissionModel := strings.TrimSpace(selectedPart.TransmissionModel)
-			if transmissionModel == "" && (selectedPart.Category == "Подвеска ДВС/КПП" || selectedPart.Category == "Трансмиссия" || selectedPart.Category == "Подвеска передних колес") {
+			if transmissionModel == "" {
 				transmissionModel = strings.TrimSpace(defectReportData.TransmissionModel)
 			}
 			drive := strings.TrimSpace(selectedPart.Drive)
 			if drive == "" {
-				switch selectedPart.Category {
-				case "Подвеска ДВС/КПП", "Трансмиссия", "Подвеска передних колес", "Подвеска задних колес",
-					"Рулевое управление", "Выхлопная система", "Тормозная система", "Электрооснащение", "Двигатель":
-					drive = strings.TrimSpace(defectReportData.Drive)
-				}
+				drive = strings.TrimSpace(defectReportData.Drive)
 			}
 			color := strings.TrimSpace(selectedPart.Color)
 			if color == "" {

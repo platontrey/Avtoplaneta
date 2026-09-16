@@ -164,6 +164,7 @@ message Part {
   string drive = 35;
   string wear_percentage = 36;
   string transmission_model = 37;
+  string car_release_period = 38;
 
   // Tire specifications
   string season = 40;
@@ -195,6 +196,39 @@ message GetInventoryRequest {
   int32 page = 9;
   int32 limit = 10;
   string address = 11;
+  string number = 12;
+  string oem_code = 13;
+  string vin = 14;
+  string body_brand = 15;
+  string engine_brand = 16;
+  string car_release_date = 17;
+  string car_release_period = 18;
+  string transmission = 19;
+  string drive = 20;
+  string condition = 21;
+  string manufacturer = 22;
+  string defect = 23;
+  string color = 24;
+  string min_price = 25;
+  string max_price = 26;
+  string min_quantity = 27;
+  string max_quantity = 28;
+  string front_rear = 29;
+  string left_right = 30;
+  string top_bottom = 31;
+  string manufacturer_code = 32;
+  string supplier_code = 33;
+  string transmission_model = 34;
+  string wear_percentage = 35;
+  string season = 36;
+  string diameter = 37;
+  string width = 38;
+  string profile = 39;
+  string tire_quantity = 40;
+  string drilling = 41;
+  string offset = 42;
+  string center_hole_diameter = 43;
+  string tire_model = 44;
 }
 
 message InventoryResponse {
@@ -254,6 +288,7 @@ message AddPartRequest {
   string drive = 35;
   string wear_percentage = 36;
   string transmission_model = 37;
+  string car_release_period = 38;
 
   // Tire
   string season = 40;
@@ -302,6 +337,7 @@ message UpdatePartRequest {
   optional string drive = 35;
   optional string wear_percentage = 36;
   optional string transmission_model = 37;
+  optional string car_release_period = 38;
 
   optional string season = 40;
   optional string diameter = 41;
@@ -395,6 +431,26 @@ message DefectReportPart {
   string manufacturer = 14;
   string color = 15;
   string address = 16;
+  string body_brand = 17;
+  string engine_brand = 18;
+  string car_release_date = 19;
+  string car_release_period = 20;
+  string manufacturer_code = 21;
+  string supplier_code = 22;
+  string transmission = 23;
+  string transmission_model = 24;
+  string drive = 25;
+  string wear_percentage = 26;
+  string season = 27;
+  string diameter = 28;
+  string width = 29;
+  string profile = 30;
+  string tire_quantity = 31;
+  string drilling = 32;
+  string offset = 33;
+  string center_hole_diameter = 34;
+  string tire_model = 35;
+  string vin = 36;
 }
 
 message CreateDefectReportRequest {
@@ -407,6 +463,15 @@ message CreateDefectReportRequest {
   string salesman = 7;
   uint32 seller_id = 8;
   repeated DefectReportPart selected_parts = 9;
+  string car_release_period = 10;
+  string engine_brand = 11;
+  string body_brand = 12;
+  string interior_color = 13;
+  string body_color = 14;
+  string transmission = 15;
+  string transmission_model = 16;
+  string drive = 17;
+  string catalog_version = 18;
 }
 
 message CreateDefectReportResponse {

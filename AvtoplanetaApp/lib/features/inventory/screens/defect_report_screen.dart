@@ -183,12 +183,18 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
       );
     }
 
-    final allParts = catalog.parts.map((part) => part.toPreviewMap()).toList();
-    final transmissionCategories = catalog.categoriesForBinding('transmission');
-    final driveCategories = catalog.categoriesForBinding('drive');
-    final transmissionModelCategories = catalog.categoriesForBinding(
-      'transmission_model',
-    );
+    final allParts = catalog.expandDefectReportParts({
+      'body_brand': _bodyBrandCtrl.text.trim(),
+      'engine_brand': _engineBrandCtrl.text.trim(),
+      'year': int.tryParse(_yearCtrl.text) ?? 0,
+      'vin': _vinCtrl.text.trim(),
+      'car_release_period': _carReleasePeriodCtrl.text.trim(),
+      'transmission': _selectedTransmission,
+      'transmission_model': _transmissionModelCtrl.text.trim(),
+      'drive': _driveCtrl.text.trim(),
+      'interior_color': _selectedInteriorColor,
+      'body_color': _selectedBodyColor,
+    }, supplierCode: 'preview');
     final transmissionOptions = catalog.optionsForAttribute('transmission');
     final driveOptions = catalog.optionsForAttribute('drive');
 
@@ -264,6 +270,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
               hint: 'Например: 2001-2007',
               keyboard: TextInputType.number,
               inputFormatters: const [CarReleasePeriodFormatter()],
+              onChanged: (_) => setState(() {}),
             ),
             _buildTextField(
               _mileageCtrl,
@@ -280,8 +287,8 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
             _buildTextField(
               _transmissionModelCtrl,
               'Модель трансмиссии',
-              hint:
-                  'Применяется к подвеске ДВС/КПП, трансмиссии и передней подвеске',
+              hint: 'Применяется ко всем запчастям ведомости',
+              onChanged: (_) => setState(() {}),
             ),
             _buildDropdown(
               value: driveOptions.contains(_driveCtrl.text.trim())
@@ -314,9 +321,6 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
             _buildPartsPreviewSection(
               filteredParts,
               totalParts: allParts.length,
-              transmissionCategories: transmissionCategories,
-              driveCategories: driveCategories,
-              transmissionModelCategories: transmissionModelCategories,
             ),
             const SizedBox(height: 80),
           ],
@@ -396,9 +400,6 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
   Widget _buildPartsPreviewSection(
     List<Map<String, dynamic>> filteredParts, {
     required int totalParts,
-    required Set<String> transmissionCategories,
-    required Set<String> driveCategories,
-    required Set<String> transmissionModelCategories,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -498,44 +499,40 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
                                     fontSize: 11,
                                   ),
                                 ),
-                                if (_carReleasePeriodCtrl.text.trim().isNotEmpty)
+                                if ((part['car_release_period'] as String?)
+                                        ?.isNotEmpty ??
+                                    false)
                                   Text(
-                                    'Период выпуска: ${_carReleasePeriodCtrl.text.trim()}',
+                                    'Период выпуска: ${part['car_release_period']}',
                                     style: const TextStyle(
                                       color: Colors.white54,
                                       fontSize: 11,
                                     ),
                                   ),
-                                if (transmissionCategories.contains(
-                                      part['category'],
-                                    ) &&
-                                    (_selectedTransmission?.isNotEmpty ?? false))
+                                if ((part['transmission'] as String?)
+                                        ?.isNotEmpty ??
+                                    false)
                                   Text(
-                                    'Трансмиссия: $_selectedTransmission',
+                                    'Трансмиссия: ${part['transmission']}',
                                     style: const TextStyle(
                                       color: Colors.white54,
                                       fontSize: 11,
                                     ),
                                   ),
-                                if (driveCategories.contains(
-                                      part['category'],
-                                    ) &&
-                                    _driveCtrl.text.trim().isNotEmpty)
+                                if ((part['drive'] as String?)?.isNotEmpty ??
+                                    false)
                                   Text(
-                                    'Привод: ${_driveCtrl.text.trim()}',
+                                    'Привод: ${part['drive']}',
                                     style: const TextStyle(
                                       color: Colors.white54,
                                       fontSize: 11,
                                     ),
                                   ),
-                                if (transmissionModelCategories.contains(
-                                      part['category'],
-                                    ) &&
-                                    _transmissionModelCtrl.text
-                                        .trim()
-                                        .isNotEmpty)
+                                if ((part['transmission_model'] as String?)
+                                        ?.isNotEmpty ??
+                                    false)
                                   Text(
-                                    'Модель трансмиссии: ${_transmissionModelCtrl.text.trim()}',
+                                    'Модель трансмиссии: ${part['transmission_model']}',
                                     style: const TextStyle(
                                       color: Colors.white54,
                                       fontSize: 11,
