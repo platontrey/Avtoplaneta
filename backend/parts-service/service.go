@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -62,29 +63,49 @@ type InventoryService interface {
 
 // InventoryQueryParams параметры запроса для инвентаря
 type InventoryQueryParams struct {
-	Search         string
-	Category       string
-	Brand          string
-	Model          string
-	Location       string
-	Address        string
-	Salesman       string
-	Status         string
-	HasPhoto       string
-	Number         string
-	OEMCode        string
-	VIN            string
-	BodyBrand      string
-	EngineBrand    string
-	CarReleaseDate string
-	Transmission   string
-	Drive          string
-	Condition      string
-	Manufacturer   string
-	Defect         string
-	Color          string
-	Page           int
-	Limit          int
+	Search             string
+	Category           string
+	Brand              string
+	Model              string
+	Location           string
+	Address            string
+	Salesman           string
+	Status             string
+	HasPhoto           string
+	Number             string
+	OEMCode            string
+	VIN                string
+	BodyBrand          string
+	EngineBrand        string
+	CarReleaseDate     string
+	Transmission       string
+	Drive              string
+	Condition          string
+	Manufacturer       string
+	Defect             string
+	Color              string
+	MinPrice           string
+	MaxPrice           string
+	MinQuantity        string
+	MaxQuantity        string
+	FrontRear          string
+	LeftRight          string
+	TopBottom          string
+	ManufacturerCode   string
+	SupplierCode       string
+	TransmissionModel  string
+	WearPercentage     string
+	Season             string
+	Diameter           string
+	Width              string
+	Profile            string
+	TireQuantity       string
+	Drilling           string
+	Offset             string
+	CenterHoleDiameter string
+	TireModel          string
+	Page               int
+	Limit              int
 }
 
 // inventoryService реализует InventoryService
@@ -186,7 +207,13 @@ func (s *inventoryService) shouldUseElasticsearch(params InventoryQueryParams) b
 		params.Status != "" || params.HasPhoto != "" || params.Number != "" || params.OEMCode != "" ||
 		params.VIN != "" || params.BodyBrand != "" || params.EngineBrand != "" ||
 		params.CarReleaseDate != "" || params.Transmission != "" || params.Drive != "" ||
-		params.Condition != "" || params.Manufacturer != "" || params.Defect != "" || params.Color != ""
+		params.Condition != "" || params.Manufacturer != "" || params.Defect != "" || params.Color != "" ||
+		params.MinPrice != "" || params.MaxPrice != "" || params.MinQuantity != "" || params.MaxQuantity != "" ||
+		params.FrontRear != "" || params.LeftRight != "" || params.TopBottom != "" ||
+		params.ManufacturerCode != "" || params.SupplierCode != "" || params.TransmissionModel != "" ||
+		params.WearPercentage != "" || params.Season != "" || params.Diameter != "" ||
+		params.Width != "" || params.Profile != "" || params.TireQuantity != "" ||
+		params.Drilling != "" || params.Offset != "" || params.CenterHoleDiameter != "" || params.TireModel != ""
 }
 
 // getInventoryFromElasticsearch получает данные из Elasticsearch
@@ -749,6 +776,240 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 		})
 	}
 
+	if params.MinPrice != "" || params.MaxPrice != "" {
+		priceRange := map[string]interface{}{}
+		if params.MinPrice != "" {
+			if minP, err := strconv.ParseFloat(params.MinPrice, 64); err == nil {
+				priceRange["gte"] = minP
+			}
+		}
+		if params.MaxPrice != "" {
+			if maxP, err := strconv.ParseFloat(params.MaxPrice, 64); err == nil {
+				priceRange["lte"] = maxP
+			}
+		}
+		if len(priceRange) > 0 {
+			filter = append(filter, map[string]interface{}{
+				"range": map[string]interface{}{
+					"price": priceRange,
+				},
+			})
+		}
+	}
+
+	if params.MinQuantity != "" || params.MaxQuantity != "" {
+		qtyRange := map[string]interface{}{}
+		if params.MinQuantity != "" {
+			if minQ, err := strconv.Atoi(params.MinQuantity); err == nil {
+				qtyRange["gte"] = minQ
+			}
+		}
+		if params.MaxQuantity != "" {
+			if maxQ, err := strconv.Atoi(params.MaxQuantity); err == nil {
+				qtyRange["lte"] = maxQ
+			}
+		}
+		if len(qtyRange) > 0 {
+			filter = append(filter, map[string]interface{}{
+				"range": map[string]interface{}{
+					"quantity": qtyRange,
+				},
+			})
+		}
+	}
+
+	if params.FrontRear != "" {
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"front_rear": params.FrontRear}},
+					{"match": map[string]interface{}{"front_rear.text": params.FrontRear}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
+	if params.LeftRight != "" {
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"left_right": params.LeftRight}},
+					{"match": map[string]interface{}{"left_right.text": params.LeftRight}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
+	if params.TopBottom != "" {
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"top_bottom": params.TopBottom}},
+					{"match": map[string]interface{}{"top_bottom.text": params.TopBottom}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
+	if params.ManufacturerCode != "" {
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"manufacturer_code": params.ManufacturerCode}},
+					{"match": map[string]interface{}{"manufacturer_code.text": params.ManufacturerCode}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
+	if params.SupplierCode != "" {
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"supplier_code": params.SupplierCode}},
+					{"match": map[string]interface{}{"supplier_code.text": params.SupplierCode}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
+	if params.TransmissionModel != "" {
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"transmission_model": params.TransmissionModel}},
+					{"match": map[string]interface{}{"transmission_model.text": params.TransmissionModel}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
+	if params.WearPercentage != "" {
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"wear_percentage": params.WearPercentage}},
+					{"match": map[string]interface{}{"wear_percentage.text": params.WearPercentage}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
+	if params.Season != "" {
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"season": params.Season}},
+					{"match": map[string]interface{}{"season.text": params.Season}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
+	if params.Diameter != "" {
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"diameter": params.Diameter}},
+					{"match": map[string]interface{}{"diameter.text": params.Diameter}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
+	if params.Width != "" {
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"width": params.Width}},
+					{"match": map[string]interface{}{"width.text": params.Width}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
+	if params.Profile != "" {
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"profile": params.Profile}},
+					{"match": map[string]interface{}{"profile.text": params.Profile}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
+	if params.TireQuantity != "" {
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"tire_quantity": params.TireQuantity}},
+					{"match": map[string]interface{}{"tire_quantity.text": params.TireQuantity}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
+	if params.Drilling != "" {
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"drilling": params.Drilling}},
+					{"match": map[string]interface{}{"drilling.text": params.Drilling}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
+	if params.Offset != "" {
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"offset": params.Offset}},
+					{"match": map[string]interface{}{"offset.text": params.Offset}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
+	if params.CenterHoleDiameter != "" {
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"center_hole_diameter": params.CenterHoleDiameter}},
+					{"match": map[string]interface{}{"center_hole_diameter.text": params.CenterHoleDiameter}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
+	if params.TireModel != "" {
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"tire_model": params.TireModel}},
+					{"match": map[string]interface{}{"tire_model.text": params.TireModel}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
 	boolQuery := map[string]interface{}{}
 	if len(must) > 0 {
 		boolQuery["must"] = must
@@ -860,6 +1121,74 @@ func (s *inventoryService) buildDatabaseFilters(params InventoryQueryParams) map
 	}
 	if params.Color != "" {
 		filters["color_ilike"] = params.Color
+	}
+	if params.MinPrice != "" {
+		if val, err := strconv.ParseFloat(params.MinPrice, 64); err == nil {
+			filters["min_price"] = val
+		}
+	}
+	if params.MaxPrice != "" {
+		if val, err := strconv.ParseFloat(params.MaxPrice, 64); err == nil {
+			filters["max_price"] = val
+		}
+	}
+	if params.MinQuantity != "" {
+		if val, err := strconv.Atoi(params.MinQuantity); err == nil {
+			filters["min_quantity"] = val
+		}
+	}
+	if params.MaxQuantity != "" {
+		if val, err := strconv.Atoi(params.MaxQuantity); err == nil {
+			filters["max_quantity"] = val
+		}
+	}
+	if params.FrontRear != "" {
+		filters["front_rear_ilike"] = params.FrontRear
+	}
+	if params.LeftRight != "" {
+		filters["left_right_ilike"] = params.LeftRight
+	}
+	if params.TopBottom != "" {
+		filters["top_bottom_ilike"] = params.TopBottom
+	}
+	if params.ManufacturerCode != "" {
+		filters["manufacturer_code_ilike"] = params.ManufacturerCode
+	}
+	if params.SupplierCode != "" {
+		filters["supplier_code_ilike"] = params.SupplierCode
+	}
+	if params.TransmissionModel != "" {
+		filters["transmission_model_ilike"] = params.TransmissionModel
+	}
+	if params.WearPercentage != "" {
+		filters["wear_percentage_ilike"] = params.WearPercentage
+	}
+	if params.Season != "" {
+		filters["season_ilike"] = params.Season
+	}
+	if params.Diameter != "" {
+		filters["diameter_ilike"] = params.Diameter
+	}
+	if params.Width != "" {
+		filters["width_ilike"] = params.Width
+	}
+	if params.Profile != "" {
+		filters["profile_ilike"] = params.Profile
+	}
+	if params.TireQuantity != "" {
+		filters["tire_quantity_ilike"] = params.TireQuantity
+	}
+	if params.Drilling != "" {
+		filters["drilling_ilike"] = params.Drilling
+	}
+	if params.Offset != "" {
+		filters["offset_ilike"] = params.Offset
+	}
+	if params.CenterHoleDiameter != "" {
+		filters["center_hole_diameter_ilike"] = params.CenterHoleDiameter
+	}
+	if params.TireModel != "" {
+		filters["tire_model_ilike"] = params.TireModel
 	}
 
 	return filters

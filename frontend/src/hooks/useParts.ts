@@ -112,6 +112,46 @@ export interface PartFilters {
   defect?: string;
   /** Цвет */
   color?: string;
+  /** Минимальная цена */
+  min_price?: string;
+  /** Максимальная цена */
+  max_price?: string;
+  /** Минимальное количество */
+  min_quantity?: string;
+  /** Максимальное количество */
+  max_quantity?: string;
+  /** Перед/зад */
+  front_rear?: string;
+  /** Право/лево */
+  left_right?: string;
+  /** Верх/низ */
+  top_bottom?: string;
+  /** Код производителя */
+  manufacturer_code?: string;
+  /** Код поставщика */
+  supplier_code?: string;
+  /** Модель КПП */
+  transmission_model?: string;
+  /** Процент износа */
+  wear_percentage?: string;
+  /** Сезон */
+  season?: string;
+  /** Диаметр */
+  diameter?: string;
+  /** Ширина */
+  width?: string;
+  /** Профиль */
+  profile?: string;
+  /** Количество шин */
+  tire_quantity?: string;
+  /** Сверловка */
+  drilling?: string;
+  /** Вылет */
+  offset?: string;
+  /** Диаметр ЦО */
+  center_hole_diameter?: string;
+  /** Модель шины */
+  tire_model?: string;
   /** Лимит результатов */
   limit?: number;
   /** Страница для пагинации */

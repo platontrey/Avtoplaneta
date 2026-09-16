@@ -682,6 +682,69 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     if (filter.color.isNotEmpty) {
       addChip('Цвет: ${filter.color}', filter.copyWith(color: '', page: 1));
     }
+    if (filter.address.isNotEmpty) {
+      addChip('Адрес: ${filter.address}', filter.copyWith(address: '', page: 1));
+    }
+    if (filter.minPrice.isNotEmpty) {
+      addChip('Цена от: ${filter.minPrice} ₽', filter.copyWith(minPrice: '', page: 1));
+    }
+    if (filter.maxPrice.isNotEmpty) {
+      addChip('Цена до: ${filter.maxPrice} ₽', filter.copyWith(maxPrice: '', page: 1));
+    }
+    if (filter.minQuantity.isNotEmpty) {
+      addChip('Кол-во от: ${filter.minQuantity}', filter.copyWith(minQuantity: '', page: 1));
+    }
+    if (filter.maxQuantity.isNotEmpty) {
+      addChip('Кол-во до: ${filter.maxQuantity}', filter.copyWith(maxQuantity: '', page: 1));
+    }
+    if (filter.frontRear.isNotEmpty) {
+      addChip('Перед/зад: ${filter.frontRear}', filter.copyWith(frontRear: '', page: 1));
+    }
+    if (filter.leftRight.isNotEmpty) {
+      addChip('Право/лево: ${filter.leftRight}', filter.copyWith(leftRight: '', page: 1));
+    }
+    if (filter.topBottom.isNotEmpty) {
+      addChip('Верх/низ: ${filter.topBottom}', filter.copyWith(topBottom: '', page: 1));
+    }
+    if (filter.manufacturerCode.isNotEmpty) {
+      addChip('Код произв.: ${filter.manufacturerCode}', filter.copyWith(manufacturerCode: '', page: 1));
+    }
+    if (filter.supplierCode.isNotEmpty) {
+      addChip('Код поставщ.: ${filter.supplierCode}', filter.copyWith(supplierCode: '', page: 1));
+    }
+    if (filter.transmissionModel.isNotEmpty) {
+      addChip('Модель КПП: ${filter.transmissionModel}', filter.copyWith(transmissionModel: '', page: 1));
+    }
+    if (filter.wearPercentage.isNotEmpty) {
+      addChip('Износ: ${filter.wearPercentage}', filter.copyWith(wearPercentage: '', page: 1));
+    }
+    if (filter.season.isNotEmpty) {
+      addChip('Сезон: ${filter.season}', filter.copyWith(season: '', page: 1));
+    }
+    if (filter.diameter.isNotEmpty) {
+      addChip('Диаметр: ${filter.diameter}', filter.copyWith(diameter: '', page: 1));
+    }
+    if (filter.width.isNotEmpty) {
+      addChip('Ширина: ${filter.width}', filter.copyWith(width: '', page: 1));
+    }
+    if (filter.profile.isNotEmpty) {
+      addChip('Профиль: ${filter.profile}', filter.copyWith(profile: '', page: 1));
+    }
+    if (filter.tireQuantity.isNotEmpty) {
+      addChip('Кол-во шин: ${filter.tireQuantity}', filter.copyWith(tireQuantity: '', page: 1));
+    }
+    if (filter.drilling.isNotEmpty) {
+      addChip('Сверловка: ${filter.drilling}', filter.copyWith(drilling: '', page: 1));
+    }
+    if (filter.offset.isNotEmpty) {
+      addChip('Вылет: ${filter.offset}', filter.copyWith(offset: '', page: 1));
+    }
+    if (filter.centerHoleDiameter.isNotEmpty) {
+      addChip('Диаметр ЦО: ${filter.centerHoleDiameter}', filter.copyWith(centerHoleDiameter: '', page: 1));
+    }
+    if (filter.tireModel.isNotEmpty) {
+      addChip('Модель шины: ${filter.tireModel}', filter.copyWith(tireModel: '', page: 1));
+    }
 
     return SizedBox(
       height: 46,
@@ -861,6 +924,7 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
   late final TextEditingController _brandController;
   late final TextEditingController _modelController;
   late final TextEditingController _locationController;
+  late final TextEditingController _addressController;
   late final TextEditingController _salesmanController;
   late final TextEditingController _numberController;
   late final TextEditingController _oemCodeController;
@@ -872,9 +936,29 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
   late final TextEditingController _manufacturerController;
   late final TextEditingController _defectController;
   late final TextEditingController _colorController;
+  late final TextEditingController _minPriceController;
+  late final TextEditingController _maxPriceController;
+  late final TextEditingController _minQuantityController;
+  late final TextEditingController _maxQuantityController;
+  late final TextEditingController _manufacturerCodeController;
+  late final TextEditingController _supplierCodeController;
+  late final TextEditingController _transmissionModelController;
+  late final TextEditingController _wearPercentageController;
+  late final TextEditingController _diameterController;
+  late final TextEditingController _widthController;
+  late final TextEditingController _profileController;
+  late final TextEditingController _tireQuantityController;
+  late final TextEditingController _drillingController;
+  late final TextEditingController _offsetController;
+  late final TextEditingController _centerHoleDiameterController;
+  late final TextEditingController _tireModelController;
   late String _category;
   late String _transmission;
   late String _drive;
+  late String _frontRear;
+  late String _leftRight;
+  late String _topBottom;
+  late String _season;
   late String _status;
   late String _hasPhoto;
   late String _pageSize;
@@ -885,6 +969,7 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
     _brandController = TextEditingController(text: widget.current.brand);
     _modelController = TextEditingController(text: widget.current.model);
     _locationController = TextEditingController(text: widget.current.location);
+    _addressController = TextEditingController(text: widget.current.address);
     _salesmanController = TextEditingController(text: widget.current.salesman);
     _numberController = TextEditingController(text: widget.current.number);
     _oemCodeController = TextEditingController(text: widget.current.oemCode);
@@ -896,9 +981,29 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
     _manufacturerController = TextEditingController(text: widget.current.manufacturer);
     _defectController = TextEditingController(text: widget.current.defect);
     _colorController = TextEditingController(text: widget.current.color);
+    _minPriceController = TextEditingController(text: widget.current.minPrice);
+    _maxPriceController = TextEditingController(text: widget.current.maxPrice);
+    _minQuantityController = TextEditingController(text: widget.current.minQuantity);
+    _maxQuantityController = TextEditingController(text: widget.current.maxQuantity);
+    _manufacturerCodeController = TextEditingController(text: widget.current.manufacturerCode);
+    _supplierCodeController = TextEditingController(text: widget.current.supplierCode);
+    _transmissionModelController = TextEditingController(text: widget.current.transmissionModel);
+    _wearPercentageController = TextEditingController(text: widget.current.wearPercentage);
+    _diameterController = TextEditingController(text: widget.current.diameter);
+    _widthController = TextEditingController(text: widget.current.width);
+    _profileController = TextEditingController(text: widget.current.profile);
+    _tireQuantityController = TextEditingController(text: widget.current.tireQuantity);
+    _drillingController = TextEditingController(text: widget.current.drilling);
+    _offsetController = TextEditingController(text: widget.current.offset);
+    _centerHoleDiameterController = TextEditingController(text: widget.current.centerHoleDiameter);
+    _tireModelController = TextEditingController(text: widget.current.tireModel);
     _category = widget.current.category;
     _transmission = widget.current.transmission;
     _drive = widget.current.drive;
+    _frontRear = widget.current.frontRear;
+    _leftRight = widget.current.leftRight;
+    _topBottom = widget.current.topBottom;
+    _season = widget.current.season;
     _status = widget.current.status;
     _hasPhoto = widget.current.hasPhoto;
     _pageSize = widget.current.pageSize;
@@ -909,6 +1014,7 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
     _brandController.dispose();
     _modelController.dispose();
     _locationController.dispose();
+    _addressController.dispose();
     _salesmanController.dispose();
     _numberController.dispose();
     _oemCodeController.dispose();
@@ -920,6 +1026,22 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
     _manufacturerController.dispose();
     _defectController.dispose();
     _colorController.dispose();
+    _minPriceController.dispose();
+    _maxPriceController.dispose();
+    _minQuantityController.dispose();
+    _maxQuantityController.dispose();
+    _manufacturerCodeController.dispose();
+    _supplierCodeController.dispose();
+    _transmissionModelController.dispose();
+    _wearPercentageController.dispose();
+    _diameterController.dispose();
+    _widthController.dispose();
+    _profileController.dispose();
+    _tireQuantityController.dispose();
+    _drillingController.dispose();
+    _offsetController.dispose();
+    _centerHoleDiameterController.dispose();
+    _tireModelController.dispose();
     super.dispose();
   }
 
@@ -928,6 +1050,7 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
       _brandController.clear();
       _modelController.clear();
       _locationController.clear();
+      _addressController.clear();
       _salesmanController.clear();
       _numberController.clear();
       _oemCodeController.clear();
@@ -939,9 +1062,29 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
       _manufacturerController.clear();
       _defectController.clear();
       _colorController.clear();
+      _minPriceController.clear();
+      _maxPriceController.clear();
+      _minQuantityController.clear();
+      _maxQuantityController.clear();
+      _manufacturerCodeController.clear();
+      _supplierCodeController.clear();
+      _transmissionModelController.clear();
+      _wearPercentageController.clear();
+      _diameterController.clear();
+      _widthController.clear();
+      _profileController.clear();
+      _tireQuantityController.clear();
+      _drillingController.clear();
+      _offsetController.clear();
+      _centerHoleDiameterController.clear();
+      _tireModelController.clear();
       _category = '';
       _transmission = '';
       _drive = '';
+      _frontRear = '';
+      _leftRight = '';
+      _topBottom = '';
+      _season = '';
       _status = '';
       _hasPhoto = 'all';
       _pageSize = 'all';
@@ -956,6 +1099,7 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
         brand: _brandController.text.trim(),
         model: _modelController.text.trim(),
         location: _locationController.text.trim(),
+        address: _addressController.text.trim(),
         salesman: _salesmanController.text.trim(),
         number: _numberController.text.trim(),
         oemCode: _oemCodeController.text.trim(),
@@ -969,6 +1113,26 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
         manufacturer: _manufacturerController.text.trim(),
         defect: _defectController.text.trim(),
         color: _colorController.text.trim(),
+        minPrice: _minPriceController.text.trim(),
+        maxPrice: _maxPriceController.text.trim(),
+        minQuantity: _minQuantityController.text.trim(),
+        maxQuantity: _maxQuantityController.text.trim(),
+        frontRear: _frontRear,
+        leftRight: _leftRight,
+        topBottom: _topBottom,
+        manufacturerCode: _manufacturerCodeController.text.trim(),
+        supplierCode: _supplierCodeController.text.trim(),
+        transmissionModel: _transmissionModelController.text.trim(),
+        wearPercentage: _wearPercentageController.text.trim(),
+        season: _season,
+        diameter: _diameterController.text.trim(),
+        width: _widthController.text.trim(),
+        profile: _profileController.text.trim(),
+        tireQuantity: _tireQuantityController.text.trim(),
+        drilling: _drillingController.text.trim(),
+        offset: _offsetController.text.trim(),
+        centerHoleDiameter: _centerHoleDiameterController.text.trim(),
+        tireModel: _tireModelController.text.trim(),
         status: _status,
         hasPhoto: _hasPhoto,
         pageSize: _pageSize,
@@ -1076,6 +1240,58 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
                 ),
               ),
               const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _minPriceController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Цена от (₽)',
+                        hintText: '0',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _maxPriceController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Цена до (₽)',
+                        hintText: '100000',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _minQuantityController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Кол-во от',
+                        hintText: '1',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _maxQuantityController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Кол-во до',
+                        hintText: '100',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
               TextField(
                 controller: _numberController,
                 decoration: const InputDecoration(
@@ -1125,6 +1341,45 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
+                key: ValueKey('frontRear-$_frontRear'),
+                initialValue: _frontRear,
+                decoration: const InputDecoration(labelText: 'Перед / зад'),
+                items: const [
+                  DropdownMenuItem(value: '', child: Text('Все расположения')),
+                  DropdownMenuItem(value: 'перед', child: Text('Перед')),
+                  DropdownMenuItem(value: 'зад', child: Text('Зад')),
+                  DropdownMenuItem(value: 'перед / зад', child: Text('Перед / зад')),
+                ],
+                onChanged: (value) => setState(() => _frontRear = value ?? ''),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                key: ValueKey('leftRight-$_leftRight'),
+                initialValue: _leftRight,
+                decoration: const InputDecoration(labelText: 'Право / лево'),
+                items: const [
+                  DropdownMenuItem(value: '', child: Text('Все стороны')),
+                  DropdownMenuItem(value: 'лево', child: Text('Лево')),
+                  DropdownMenuItem(value: 'право', child: Text('Право')),
+                  DropdownMenuItem(value: 'лево / право', child: Text('Лево / право')),
+                ],
+                onChanged: (value) => setState(() => _leftRight = value ?? ''),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                key: ValueKey('topBottom-$_topBottom'),
+                initialValue: _topBottom,
+                decoration: const InputDecoration(labelText: 'Верх / низ'),
+                items: const [
+                  DropdownMenuItem(value: '', child: Text('Все положения')),
+                  DropdownMenuItem(value: 'верх', child: Text('Верх')),
+                  DropdownMenuItem(value: 'низ', child: Text('Низ')),
+                  DropdownMenuItem(value: 'верх / низ', child: Text('Верх / низ')),
+                ],
+                onChanged: (value) => setState(() => _topBottom = value ?? ''),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
                 key: ValueKey('transmission-$_transmission'),
                 initialValue: _transmission,
                 decoration: const InputDecoration(labelText: 'Трансмиссия'),
@@ -1152,6 +1407,14 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
               ),
               const SizedBox(height: 12),
               TextField(
+                controller: _transmissionModelController,
+                decoration: const InputDecoration(
+                  labelText: 'Модель КПП',
+                  hintText: 'U140F, RE4F04B…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
                 controller: _conditionController,
                 decoration: const InputDecoration(
                   labelText: 'Состояние',
@@ -1164,6 +1427,30 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
                 decoration: const InputDecoration(
                   labelText: 'Производитель',
                   hintText: 'Bosch, Denso, Lemforder…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _manufacturerCodeController,
+                decoration: const InputDecoration(
+                  labelText: 'Код производителя',
+                  hintText: 'Код производителя…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _supplierCodeController,
+                decoration: const InputDecoration(
+                  labelText: 'Код поставщика',
+                  hintText: 'Код поставщика…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _wearPercentageController,
+                decoration: const InputDecoration(
+                  labelText: 'Процент износа',
+                  hintText: '5%, 10%…',
                 ),
               ),
               const SizedBox(height: 12),
@@ -1188,6 +1475,14 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
                 decoration: const InputDecoration(
                   labelText: 'Местоположение',
                   hintText: 'Стеллаж A-12…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _addressController,
+                decoration: const InputDecoration(
+                  labelText: 'Адрес склада',
+                  hintText: 'Профсоюзная 2/11…',
                 ),
               ),
               const SizedBox(height: 12),
@@ -1220,6 +1515,85 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
                 onChanged: (value) {
                   setState(() => _hasPhoto = value ?? 'all');
                 },
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                key: ValueKey('season-$_season'),
+                initialValue: _season,
+                decoration: const InputDecoration(labelText: 'Сезонность шин'),
+                items: const [
+                  DropdownMenuItem(value: '', child: Text('Все сезоны')),
+                  DropdownMenuItem(value: 'лето', child: Text('Лето')),
+                  DropdownMenuItem(value: 'зима', child: Text('Зима')),
+                  DropdownMenuItem(value: 'всесезонные', child: Text('Всесезонные')),
+                  DropdownMenuItem(value: 'зима шипованные', child: Text('Зима шипованные')),
+                  DropdownMenuItem(value: 'зима нешипованные (липучка)', child: Text('Зима нешипованные (липучка)')),
+                ],
+                onChanged: (value) => setState(() => _season = value ?? ''),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _diameterController,
+                decoration: const InputDecoration(
+                  labelText: 'Диаметр',
+                  hintText: 'R15, R16, R17…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _widthController,
+                decoration: const InputDecoration(
+                  labelText: 'Ширина шины',
+                  hintText: '205, 215, 225…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _profileController,
+                decoration: const InputDecoration(
+                  labelText: 'Профиль шины',
+                  hintText: '55, 60, 65…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _tireQuantityController,
+                decoration: const InputDecoration(
+                  labelText: 'Количество шин',
+                  hintText: '4 шт, пара…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _drillingController,
+                decoration: const InputDecoration(
+                  labelText: 'Сверловка (PCD)',
+                  hintText: '5x114.3, 4x100…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _offsetController,
+                decoration: const InputDecoration(
+                  labelText: 'Вылет (ET)',
+                  hintText: 'ET45, ET38…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _centerHoleDiameterController,
+                decoration: const InputDecoration(
+                  labelText: 'Диаметр ЦО (DIA)',
+                  hintText: '60.1, 67.1…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _tireModelController,
+                decoration: const InputDecoration(
+                  labelText: 'Модель шины',
+                  hintText: 'Hakkapeliitta 8, Ice Cruiser…',
+                ),
               ),
               const SizedBox(height: 24),
               Row(

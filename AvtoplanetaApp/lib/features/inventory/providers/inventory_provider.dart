@@ -10,6 +10,7 @@ class InventoryFilter {
   final String brand;
   final String model;
   final String location;
+  final String address;
   final String salesman;
   final String status;
   final String hasPhoto;
@@ -25,6 +26,26 @@ class InventoryFilter {
   final String manufacturer;
   final String defect;
   final String color;
+  final String minPrice;
+  final String maxPrice;
+  final String minQuantity;
+  final String maxQuantity;
+  final String frontRear;
+  final String leftRight;
+  final String topBottom;
+  final String manufacturerCode;
+  final String supplierCode;
+  final String transmissionModel;
+  final String wearPercentage;
+  final String season;
+  final String diameter;
+  final String width;
+  final String profile;
+  final String tireQuantity;
+  final String drilling;
+  final String offset;
+  final String centerHoleDiameter;
+  final String tireModel;
   final String pageSize; // 'all' (бесконечная лента), '20', '50', '100'
   final int page;
 
@@ -34,6 +55,7 @@ class InventoryFilter {
     this.brand = '',
     this.model = '',
     this.location = '',
+    this.address = '',
     this.salesman = '',
     this.status = '',
     this.hasPhoto = 'all',
@@ -49,6 +71,26 @@ class InventoryFilter {
     this.manufacturer = '',
     this.defect = '',
     this.color = '',
+    this.minPrice = '',
+    this.maxPrice = '',
+    this.minQuantity = '',
+    this.maxQuantity = '',
+    this.frontRear = '',
+    this.leftRight = '',
+    this.topBottom = '',
+    this.manufacturerCode = '',
+    this.supplierCode = '',
+    this.transmissionModel = '',
+    this.wearPercentage = '',
+    this.season = '',
+    this.diameter = '',
+    this.width = '',
+    this.profile = '',
+    this.tireQuantity = '',
+    this.drilling = '',
+    this.offset = '',
+    this.centerHoleDiameter = '',
+    this.tireModel = '',
     this.pageSize = 'all',
     this.page = 1,
   });
@@ -59,6 +101,7 @@ class InventoryFilter {
     String? brand,
     String? model,
     String? location,
+    String? address,
     String? salesman,
     String? status,
     String? hasPhoto,
@@ -74,6 +117,26 @@ class InventoryFilter {
     String? manufacturer,
     String? defect,
     String? color,
+    String? minPrice,
+    String? maxPrice,
+    String? minQuantity,
+    String? maxQuantity,
+    String? frontRear,
+    String? leftRight,
+    String? topBottom,
+    String? manufacturerCode,
+    String? supplierCode,
+    String? transmissionModel,
+    String? wearPercentage,
+    String? season,
+    String? diameter,
+    String? width,
+    String? profile,
+    String? tireQuantity,
+    String? drilling,
+    String? offset,
+    String? centerHoleDiameter,
+    String? tireModel,
     String? pageSize,
     int? page,
   }) => InventoryFilter(
@@ -82,6 +145,7 @@ class InventoryFilter {
     brand: brand ?? this.brand,
     model: model ?? this.model,
     location: location ?? this.location,
+    address: address ?? this.address,
     salesman: salesman ?? this.salesman,
     status: status ?? this.status,
     hasPhoto: hasPhoto ?? this.hasPhoto,
@@ -97,6 +161,26 @@ class InventoryFilter {
     manufacturer: manufacturer ?? this.manufacturer,
     defect: defect ?? this.defect,
     color: color ?? this.color,
+    minPrice: minPrice ?? this.minPrice,
+    maxPrice: maxPrice ?? this.maxPrice,
+    minQuantity: minQuantity ?? this.minQuantity,
+    maxQuantity: maxQuantity ?? this.maxQuantity,
+    frontRear: frontRear ?? this.frontRear,
+    leftRight: leftRight ?? this.leftRight,
+    topBottom: topBottom ?? this.topBottom,
+    manufacturerCode: manufacturerCode ?? this.manufacturerCode,
+    supplierCode: supplierCode ?? this.supplierCode,
+    transmissionModel: transmissionModel ?? this.transmissionModel,
+    wearPercentage: wearPercentage ?? this.wearPercentage,
+    season: season ?? this.season,
+    diameter: diameter ?? this.diameter,
+    width: width ?? this.width,
+    profile: profile ?? this.profile,
+    tireQuantity: tireQuantity ?? this.tireQuantity,
+    drilling: drilling ?? this.drilling,
+    offset: offset ?? this.offset,
+    centerHoleDiameter: centerHoleDiameter ?? this.centerHoleDiameter,
+    tireModel: tireModel ?? this.tireModel,
     pageSize: pageSize ?? this.pageSize,
     page: page ?? this.page,
   );
@@ -106,6 +190,7 @@ class InventoryFilter {
     brand,
     model,
     location,
+    address,
     salesman,
     status,
     hasPhoto == 'all' ? '' : hasPhoto,
@@ -121,6 +206,26 @@ class InventoryFilter {
     manufacturer,
     defect,
     color,
+    minPrice,
+    maxPrice,
+    minQuantity,
+    maxQuantity,
+    frontRear,
+    leftRight,
+    topBottom,
+    manufacturerCode,
+    supplierCode,
+    transmissionModel,
+    wearPercentage,
+    season,
+    diameter,
+    width,
+    profile,
+    tireQuantity,
+    drilling,
+    offset,
+    centerHoleDiameter,
+    tireModel,
     pageSize == 'all' ? '' : pageSize,
   ].where((value) => value.isNotEmpty).length;
 
@@ -134,6 +239,7 @@ class InventoryFilter {
       if (brand.isNotEmpty) 'brand': brand,
       if (model.isNotEmpty) 'model': model,
       if (location.isNotEmpty) 'location': location,
+      if (address.isNotEmpty) 'address': address,
       if (salesman.isNotEmpty) 'salesman': salesman,
       if (status.isNotEmpty) 'status': status,
       if (hasPhoto != 'all') 'hasPhoto': hasPhoto,
@@ -149,6 +255,26 @@ class InventoryFilter {
       if (manufacturer.isNotEmpty) 'manufacturer': manufacturer,
       if (defect.isNotEmpty) 'defect': defect,
       if (color.isNotEmpty) 'color': color,
+      if (minPrice.isNotEmpty) 'min_price': minPrice,
+      if (maxPrice.isNotEmpty) 'max_price': maxPrice,
+      if (minQuantity.isNotEmpty) 'min_quantity': minQuantity,
+      if (maxQuantity.isNotEmpty) 'max_quantity': maxQuantity,
+      if (frontRear.isNotEmpty) 'front_rear': frontRear,
+      if (leftRight.isNotEmpty) 'left_right': leftRight,
+      if (topBottom.isNotEmpty) 'top_bottom': topBottom,
+      if (manufacturerCode.isNotEmpty) 'manufacturer_code': manufacturerCode,
+      if (supplierCode.isNotEmpty) 'supplier_code': supplierCode,
+      if (transmissionModel.isNotEmpty) 'transmission_model': transmissionModel,
+      if (wearPercentage.isNotEmpty) 'wear_percentage': wearPercentage,
+      if (season.isNotEmpty) 'season': season,
+      if (diameter.isNotEmpty) 'diameter': diameter,
+      if (width.isNotEmpty) 'width': width,
+      if (profile.isNotEmpty) 'profile': profile,
+      if (tireQuantity.isNotEmpty) 'tire_quantity': tireQuantity,
+      if (drilling.isNotEmpty) 'drilling': drilling,
+      if (offset.isNotEmpty) 'offset': offset,
+      if (centerHoleDiameter.isNotEmpty) 'center_hole_diameter': centerHoleDiameter,
+      if (tireModel.isNotEmpty) 'tire_model': tireModel,
     };
   }
 }
@@ -344,6 +470,132 @@ final inventoryProvider =
             final value = filter.color.toLowerCase();
             filteredList = filteredList
                 .where((part) => part.color?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.address.isNotEmpty) {
+            final value = filter.address.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.address.toLowerCase().contains(value))
+                .toList();
+          }
+          if (filter.minPrice.isNotEmpty) {
+            final minP = double.tryParse(filter.minPrice);
+            if (minP != null) {
+              filteredList = filteredList.where((p) => p.price >= minP).toList();
+            }
+          }
+          if (filter.maxPrice.isNotEmpty) {
+            final maxP = double.tryParse(filter.maxPrice);
+            if (maxP != null) {
+              filteredList = filteredList.where((p) => p.price <= maxP).toList();
+            }
+          }
+          if (filter.minQuantity.isNotEmpty) {
+            final minQ = int.tryParse(filter.minQuantity);
+            if (minQ != null) {
+              filteredList = filteredList.where((p) => p.quantity >= minQ).toList();
+            }
+          }
+          if (filter.maxQuantity.isNotEmpty) {
+            final maxQ = int.tryParse(filter.maxQuantity);
+            if (maxQ != null) {
+              filteredList = filteredList.where((p) => p.quantity <= maxQ).toList();
+            }
+          }
+          if (filter.frontRear.isNotEmpty) {
+            final value = filter.frontRear.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.frontRear?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.leftRight.isNotEmpty) {
+            final value = filter.leftRight.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.leftRight?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.topBottom.isNotEmpty) {
+            final value = filter.topBottom.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.topBottom?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.manufacturerCode.isNotEmpty) {
+            final value = filter.manufacturerCode.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.manufacturerCode?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.supplierCode.isNotEmpty) {
+            final value = filter.supplierCode.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.supplierCode?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.transmissionModel.isNotEmpty) {
+            final value = filter.transmissionModel.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.transmissionModel?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.wearPercentage.isNotEmpty) {
+            final value = filter.wearPercentage.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.wearPercentage?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.season.isNotEmpty) {
+            final value = filter.season.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.season?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.diameter.isNotEmpty) {
+            final value = filter.diameter.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.diameter?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.width.isNotEmpty) {
+            final value = filter.width.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.width?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.profile.isNotEmpty) {
+            final value = filter.profile.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.profile?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.tireQuantity.isNotEmpty) {
+            final value = filter.tireQuantity.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.tireQuantity?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.drilling.isNotEmpty) {
+            final value = filter.drilling.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.drilling?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.offset.isNotEmpty) {
+            final value = filter.offset.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.offset?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.centerHoleDiameter.isNotEmpty) {
+            final value = filter.centerHoleDiameter.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.centerHoleDiameter?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.tireModel.isNotEmpty) {
+            final value = filter.tireModel.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.tireModel?.toLowerCase().contains(value) == true)
                 .toList();
           }
 

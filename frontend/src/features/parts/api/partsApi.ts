@@ -32,6 +32,26 @@ export const partsApi = {
     manufacturer?: string;
     defect?: string;
     color?: string;
+    min_price?: string;
+    max_price?: string;
+    min_quantity?: string;
+    max_quantity?: string;
+    front_rear?: string;
+    left_right?: string;
+    top_bottom?: string;
+    manufacturer_code?: string;
+    supplier_code?: string;
+    transmission_model?: string;
+    wear_percentage?: string;
+    season?: string;
+    diameter?: string;
+    width?: string;
+    profile?: string;
+    tire_quantity?: string;
+    drilling?: string;
+    offset?: string;
+    center_hole_diameter?: string;
+    tire_model?: string;
     limit?: number;
     page?: number;
   }): Promise<Part[]> => {
@@ -58,6 +78,26 @@ export const partsApi = {
     if (filters?.manufacturer) params.append('manufacturer', filters.manufacturer);
     if (filters?.defect) params.append('defect', filters.defect);
     if (filters?.color) params.append('color', filters.color);
+    if (filters?.min_price) params.append('min_price', filters.min_price);
+    if (filters?.max_price) params.append('max_price', filters.max_price);
+    if (filters?.min_quantity) params.append('min_quantity', filters.min_quantity);
+    if (filters?.max_quantity) params.append('max_quantity', filters.max_quantity);
+    if (filters?.front_rear) params.append('front_rear', filters.front_rear);
+    if (filters?.left_right) params.append('left_right', filters.left_right);
+    if (filters?.top_bottom) params.append('top_bottom', filters.top_bottom);
+    if (filters?.manufacturer_code) params.append('manufacturer_code', filters.manufacturer_code);
+    if (filters?.supplier_code) params.append('supplier_code', filters.supplier_code);
+    if (filters?.transmission_model) params.append('transmission_model', filters.transmission_model);
+    if (filters?.wear_percentage) params.append('wear_percentage', filters.wear_percentage);
+    if (filters?.season) params.append('season', filters.season);
+    if (filters?.diameter) params.append('diameter', filters.diameter);
+    if (filters?.width) params.append('width', filters.width);
+    if (filters?.profile) params.append('profile', filters.profile);
+    if (filters?.tire_quantity) params.append('tire_quantity', filters.tire_quantity);
+    if (filters?.drilling) params.append('drilling', filters.drilling);
+    if (filters?.offset) params.append('offset', filters.offset);
+    if (filters?.center_hole_diameter) params.append('center_hole_diameter', filters.center_hole_diameter);
+    if (filters?.tire_model) params.append('tire_model', filters.tire_model);
     if (filters?.limit && filters.limit > 0) {
       params.append('limit', filters.limit.toString());
     }

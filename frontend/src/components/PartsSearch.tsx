@@ -103,6 +103,27 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
     const [manufacturer, setManufacturer] = useState('');
     const [defect, setDefect] = useState('');
     const [color, setColor] = useState('');
+    const [salesman, setSalesman] = useState('');
+    const [minPrice, setMinPrice] = useState('');
+    const [maxPrice, setMaxPrice] = useState('');
+    const [minQuantity, setMinQuantity] = useState('');
+    const [maxQuantity, setMaxQuantity] = useState('');
+    const [frontRear, setFrontRear] = useState('');
+    const [leftRight, setLeftRight] = useState('');
+    const [topBottom, setTopBottom] = useState('');
+    const [manufacturerCode, setManufacturerCode] = useState('');
+    const [supplierCode, setSupplierCode] = useState('');
+    const [transmissionModel, setTransmissionModel] = useState('');
+    const [wearPercentage, setWearPercentage] = useState('');
+    const [season, setSeason] = useState('');
+    const [diameter, setDiameter] = useState('');
+    const [width, setWidth] = useState('');
+    const [profile, setProfile] = useState('');
+    const [tireQuantity, setTireQuantity] = useState('');
+    const [drilling, setDrilling] = useState('');
+    const [offset, setOffset] = useState('');
+    const [centerHoleDiameter, setCenterHoleDiameter] = useState('');
+    const [tireModel, setTireModel] = useState('');
     const [isSearching, setIsSearching] = useState(false);
     const [isResultsVisible, setIsResultsVisible] = useState(false);
     const [isFiltersOpen, setIsFiltersOpen] = useState(false);
@@ -185,6 +206,27 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
       { value: "Полный", label: "Полный" },
     ];
 
+    const frontRearOptions: SelectOption[] = [
+      { value: "Передний", label: "Передний" },
+      { value: "Задний", label: "Задний" },
+    ];
+
+    const leftRightOptions: SelectOption[] = [
+      { value: "Левый", label: "Левый" },
+      { value: "Правый", label: "Правый" },
+    ];
+
+    const topBottomOptions: SelectOption[] = [
+      { value: "Верхний", label: "Верхний" },
+      { value: "Нижний", label: "Нижний" },
+    ];
+
+    const seasonOptions: SelectOption[] = [
+      { value: "Лето", label: "Лето" },
+      { value: "Зима", label: "Зима" },
+      { value: "Всесезонная", label: "Всесезонная" },
+    ];
+
     // Функция применения фильтров
     const applyFilters = useCallback(() => {
         if (onFiltersChange) {
@@ -195,6 +237,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                 model,
                 location,
                 address,
+                salesman,
                 status,
                 hasPhoto,
                 number,
@@ -209,12 +252,35 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                 manufacturer,
                 defect,
                 color,
+                min_price: minPrice,
+                max_price: maxPrice,
+                min_quantity: minQuantity,
+                max_quantity: maxQuantity,
+                front_rear: frontRear,
+                left_right: leftRight,
+                top_bottom: topBottom,
+                manufacturer_code: manufacturerCode,
+                supplier_code: supplierCode,
+                transmission_model: transmissionModel,
+                wear_percentage: wearPercentage,
+                season,
+                diameter,
+                width,
+                profile,
+                tire_quantity: tireQuantity,
+                drilling,
+                offset,
+                center_hole_diameter: centerHoleDiameter,
+                tire_model: tireModel,
             });
         }
     }, [
-        searchQuery, category, brand, model, location, address, status, hasPhoto,
+        searchQuery, category, brand, model, location, address, salesman, status, hasPhoto,
         number, oemCode, vin, bodyBrand, engineBrand, carReleaseDate,
         transmission, drive, condition, manufacturer, defect, color,
+        minPrice, maxPrice, minQuantity, maxQuantity,
+        frontRear, leftRight, topBottom, manufacturerCode, supplierCode, transmissionModel, wearPercentage,
+        season, diameter, width, profile, tireQuantity, drilling, offset, centerHoleDiameter, tireModel,
         onFiltersChange
     ]);
 
@@ -403,6 +469,27 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         setManufacturer('');
         setDefect('');
         setColor('');
+        setSalesman('');
+        setMinPrice('');
+        setMaxPrice('');
+        setMinQuantity('');
+        setMaxQuantity('');
+        setFrontRear('');
+        setLeftRight('');
+        setTopBottom('');
+        setManufacturerCode('');
+        setSupplierCode('');
+        setTransmissionModel('');
+        setWearPercentage('');
+        setSeason('');
+        setDiameter('');
+        setWidth('');
+        setProfile('');
+        setTireQuantity('');
+        setDrilling('');
+        setOffset('');
+        setCenterHoleDiameter('');
+        setTireModel('');
         clearResults();
     };
 
@@ -446,10 +533,35 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         manufacturer,
         defect,
         color,
+        salesman,
+        minPrice,
+        maxPrice,
+        minQuantity,
+        maxQuantity,
+        frontRear,
+        leftRight,
+        topBottom,
+        manufacturerCode,
+        supplierCode,
+        transmissionModel,
+        wearPercentage,
+        season,
+        diameter,
+        width,
+        profile,
+        tireQuantity,
+        drilling,
+        offset,
+        centerHoleDiameter,
+        tireModel,
     ].filter(Boolean).length, [
         category, brand, model, location, address, status, hasPhoto,
         number, oemCode, vin, bodyBrand, engineBrand, carReleaseDate,
         transmission, drive, condition, manufacturer, defect, color,
+        salesman, minPrice, maxPrice, minQuantity, maxQuantity,
+        frontRear, leftRight, topBottom, manufacturerCode, supplierCode,
+        transmissionModel, wearPercentage, season, diameter, width,
+        profile, tireQuantity, drilling, offset, centerHoleDiameter, tireModel,
     ]);
 
     const handleDisplayLimitChange = (value: string) => {
@@ -1005,6 +1117,295 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                                                     />
                                                 </div>
                                             </div>
+
+                                            {/* Цена от */}
+                                            <div>
+                                                <Label htmlFor="min-price-filter">Цена от (₽)</Label>
+                                                <Input
+                                                    id="min-price-filter"
+                                                    type="number"
+                                                    value={minPrice}
+                                                    onChange={(e) => setMinPrice(e.target.value)}
+                                                    placeholder="0"
+                                                    min="0"
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Цена до */}
+                                            <div>
+                                                <Label htmlFor="max-price-filter">Цена до (₽)</Label>
+                                                <Input
+                                                    id="max-price-filter"
+                                                    type="number"
+                                                    value={maxPrice}
+                                                    onChange={(e) => setMaxPrice(e.target.value)}
+                                                    placeholder="100000"
+                                                    min="0"
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Количество от */}
+                                            <div>
+                                                <Label htmlFor="min-quantity-filter">Количество от</Label>
+                                                <Input
+                                                    id="min-quantity-filter"
+                                                    type="number"
+                                                    value={minQuantity}
+                                                    onChange={(e) => setMinQuantity(e.target.value)}
+                                                    placeholder="1"
+                                                    min="0"
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Количество до */}
+                                            <div>
+                                                <Label htmlFor="max-quantity-filter">Количество до</Label>
+                                                <Input
+                                                    id="max-quantity-filter"
+                                                    type="number"
+                                                    value={maxQuantity}
+                                                    onChange={(e) => setMaxQuantity(e.target.value)}
+                                                    placeholder="100"
+                                                    min="0"
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Продавец */}
+                                            <div>
+                                                <Label htmlFor="salesman-filter">Продавец</Label>
+                                                <Input
+                                                    id="salesman-filter"
+                                                    type="text"
+                                                    value={salesman}
+                                                    onChange={(e) => setSalesman(e.target.value)}
+                                                    placeholder="Имя продавца..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Перед / зад */}
+                                            <div>
+                                                <Label htmlFor="front-rear-filter">Перед / зад</Label>
+                                                <div className="mt-1.5">
+                                                    <SearchableSelect
+                                                        value={frontRear}
+                                                        onValueChange={(value) => setFrontRear(value)}
+                                                        options={frontRearOptions}
+                                                        placeholder="Все расположения"
+                                                        searchPlaceholder="Поиск..."
+                                                        emptyMessage="Не найдено"
+                                                        className="bg-transparent border border-gray-300"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Право / лево */}
+                                            <div>
+                                                <Label htmlFor="left-right-filter">Право / лево</Label>
+                                                <div className="mt-1.5">
+                                                    <SearchableSelect
+                                                        value={leftRight}
+                                                        onValueChange={(value) => setLeftRight(value)}
+                                                        options={leftRightOptions}
+                                                        placeholder="Все стороны"
+                                                        searchPlaceholder="Поиск..."
+                                                        emptyMessage="Не найдено"
+                                                        className="bg-transparent border border-gray-300"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Верх / низ */}
+                                            <div>
+                                                <Label htmlFor="top-bottom-filter">Верх / низ</Label>
+                                                <div className="mt-1.5">
+                                                    <SearchableSelect
+                                                        value={topBottom}
+                                                        onValueChange={(value) => setTopBottom(value)}
+                                                        options={topBottomOptions}
+                                                        placeholder="Все положения"
+                                                        searchPlaceholder="Поиск..."
+                                                        emptyMessage="Не найдено"
+                                                        className="bg-transparent border border-gray-300"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Код производителя */}
+                                            <div>
+                                                <Label htmlFor="manufacturer-code-filter">Код производителя</Label>
+                                                <Input
+                                                    id="manufacturer-code-filter"
+                                                    type="text"
+                                                    value={manufacturerCode}
+                                                    onChange={(e) => setManufacturerCode(e.target.value)}
+                                                    placeholder="Код производителя..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Код поставщика */}
+                                            <div>
+                                                <Label htmlFor="supplier-code-filter">Код поставщика</Label>
+                                                <Input
+                                                    id="supplier-code-filter"
+                                                    type="text"
+                                                    value={supplierCode}
+                                                    onChange={(e) => setSupplierCode(e.target.value)}
+                                                    placeholder="Код поставщика..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Модель КПП */}
+                                            <div>
+                                                <Label htmlFor="transmission-model-filter">Модель КПП</Label>
+                                                <Input
+                                                    id="transmission-model-filter"
+                                                    type="text"
+                                                    value={transmissionModel}
+                                                    onChange={(e) => setTransmissionModel(e.target.value)}
+                                                    placeholder="U140F, RE4F04B..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Процент износа */}
+                                            <div>
+                                                <Label htmlFor="wear-percentage-filter">Процент износа</Label>
+                                                <Input
+                                                    id="wear-percentage-filter"
+                                                    type="text"
+                                                    value={wearPercentage}
+                                                    onChange={(e) => setWearPercentage(e.target.value)}
+                                                    placeholder="5%, 10%..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Сезонность */}
+                                            <div>
+                                                <Label htmlFor="season-filter">Сезонность шин</Label>
+                                                <div className="mt-1.5">
+                                                    <SearchableSelect
+                                                        value={season}
+                                                        onValueChange={(value) => setSeason(value)}
+                                                        options={seasonOptions}
+                                                        placeholder="Все сезоны"
+                                                        searchPlaceholder="Поиск сезона..."
+                                                        emptyMessage="Сезон не найден"
+                                                        className="bg-transparent border border-gray-300"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Диаметр */}
+                                            <div>
+                                                <Label htmlFor="diameter-filter">Диаметр</Label>
+                                                <Input
+                                                    id="diameter-filter"
+                                                    type="text"
+                                                    value={diameter}
+                                                    onChange={(e) => setDiameter(e.target.value)}
+                                                    placeholder="R15, R16, R17..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Ширина шины */}
+                                            <div>
+                                                <Label htmlFor="width-filter">Ширина шины</Label>
+                                                <Input
+                                                    id="width-filter"
+                                                    type="text"
+                                                    value={width}
+                                                    onChange={(e) => setWidth(e.target.value)}
+                                                    placeholder="205, 215, 225..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Профиль */}
+                                            <div>
+                                                <Label htmlFor="profile-filter">Профиль шины</Label>
+                                                <Input
+                                                    id="profile-filter"
+                                                    type="text"
+                                                    value={profile}
+                                                    onChange={(e) => setProfile(e.target.value)}
+                                                    placeholder="55, 60, 65..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Количество шин */}
+                                            <div>
+                                                <Label htmlFor="tire-quantity-filter">Количество шин</Label>
+                                                <Input
+                                                    id="tire-quantity-filter"
+                                                    type="text"
+                                                    value={tireQuantity}
+                                                    onChange={(e) => setTireQuantity(e.target.value)}
+                                                    placeholder="4 шт, пара..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Сверловка (PCD) */}
+                                            <div>
+                                                <Label htmlFor="drilling-filter">Сверловка (PCD)</Label>
+                                                <Input
+                                                    id="drilling-filter"
+                                                    type="text"
+                                                    value={drilling}
+                                                    onChange={(e) => setDrilling(e.target.value)}
+                                                    placeholder="5x114.3, 4x100..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Вылет (ET) */}
+                                            <div>
+                                                <Label htmlFor="offset-filter">Вылет (ET)</Label>
+                                                <Input
+                                                    id="offset-filter"
+                                                    type="text"
+                                                    value={offset}
+                                                    onChange={(e) => setOffset(e.target.value)}
+                                                    placeholder="ET45, ET38..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Диаметр ЦО (DIA) */}
+                                            <div>
+                                                <Label htmlFor="center-hole-diameter-filter">Диаметр ЦО (DIA)</Label>
+                                                <Input
+                                                    id="center-hole-diameter-filter"
+                                                    type="text"
+                                                    value={centerHoleDiameter}
+                                                    onChange={(e) => setCenterHoleDiameter(e.target.value)}
+                                                    placeholder="60.1, 67.1..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
+
+                                            {/* Модель шины */}
+                                            <div>
+                                                <Label htmlFor="tire-model-filter">Модель шины</Label>
+                                                <Input
+                                                    id="tire-model-filter"
+                                                    type="text"
+                                                    value={tireModel}
+                                                    onChange={(e) => setTireModel(e.target.value)}
+                                                    placeholder="Hakkapeliitta 8, Ice Cruiser..."
+                                                    className="mt-1.5 bg-transparent border border-gray-300"
+                                                />
+                                            </div>
                                         </div>
 
                                         {/* Кнопка очистки фильтров */}
@@ -1474,6 +1875,468 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                                                     className="h-3 w-3"
                                                 />
                                                 <span>Фото: {hasPhoto === 'without' ? 'Без фото' : 'Все'}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {minPrice && (
+                                        <motion.div
+                                            key="minPrice"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setMinPrice('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Цена от: {minPrice} ₽</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {maxPrice && (
+                                        <motion.div
+                                            key="maxPrice"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setMaxPrice('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Цена до: {maxPrice} ₽</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {minQuantity && (
+                                        <motion.div
+                                            key="minQuantity"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setMinQuantity('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Кол-во от: {minQuantity}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {maxQuantity && (
+                                        <motion.div
+                                            key="maxQuantity"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setMaxQuantity('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Кол-во до: {maxQuantity}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {salesman && (
+                                        <motion.div
+                                            key="salesman"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setSalesman('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Продавец: {salesman}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {frontRear && (
+                                        <motion.div
+                                            key="frontRear"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setFrontRear('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Перед/зад: {frontRear}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {leftRight && (
+                                        <motion.div
+                                            key="leftRight"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setLeftRight('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Право/лево: {leftRight}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {topBottom && (
+                                        <motion.div
+                                            key="topBottom"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setTopBottom('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Верх/низ: {topBottom}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {manufacturerCode && (
+                                        <motion.div
+                                            key="manufacturerCode"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setManufacturerCode('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Код произв.: {manufacturerCode}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {supplierCode && (
+                                        <motion.div
+                                            key="supplierCode"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setSupplierCode('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Код поставщ.: {supplierCode}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {transmissionModel && (
+                                        <motion.div
+                                            key="transmissionModel"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setTransmissionModel('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Модель КПП: {transmissionModel}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {wearPercentage && (
+                                        <motion.div
+                                            key="wearPercentage"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setWearPercentage('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Износ: {wearPercentage}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {season && (
+                                        <motion.div
+                                            key="season"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setSeason('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Сезон: {season}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {diameter && (
+                                        <motion.div
+                                            key="diameter"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setDiameter('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Диаметр: {diameter}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {width && (
+                                        <motion.div
+                                            key="width"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setWidth('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Ширина: {width}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {profile && (
+                                        <motion.div
+                                            key="profile"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setProfile('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Профиль: {profile}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {tireQuantity && (
+                                        <motion.div
+                                            key="tireQuantity"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setTireQuantity('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Кол-во шин: {tireQuantity}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {drilling && (
+                                        <motion.div
+                                            key="drilling"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setDrilling('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Сверловка: {drilling}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {offset && (
+                                        <motion.div
+                                            key="offset"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setOffset('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Вылет: {offset}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {centerHoleDiameter && (
+                                        <motion.div
+                                            key="centerHoleDiameter"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setCenterHoleDiameter('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Диаметр ЦО: {centerHoleDiameter}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {tireModel && (
+                                        <motion.div
+                                            key="tireModel"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setTireModel('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Модель шины: {tireModel}</span>
                                             </Badge>
                                         </motion.div>
                                     )}

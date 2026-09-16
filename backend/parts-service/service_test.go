@@ -390,7 +390,27 @@ func (suite *ServiceTestSuite) TestBuildDatabaseFilters() {
 		Condition:      "Б/у",
 		Manufacturer:   "Honda",
 		Defect:         "Нет",
-		Color:          "Черный",
+		Color:              "Черный",
+		MinPrice:           "1000",
+		MaxPrice:           "50000",
+		MinQuantity:        "1",
+		MaxQuantity:        "10",
+		FrontRear:          "Передний",
+		LeftRight:          "Левый",
+		TopBottom:          "Верхний",
+		ManufacturerCode:   "MF123",
+		SupplierCode:       "SUP456",
+		TransmissionModel:  "W58",
+		WearPercentage:     "15%",
+		Season:             "Зима",
+		Diameter:           "R16",
+		Width:              "205",
+		Profile:            "55",
+		TireQuantity:       "4",
+		Drilling:           "5x114.3",
+		Offset:             "45",
+		CenterHoleDiameter: "60.1",
+		TireModel:          "Hakkapeliitta 9",
 	}
 
 	filters := s.buildDatabaseFilters(params)
@@ -415,6 +435,59 @@ func (suite *ServiceTestSuite) TestBuildDatabaseFilters() {
 	assert.Equal(suite.T(), "Honda", filters["manufacturer_ilike"])
 	assert.Equal(suite.T(), "Нет", filters["defect_ilike"])
 	assert.Equal(suite.T(), "Черный", filters["color_ilike"])
+	assert.Equal(suite.T(), float64(1000), filters["min_price"])
+	assert.Equal(suite.T(), float64(50000), filters["max_price"])
+	assert.Equal(suite.T(), 1, filters["min_quantity"])
+	assert.Equal(suite.T(), 10, filters["max_quantity"])
+	assert.Equal(suite.T(), "Передний", filters["front_rear_ilike"])
+	assert.Equal(suite.T(), "Левый", filters["left_right_ilike"])
+	assert.Equal(suite.T(), "Верхний", filters["top_bottom_ilike"])
+	assert.Equal(suite.T(), "MF123", filters["manufacturer_code_ilike"])
+	assert.Equal(suite.T(), "SUP456", filters["supplier_code_ilike"])
+	assert.Equal(suite.T(), "W58", filters["transmission_model_ilike"])
+	assert.Equal(suite.T(), "15%", filters["wear_percentage_ilike"])
+	assert.Equal(suite.T(), "Зима", filters["season_ilike"])
+	assert.Equal(suite.T(), "R16", filters["diameter_ilike"])
+	assert.Equal(suite.T(), "205", filters["width_ilike"])
+	assert.Equal(suite.T(), "55", filters["profile_ilike"])
+	assert.Equal(suite.T(), "4", filters["tire_quantity_ilike"])
+	assert.Equal(suite.T(), "5x114.3", filters["drilling_ilike"])
+	assert.Equal(suite.T(), "45", filters["offset_ilike"])
+	assert.Equal(suite.T(), "60.1", filters["center_hole_diameter_ilike"])
+	assert.Equal(suite.T(), "Hakkapeliitta 9", filters["tire_model_ilike"])
+}
+
+// TestBuildElasticsearchQuery_NewSpecificationAndRangeFilters - тест новых фильтров в Elasticsearch
+func (suite *ServiceTestSuite) TestBuildElasticsearchQuery_NewSpecificationAndRangeFilters() {
+	s := suite.service.(*inventoryService)
+	params := InventoryQueryParams{
+		MinPrice:          "500",
+		MaxPrice:          "15000",
+		MinQuantity:       "2",
+		MaxQuantity:       "20",
+		FrontRear:         "Передний",
+		Season:            "Зима",
+		TransmissionModel: "W58",
+	}
+	query := s.buildElasticsearchQuery(params)
+	boolQuery := query["bool"].(map[string]interface{})
+	filters := boolQuery["filter"].([]map[string]interface{})
+
+	// quantity >= 0 + price range + quantity range + front_rear + season + transmission_model = 6
+	assert.Equal(suite.T(), 6, len(filters))
+
+	// Проверяем фильтр по диапазону цены
+	foundPriceRange := false
+	for _, f := range filters {
+		if r, ok := f["range"].(map[string]interface{}); ok {
+			if pr, ok := r["price"].(map[string]interface{}); ok {
+				assert.Equal(suite.T(), float64(500), pr["gte"])
+				assert.Equal(suite.T(), float64(15000), pr["lte"])
+				foundPriceRange = true
+			}
+		}
+	}
+	assert.True(suite.T(), foundPriceRange, "Должен присутствовать фильтр по цене")
 }
 
 // TestBuildElasticsearchQuery_DigitsAndReleaseDate - тест поиска с цифрами и годом выпуска

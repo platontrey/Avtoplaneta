@@ -312,6 +312,46 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 			builder = builder.Where("defect ILIKE ?", "%"+value.(string)+"%")
 		case "color_ilike":
 			builder = builder.Where("color ILIKE ?", "%"+value.(string)+"%")
+		case "min_price":
+			builder = builder.Where(squirrel.GtOrEq{"price": value})
+		case "max_price":
+			builder = builder.Where(squirrel.LtOrEq{"price": value})
+		case "min_quantity":
+			builder = builder.Where(squirrel.GtOrEq{"quantity": value})
+		case "max_quantity":
+			builder = builder.Where(squirrel.LtOrEq{"quantity": value})
+		case "front_rear_ilike":
+			builder = builder.Where("front_rear ILIKE ?", "%"+value.(string)+"%")
+		case "left_right_ilike":
+			builder = builder.Where("left_right ILIKE ?", "%"+value.(string)+"%")
+		case "top_bottom_ilike":
+			builder = builder.Where("top_bottom ILIKE ?", "%"+value.(string)+"%")
+		case "manufacturer_code_ilike":
+			builder = builder.Where("manufacturer_code ILIKE ?", "%"+value.(string)+"%")
+		case "supplier_code_ilike":
+			builder = builder.Where("supplier_code ILIKE ?", "%"+value.(string)+"%")
+		case "transmission_model_ilike":
+			builder = builder.Where("transmission_model ILIKE ?", "%"+value.(string)+"%")
+		case "wear_percentage_ilike":
+			builder = builder.Where("wear_percentage ILIKE ?", "%"+value.(string)+"%")
+		case "season_ilike":
+			builder = builder.Where("season ILIKE ?", "%"+value.(string)+"%")
+		case "diameter_ilike":
+			builder = builder.Where("diameter ILIKE ?", "%"+value.(string)+"%")
+		case "width_ilike":
+			builder = builder.Where("width ILIKE ?", "%"+value.(string)+"%")
+		case "profile_ilike":
+			builder = builder.Where("profile ILIKE ?", "%"+value.(string)+"%")
+		case "tire_quantity_ilike":
+			builder = builder.Where("tire_quantity ILIKE ?", "%"+value.(string)+"%")
+		case "drilling_ilike":
+			builder = builder.Where("drilling ILIKE ?", "%"+value.(string)+"%")
+		case "offset_ilike":
+			builder = builder.Where("\"offset\" ILIKE ?", "%"+value.(string)+"%")
+		case "center_hole_diameter_ilike":
+			builder = builder.Where("center_hole_diameter ILIKE ?", "%"+value.(string)+"%")
+		case "tire_model_ilike":
+			builder = builder.Where("tire_model ILIKE ?", "%"+value.(string)+"%")
 		case "search":
 			searchStr := strings.TrimSpace(value.(string))
 			if searchStr != "" {
