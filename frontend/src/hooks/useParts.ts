@@ -94,6 +94,8 @@ export interface PartFilters {
   oem_code?: string;
   /** VIN / Номер кузова */
   vin?: string;
+  /** Период выпуска автомобиля */
+  car_release_period?: string;
   /** Марка кузова */
   body_brand?: string;
   /** Марка двигателя */
