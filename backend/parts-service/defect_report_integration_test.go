@@ -54,6 +54,7 @@ func TestDefectReportHTTPThroughRedisConsumer(t *testing.T) {
 		"brand":              "BMW",
 		"model":              "E90",
 		"year":               2011,
+		"car_release_period": "2005-2011",
 		"vin":                "TESTVIN123456789",
 		"mileage":            123456,
 		"engine_brand":       "N52B30",
@@ -112,6 +113,7 @@ func TestDefectReportHTTPThroughRedisConsumer(t *testing.T) {
 		require.Equal(t, "BMW E90", part.BodyBrand)
 		require.Equal(t, "N52B30", part.EngineBrand)
 		require.Equal(t, "2011", part.CarReleaseDate)
+		require.Equal(t, "2005-2011", part.CarReleasePeriod)
 		require.Equal(t, "System", part.Salesman)
 		require.EqualValues(t, 1, part.SellerID)
 		require.EqualValues(t, 0, part.Price)
@@ -146,6 +148,138 @@ func TestDefectReportHTTPThroughRedisConsumer(t *testing.T) {
 	require.Equal(t, "Черный металлик", findRecordedPart(t, createdParts, "Стекла").Color)
 	require.Equal(t, "6HP19", findRecordedPart(t, createdParts, "Подвеска ДВС/КПП").TransmissionModel)
 	require.Equal(t, "6HP19", findRecordedPart(t, createdParts, "Подвеска передних колес").TransmissionModel)
+}
+
+func TestDefectReportHTTPThroughRedisConsumer_WithSelectedParts(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	catalog, err := LoadPartCatalog()
+	require.NoError(t, err)
+
+	redisServer := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: redisServer.Addr()})
+	t.Cleanup(func() { _ = client.Close() })
+
+	previousRedisClient := redisClient
+	redisClient = client
+	t.Cleanup(func() { redisClient = previousRedisClient })
+
+	recordingService := &recordingInventoryService{}
+	handler := NewHandler(recordingService, catalog)
+	router := gin.New()
+	router.POST("/api/defect-reports", handler.CreateDefectReportHandler)
+
+	consumer := &RedisEventConsumer{
+		client:   client,
+		service:  recordingService,
+		group:    "parts-service-integration-selected",
+		consumer: "worker-integration-selected",
+		stream:   "events:orders",
+	}
+	consumerContext, cancelConsumer := context.WithCancel(context.Background())
+	t.Cleanup(cancelConsumer)
+	consumerDone := make(chan error, 1)
+	go func() { consumerDone <- consumer.Start(consumerContext) }()
+	require.Eventually(t, func() bool {
+		groups, groupErr := client.XInfoGroups(context.Background(), "events:orders").Result()
+		return groupErr == nil && len(groups) == 1
+	}, 5*time.Second, 10*time.Millisecond, "consumer group was not created")
+
+	// Клиент присылает сформированные selectedParts без некоторых характеристик
+	payload := map[string]any{
+		"brand":              "Audi",
+		"model":              "A4",
+		"year":               2015,
+		"car_release_period": "2011-2016",
+		"vin":                "WAUZZZ8K9FA123456",
+		"mileage":            85000,
+		"engine_brand":       "CDNC",
+		"body_brand":         "Audi B8",
+		"transmission":       "Роботизированная",
+		"transmission_model": "DL501",
+		"drive":              "Полный",
+		"selectedParts": []map[string]any{
+			{"name": "КПП в сборе", "category": "Трансмиссия", "quantity": 1, "price": 50000.0},
+			{"name": "Рычаг передний", "category": "Подвеска передних колес", "quantity": 1, "price": 3000.0},
+			{"name": "Подрамник", "category": "Подвеска ДВС/КПП", "quantity": 1, "price": 8000.0},
+			{"name": "Редуктор задний", "category": "Подвеска задних колес", "quantity": 1, "price": 15000.0},
+			{"name": "Рулевая рейка", "category": "Рулевое управление", "quantity": 1, "price": 12000.0},
+			{"name": "Двигатель без навесного", "category": "Двигатель", "quantity": 1, "price": 80000.0},
+			{"name": "Бампер передний", "category": "Кузов снаружи", "quantity": 1, "price": 10000.0},
+		},
+	}
+	body, err := json.Marshal(payload)
+	require.NoError(t, err)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/defect-reports", bytes.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-User-ID", "42")
+	request.Header.Set("X-User-Name", "AutoTester")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	require.Equal(t, http.StatusAccepted, response.Code, response.Body.String())
+
+	require.Eventually(t, func() bool {
+		return len(recordingService.snapshot()) == 7
+	}, 10*time.Second, 10*time.Millisecond, "consumer did not create all 7 selected parts")
+
+	cancelConsumer()
+	select {
+	case consumerErr := <-consumerDone:
+		require.NoError(t, consumerErr)
+	case <-time.After(6 * time.Second):
+		t.Fatal("consumer did not stop after context cancellation")
+	}
+
+	createdParts := recordingService.snapshot()
+	require.Len(t, createdParts, 7)
+
+	for _, part := range createdParts {
+		require.Equal(t, "Audi", part.Brand)
+		require.Equal(t, "A4", part.Model)
+		require.Equal(t, "WAUZZZ8K9FA123456", part.VIN)
+		require.Equal(t, "2015", part.CarReleaseDate)
+		require.Equal(t, "2011-2016", part.CarReleasePeriod)
+		require.Equal(t, "Audi B8", part.BodyBrand)
+		require.Equal(t, "CDNC", part.EngineBrand)
+		require.Equal(t, "AutoTester", part.Salesman)
+		require.EqualValues(t, 42, part.SellerID)
+	}
+
+	// Проверяем детальные характеристики по категориям
+	transPart := findRecordedPart(t, createdParts, "Трансмиссия")
+	require.Equal(t, "Роботизированная", transPart.Transmission)
+	require.Equal(t, "DL501", transPart.TransmissionModel)
+	require.Equal(t, "Полный", transPart.Drive)
+
+	suspFrontPart := findRecordedPart(t, createdParts, "Подвеска передних колес")
+	require.Empty(t, suspFrontPart.Transmission)
+	require.Equal(t, "DL501", suspFrontPart.TransmissionModel)
+	require.Equal(t, "Полный", suspFrontPart.Drive)
+
+	suspEnginePart := findRecordedPart(t, createdParts, "Подвеска ДВС/КПП")
+	require.Empty(t, suspEnginePart.Transmission)
+	require.Equal(t, "DL501", suspEnginePart.TransmissionModel)
+	require.Equal(t, "Полный", suspEnginePart.Drive)
+
+	suspRearPart := findRecordedPart(t, createdParts, "Подвеска задних колес")
+	require.Empty(t, suspRearPart.Transmission)
+	require.Empty(t, suspRearPart.TransmissionModel)
+	require.Equal(t, "Полный", suspRearPart.Drive)
+
+	steeringPart := findRecordedPart(t, createdParts, "Рулевое управление")
+	require.Empty(t, steeringPart.Transmission)
+	require.Empty(t, steeringPart.TransmissionModel)
+	require.Equal(t, "Полный", steeringPart.Drive)
+
+	enginePart := findRecordedPart(t, createdParts, "Двигатель")
+	require.Empty(t, enginePart.Transmission)
+	require.Empty(t, enginePart.TransmissionModel)
+	require.Equal(t, "Полный", enginePart.Drive)
+
+	exteriorPart := findRecordedPart(t, createdParts, "Кузов снаружи")
+	require.Empty(t, exteriorPart.Transmission)
+	require.Empty(t, exteriorPart.TransmissionModel)
+	require.Empty(t, exteriorPart.Drive)
 }
 
 func TestPartCatalogHTTPRevalidation(t *testing.T) {

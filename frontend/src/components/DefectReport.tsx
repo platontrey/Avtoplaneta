@@ -99,6 +99,10 @@ export default function DefectReport() {
 
   // Каталог и зависимости загружаются из единого источника parts-service.
   const commonParts = useMemo(() => flattenCatalogParts(partCatalog), [partCatalog]);
+  const transmissionCategories = useMemo(
+    () => reportBindingCategories(partCatalog, 'transmission'),
+    [partCatalog],
+  );
   const transmissionModelCategories = useMemo(
     () => reportBindingCategories(partCatalog, 'transmission_model'),
     [partCatalog],
@@ -310,17 +314,20 @@ export default function DefectReport() {
               <div>
                 <Label htmlFor="transmission-select">Тип трансмиссии</Label>
                 <ClearableSelect
-    value={watch("transmission") || ""}
-    onValueChange={(value) => setValue("transmission", value)}
-    placeholder="Выберите тип трансмиссии" id="transmission-select" className="h-10 w-full"
->
-    {transmissionOptions.map((option) => (
-                      <SelectItem key={option} value={option}>{option}</SelectItem>
-                    ))}
-</ClearableSelect>
+                  value={watch("transmission") || ""}
+                  onValueChange={(value) => setValue("transmission", value, { shouldValidate: true, shouldDirty: true })}
+                  placeholder="Выберите тип трансмиссии"
+                  id="transmission-select"
+                  className="h-10 w-full"
+                >
+                  {transmissionOptions.map((option) => (
+                    <SelectItem key={option} value={option}>{option}</SelectItem>
+                  ))}
+                </ClearableSelect>
                 <input
                   type="hidden"
                   {...register("transmission")}
+                  value={watch("transmission") || ""}
                   autoComplete="off"
                 />
               </div>
@@ -345,7 +352,7 @@ export default function DefectReport() {
                 <Label htmlFor="drive-select">Привод</Label>
                 <ClearableSelect
                   value={watch("drive") || ""}
-                  onValueChange={(value) => setValue("drive", value)}
+                  onValueChange={(value) => setValue("drive", value, { shouldValidate: true, shouldDirty: true })}
                   placeholder="Выберите привод"
                   id="drive-select"
                   className="h-10 w-full"
@@ -354,7 +361,12 @@ export default function DefectReport() {
                     <SelectItem key={option} value={option}>{option}</SelectItem>
                   ))}
                 </ClearableSelect>
-                <input type="hidden" {...register("drive")} autoComplete="off" />
+                <input
+                  type="hidden"
+                  {...register("drive")}
+                  value={watch("drive") || ""}
+                  autoComplete="off"
+                />
                 <p className="mt-1 text-xs text-gray-500">
                   Значение будет добавлено только к подходящим запчастям подвески,
                   трансмиссии, рулевого управления, выхлопной и тормозной систем,
@@ -366,7 +378,7 @@ export default function DefectReport() {
                 <Label htmlFor="body-color-select">Цвет кузовных деталей</Label>
                 <SearchableSelect
                   value={watch("body_color") || ""}
-                  onValueChange={(value) => setValue("body_color", value)}
+                  onValueChange={(value) => setValue("body_color", value, { shouldValidate: true, shouldDirty: true })}
                   options={availableColors.map((color) => ({ value: color, label: color }))}
                   placeholder="Выберите цвет кузовных деталей"
                   searchPlaceholder="Поиск цвета..."
@@ -375,6 +387,7 @@ export default function DefectReport() {
                 <input
                   type="hidden"
                   {...register("body_color")}
+                  value={watch("body_color") || ""}
                   autoComplete="off"
                 />
               </div>
@@ -383,7 +396,7 @@ export default function DefectReport() {
                 <Label htmlFor="interior-color-select">Цвет салона</Label>
                 <SearchableSelect
                   value={watch("interior_color") || ""}
-                  onValueChange={(value) => setValue("interior_color", value)}
+                  onValueChange={(value) => setValue("interior_color", value, { shouldValidate: true, shouldDirty: true })}
                   options={availableColors.map((color) => ({ value: color, label: color }))}
                   placeholder="Выберите цвет салона"
                   searchPlaceholder="Поиск цвета..."
@@ -392,6 +405,7 @@ export default function DefectReport() {
                 <input
                   type="hidden"
                   {...register("interior_color")}
+                  value={watch("interior_color") || ""}
                   autoComplete="off"
                 />
               </div>
@@ -499,7 +513,12 @@ export default function DefectReport() {
                         {part.oem_code && <div>OEM код: {part.oem_code}</div>}
                         {part.condition && <div>Состояние: {part.condition}</div>}
                         {part.defect && <div>Дефект: {part.defect}</div>}
-                        {part.transmission && <div>Трансмиссия: {part.transmission}</div>}
+                        {watch("car_release_period") && (
+                          <div>Период выпуска: {watch("car_release_period")}</div>
+                        )}
+                        {transmissionCategories.has(part.category) && watch("transmission") && (
+                          <div>Трансмиссия: {watch("transmission")}</div>
+                        )}
                         {transmissionModelCategories.has(part.category) && watch("transmission_model") && (
                           <div>Модель трансмиссии: {watch("transmission_model")}</div>
                         )}

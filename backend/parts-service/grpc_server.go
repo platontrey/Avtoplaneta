@@ -464,6 +464,7 @@ func (s *partsGRPCServer) CreateDefectReport(ctx context.Context, req *partsv1.C
 					BodyBrand:         ep.BodyBrand,
 					EngineBrand:       ep.EngineBrand,
 					CarReleaseDate:    ep.CarReleaseDate,
+					CarReleasePeriod:  ep.CarReleasePeriod,
 					FrontRear:         ep.FrontRear,
 					LeftRight:         ep.LeftRight,
 					TopBottom:         ep.TopBottom,

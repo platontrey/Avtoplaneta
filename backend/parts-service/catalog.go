@@ -266,6 +266,36 @@ func (catalog *PartCatalog) ExpandDefectReport(report DefectReportRequest) []Def
 	return parts
 }
 
+func (catalog *PartCatalog) ApplyBindingsToParts(parts []DefectReportPart, report DefectReportRequest) {
+	values := map[string]string{
+		"body_brand":         strings.TrimSpace(report.BodyBrand),
+		"engine_brand":       strings.TrimSpace(report.EngineBrand),
+		"year":               strconv.Itoa(report.Year),
+		"car_release_period": strings.TrimSpace(report.CarReleasePeriod),
+		"vin":                strings.TrimSpace(report.VIN),
+		"transmission":       strings.TrimSpace(report.Transmission),
+		"transmission_model": strings.TrimSpace(report.TransmissionModel),
+		"drive":              strings.TrimSpace(report.Drive),
+		"interior_color":     strings.TrimSpace(report.InteriorColor),
+		"body_color":         strings.TrimSpace(report.BodyColor),
+	}
+
+	for i := range parts {
+		for _, binding := range catalog.ReportBindings {
+			if !bindingApplies(binding, parts[i].Category) {
+				continue
+			}
+			value := values[binding.Source]
+			if value == "" {
+				value = binding.DefaultValue
+			}
+			if value != "" && getDefectPartField(&parts[i], binding.Target) == "" {
+				setDefectPartField(&parts[i], binding.Target, value)
+			}
+		}
+	}
+}
+
 func bindingApplies(binding CatalogReportBinding, category string) bool {
 	if len(binding.Categories) > 0 && !containsString(binding.Categories, category) {
 		return false
@@ -342,5 +372,70 @@ func setDefectPartField(part *DefectReportPart, field, value string) {
 		part.TireModel = value
 	case "vin":
 		part.VIN = value
+	}
+}
+
+func getDefectPartField(part *DefectReportPart, field string) string {
+	switch field {
+	case "body_brand":
+		return part.BodyBrand
+	case "engine_brand":
+		return part.EngineBrand
+	case "car_release_date":
+		return part.CarReleaseDate
+	case "car_release_period":
+		return part.CarReleasePeriod
+	case "front_rear":
+		return part.FrontRear
+	case "left_right":
+		return part.LeftRight
+	case "top_bottom":
+		return part.TopBottom
+	case "number":
+		return part.Number
+	case "manufacturer":
+		return part.Manufacturer
+	case "manufacturer_code":
+		return part.ManufacturerCode
+	case "oem_code":
+		return part.OEMCode
+	case "color":
+		return part.Color
+	case "condition":
+		return part.Condition
+	case "supplier_code":
+		return part.SupplierCode
+	case "defect":
+		return part.Defect
+	case "transmission":
+		return part.Transmission
+	case "transmission_model":
+		return part.TransmissionModel
+	case "drive":
+		return part.Drive
+	case "wear_percentage":
+		return part.WearPercentage
+	case "season":
+		return part.Season
+	case "diameter":
+		return part.Diameter
+	case "width":
+		return part.Width
+	case "profile":
+		return part.Profile
+	case "tire_quantity":
+		return part.TireQuantity
+	case "drilling":
+		return part.Drilling
+	case "offset":
+		return part.Offset
+	case "center_hole_diameter":
+		return part.CenterHoleDiameter
+	case "tire_model":
+		return part.TireModel
+	case "vin":
+		return part.VIN
+	default:
+		return ""
 	}
 }

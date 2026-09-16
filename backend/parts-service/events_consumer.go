@@ -335,6 +335,43 @@ func (c *RedisEventConsumer) handleDefectReportCreated(ctx context.Context, msg 
 			sem <- struct{}{}        // Занимаем слот
 			defer func() { <-sem }() // Освобождаем слот
 
+			vin := strings.TrimSpace(selectedPart.VIN)
+			if vin == "" {
+				vin = strings.TrimSpace(defectReportData.VIN)
+			}
+			carReleaseDate := strings.TrimSpace(selectedPart.CarReleaseDate)
+			if carReleaseDate == "" && defectReportData.Year > 0 {
+				carReleaseDate = strconv.Itoa(defectReportData.Year)
+			}
+			carReleasePeriod := strings.TrimSpace(selectedPart.CarReleasePeriod)
+			if carReleasePeriod == "" {
+				carReleasePeriod = strings.TrimSpace(defectReportData.CarReleasePeriod)
+			}
+			bodyBrand := strings.TrimSpace(selectedPart.BodyBrand)
+			if bodyBrand == "" {
+				bodyBrand = strings.TrimSpace(defectReportData.BodyBrand)
+			}
+			engineBrand := strings.TrimSpace(selectedPart.EngineBrand)
+			if engineBrand == "" {
+				engineBrand = strings.TrimSpace(defectReportData.EngineBrand)
+			}
+			transmission := strings.TrimSpace(selectedPart.Transmission)
+			if transmission == "" && selectedPart.Category == "Трансмиссия" {
+				transmission = strings.TrimSpace(defectReportData.Transmission)
+			}
+			transmissionModel := strings.TrimSpace(selectedPart.TransmissionModel)
+			if transmissionModel == "" && (selectedPart.Category == "Подвеска ДВС/КПП" || selectedPart.Category == "Трансмиссия" || selectedPart.Category == "Подвеска передних колес") {
+				transmissionModel = strings.TrimSpace(defectReportData.TransmissionModel)
+			}
+			drive := strings.TrimSpace(selectedPart.Drive)
+			if drive == "" {
+				switch selectedPart.Category {
+				case "Подвеска ДВС/КПП", "Трансмиссия", "Подвеска передних колес", "Подвеска задних колес",
+					"Рулевое управление", "Выхлопная система", "Тормозная система", "Электрооснащение", "Двигатель":
+					drive = strings.TrimSpace(defectReportData.Drive)
+				}
+			}
+
 			part := Part{
 				PartCore: PartCore{
 					Name:        selectedPart.Name,
@@ -349,13 +386,13 @@ func (c *RedisEventConsumer) handleDefectReportCreated(ctx context.Context, msg 
 					Model:       defectReportData.Model,
 					Photo:       "",
 					SellerID:    defaultUserID,
-					VIN:         selectedPart.VIN,
+					VIN:         vin,
 				},
 				PartSpecifications: PartSpecifications{
-					BodyBrand:         selectedPart.BodyBrand,
-					EngineBrand:       selectedPart.EngineBrand,
-					CarReleaseDate:    selectedPart.CarReleaseDate,
-					CarReleasePeriod:  selectedPart.CarReleasePeriod,
+					BodyBrand:         bodyBrand,
+					EngineBrand:       engineBrand,
+					CarReleaseDate:    carReleaseDate,
+					CarReleasePeriod:  carReleasePeriod,
 					FrontRear:         selectedPart.FrontRear,
 					LeftRight:         selectedPart.LeftRight,
 					TopBottom:         selectedPart.TopBottom,
@@ -367,9 +404,9 @@ func (c *RedisEventConsumer) handleDefectReportCreated(ctx context.Context, msg 
 					Condition:         selectedPart.Condition,
 					SupplierCode:      selectedPart.SupplierCode,
 					Defect:            selectedPart.Defect,
-					Transmission:      selectedPart.Transmission,
-					TransmissionModel: selectedPart.TransmissionModel,
-					Drive:             selectedPart.Drive,
+					Transmission:      transmission,
+					TransmissionModel: transmissionModel,
+					Drive:             drive,
 					WearPercentage:    selectedPart.WearPercentage,
 				},
 				PartTireSpecifications: PartTireSpecifications{

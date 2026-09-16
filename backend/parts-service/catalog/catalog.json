@@ -186,6 +186,7 @@
       "code": "form_exhaust",
       "name": "Выхлопная система",
       "attributes": [
+        "car_release_period",
         "front_rear",
         "left_right",
         "top_bottom",
@@ -225,6 +226,7 @@
       "code": "form_wheels",
       "name": "Диски и шины",
       "attributes": [
+        "car_release_period",
         "front_rear",
         "left_right",
         "diameter",
@@ -251,6 +253,7 @@
       "code": "form_body_interior",
       "name": "Кузов внутри",
       "attributes": [
+        "car_release_period",
         "front_rear",
         "left_right",
         "top_bottom",
@@ -268,6 +271,7 @@
       "code": "form_body_exterior",
       "name": "Кузов снаружи",
       "attributes": [
+        "car_release_period",
         "front_rear",
         "left_right",
         "top_bottom",
@@ -285,6 +289,7 @@
       "code": "form_optics",
       "name": "Оптика",
       "attributes": [
+        "car_release_period",
         "front_rear",
         "left_right",
         "top_bottom",
@@ -302,6 +307,7 @@
       "code": "form_pneumatic",
       "name": "Пневмосистема",
       "attributes": [
+        "car_release_period",
         "front_rear",
         "left_right",
         "top_bottom",
@@ -319,6 +325,7 @@
       "code": "form_suspension_engine_trans",
       "name": "Подвеска ДВС/КПП",
       "attributes": [
+        "car_release_period",
         "front_rear",
         "left_right",
         "top_bottom",
@@ -338,6 +345,7 @@
       "code": "form_suspension_rear",
       "name": "Подвеска задних колес",
       "attributes": [
+        "car_release_period",
         "front_rear",
         "left_right",
         "top_bottom",
@@ -356,6 +364,7 @@
       "code": "form_suspension_front",
       "name": "Подвеска передних колес",
       "attributes": [
+        "car_release_period",
         "front_rear",
         "left_right",
         "top_bottom",
@@ -375,6 +384,7 @@
       "code": "form_steering",
       "name": "Рулевое управление",
       "attributes": [
+        "car_release_period",
         "front_rear",
         "left_right",
         "top_bottom",
@@ -393,6 +403,7 @@
       "code": "form_ac",
       "name": "Система кондиционирования",
       "attributes": [
+        "car_release_period",
         "front_rear",
         "left_right",
         "number",
@@ -409,6 +420,7 @@
       "code": "form_cooling",
       "name": "Система охлаждения и отопления",
       "attributes": [
+        "car_release_period",
         "front_rear",
         "left_right",
         "top_bottom",
@@ -426,6 +438,7 @@
       "code": "form_accessories",
       "name": "Сопутствующие товары",
       "attributes": [
+        "car_release_period",
         "front_rear",
         "left_right",
         "number",
@@ -442,6 +455,7 @@
       "code": "form_glass",
       "name": "Стекла",
       "attributes": [
+        "car_release_period",
         "front_rear",
         "left_right",
         "top_bottom",
@@ -459,6 +473,7 @@
       "code": "form_brakes",
       "name": "Тормозная система",
       "attributes": [
+        "car_release_period",
         "front_rear",
         "left_right",
         "top_bottom",
@@ -478,6 +493,7 @@
       "code": "form_transmission",
       "name": "Трансмиссия",
       "attributes": [
+        "car_release_period",
         "front_rear",
         "left_right",
         "transmission",
@@ -497,6 +513,7 @@
       "code": "form_electrical",
       "name": "Электрооснащение",
       "attributes": [
+        "car_release_period",
         "front_rear",
         "left_right",
         "top_bottom",

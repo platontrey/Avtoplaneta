@@ -184,6 +184,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
     }
 
     final allParts = catalog.parts.map((part) => part.toPreviewMap()).toList();
+    final transmissionCategories = catalog.categoriesForBinding('transmission');
     final driveCategories = catalog.categoriesForBinding('drive');
     final transmissionModelCategories = catalog.categoriesForBinding(
       'transmission_model',
@@ -313,6 +314,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
             _buildPartsPreviewSection(
               filteredParts,
               totalParts: allParts.length,
+              transmissionCategories: transmissionCategories,
               driveCategories: driveCategories,
               transmissionModelCategories: transmissionModelCategories,
             ),
@@ -394,6 +396,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
   Widget _buildPartsPreviewSection(
     List<Map<String, dynamic>> filteredParts, {
     required int totalParts,
+    required Set<String> transmissionCategories,
     required Set<String> driveCategories,
     required Set<String> transmissionModelCategories,
   }) {
@@ -495,6 +498,25 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
                                     fontSize: 11,
                                   ),
                                 ),
+                                if (_carReleasePeriodCtrl.text.trim().isNotEmpty)
+                                  Text(
+                                    'Период выпуска: ${_carReleasePeriodCtrl.text.trim()}',
+                                    style: const TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                if (transmissionCategories.contains(
+                                      part['category'],
+                                    ) &&
+                                    (_selectedTransmission?.isNotEmpty ?? false))
+                                  Text(
+                                    'Трансмиссия: $_selectedTransmission',
+                                    style: const TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 11,
+                                    ),
+                                  ),
                                 if (driveCategories.contains(
                                       part['category'],
                                     ) &&

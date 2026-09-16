@@ -276,6 +276,16 @@ void main() {
             'target': 'car_release_period',
           },
           {
+            'source': 'transmission',
+            'target': 'transmission',
+            'categories': ['Трансмиссия'],
+          },
+          {
+            'source': 'transmission_model',
+            'target': 'transmission_model',
+            'categories': ['Трансмиссия'],
+          },
+          {
             'source': 'drive',
             'target': 'drive',
             'categories': ['Трансмиссия'],
@@ -304,7 +314,13 @@ void main() {
       });
 
       final parts = catalog.expandDefectReportParts(
-        {'year': 2011, 'car_release_period': '2008-2015', 'drive': 'Задний'},
+        {
+          'year': 2011,
+          'car_release_period': '2008-2015',
+          'transmission': 'АКПП',
+          'transmission_model': '6HP19',
+          'drive': 'Задний',
+        },
         supplierCode: 'report-123',
       );
 
@@ -312,10 +328,14 @@ void main() {
       expect(parts.first['left_right'], 'L');
       expect(parts.first['car_release_date'], '2011');
       expect(parts.first['car_release_period'], '2008-2015');
+      expect(parts.first['transmission'], 'АКПП');
+      expect(parts.first['transmission_model'], '6HP19');
       expect(parts.first['drive'], 'Задний');
       expect(parts.first['supplier_code'], 'report-123');
       expect(parts.last['car_release_date'], '2011');
       expect(parts.last['car_release_period'], '2008-2015');
+      expect(parts.last.containsKey('transmission'), false);
+      expect(parts.last.containsKey('transmission_model'), false);
       expect(parts.last.containsKey('drive'), false);
     });
   });

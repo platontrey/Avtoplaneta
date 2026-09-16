@@ -27,6 +27,8 @@ func (h *Handler) CreateDefectReportHandler(c *gin.Context) {
 			return
 		}
 		defectReportData.SelectedParts = h.partCatalog.ExpandDefectReport(defectReportData)
+	} else if h.partCatalog != nil {
+		h.partCatalog.ApplyBindingsToParts(defectReportData.SelectedParts, defectReportData)
 	}
 
 	userIDStr := c.GetHeader("X-User-ID")
