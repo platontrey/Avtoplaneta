@@ -3,7 +3,7 @@
 */
 
 import { useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ClearableSelect } from "@/components/ClearableSelect";
 import { SelectItem } from "@/components/ui/select";
-import { Save, ArrowLeft } from "lucide-react";
+import { Save, ArrowLeft, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getAuthHeaders } from "@/lib/csrf";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -22,7 +22,6 @@ import { formatCarReleasePeriod } from "@/lib/utils";
 import {
   flattenCatalogParts,
   expandDefectReportParts,
-  reportBindingCategories,
   usePartCatalog,
 } from '@/features/catalog/usePartCatalog';
 
@@ -76,6 +75,7 @@ type DefectReportFormData = z.infer<typeof defectReportSchema>;
 export default function DefectReport() {
   const [loading, setLoading] = useState<boolean>(false);
   const [displayLimit, setDisplayLimit] = useState<number>(10);
+  const [previewSearch, setPreviewSearch] = useState<string>("");
   const {
     data: partCatalog,
     isLoading: catalogLoading,
@@ -84,13 +84,26 @@ export default function DefectReport() {
 
   const {
     register,
+    control,
     handleSubmit,
-    setValue,
     watch,
     formState: { errors },
   } = useForm<DefectReportFormData>({
     resolver: zodResolver(defectReportSchema),
     defaultValues: {
+      brand: "",
+      model: "",
+      year: new Date().getFullYear(),
+      vin: "",
+      car_release_period: "",
+      mileage: 0,
+      engine_brand: "",
+      body_brand: "",
+      transmission: "",
+      transmission_model: "",
+      drive: "",
+      interior_color: "",
+      body_color: "",
       description: "В связи с изменением цены конечную стоимость товара узнавать по WhatsApp 89138538227",
     },
   });
@@ -99,24 +112,27 @@ export default function DefectReport() {
 
   // Каталог и зависимости загружаются из единого источника parts-service.
   const commonParts = useMemo(() => flattenCatalogParts(partCatalog), [partCatalog]);
-  const transmissionCategories = useMemo(
-    () => reportBindingCategories(partCatalog, 'transmission'),
-    [partCatalog],
-  );
-  const transmissionModelCategories = useMemo(
-    () => reportBindingCategories(partCatalog, 'transmission_model'),
-    [partCatalog],
-  );
-  const driveCategories = useMemo(
-    () => reportBindingCategories(partCatalog, 'drive'),
-    [partCatalog],
-  );
   const transmissionOptions =
     partCatalog?.attributes.find((attribute) => attribute.code === 'transmission')?.options ?? [];
   const driveOptions =
     partCatalog?.attributes.find((attribute) => attribute.code === 'drive')?.options ?? [];
 
-  const commonPartsWithColor = commonParts;
+  const formValues = watch();
+
+  const previewParts = useMemo(() => {
+    if (!partCatalog) return commonParts;
+    return expandDefectReportParts(partCatalog, formValues, "preview");
+  }, [partCatalog, formValues, commonParts]);
+
+  const filteredParts = useMemo(() => {
+    if (!previewSearch.trim()) return previewParts;
+    const query = previewSearch.toLowerCase().trim();
+    return previewParts.filter(
+      (part) =>
+        part.name.toLowerCase().includes(query) ||
+        part.category.toLowerCase().includes(query)
+    );
+  }, [previewParts, previewSearch]);
 
   const onSubmit = async (data: DefectReportFormData) => {
     if (!partCatalog) {
@@ -203,24 +219,26 @@ export default function DefectReport() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Информация об автомобиле */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
+            {/* Левая колонка: Основные данные автомобиля */}
             <div className="space-y-4">
               <div>
                 <Label htmlFor="brand-select">Бренд *</Label>
-                <SearchableSelect
-                  value={brand || ""}
-                  onValueChange={(value) => setValue("brand", value, { shouldValidate: true })}
-                  options={brandOptions}
-                  placeholder="Выберите или введите бренд"
-                  searchPlaceholder="Поиск бренда или ввод нового..."
-                  allowCustom={true}
-                  className="h-10 w-full"
+                <Controller
+                  control={control}
+                  name="brand"
+                  render={({ field }) => (
+                    <SearchableSelect
+                      value={field.value || ""}
+                      onValueChange={field.onChange}
+                      options={brandOptions}
+                      placeholder="Выберите или введите бренд"
+                      searchPlaceholder="Поиск бренда или ввод нового..."
+                      allowCustom={true}
+                      className="h-10 w-full"
+                    />
+                  )}
                 />
-                <input
-                  type="hidden"
-                  {...register("brand")}
-                  autoComplete="organization"
-                />
-                {errors.brand && <p className="text-red-500 text-sm">{errors.brand.message}</p>}
+                {errors.brand && <p className="text-red-500 text-sm mt-1">{errors.brand.message}</p>}
               </div>
 
               <div>
@@ -233,12 +251,74 @@ export default function DefectReport() {
                   className="h-10"
                   autoComplete="model"
                 />
-                {errors.model && <p className="text-red-500 text-sm">{errors.model.message}</p>}
+                {errors.model && <p className="text-red-500 text-sm mt-1">{errors.model.message}</p>}
+              </div>
+
+              <div>
+                <Label htmlFor="year">Год выпуска *</Label>
+                <Input
+                  id="year"
+                  {...register("year", { valueAsNumber: true })}
+                  type="number"
+                  className="h-10"
+                  autoComplete="off"
+                />
+                {errors.year && <p className="text-red-500 text-sm mt-1">{errors.year.message}</p>}
+              </div>
+
+              <div>
+                <Label htmlFor="vin">VIN / Номер кузова</Label>
+                <Input
+                  id="vin"
+                  {...register("vin")}
+                  type="text"
+                  placeholder="WVWZZZ1JZ3W386549"
+                  className="h-10"
+                  autoComplete="off"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="car_release_period">Период выпуска автомобиля</Label>
+                <Controller
+                  control={control}
+                  name="car_release_period"
+                  render={({ field }) => (
+                    <Input
+                      id="car_release_period"
+                      value={field.value || ""}
+                      onChange={(e) => field.onChange(formatCarReleasePeriod(e.target.value))}
+                      type="text"
+                      placeholder="Например: 2001-2007"
+                      className="h-10"
+                      autoComplete="off"
+                    />
+                  )}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="mileage">Пробег (км) *</Label>
+                <Input
+                  id="mileage"
+                  {...register("mileage", { valueAsNumber: true })}
+                  type="number"
+                  className="h-10"
+                  autoComplete="off"
+                />
+                {errors.mileage && <p className="text-red-500 text-sm mt-1">{errors.mileage.message}</p>}
               </div>
 
               <div>
                 <Label htmlFor="body-brand">Марка кузова</Label>
-                <Input id="body-brand" {...register("body_brand")} type="text" placeholder="Например: E90" className="h-10" autoComplete="off" />
+                <Input
+                  id="body-brand"
+                  {...register("body_brand")}
+                  type="text"
+                  placeholder="Например: E90"
+                  className="h-10"
+                  autoComplete="off"
+                />
               </div>
 
               <div>
@@ -254,93 +334,45 @@ export default function DefectReport() {
               </div>
             </div>
 
+            {/* Правая колонка: Характеристики и цвета */}
             <div className="space-y-4">
-              <div>
-                <Label htmlFor="vin">VIN / Номер кузова</Label>
-                <Input
-                  id="vin"
-                  {...register("vin")}
-                  type="text"
-                  placeholder="WVWZZZ1JZ3W386549"
-                  className="h-10"
-                  autoComplete="off"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="car_release_period">Период выпуска автомобиля</Label>
-                <Input
-                  id="car_release_period"
-                  {...register("car_release_period", {
-                    onChange: (e) => {
-                      const formatted = formatCarReleasePeriod(e.target.value);
-                      e.target.value = formatted;
-                      setValue("car_release_period", formatted);
-                    },
-                  })}
-                  type="text"
-                  placeholder="Например: 2001-2007"
-                  className="h-10"
-                  autoComplete="off"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="mileage">Пробег (км) *</Label>
-                <Input
-                  id="mileage"
-                  {...register("mileage", { valueAsNumber: true })}
-                  type="number"
-                  className="h-10"
-                  autoComplete="off"
-                />
-                {errors.mileage && <p className="text-red-500 text-sm">{errors.mileage.message}</p>}
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="year">Год выпуска *</Label>
-                <Input
-                  id="year"
-                  {...register("year", { valueAsNumber: true })}
-                  type="number"
-                  className="h-10"
-                  autoComplete="off"
-                />
-                {errors.year && <p className="text-red-500 text-sm">{errors.year.message}</p>}
-              </div>
-
               <div>
                 <Label htmlFor="transmission-select">Тип трансмиссии</Label>
-                <ClearableSelect
-                  value={watch("transmission") || ""}
-                  onValueChange={(value) => setValue("transmission", value, { shouldValidate: true, shouldDirty: true })}
-                  placeholder="Выберите тип трансмиссии"
-                  id="transmission-select"
-                  className="h-10 w-full"
-                >
-                  {transmissionOptions.map((option) => (
-                    <SelectItem key={option} value={option}>{option}</SelectItem>
-                  ))}
-                </ClearableSelect>
-                <input
-                  type="hidden"
-                  {...register("transmission")}
-                  value={watch("transmission") || ""}
-                  autoComplete="off"
+                <Controller
+                  control={control}
+                  name="transmission"
+                  render={({ field }) => (
+                    <ClearableSelect
+                      value={field.value || ""}
+                      onValueChange={field.onChange}
+                      placeholder="Выберите тип трансмиссии"
+                      id="transmission-select"
+                      className="h-10 w-full"
+                    >
+                      {transmissionOptions.map((option) => (
+                        <SelectItem key={option} value={option}>{option}</SelectItem>
+                      ))}
+                    </ClearableSelect>
+                  )}
                 />
               </div>
 
               <div>
                 <Label htmlFor="transmission-model">Модель трансмиссии</Label>
-                <Input
-                  id="transmission-model"
-                  {...register("transmission_model")}
-                  type="text"
-                  placeholder="Введите номер трансмиссии"
-                  className="h-10"
-                  autoComplete="off"
+                <Controller
+                  control={control}
+                  name="transmission_model"
+                  render={({ field }) => (
+                    <Input
+                      id="transmission-model"
+                      value={field.value || ""}
+                      onChange={field.onChange}
+                      type="text"
+                      placeholder="Введите номер трансмиссии"
+                      className="h-10"
+                      autoComplete="off"
+                    />
+                  )}
                 />
                 <p className="mt-1 text-xs text-gray-500">
                   Укажите номер трансмиссии. Применяется к подвеске ДВС/КПП,
@@ -350,22 +382,22 @@ export default function DefectReport() {
 
               <div>
                 <Label htmlFor="drive-select">Привод</Label>
-                <ClearableSelect
-                  value={watch("drive") || ""}
-                  onValueChange={(value) => setValue("drive", value, { shouldValidate: true, shouldDirty: true })}
-                  placeholder="Выберите привод"
-                  id="drive-select"
-                  className="h-10 w-full"
-                >
-                  {driveOptions.map((option) => (
-                    <SelectItem key={option} value={option}>{option}</SelectItem>
-                  ))}
-                </ClearableSelect>
-                <input
-                  type="hidden"
-                  {...register("drive")}
-                  value={watch("drive") || ""}
-                  autoComplete="off"
+                <Controller
+                  control={control}
+                  name="drive"
+                  render={({ field }) => (
+                    <ClearableSelect
+                      value={field.value || ""}
+                      onValueChange={field.onChange}
+                      placeholder="Выберите привод"
+                      id="drive-select"
+                      className="h-10 w-full"
+                    >
+                      {driveOptions.map((option) => (
+                        <SelectItem key={option} value={option}>{option}</SelectItem>
+                      ))}
+                    </ClearableSelect>
+                  )}
                 />
                 <p className="mt-1 text-xs text-gray-500">
                   Значение будет добавлено только к подходящим запчастям подвески,
@@ -376,37 +408,37 @@ export default function DefectReport() {
 
               <div>
                 <Label htmlFor="body-color-select">Цвет кузовных деталей</Label>
-                <SearchableSelect
-                  value={watch("body_color") || ""}
-                  onValueChange={(value) => setValue("body_color", value, { shouldValidate: true, shouldDirty: true })}
-                  options={availableColors.map((color) => ({ value: color, label: color }))}
-                  placeholder="Выберите цвет кузовных деталей"
-                  searchPlaceholder="Поиск цвета..."
-                  className="h-10 w-full"
-                />
-                <input
-                  type="hidden"
-                  {...register("body_color")}
-                  value={watch("body_color") || ""}
-                  autoComplete="off"
+                <Controller
+                  control={control}
+                  name="body_color"
+                  render={({ field }) => (
+                    <SearchableSelect
+                      value={field.value || ""}
+                      onValueChange={field.onChange}
+                      options={availableColors.map((color) => ({ value: color, label: color }))}
+                      placeholder="Выберите цвет кузовных деталей"
+                      searchPlaceholder="Поиск цвета..."
+                      className="h-10 w-full"
+                    />
+                  )}
                 />
               </div>
 
               <div>
                 <Label htmlFor="interior-color-select">Цвет салона</Label>
-                <SearchableSelect
-                  value={watch("interior_color") || ""}
-                  onValueChange={(value) => setValue("interior_color", value, { shouldValidate: true, shouldDirty: true })}
-                  options={availableColors.map((color) => ({ value: color, label: color }))}
-                  placeholder="Выберите цвет салона"
-                  searchPlaceholder="Поиск цвета..."
-                  className="h-10 w-full"
-                />
-                <input
-                  type="hidden"
-                  {...register("interior_color")}
-                  value={watch("interior_color") || ""}
-                  autoComplete="off"
+                <Controller
+                  control={control}
+                  name="interior_color"
+                  render={({ field }) => (
+                    <SearchableSelect
+                      value={field.value || ""}
+                      onValueChange={field.onChange}
+                      options={availableColors.map((color) => ({ value: color, label: color }))}
+                      placeholder="Выберите цвет салона"
+                      searchPlaceholder="Поиск цвета..."
+                      className="h-10 w-full"
+                    />
+                  )}
                 />
               </div>
             </div>
@@ -432,120 +464,116 @@ export default function DefectReport() {
             {catalogError && (
               <p className="mb-3 text-sm text-red-600">{catalogError.message}</p>
             )}
-            <div className="flex items-center gap-4 mb-4">
-              <p className="text-gray-500">
-                Будет создано {commonPartsWithColor.length} распространённых запчастей для автомобиля {brand} {watch("model")}:
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <p className="text-gray-500 text-sm">
+                Будет создано {previewParts.length} распространённых запчастей для автомобиля {brand || "—"} {watch("model") || ""}:
+                {previewSearch.trim() && (
+                  <span className="ml-1 text-blue-600 font-medium">
+                    (найдено: {filteredParts.length})
+                  </span>
+                )}
               </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDisplayLimit(10)}
-                  className={displayLimit === 10 ? "bg-blue-50 border-blue-200" : ""}
-                >
-                  10
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDisplayLimit(20)}
-                  className={displayLimit === 20 ? "bg-blue-50 border-blue-200" : ""}
-                >
-                  20
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDisplayLimit(30)}
-                  className={displayLimit === 30 ? "bg-blue-50 border-blue-200" : ""}
-                >
-                  30
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDisplayLimit(50)}
-                  className={displayLimit === 50 ? "bg-blue-50 border-blue-200" : ""}
-                >
-                  50
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDisplayLimit(100)}
-                  className={displayLimit === 100 ? "bg-blue-50 border-blue-200" : ""}
-                >
-                  100
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDisplayLimit(commonPartsWithColor.length)}
-                  className={displayLimit === commonPartsWithColor.length ? "bg-blue-50 border-blue-200" : ""}
-                >
-                  Все
-                </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative w-full sm:w-60">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="Поиск запчасти / категории..."
+                    value={previewSearch}
+                    onChange={(e) => setPreviewSearch(e.target.value)}
+                    className="pl-9 h-8 text-sm"
+                  />
+                </div>
+                <div className="flex items-center gap-1">
+                  {[10, 20, 50, 100].map((limit) => (
+                    <Button
+                      key={limit}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDisplayLimit(limit)}
+                      className={`h-8 px-2.5 text-xs ${displayLimit === limit ? "bg-blue-50 border-blue-300 text-blue-700 font-medium" : ""}`}
+                    >
+                      {limit}
+                    </Button>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDisplayLimit(filteredParts.length || 1)}
+                    className={`h-8 px-2.5 text-xs ${displayLimit >= filteredParts.length ? "bg-blue-50 border-blue-300 text-blue-700 font-medium" : ""}`}
+                  >
+                    Все
+                  </Button>
+                </div>
               </div>
             </div>
             <div className="max-h-96 overflow-y-auto border rounded-lg p-4 bg-gray-50">
-              <div className="grid grid-cols-1 gap-2">
-                {commonPartsWithColor.slice(0, displayLimit).map((part, index) => (
-                  <div key={index} className="p-2 border-b border-gray-100 last:border-b-0">
-                    <div className="flex-1">
-                      <Label className="font-medium text-sm">
-                        {part.name}
-                      </Label>
-                      <div className="mt-1 text-xs text-gray-600">
-                        <div>Категория: {part.category}</div>
-                        <div>Цвет: {part.color}</div>
-                        {part.front_rear && <div>Перед/зад: {part.front_rear}</div>}
-                        {part.left_right && <div>Лево/право: {part.left_right}</div>}
-                        {part.top_bottom && <div>Верх/низ: {part.top_bottom}</div>}
-                        {part.number && <div>Номер: {part.number}</div>}
-                        {part.manufacturer && <div>Производитель: {part.manufacturer}</div>}
-                        {part.manufacturer_code && <div>Код производителя: {part.manufacturer_code}</div>}
-                        {part.oem_code && <div>OEM код: {part.oem_code}</div>}
-                        {part.condition && <div>Состояние: {part.condition}</div>}
-                        {part.defect && <div>Дефект: {part.defect}</div>}
-                        {watch("car_release_period") && (
-                          <div>Период выпуска: {watch("car_release_period")}</div>
-                        )}
-                        {transmissionCategories.has(part.category) && watch("transmission") && (
-                          <div>Трансмиссия: {watch("transmission")}</div>
-                        )}
-                        {transmissionModelCategories.has(part.category) && watch("transmission_model") && (
-                          <div>Модель трансмиссии: {watch("transmission_model")}</div>
-                        )}
-                        {driveCategories.has(part.category) && watch("drive") && (
-                          <div>Привод: {watch("drive")}</div>
-                        )}
-                        {part.wear_percentage && <div>Процент износа: {part.wear_percentage}</div>}
-                        {part.season && <div>Сезон: {part.season}</div>}
-                        {part.diameter && <div>Диаметр: {part.diameter}</div>}
-                        {part.width && <div>Ширина: {part.width}</div>}
-                        {part.profile && <div>Профиль: {part.profile}</div>}
-                        {part.tire_quantity && <div>Количество шин: {part.tire_quantity}</div>}
-                        {part.drilling && <div>Сверловка: {part.drilling}</div>}
-                        {part.offset && <div>Вылет: {part.offset}</div>}
-                        {part.center_hole_diameter && <div>Диаметр ЦО: {part.center_hole_diameter}</div>}
-                        {part.tire_model && <div>Модель шины: {part.tire_model}</div>}
-                        <div className="text-green-600">Кол-во: {part.quantity}, Цена: {part.price}₽</div>
+              {filteredParts.length === 0 ? (
+                <div className="text-center py-8 text-gray-400 text-sm">
+                  {previewSearch.trim()
+                    ? `Ничего не найдено по запросу "${previewSearch}"`
+                    : "Нет доступных запчастей в каталоге"}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-2">
+                  {filteredParts.slice(0, displayLimit).map((part, index) => (
+                    <div key={index} className="p-2 border-b border-gray-100 last:border-b-0">
+                      <div className="flex-1">
+                        <Label className="font-medium text-sm">
+                          {part.name}
+                        </Label>
+                        <div className="mt-1 text-xs text-gray-600">
+                          <div>Категория: {part.category}</div>
+                          {part.color && <div>Цвет: {part.color}</div>}
+                          {part.car_release_date && <div>Год: {part.car_release_date}</div>}
+                          {part.car_release_period && (
+                            <div className="text-blue-700 font-medium">Период выпуска: {part.car_release_period}</div>
+                          )}
+                          {part.body_brand && <div>Марка кузова: {part.body_brand}</div>}
+                          {part.engine_brand && <div>Марка двигателя: {part.engine_brand}</div>}
+                          {part.vin && <div>VIN: {part.vin}</div>}
+                          {part.transmission && (
+                            <div className="text-blue-700 font-medium">Трансмиссия: {part.transmission}</div>
+                          )}
+                          {part.transmission_model && (
+                            <div className="text-blue-700 font-medium">Модель трансмиссии: {part.transmission_model}</div>
+                          )}
+                          {part.drive && (
+                            <div className="text-blue-700 font-medium">Привод: {part.drive}</div>
+                          )}
+                          {part.front_rear && <div>Перед/зад: {part.front_rear}</div>}
+                          {part.left_right && <div>Лево/право: {part.left_right}</div>}
+                          {part.top_bottom && <div>Верх/низ: {part.top_bottom}</div>}
+                          {part.number && <div>Номер: {part.number}</div>}
+                          {part.manufacturer && <div>Производитель: {part.manufacturer}</div>}
+                          {part.manufacturer_code && <div>Код производителя: {part.manufacturer_code}</div>}
+                          {part.oem_code && <div>OEM код: {part.oem_code}</div>}
+                          {part.condition && <div>Состояние: {part.condition}</div>}
+                          {part.defect && <div>Дефект: {part.defect}</div>}
+                          {part.wear_percentage && <div>Процент износа: {part.wear_percentage}</div>}
+                          {part.season && <div>Сезон: {part.season}</div>}
+                          {part.diameter && <div>Диаметр: {part.diameter}</div>}
+                          {part.width && <div>Ширина: {part.width}</div>}
+                          {part.profile && <div>Профиль: {part.profile}</div>}
+                          {part.tire_quantity && <div>Количество шин: {part.tire_quantity}</div>}
+                          {part.drilling && <div>Сверловка: {part.drilling}</div>}
+                          {part.offset && <div>Вылет: {part.offset}</div>}
+                          {part.center_hole_diameter && <div>Диаметр ЦО: {part.center_hole_diameter}</div>}
+                          {part.tire_model && <div>Модель шины: {part.tire_model}</div>}
+                          <div className="text-green-600">Кол-во: {part.quantity}, Цена: {part.price}₽</div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-                {commonPartsWithColor.length > displayLimit && (
-                  <div className="text-center text-sm text-gray-500 mt-2">
-                    ... и ещё {commonPartsWithColor.length - displayLimit} запчастей
-                  </div>
-                )}
-              </div>
+                  ))}
+                  {filteredParts.length > displayLimit && (
+                    <div className="text-center text-sm text-gray-500 mt-2">
+                      ... и ещё {filteredParts.length - displayLimit} запчастей
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

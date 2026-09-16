@@ -220,10 +220,14 @@ func isDefectPartField(field string) bool {
 }
 
 func (catalog *PartCatalog) ExpandDefectReport(report DefectReportRequest) []DefectReportPart {
+	yearStr := ""
+	if report.Year > 0 {
+		yearStr = strconv.Itoa(report.Year)
+	}
 	values := map[string]string{
 		"body_brand":         strings.TrimSpace(report.BodyBrand),
 		"engine_brand":       strings.TrimSpace(report.EngineBrand),
-		"year":               strconv.Itoa(report.Year),
+		"year":               yearStr,
 		"car_release_period": strings.TrimSpace(report.CarReleasePeriod),
 		"vin":                strings.TrimSpace(report.VIN),
 		"transmission":       strings.TrimSpace(report.Transmission),
@@ -267,10 +271,14 @@ func (catalog *PartCatalog) ExpandDefectReport(report DefectReportRequest) []Def
 }
 
 func (catalog *PartCatalog) ApplyBindingsToParts(parts []DefectReportPart, report DefectReportRequest) {
+	yearStr := ""
+	if report.Year > 0 {
+		yearStr = strconv.Itoa(report.Year)
+	}
 	values := map[string]string{
 		"body_brand":         strings.TrimSpace(report.BodyBrand),
 		"engine_brand":       strings.TrimSpace(report.EngineBrand),
-		"year":               strconv.Itoa(report.Year),
+		"year":               yearStr,
 		"car_release_period": strings.TrimSpace(report.CarReleasePeriod),
 		"vin":                strings.TrimSpace(report.VIN),
 		"transmission":       strings.TrimSpace(report.Transmission),
@@ -289,7 +297,7 @@ func (catalog *PartCatalog) ApplyBindingsToParts(parts []DefectReportPart, repor
 			if value == "" {
 				value = binding.DefaultValue
 			}
-			if value != "" && getDefectPartField(&parts[i], binding.Target) == "" {
+			if value != "" && strings.TrimSpace(getDefectPartField(&parts[i], binding.Target)) == "" {
 				setDefectPartField(&parts[i], binding.Target, value)
 			}
 		}

@@ -371,6 +371,21 @@ func (c *RedisEventConsumer) handleDefectReportCreated(ctx context.Context, msg 
 					drive = strings.TrimSpace(defectReportData.Drive)
 				}
 			}
+			color := strings.TrimSpace(selectedPart.Color)
+			if color == "" {
+				switch selectedPart.Category {
+				case "Электрооснащение", "Система кондиционирования", "Сопутствующие товары":
+					color = strings.TrimSpace(defectReportData.InteriorColor)
+					if color == "" {
+						color = "Черный"
+					}
+				default:
+					color = strings.TrimSpace(defectReportData.BodyColor)
+					if color == "" {
+						color = "Белый"
+					}
+				}
+			}
 
 			part := Part{
 				PartCore: PartCore{
@@ -400,7 +415,7 @@ func (c *RedisEventConsumer) handleDefectReportCreated(ctx context.Context, msg 
 					Manufacturer:      selectedPart.Manufacturer,
 					ManufacturerCode:  selectedPart.ManufacturerCode,
 					OEMCode:           selectedPart.OEMCode,
-					Color:             selectedPart.Color,
+					Color:             color,
 					Condition:         selectedPart.Condition,
 					SupplierCode:      selectedPart.SupplierCode,
 					Defect:            selectedPart.Defect,
