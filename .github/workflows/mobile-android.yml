@@ -93,14 +93,13 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: ''
 
       - name: Install Android toolchain
-        run: >-
-          sdkmanager
-          "platform-tools"
-          "platforms;android-36"
-          "build-tools;36.0.0"
-          "ndk;27.0.12077973"
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.0.12077973"
 
       - name: Install dependencies
         run: flutter pub get

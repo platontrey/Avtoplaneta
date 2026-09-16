@@ -1141,6 +1141,110 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
     );
   }
 
+  int get _mainFiltersCount {
+    var count = 0;
+    if (_brandController.text.trim().isNotEmpty) count++;
+    if (_modelController.text.trim().isNotEmpty) count++;
+    if (_category.isNotEmpty) count++;
+    if (_carReleaseDateController.text.trim().isNotEmpty) count++;
+    if (_conditionController.text.trim().isNotEmpty) count++;
+    if (_minPriceController.text.trim().isNotEmpty || _maxPriceController.text.trim().isNotEmpty) count++;
+    if (_minQuantityController.text.trim().isNotEmpty || _maxQuantityController.text.trim().isNotEmpty) count++;
+    if (_status.isNotEmpty) count++;
+    if (_hasPhoto != 'all') count++;
+    if (_pageSize != 'all') count++;
+    return count;
+  }
+
+  int get _bodyEngineFiltersCount {
+    var count = 0;
+    if (_bodyBrandController.text.trim().isNotEmpty) count++;
+    if (_engineBrandController.text.trim().isNotEmpty) count++;
+    if (_vinController.text.trim().isNotEmpty) count++;
+    if (_numberController.text.trim().isNotEmpty) count++;
+    if (_oemCodeController.text.trim().isNotEmpty) count++;
+    if (_defectController.text.trim().isNotEmpty) count++;
+    if (_colorController.text.trim().isNotEmpty) count++;
+    return count;
+  }
+
+  int get _transmissionFiltersCount {
+    var count = 0;
+    if (_transmission.isNotEmpty) count++;
+    if (_transmissionModelController.text.trim().isNotEmpty) count++;
+    if (_drive.isNotEmpty) count++;
+    if (_frontRear.isNotEmpty) count++;
+    if (_leftRight.isNotEmpty) count++;
+    if (_topBottom.isNotEmpty) count++;
+    return count;
+  }
+
+  int get _warehouseFiltersCount {
+    var count = 0;
+    if (_locationController.text.trim().isNotEmpty) count++;
+    if (_addressController.text.trim().isNotEmpty) count++;
+    if (_salesmanController.text.trim().isNotEmpty) count++;
+    if (_manufacturerController.text.trim().isNotEmpty) count++;
+    if (_manufacturerCodeController.text.trim().isNotEmpty) count++;
+    if (_supplierCodeController.text.trim().isNotEmpty) count++;
+    if (_wearPercentageController.text.trim().isNotEmpty) count++;
+    return count;
+  }
+
+  int get _wheelsFiltersCount {
+    var count = 0;
+    if (_season.isNotEmpty) count++;
+    if (_diameterController.text.trim().isNotEmpty) count++;
+    if (_widthController.text.trim().isNotEmpty) count++;
+    if (_profileController.text.trim().isNotEmpty) count++;
+    if (_tireQuantityController.text.trim().isNotEmpty) count++;
+    if (_drillingController.text.trim().isNotEmpty) count++;
+    if (_offsetController.text.trim().isNotEmpty) count++;
+    if (_centerHoleDiameterController.text.trim().isNotEmpty) count++;
+    if (_tireModelController.text.trim().isNotEmpty) count++;
+    return count;
+  }
+
+  int get _totalFiltersCount =>
+      _mainFiltersCount +
+      _bodyEngineFiltersCount +
+      _transmissionFiltersCount +
+      _warehouseFiltersCount +
+      _wheelsFiltersCount;
+
+  Widget _buildTab(String label, IconData icon, int count) {
+    return Tab(
+      height: 44,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16),
+          const SizedBox(width: 6),
+          Text(label),
+          if (count > 0) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  height: 1.1,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final categories = {
@@ -1150,475 +1254,589 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
     }.toList()..sort();
     final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 8, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Фильтры запчастей',
-                  style: Theme.of(context).textTheme.titleLarge,
+    return DefaultTabController(
+      length: 5,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 8, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Text(
+                        'Фильтры запчастей',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      if (_totalFiltersCount > 0) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppTheme.primaryColor.withValues(alpha: 0.5),
+                              width: 1,
+                            ),
+                          ),
+                          child: Text(
+                            '$_totalFiltersCount',
+                            style: const TextStyle(
+                              color: AppTheme.primaryColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-              ),
-              IconButton(
-                tooltip: 'Закрыть',
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close),
-              ),
+                IconButton(
+                  tooltip: 'Закрыть',
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+          ),
+          TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            dividerColor: Theme.of(context).dividerColor.withValues(alpha: 0.25),
+            tabs: [
+              _buildTab('Основные', Icons.tune_rounded, _mainFiltersCount),
+              _buildTab('Кузов и ДВС', Icons.handyman_rounded, _bodyEngineFiltersCount),
+              _buildTab('КПП и привод', Icons.alt_route_rounded, _transmissionFiltersCount),
+              _buildTab('Склад', Icons.warehouse_rounded, _warehouseFiltersCount),
+              _buildTab('Шины и диски', Icons.album_rounded, _wheelsFiltersCount),
             ],
           ),
-        ),
-        const Divider(height: 1),
-        Expanded(
-          child: ListView(
-            padding: EdgeInsets.fromLTRB(20, 20, 20, keyboardInset + 20),
-            children: [
-              DropdownButtonFormField<String>(
-                key: ValueKey('pageSize-$_pageSize'),
-                initialValue: _pageSize,
-                decoration: const InputDecoration(
-                  labelText: 'Отображение запчастей',
-                ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'all',
-                    child: Text('Все (бесконечная лента)'),
-                  ),
-                  DropdownMenuItem(
-                    value: '20',
-                    child: Text('20 на страницу'),
-                  ),
-                  DropdownMenuItem(
-                    value: '50',
-                    child: Text('50 на страницу'),
-                  ),
-                  DropdownMenuItem(
-                    value: '100',
-                    child: Text('100 на страницу'),
-                  ),
-                ],
-                onChanged: (value) {
-                  setState(() => _pageSize = value ?? 'all');
-                },
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                key: ValueKey('category-$_category'),
-                initialValue: _category,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Категория'),
-                items: [
-                  const DropdownMenuItem(
-                    value: '',
-                    child: Text('Все категории'),
-                  ),
-                  ...categories.map(
-                    (category) => DropdownMenuItem(
-                      value: category,
-                      child: Text(category, overflow: TextOverflow.ellipsis),
+          Expanded(
+            child: TabBarView(
+              children: [
+                // 1. Основные
+                ListView(
+                  padding: EdgeInsets.fromLTRB(20, 16, 20, keyboardInset + 20),
+                  children: [
+                    DropdownButtonFormField<String>(
+                      key: ValueKey('category-$_category'),
+                      initialValue: _category,
+                      isExpanded: true,
+                      decoration: const InputDecoration(labelText: 'Категория'),
+                      items: [
+                        const DropdownMenuItem(
+                          value: '',
+                          child: Text('Все категории'),
+                        ),
+                        ...categories.map(
+                          (category) => DropdownMenuItem(
+                            value: category,
+                            child: Text(category, overflow: TextOverflow.ellipsis),
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) => setState(() => _category = value ?? ''),
                     ),
-                  ),
-                ],
-                onChanged: (value) => setState(() => _category = value ?? ''),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _brandController,
-                decoration: const InputDecoration(
-                  labelText: 'Бренд',
-                  hintText: 'BMW, Toyota…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _modelController,
-                decoration: const InputDecoration(
-                  labelText: 'Модель',
-                  hintText: 'E90, A4…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _minPriceController,
-                      keyboardType: TextInputType.number,
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _brandController,
+                      onChanged: (_) => setState(() {}),
                       decoration: const InputDecoration(
-                        labelText: 'Цена от (₽)',
-                        hintText: '0',
+                        labelText: 'Бренд',
+                        hintText: 'BMW, Toyota…',
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _maxPriceController,
-                      keyboardType: TextInputType.number,
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _modelController,
+                      onChanged: (_) => setState(() {}),
                       decoration: const InputDecoration(
-                        labelText: 'Цена до (₽)',
-                        hintText: '100000',
+                        labelText: 'Модель',
+                        hintText: 'E90, A4…',
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _minQuantityController,
-                      keyboardType: TextInputType.number,
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _carReleaseDateController,
+                      onChanged: (_) => setState(() {}),
                       decoration: const InputDecoration(
-                        labelText: 'Кол-во от',
-                        hintText: '1',
+                        labelText: 'Год выпуска',
+                        hintText: '2015…',
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _maxQuantityController,
-                      keyboardType: TextInputType.number,
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _conditionController,
+                      onChanged: (_) => setState(() {}),
                       decoration: const InputDecoration(
-                        labelText: 'Кол-во до',
-                        hintText: '100',
+                        labelText: 'Состояние',
+                        hintText: 'Контрактная, б/у, новая…',
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _numberController,
-                decoration: const InputDecoration(
-                  labelText: 'Номер детали',
-                  hintText: '51117188830…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _oemCodeController,
-                decoration: const InputDecoration(
-                  labelText: 'OEM код',
-                  hintText: '17117559273…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _vinController,
-                decoration: const InputDecoration(
-                  labelText: 'VIN / Номер кузова',
-                  hintText: 'WBA…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _bodyBrandController,
-                decoration: const InputDecoration(
-                  labelText: 'Марка кузова',
-                  hintText: 'E90, W204, G05…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _engineBrandController,
-                decoration: const InputDecoration(
-                  labelText: 'Марка двигателя',
-                  hintText: 'N52B30, 2JZ…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _carReleaseDateController,
-                decoration: const InputDecoration(
-                  labelText: 'Год выпуска',
-                  hintText: '2015…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                key: ValueKey('frontRear-$_frontRear'),
-                initialValue: _frontRear,
-                decoration: const InputDecoration(labelText: 'Перед / зад'),
-                items: const [
-                  DropdownMenuItem(value: '', child: Text('Все расположения')),
-                  DropdownMenuItem(value: 'перед', child: Text('Перед')),
-                  DropdownMenuItem(value: 'зад', child: Text('Зад')),
-                  DropdownMenuItem(value: 'перед / зад', child: Text('Перед / зад')),
-                ],
-                onChanged: (value) => setState(() => _frontRear = value ?? ''),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                key: ValueKey('leftRight-$_leftRight'),
-                initialValue: _leftRight,
-                decoration: const InputDecoration(labelText: 'Право / лево'),
-                items: const [
-                  DropdownMenuItem(value: '', child: Text('Все стороны')),
-                  DropdownMenuItem(value: 'лево', child: Text('Лево')),
-                  DropdownMenuItem(value: 'право', child: Text('Право')),
-                  DropdownMenuItem(value: 'лево / право', child: Text('Лево / право')),
-                ],
-                onChanged: (value) => setState(() => _leftRight = value ?? ''),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                key: ValueKey('topBottom-$_topBottom'),
-                initialValue: _topBottom,
-                decoration: const InputDecoration(labelText: 'Верх / низ'),
-                items: const [
-                  DropdownMenuItem(value: '', child: Text('Все положения')),
-                  DropdownMenuItem(value: 'верх', child: Text('Верх')),
-                  DropdownMenuItem(value: 'низ', child: Text('Низ')),
-                  DropdownMenuItem(value: 'верх / низ', child: Text('Верх / низ')),
-                ],
-                onChanged: (value) => setState(() => _topBottom = value ?? ''),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                key: ValueKey('transmission-$_transmission'),
-                initialValue: _transmission,
-                decoration: const InputDecoration(labelText: 'Трансмиссия'),
-                items: const [
-                  DropdownMenuItem(value: '', child: Text('Все типы трансмиссии')),
-                  DropdownMenuItem(value: 'АКПП', child: Text('АКПП (Автомат)')),
-                  DropdownMenuItem(value: 'МКПП', child: Text('МКПП (Механика)')),
-                  DropdownMenuItem(value: 'Вариатор', child: Text('Вариатор (CVT)')),
-                  DropdownMenuItem(value: 'Робот', child: Text('Робот')),
-                ],
-                onChanged: (value) => setState(() => _transmission = value ?? ''),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                key: ValueKey('drive-$_drive'),
-                initialValue: _drive,
-                decoration: const InputDecoration(labelText: 'Привод'),
-                items: const [
-                  DropdownMenuItem(value: '', child: Text('Все приводы')),
-                  DropdownMenuItem(value: 'Передний', child: Text('Передний привод')),
-                  DropdownMenuItem(value: 'Задний', child: Text('Задний привод')),
-                  DropdownMenuItem(value: 'Полный', child: Text('Полный привод')),
-                ],
-                onChanged: (value) => setState(() => _drive = value ?? ''),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _transmissionModelController,
-                decoration: const InputDecoration(
-                  labelText: 'Модель КПП',
-                  hintText: 'U140F, RE4F04B…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _conditionController,
-                decoration: const InputDecoration(
-                  labelText: 'Состояние',
-                  hintText: 'Контрактная, б/у, новая…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _manufacturerController,
-                decoration: const InputDecoration(
-                  labelText: 'Производитель',
-                  hintText: 'Bosch, Denso, Lemforder…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _manufacturerCodeController,
-                decoration: const InputDecoration(
-                  labelText: 'Код производителя',
-                  hintText: 'Код производителя…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _supplierCodeController,
-                decoration: const InputDecoration(
-                  labelText: 'Код поставщика',
-                  hintText: 'Код поставщика…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _wearPercentageController,
-                decoration: const InputDecoration(
-                  labelText: 'Процент износа',
-                  hintText: '5%, 10%…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _defectController,
-                decoration: const InputDecoration(
-                  labelText: 'Дефект',
-                  hintText: 'Царапины, трещина…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _colorController,
-                decoration: const InputDecoration(
-                  labelText: 'Цвет',
-                  hintText: 'Черный, серебристый…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _locationController,
-                decoration: const InputDecoration(
-                  labelText: 'Местоположение',
-                  hintText: 'Стеллаж A-12…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _addressController,
-                decoration: const InputDecoration(
-                  labelText: 'Адрес склада',
-                  hintText: 'Профсоюзная 2/11…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _salesmanController,
-                decoration: const InputDecoration(labelText: 'Продавец'),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                key: ValueKey('status-$_status'),
-                initialValue: _status,
-                decoration: const InputDecoration(labelText: 'Статус'),
-                items: const [
-                  DropdownMenuItem(value: '', child: Text('Все статусы')),
-                  DropdownMenuItem(value: 'true', child: Text('Доступно')),
-                  DropdownMenuItem(value: 'false', child: Text('Недоступно')),
-                ],
-                onChanged: (value) => setState(() => _status = value ?? ''),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                key: ValueKey('photo-$_hasPhoto'),
-                initialValue: _hasPhoto,
-                decoration: const InputDecoration(labelText: 'Фото'),
-                items: const [
-                  DropdownMenuItem(value: 'all', child: Text('Все')),
-                  DropdownMenuItem(value: 'with', child: Text('С фото')),
-                  DropdownMenuItem(value: 'without', child: Text('Без фото')),
-                ],
-                onChanged: (value) {
-                  setState(() => _hasPhoto = value ?? 'all');
-                },
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                key: ValueKey('season-$_season'),
-                initialValue: _season,
-                decoration: const InputDecoration(labelText: 'Сезонность шин'),
-                items: const [
-                  DropdownMenuItem(value: '', child: Text('Все сезоны')),
-                  DropdownMenuItem(value: 'лето', child: Text('Лето')),
-                  DropdownMenuItem(value: 'зима', child: Text('Зима')),
-                  DropdownMenuItem(value: 'всесезонные', child: Text('Всесезонные')),
-                  DropdownMenuItem(value: 'зима шипованные', child: Text('Зима шипованные')),
-                  DropdownMenuItem(value: 'зима нешипованные (липучка)', child: Text('Зима нешипованные (липучка)')),
-                ],
-                onChanged: (value) => setState(() => _season = value ?? ''),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _diameterController,
-                decoration: const InputDecoration(
-                  labelText: 'Диаметр',
-                  hintText: 'R15, R16, R17…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _widthController,
-                decoration: const InputDecoration(
-                  labelText: 'Ширина шины',
-                  hintText: '205, 215, 225…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _profileController,
-                decoration: const InputDecoration(
-                  labelText: 'Профиль шины',
-                  hintText: '55, 60, 65…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _tireQuantityController,
-                decoration: const InputDecoration(
-                  labelText: 'Количество шин',
-                  hintText: '4 шт, пара…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _drillingController,
-                decoration: const InputDecoration(
-                  labelText: 'Сверловка (PCD)',
-                  hintText: '5x114.3, 4x100…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _offsetController,
-                decoration: const InputDecoration(
-                  labelText: 'Вылет (ET)',
-                  hintText: 'ET45, ET38…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _centerHoleDiameterController,
-                decoration: const InputDecoration(
-                  labelText: 'Диаметр ЦО (DIA)',
-                  hintText: '60.1, 67.1…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _tireModelController,
-                decoration: const InputDecoration(
-                  labelText: 'Модель шины',
-                  hintText: 'Hakkapeliitta 8, Ice Cruiser…',
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _reset,
-                      icon: const Icon(Icons.clear_all_rounded),
-                      label: const Text('Сбросить'),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _minPriceController,
+                            keyboardType: TextInputType.number,
+                            onChanged: (_) => setState(() {}),
+                            decoration: const InputDecoration(
+                              labelText: 'Цена от (₽)',
+                              hintText: '0',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: _maxPriceController,
+                            keyboardType: TextInputType.number,
+                            onChanged: (_) => setState(() {}),
+                            decoration: const InputDecoration(
+                              labelText: 'Цена до (₽)',
+                              hintText: '100000',
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: _apply,
-                      icon: const Icon(Icons.check_rounded),
-                      label: const Text('Применить'),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _minQuantityController,
+                            keyboardType: TextInputType.number,
+                            onChanged: (_) => setState(() {}),
+                            decoration: const InputDecoration(
+                              labelText: 'Кол-во от',
+                              hintText: '1',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: _maxQuantityController,
+                            keyboardType: TextInputType.number,
+                            onChanged: (_) => setState(() {}),
+                            decoration: const InputDecoration(
+                              labelText: 'Кол-во до',
+                              hintText: '100',
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-            ],
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      key: ValueKey('status-$_status'),
+                      initialValue: _status,
+                      decoration: const InputDecoration(labelText: 'Статус'),
+                      items: const [
+                        DropdownMenuItem(value: '', child: Text('Все статусы')),
+                        DropdownMenuItem(value: 'true', child: Text('Доступно')),
+                        DropdownMenuItem(value: 'false', child: Text('Недоступно')),
+                      ],
+                      onChanged: (value) => setState(() => _status = value ?? ''),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      key: ValueKey('photo-$_hasPhoto'),
+                      initialValue: _hasPhoto,
+                      decoration: const InputDecoration(labelText: 'Фото'),
+                      items: const [
+                        DropdownMenuItem(value: 'all', child: Text('Все')),
+                        DropdownMenuItem(value: 'with', child: Text('С фото')),
+                        DropdownMenuItem(value: 'without', child: Text('Без фото')),
+                      ],
+                      onChanged: (value) {
+                        setState(() => _hasPhoto = value ?? 'all');
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      key: ValueKey('pageSize-$_pageSize'),
+                      initialValue: _pageSize,
+                      decoration: const InputDecoration(
+                        labelText: 'Отображение запчастей',
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'all',
+                          child: Text('Все (бесконечная лента)'),
+                        ),
+                        DropdownMenuItem(
+                          value: '20',
+                          child: Text('20 на страницу'),
+                        ),
+                        DropdownMenuItem(
+                          value: '50',
+                          child: Text('50 на страницу'),
+                        ),
+                        DropdownMenuItem(
+                          value: '100',
+                          child: Text('100 на страницу'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setState(() => _pageSize = value ?? 'all');
+                      },
+                    ),
+                  ],
+                ),
+
+                // 2. Кузов и ДВС
+                ListView(
+                  padding: EdgeInsets.fromLTRB(20, 16, 20, keyboardInset + 20),
+                  children: [
+                    TextField(
+                      controller: _bodyBrandController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Марка кузова',
+                        hintText: 'E90, W204, G05…',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _engineBrandController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Марка двигателя',
+                        hintText: 'N52B30, 2JZ…',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _vinController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'VIN / Номер кузова',
+                        hintText: 'WBA…',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _numberController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Номер детали',
+                        hintText: '51117188830…',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _oemCodeController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'OEM код',
+                        hintText: '17117559273…',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _defectController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Дефект',
+                        hintText: 'Царапины, трещина…',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _colorController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Цвет',
+                        hintText: 'Черный, серебристый…',
+                      ),
+                    ),
+                  ],
+                ),
+
+                // 3. КПП и привод
+                ListView(
+                  padding: EdgeInsets.fromLTRB(20, 16, 20, keyboardInset + 20),
+                  children: [
+                    DropdownButtonFormField<String>(
+                      key: ValueKey('transmission-$_transmission'),
+                      initialValue: _transmission,
+                      decoration: const InputDecoration(labelText: 'Трансмиссия'),
+                      items: const [
+                        DropdownMenuItem(value: '', child: Text('Все типы трансмиссии')),
+                        DropdownMenuItem(value: 'АКПП', child: Text('АКПП (Автомат)')),
+                        DropdownMenuItem(value: 'МКПП', child: Text('МКПП (Механика)')),
+                        DropdownMenuItem(value: 'Вариатор', child: Text('Вариатор (CVT)')),
+                        DropdownMenuItem(value: 'Робот', child: Text('Робот')),
+                      ],
+                      onChanged: (value) => setState(() => _transmission = value ?? ''),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _transmissionModelController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Модель КПП',
+                        hintText: 'U140F, RE4F04B…',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      key: ValueKey('drive-$_drive'),
+                      initialValue: _drive,
+                      decoration: const InputDecoration(labelText: 'Привод'),
+                      items: const [
+                        DropdownMenuItem(value: '', child: Text('Все приводы')),
+                        DropdownMenuItem(value: 'Передний', child: Text('Передний привод')),
+                        DropdownMenuItem(value: 'Задний', child: Text('Задний привод')),
+                        DropdownMenuItem(value: 'Полный', child: Text('Полный привод')),
+                      ],
+                      onChanged: (value) => setState(() => _drive = value ?? ''),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      key: ValueKey('frontRear-$_frontRear'),
+                      initialValue: _frontRear,
+                      decoration: const InputDecoration(labelText: 'Перед / зад'),
+                      items: const [
+                        DropdownMenuItem(value: '', child: Text('Все расположения')),
+                        DropdownMenuItem(value: 'перед', child: Text('Перед')),
+                        DropdownMenuItem(value: 'зад', child: Text('Зад')),
+                        DropdownMenuItem(value: 'перед / зад', child: Text('Перед / зад')),
+                      ],
+                      onChanged: (value) => setState(() => _frontRear = value ?? ''),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      key: ValueKey('leftRight-$_leftRight'),
+                      initialValue: _leftRight,
+                      decoration: const InputDecoration(labelText: 'Право / лево'),
+                      items: const [
+                        DropdownMenuItem(value: '', child: Text('Все стороны')),
+                        DropdownMenuItem(value: 'лево', child: Text('Лево')),
+                        DropdownMenuItem(value: 'право', child: Text('Право')),
+                        DropdownMenuItem(value: 'лево / право', child: Text('Лево / право')),
+                      ],
+                      onChanged: (value) => setState(() => _leftRight = value ?? ''),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      key: ValueKey('topBottom-$_topBottom'),
+                      initialValue: _topBottom,
+                      decoration: const InputDecoration(labelText: 'Верх / низ'),
+                      items: const [
+                        DropdownMenuItem(value: '', child: Text('Все положения')),
+                        DropdownMenuItem(value: 'верх', child: Text('Верх')),
+                        DropdownMenuItem(value: 'низ', child: Text('Низ')),
+                        DropdownMenuItem(value: 'верх / низ', child: Text('Верх / низ')),
+                      ],
+                      onChanged: (value) => setState(() => _topBottom = value ?? ''),
+                    ),
+                  ],
+                ),
+
+                // 4. Склад
+                ListView(
+                  padding: EdgeInsets.fromLTRB(20, 16, 20, keyboardInset + 20),
+                  children: [
+                    TextField(
+                      controller: _locationController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Местоположение',
+                        hintText: 'Стеллаж A-12…',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _addressController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Адрес склада',
+                        hintText: 'Профсоюзная 2/11…',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _salesmanController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(labelText: 'Продавец'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _manufacturerController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Производитель',
+                        hintText: 'Bosch, Denso, Lemforder…',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _manufacturerCodeController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Код производителя',
+                        hintText: 'Код производителя…',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _supplierCodeController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Код поставщика',
+                        hintText: 'Код поставщика…',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _wearPercentageController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Процент износа',
+                        hintText: '5%, 10%…',
+                      ),
+                    ),
+                  ],
+                ),
+
+                // 5. Шины и диски
+                ListView(
+                  padding: EdgeInsets.fromLTRB(20, 16, 20, keyboardInset + 20),
+                  children: [
+                    DropdownButtonFormField<String>(
+                      key: ValueKey('season-$_season'),
+                      initialValue: _season,
+                      decoration: const InputDecoration(labelText: 'Сезонность шин'),
+                      items: const [
+                        DropdownMenuItem(value: '', child: Text('Все сезоны')),
+                        DropdownMenuItem(value: 'лето', child: Text('Лето')),
+                        DropdownMenuItem(value: 'зима', child: Text('Зима')),
+                        DropdownMenuItem(value: 'всесезонные', child: Text('Всесезонные')),
+                        DropdownMenuItem(value: 'зима шипованные', child: Text('Зима шипованные')),
+                        DropdownMenuItem(value: 'зима нешипованные (липучка)', child: Text('Зима нешипованные (липучка)')),
+                      ],
+                      onChanged: (value) => setState(() => _season = value ?? ''),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _diameterController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Диаметр',
+                        hintText: 'R15, R16, R17…',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _widthController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Ширина шины',
+                        hintText: '205, 215, 225…',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _profileController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Профиль шины',
+                        hintText: '55, 60, 65…',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _tireQuantityController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Количество шин',
+                        hintText: '4 шт, пара…',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _drillingController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Сверловка (PCD)',
+                        hintText: '5x114.3, 4x100…',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _offsetController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Вылет (ET)',
+                        hintText: 'ET45, ET38…',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _centerHoleDiameterController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Диаметр ЦО (DIA)',
+                        hintText: '60.1, 67.1…',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _tireModelController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Модель шины',
+                        hintText: 'Hakkapeliitta 8, Ice Cruiser…',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+          Container(
+            padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + MediaQuery.paddingOf(context).bottom),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              border: Border(
+                top: BorderSide(
+                  color: Theme.of(context).dividerColor.withValues(alpha: 0.25),
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _reset,
+                    icon: const Icon(Icons.clear_all_rounded),
+                    label: const Text('Сбросить'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _apply,
+                    icon: const Icon(Icons.check_rounded),
+                    label: Text(
+                      _totalFiltersCount > 0
+                          ? 'Применить ($_totalFiltersCount)'
+                          : 'Применить',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

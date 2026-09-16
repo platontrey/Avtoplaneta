@@ -58,7 +58,7 @@ declare var SpeechRecognition: {
 };
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Search, Loader2, X, Filter, ChevronDown, ChevronUp, Mic, MicOff } from 'lucide-react';
+import { Search, Loader2, X, Filter, ChevronDown, ChevronUp, Mic, MicOff, Car, Wrench, GitFork, Package, Disc } from 'lucide-react';
 import type { Part } from '../lib/types';
 import { Card, CardContent } from './ui/card';
 import { Input } from './ui/input';
@@ -69,6 +69,7 @@ import { Checkbox } from './ui/checkbox';
 import { SearchableSelect } from './ui/searchable-select';
 import type { SelectOption } from './ui/searchable-select';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_BASE_URL } from '@/lib/api';
 import { brandOptions } from '@/lib/constants';
@@ -564,6 +565,61 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         profile, tireQuantity, drilling, offset, centerHoleDiameter, tireModel,
     ]);
 
+    const mainFiltersCount = useMemo(() => [
+        category,
+        brand,
+        model,
+        carReleaseDate,
+        condition,
+        minPrice,
+        maxPrice,
+        minQuantity,
+        maxQuantity,
+        status,
+        hasPhoto && hasPhoto !== 'with' ? hasPhoto : '',
+    ].filter(Boolean).length, [category, brand, model, carReleaseDate, condition, minPrice, maxPrice, minQuantity, maxQuantity, status, hasPhoto]);
+
+    const bodyEngineFiltersCount = useMemo(() => [
+        bodyBrand,
+        engineBrand,
+        vin,
+        number,
+        oemCode,
+        defect,
+        color,
+    ].filter(Boolean).length, [bodyBrand, engineBrand, vin, number, oemCode, defect, color]);
+
+    const transmissionFiltersCount = useMemo(() => [
+        transmission,
+        transmissionModel,
+        drive,
+        frontRear,
+        leftRight,
+        topBottom,
+    ].filter(Boolean).length, [transmission, transmissionModel, drive, frontRear, leftRight, topBottom]);
+
+    const warehouseFiltersCount = useMemo(() => [
+        location,
+        address,
+        salesman,
+        manufacturer,
+        manufacturerCode,
+        supplierCode,
+        wearPercentage,
+    ].filter(Boolean).length, [location, address, salesman, manufacturer, manufacturerCode, supplierCode, wearPercentage]);
+
+    const wheelsFiltersCount = useMemo(() => [
+        season,
+        diameter,
+        width,
+        profile,
+        tireQuantity,
+        drilling,
+        offset,
+        centerHoleDiameter,
+        tireModel,
+    ].filter(Boolean).length, [season, diameter, width, profile, tireQuantity, drilling, offset, centerHoleDiameter, tireModel]);
+
     const handleDisplayLimitChange = (value: string) => {
         const limit = parseInt(value) || 0;
         if (onDisplayLimitChange) {
@@ -849,573 +905,647 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                                 style={{ overflow: 'hidden' }}
                             >
                                 <Card className="bg-transparent border border-gray-300">
-                                    <CardContent className="pt-6">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                            {/* Бренд */}
-                                            <div>
-                                                <Label htmlFor="brand-filter">Бренд</Label>
-                                                <div className="mt-1.5">
-                                                    <SearchableSelect
-                                                        value={brand}
-                                                        onValueChange={(value) => setBrand(value)}
-                                                        options={brandOptions}
-                                                        placeholder="Все бренды"
-                                                        searchPlaceholder="Поиск бренда..."
-                                                        emptyMessage="Бренд не найден"
-                                                        allowCustom={true}
-                                                        className="bg-transparent border border-gray-300"
-                                                    />
+                                    <CardContent className="pt-4 pb-4">
+                                        <Tabs defaultValue="main" className="w-full">
+                                            <TabsList className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 w-full h-auto p-1 gap-1 bg-muted/60">
+                                                <TabsTrigger value="main" className="flex items-center justify-center gap-1.5 py-2 px-2 text-xs sm:text-sm">
+                                                    <Car className="h-4 w-4 shrink-0" />
+                                                    <span>Основные</span>
+                                                    {mainFiltersCount > 0 && (
+                                                        <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs bg-primary/15 text-primary border-none font-semibold">
+                                                            {mainFiltersCount}
+                                                        </Badge>
+                                                    )}
+                                                </TabsTrigger>
+                                                <TabsTrigger value="bodyEngine" className="flex items-center justify-center gap-1.5 py-2 px-2 text-xs sm:text-sm">
+                                                    <Wrench className="h-4 w-4 shrink-0" />
+                                                    <span>Кузов и ДВС</span>
+                                                    {bodyEngineFiltersCount > 0 && (
+                                                        <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs bg-primary/15 text-primary border-none font-semibold">
+                                                            {bodyEngineFiltersCount}
+                                                        </Badge>
+                                                    )}
+                                                </TabsTrigger>
+                                                <TabsTrigger value="transmission" className="flex items-center justify-center gap-1.5 py-2 px-2 text-xs sm:text-sm">
+                                                    <GitFork className="h-4 w-4 shrink-0" />
+                                                    <span>КПП и привод</span>
+                                                    {transmissionFiltersCount > 0 && (
+                                                        <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs bg-primary/15 text-primary border-none font-semibold">
+                                                            {transmissionFiltersCount}
+                                                        </Badge>
+                                                    )}
+                                                </TabsTrigger>
+                                                <TabsTrigger value="warehouse" className="flex items-center justify-center gap-1.5 py-2 px-2 text-xs sm:text-sm">
+                                                    <Package className="h-4 w-4 shrink-0" />
+                                                    <span>Склад</span>
+                                                    {warehouseFiltersCount > 0 && (
+                                                        <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs bg-primary/15 text-primary border-none font-semibold">
+                                                            {warehouseFiltersCount}
+                                                        </Badge>
+                                                    )}
+                                                </TabsTrigger>
+                                                <TabsTrigger value="wheels" className="flex items-center justify-center gap-1.5 py-2 px-2 text-xs sm:text-sm">
+                                                    <Disc className="h-4 w-4 shrink-0" />
+                                                    <span>Шины и диски</span>
+                                                    {wheelsFiltersCount > 0 && (
+                                                        <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs bg-primary/15 text-primary border-none font-semibold">
+                                                            {wheelsFiltersCount}
+                                                        </Badge>
+                                                    )}
+                                                </TabsTrigger>
+                                            </TabsList>
+
+                                            {/* Вкладка 1: Основные */}
+                                            <TabsContent value="main" className="mt-4">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                    {/* Бренд */}
+                                                    <div>
+                                                        <Label htmlFor="brand-filter">Бренд</Label>
+                                                        <div className="mt-1.5">
+                                                            <SearchableSelect
+                                                                value={brand}
+                                                                onValueChange={(value) => setBrand(value)}
+                                                                options={brandOptions}
+                                                                placeholder="Все бренды"
+                                                                searchPlaceholder="Поиск бренда..."
+                                                                emptyMessage="Бренд не найден"
+                                                                allowCustom={true}
+                                                                className="bg-transparent border border-gray-300"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Модель */}
+                                                    <div>
+                                                        <Label htmlFor="model-filter">Модель</Label>
+                                                        <Input
+                                                            id="model-filter"
+                                                            type="text"
+                                                            value={model}
+                                                            onChange={(e) => setModel(e.target.value)}
+                                                            placeholder="E90, A4..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
+
+                                                    {/* Категория */}
+                                                    <div>
+                                                        <Label htmlFor="category-filter">Категория</Label>
+                                                        <div className="mt-1.5">
+                                                            <SearchableSelect
+                                                                value={category}
+                                                                onValueChange={(value) => setCategory(value)}
+                                                                options={categoryOptions}
+                                                                placeholder="Все категории"
+                                                                searchPlaceholder="Поиск категории..."
+                                                                emptyMessage="Категория не найдена"
+                                                                className="bg-transparent border border-gray-300"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Год выпуска */}
+                                                    <div>
+                                                        <Label htmlFor="release-date-filter">Год выпуска</Label>
+                                                        <Input
+                                                            id="release-date-filter"
+                                                            type="text"
+                                                            value={carReleaseDate}
+                                                            onChange={(e) => setCarReleaseDate(e.target.value)}
+                                                            placeholder="2010..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
+
+                                                    {/* Состояние */}
+                                                    <div>
+                                                        <Label htmlFor="condition-filter">Состояние</Label>
+                                                        <Input
+                                                            id="condition-filter"
+                                                            type="text"
+                                                            value={condition}
+                                                            onChange={(e) => setCondition(e.target.value)}
+                                                            placeholder="Контрактная, б/у, новая..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
+
+                                                    {/* Сдвоенный диапазон: Цена */}
+                                                    <div>
+                                                        <Label>Цена (₽)</Label>
+                                                        <div className="grid grid-cols-2 gap-2 mt-1.5">
+                                                            <Input
+                                                                id="min-price-filter"
+                                                                type="number"
+                                                                value={minPrice}
+                                                                onChange={(e) => setMinPrice(e.target.value)}
+                                                                placeholder="От 0"
+                                                                min="0"
+                                                                className="bg-transparent border border-gray-300"
+                                                            />
+                                                            <Input
+                                                                id="max-price-filter"
+                                                                type="number"
+                                                                value={maxPrice}
+                                                                onChange={(e) => setMaxPrice(e.target.value)}
+                                                                placeholder="До"
+                                                                min="0"
+                                                                className="bg-transparent border border-gray-300"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Сдвоенный диапазон: Количество */}
+                                                    <div>
+                                                        <Label>Количество</Label>
+                                                        <div className="grid grid-cols-2 gap-2 mt-1.5">
+                                                            <Input
+                                                                id="min-quantity-filter"
+                                                                type="number"
+                                                                value={minQuantity}
+                                                                onChange={(e) => setMinQuantity(e.target.value)}
+                                                                placeholder="От"
+                                                                min="0"
+                                                                className="bg-transparent border border-gray-300"
+                                                            />
+                                                            <Input
+                                                                id="max-quantity-filter"
+                                                                type="number"
+                                                                value={maxQuantity}
+                                                                onChange={(e) => setMaxQuantity(e.target.value)}
+                                                                placeholder="До"
+                                                                min="0"
+                                                                className="bg-transparent border border-gray-300"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Статус */}
+                                                    <div>
+                                                        <Label htmlFor="status-filter">Статус</Label>
+                                                        <div className="mt-1.5">
+                                                            <SearchableSelect
+                                                                value={status}
+                                                                onValueChange={(value) => setStatus(value)}
+                                                                options={statusOptions}
+                                                                placeholder="Все статусы"
+                                                                searchPlaceholder="Поиск статуса..."
+                                                                emptyMessage="Статус не найден"
+                                                                className="bg-transparent border border-gray-300"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Фото */}
+                                                    <div>
+                                                        <Label htmlFor="photo-filter">Фото</Label>
+                                                        <div className="mt-1.5">
+                                                            <SearchableSelect
+                                                                value={hasPhoto}
+                                                                onValueChange={(value) => setHasPhoto(value)}
+                                                                options={photoOptions}
+                                                                placeholder="Все"
+                                                                searchPlaceholder="Поиск по фото..."
+                                                                emptyMessage="Опция не найдена"
+                                                                className="bg-transparent border border-gray-300"
+                                                            />
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            </TabsContent>
 
-                                            {/* Модель */}
-                                            <div>
-                                                <Label htmlFor="model-filter">Модель</Label>
-                                                <Input
-                                                    id="model-filter"
-                                                    type="text"
-                                                    value={model}
-                                                    onChange={(e) => setModel(e.target.value)}
-                                                    placeholder="E90, A4..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
+                                            {/* Вкладка 2: Кузов и ДВС */}
+                                            <TabsContent value="bodyEngine" className="mt-4">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                    {/* Марка кузова */}
+                                                    <div>
+                                                        <Label htmlFor="body-brand-filter">Марка кузова</Label>
+                                                        <Input
+                                                            id="body-brand-filter"
+                                                            type="text"
+                                                            value={bodyBrand}
+                                                            onChange={(e) => setBodyBrand(e.target.value)}
+                                                            placeholder="ACV40, E90, W212..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
 
-                                            {/* Категория */}
-                                            <div>
-                                                <Label htmlFor="category-filter">Категория</Label>
-                                                <div className="mt-1.5">
-                                                    <SearchableSelect
-                                                        value={category}
-                                                        onValueChange={(value) => setCategory(value)}
-                                                        options={categoryOptions}
-                                                        placeholder="Все категории"
-                                                        searchPlaceholder="Поиск категории..."
-                                                        emptyMessage="Категория не найдена"
-                                                        className="bg-transparent border border-gray-300"
-                                                    />
+                                                    {/* Марка двигателя */}
+                                                    <div>
+                                                        <Label htmlFor="engine-brand-filter">Марка двигателя</Label>
+                                                        <Input
+                                                            id="engine-brand-filter"
+                                                            type="text"
+                                                            value={engineBrand}
+                                                            onChange={(e) => setEngineBrand(e.target.value)}
+                                                            placeholder="2AZ-FE, N46, 1JZ..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
+
+                                                    {/* VIN / Номер кузова */}
+                                                    <div>
+                                                        <Label htmlFor="vin-filter">VIN / Номер кузова</Label>
+                                                        <Input
+                                                            id="vin-filter"
+                                                            type="text"
+                                                            value={vin}
+                                                            onChange={(e) => setVin(e.target.value)}
+                                                            placeholder="WVWZZZ1JZ3W386549..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
+
+                                                    {/* Номер детали */}
+                                                    <div>
+                                                        <Label htmlFor="number-filter">Номер детали</Label>
+                                                        <Input
+                                                            id="number-filter"
+                                                            type="text"
+                                                            value={number}
+                                                            onChange={(e) => setNumber(e.target.value)}
+                                                            placeholder="52119-33939..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
+
+                                                    {/* OEM код */}
+                                                    <div>
+                                                        <Label htmlFor="oem-filter">OEM код</Label>
+                                                        <Input
+                                                            id="oem-filter"
+                                                            type="text"
+                                                            value={oemCode}
+                                                            onChange={(e) => setOemCode(e.target.value)}
+                                                            placeholder="89661-06G80..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
+
+                                                    {/* Дефект */}
+                                                    <div>
+                                                        <Label htmlFor="defect-filter">Дефект</Label>
+                                                        <Input
+                                                            id="defect-filter"
+                                                            type="text"
+                                                            value={defect}
+                                                            onChange={(e) => setDefect(e.target.value)}
+                                                            placeholder="Царапина, скол, трещина..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
+
+                                                    {/* Цвет */}
+                                                    <div>
+                                                        <Label htmlFor="color-filter">Цвет</Label>
+                                                        <Input
+                                                            id="color-filter"
+                                                            type="text"
+                                                            value={color}
+                                                            onChange={(e) => setColor(e.target.value)}
+                                                            placeholder="Черный, белый, серебристый..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            </TabsContent>
 
-                                            {/* Местоположение */}
-                                            <div>
-                                                <Label htmlFor="location-filter">Местоположение</Label>
-                                                <Input
-                                                    id="location-filter"
-                                                    type="text"
-                                                    value={location}
-                                                    onChange={(e) => setLocation(e.target.value)}
-                                                    placeholder="Shelf A-12..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
+                                            {/* Вкладка 3: КПП и расположение */}
+                                            <TabsContent value="transmission" className="mt-4">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                    {/* Трансмиссия */}
+                                                    <div>
+                                                        <Label htmlFor="transmission-filter">Трансмиссия</Label>
+                                                        <div className="mt-1.5">
+                                                            <SearchableSelect
+                                                                value={transmission}
+                                                                onValueChange={(value) => setTransmission(value)}
+                                                                options={transmissionOptions}
+                                                                placeholder="Все типы КПП"
+                                                                searchPlaceholder="Поиск КПП..."
+                                                                emptyMessage="Тип КПП не найден"
+                                                                className="bg-transparent border border-gray-300"
+                                                            />
+                                                        </div>
+                                                    </div>
 
-                                            {/* Адрес склада */}
-                                            <div>
-                                                <Label htmlFor="address-filter">Адрес склада</Label>
-                                                <Input
-                                                    id="address-filter"
-                                                    type="text"
-                                                    value={address}
-                                                    onChange={(e) => setAddress(e.target.value)}
-                                                    placeholder="Профсоюзная 2/11..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
+                                                    {/* Модель КПП */}
+                                                    <div>
+                                                        <Label htmlFor="transmission-model-filter">Модель КПП</Label>
+                                                        <Input
+                                                            id="transmission-model-filter"
+                                                            type="text"
+                                                            value={transmissionModel}
+                                                            onChange={(e) => setTransmissionModel(e.target.value)}
+                                                            placeholder="U140F, RE4F04B..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
 
-                                            {/* Номер детали */}
-                                            <div>
-                                                <Label htmlFor="number-filter">Номер детали</Label>
-                                                <Input
-                                                    id="number-filter"
-                                                    type="text"
-                                                    value={number}
-                                                    onChange={(e) => setNumber(e.target.value)}
-                                                    placeholder="52119-33939..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
+                                                    {/* Привод */}
+                                                    <div>
+                                                        <Label htmlFor="drive-filter">Привод</Label>
+                                                        <div className="mt-1.5">
+                                                            <SearchableSelect
+                                                                value={drive}
+                                                                onValueChange={(value) => setDrive(value)}
+                                                                options={driveOptions}
+                                                                placeholder="Все приводы"
+                                                                searchPlaceholder="Поиск привода..."
+                                                                emptyMessage="Привод не найден"
+                                                                className="bg-transparent border border-gray-300"
+                                                            />
+                                                        </div>
+                                                    </div>
 
-                                            {/* OEM код */}
-                                            <div>
-                                                <Label htmlFor="oem-filter">OEM код</Label>
-                                                <Input
-                                                    id="oem-filter"
-                                                    type="text"
-                                                    value={oemCode}
-                                                    onChange={(e) => setOemCode(e.target.value)}
-                                                    placeholder="89661-06G80..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
+                                                    {/* Перед / зад */}
+                                                    <div>
+                                                        <Label htmlFor="front-rear-filter">Перед / зад</Label>
+                                                        <div className="mt-1.5">
+                                                            <SearchableSelect
+                                                                value={frontRear}
+                                                                onValueChange={(value) => setFrontRear(value)}
+                                                                options={frontRearOptions}
+                                                                placeholder="Все расположения"
+                                                                searchPlaceholder="Поиск..."
+                                                                emptyMessage="Не найдено"
+                                                                className="bg-transparent border border-gray-300"
+                                                            />
+                                                        </div>
+                                                    </div>
 
-                                            {/* VIN / Номер кузова */}
-                                            <div>
-                                                <Label htmlFor="vin-filter">VIN / Номер кузова</Label>
-                                                <Input
-                                                    id="vin-filter"
-                                                    type="text"
-                                                    value={vin}
-                                                    onChange={(e) => setVin(e.target.value)}
-                                                    placeholder="WVWZZZ1JZ3W386549..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
+                                                    {/* Право / лево */}
+                                                    <div>
+                                                        <Label htmlFor="left-right-filter">Право / лево</Label>
+                                                        <div className="mt-1.5">
+                                                            <SearchableSelect
+                                                                value={leftRight}
+                                                                onValueChange={(value) => setLeftRight(value)}
+                                                                options={leftRightOptions}
+                                                                placeholder="Все стороны"
+                                                                searchPlaceholder="Поиск..."
+                                                                emptyMessage="Не найдено"
+                                                                className="bg-transparent border border-gray-300"
+                                                            />
+                                                        </div>
+                                                    </div>
 
-                                            {/* Марка кузова */}
-                                            <div>
-                                                <Label htmlFor="body-brand-filter">Марка кузова</Label>
-                                                <Input
-                                                    id="body-brand-filter"
-                                                    type="text"
-                                                    value={bodyBrand}
-                                                    onChange={(e) => setBodyBrand(e.target.value)}
-                                                    placeholder="ACV40, E90, W212..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
-
-                                            {/* Марка двигателя */}
-                                            <div>
-                                                <Label htmlFor="engine-brand-filter">Марка двигателя</Label>
-                                                <Input
-                                                    id="engine-brand-filter"
-                                                    type="text"
-                                                    value={engineBrand}
-                                                    onChange={(e) => setEngineBrand(e.target.value)}
-                                                    placeholder="2AZ-FE, N46, 1JZ..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
-
-                                            {/* Год выпуска */}
-                                            <div>
-                                                <Label htmlFor="release-date-filter">Год выпуска</Label>
-                                                <Input
-                                                    id="release-date-filter"
-                                                    type="text"
-                                                    value={carReleaseDate}
-                                                    onChange={(e) => setCarReleaseDate(e.target.value)}
-                                                    placeholder="2010..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
-
-                                            {/* Трансмиссия */}
-                                            <div>
-                                                <Label htmlFor="transmission-filter">Трансмиссия</Label>
-                                                <div className="mt-1.5">
-                                                    <SearchableSelect
-                                                        value={transmission}
-                                                        onValueChange={(value) => setTransmission(value)}
-                                                        options={transmissionOptions}
-                                                        placeholder="Все типы КПП"
-                                                        searchPlaceholder="Поиск КПП..."
-                                                        emptyMessage="Тип КПП не найден"
-                                                        className="bg-transparent border border-gray-300"
-                                                    />
+                                                    {/* Верх / низ */}
+                                                    <div>
+                                                        <Label htmlFor="top-bottom-filter">Верх / низ</Label>
+                                                        <div className="mt-1.5">
+                                                            <SearchableSelect
+                                                                value={topBottom}
+                                                                onValueChange={(value) => setTopBottom(value)}
+                                                                options={topBottomOptions}
+                                                                placeholder="Все положения"
+                                                                searchPlaceholder="Поиск..."
+                                                                emptyMessage="Не найдено"
+                                                                className="bg-transparent border border-gray-300"
+                                                            />
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            </TabsContent>
 
-                                            {/* Привод */}
-                                            <div>
-                                                <Label htmlFor="drive-filter">Привод</Label>
-                                                <div className="mt-1.5">
-                                                    <SearchableSelect
-                                                        value={drive}
-                                                        onValueChange={(value) => setDrive(value)}
-                                                        options={driveOptions}
-                                                        placeholder="Все приводы"
-                                                        searchPlaceholder="Поиск привода..."
-                                                        emptyMessage="Привод не найден"
-                                                        className="bg-transparent border border-gray-300"
-                                                    />
+                                            {/* Вкладка 4: Склад и продавец */}
+                                            <TabsContent value="warehouse" className="mt-4">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                    {/* Местоположение */}
+                                                    <div>
+                                                        <Label htmlFor="location-filter">Местоположение (полка/стеллаж)</Label>
+                                                        <Input
+                                                            id="location-filter"
+                                                            type="text"
+                                                            value={location}
+                                                            onChange={(e) => setLocation(e.target.value)}
+                                                            placeholder="Shelf A-12..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
+
+                                                    {/* Адрес склада */}
+                                                    <div>
+                                                        <Label htmlFor="address-filter">Адрес склада</Label>
+                                                        <Input
+                                                            id="address-filter"
+                                                            type="text"
+                                                            value={address}
+                                                            onChange={(e) => setAddress(e.target.value)}
+                                                            placeholder="Профсоюзная 2/11..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
+
+                                                    {/* Продавец */}
+                                                    <div>
+                                                        <Label htmlFor="salesman-filter">Продавец</Label>
+                                                        <Input
+                                                            id="salesman-filter"
+                                                            type="text"
+                                                            value={salesman}
+                                                            onChange={(e) => setSalesman(e.target.value)}
+                                                            placeholder="Имя продавца..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
+
+                                                    {/* Производитель */}
+                                                    <div>
+                                                        <Label htmlFor="manufacturer-filter">Производитель</Label>
+                                                        <Input
+                                                            id="manufacturer-filter"
+                                                            type="text"
+                                                            value={manufacturer}
+                                                            onChange={(e) => setManufacturer(e.target.value)}
+                                                            placeholder="Denso, Bosch, Brembo..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
+
+                                                    {/* Код производителя */}
+                                                    <div>
+                                                        <Label htmlFor="manufacturer-code-filter">Код производителя</Label>
+                                                        <Input
+                                                            id="manufacturer-code-filter"
+                                                            type="text"
+                                                            value={manufacturerCode}
+                                                            onChange={(e) => setManufacturerCode(e.target.value)}
+                                                            placeholder="Код производителя..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
+
+                                                    {/* Код поставщика */}
+                                                    <div>
+                                                        <Label htmlFor="supplier-code-filter">Код поставщика</Label>
+                                                        <Input
+                                                            id="supplier-code-filter"
+                                                            type="text"
+                                                            value={supplierCode}
+                                                            onChange={(e) => setSupplierCode(e.target.value)}
+                                                            placeholder="Код поставщика..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
+
+                                                    {/* Процент износа */}
+                                                    <div>
+                                                        <Label htmlFor="wear-percentage-filter">Процент износа</Label>
+                                                        <Input
+                                                            id="wear-percentage-filter"
+                                                            type="text"
+                                                            value={wearPercentage}
+                                                            onChange={(e) => setWearPercentage(e.target.value)}
+                                                            placeholder="5%, 10%..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            </TabsContent>
 
-                                            {/* Состояние */}
-                                            <div>
-                                                <Label htmlFor="condition-filter">Состояние</Label>
-                                                <Input
-                                                    id="condition-filter"
-                                                    type="text"
-                                                    value={condition}
-                                                    onChange={(e) => setCondition(e.target.value)}
-                                                    placeholder="Контрактная, б/у, новая..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
+                                            {/* Вкладка 5: Шины и диски */}
+                                            <TabsContent value="wheels" className="mt-4">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                    {/* Сезонность */}
+                                                    <div>
+                                                        <Label htmlFor="season-filter">Сезонность шин</Label>
+                                                        <div className="mt-1.5">
+                                                            <SearchableSelect
+                                                                value={season}
+                                                                onValueChange={(value) => setSeason(value)}
+                                                                options={seasonOptions}
+                                                                placeholder="Все сезоны"
+                                                                searchPlaceholder="Поиск сезона..."
+                                                                emptyMessage="Сезон не найден"
+                                                                className="bg-transparent border border-gray-300"
+                                                            />
+                                                        </div>
+                                                    </div>
 
-                                            {/* Производитель */}
-                                            <div>
-                                                <Label htmlFor="manufacturer-filter">Производитель</Label>
-                                                <Input
-                                                    id="manufacturer-filter"
-                                                    type="text"
-                                                    value={manufacturer}
-                                                    onChange={(e) => setManufacturer(e.target.value)}
-                                                    placeholder="Denso, Bosch, Brembo..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
+                                                    {/* Модель шины */}
+                                                    <div>
+                                                        <Label htmlFor="tire-model-filter">Модель шины</Label>
+                                                        <Input
+                                                            id="tire-model-filter"
+                                                            type="text"
+                                                            value={tireModel}
+                                                            onChange={(e) => setTireModel(e.target.value)}
+                                                            placeholder="Hakkapeliitta 8, Ice Cruiser..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
 
-                                            {/* Дефект */}
-                                            <div>
-                                                <Label htmlFor="defect-filter">Дефект</Label>
-                                                <Input
-                                                    id="defect-filter"
-                                                    type="text"
-                                                    value={defect}
-                                                    onChange={(e) => setDefect(e.target.value)}
-                                                    placeholder="Царапина, скол, трещина..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
+                                                    {/* Диаметр */}
+                                                    <div>
+                                                        <Label htmlFor="diameter-filter">Диаметр</Label>
+                                                        <Input
+                                                            id="diameter-filter"
+                                                            type="text"
+                                                            value={diameter}
+                                                            onChange={(e) => setDiameter(e.target.value)}
+                                                            placeholder="R15, R16, R17..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
 
-                                            {/* Цвет */}
-                                            <div>
-                                                <Label htmlFor="color-filter">Цвет</Label>
-                                                <Input
-                                                    id="color-filter"
-                                                    type="text"
-                                                    value={color}
-                                                    onChange={(e) => setColor(e.target.value)}
-                                                    placeholder="Черный, белый, серебристый..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
+                                                    {/* Ширина шины */}
+                                                    <div>
+                                                        <Label htmlFor="width-filter">Ширина шины</Label>
+                                                        <Input
+                                                            id="width-filter"
+                                                            type="text"
+                                                            value={width}
+                                                            onChange={(e) => setWidth(e.target.value)}
+                                                            placeholder="205, 215, 225..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
 
+                                                    {/* Профиль */}
+                                                    <div>
+                                                        <Label htmlFor="profile-filter">Профиль шины</Label>
+                                                        <Input
+                                                            id="profile-filter"
+                                                            type="text"
+                                                            value={profile}
+                                                            onChange={(e) => setProfile(e.target.value)}
+                                                            placeholder="55, 60, 65..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
 
-                                            {/* Статус */}
-                                            <div>
-                                                <Label htmlFor="status-filter">Статус</Label>
-                                                <div className="mt-1.5">
-                                                    <SearchableSelect
-                                                        value={status}
-                                                        onValueChange={(value) => setStatus(value)}
-                                                        options={statusOptions}
-                                                        placeholder="Все статусы"
-                                                        searchPlaceholder="Поиск статуса..."
-                                                        emptyMessage="Статус не найден"
-                                                        className="bg-transparent border border-gray-300"
-                                                    />
+                                                    {/* Количество шин */}
+                                                    <div>
+                                                        <Label htmlFor="tire-quantity-filter">Количество шин</Label>
+                                                        <Input
+                                                            id="tire-quantity-filter"
+                                                            type="text"
+                                                            value={tireQuantity}
+                                                            onChange={(e) => setTireQuantity(e.target.value)}
+                                                            placeholder="4 шт, пара..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
+
+                                                    {/* Сверловка (PCD) */}
+                                                    <div>
+                                                        <Label htmlFor="drilling-filter">Сверловка (PCD)</Label>
+                                                        <Input
+                                                            id="drilling-filter"
+                                                            type="text"
+                                                            value={drilling}
+                                                            onChange={(e) => setDrilling(e.target.value)}
+                                                            placeholder="5x114.3, 4x100..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
+
+                                                    {/* Вылет (ET) */}
+                                                    <div>
+                                                        <Label htmlFor="offset-filter">Вылет (ET)</Label>
+                                                        <Input
+                                                            id="offset-filter"
+                                                            type="text"
+                                                            value={offset}
+                                                            onChange={(e) => setOffset(e.target.value)}
+                                                            placeholder="ET45, ET38..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
+
+                                                    {/* Диаметр ЦО (DIA) */}
+                                                    <div>
+                                                        <Label htmlFor="center-hole-diameter-filter">Диаметр ЦО (DIA)</Label>
+                                                        <Input
+                                                            id="center-hole-diameter-filter"
+                                                            type="text"
+                                                            value={centerHoleDiameter}
+                                                            onChange={(e) => setCenterHoleDiameter(e.target.value)}
+                                                            placeholder="60.1, 67.1..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            </TabsContent>
+                                        </Tabs>
 
-                                            {/* Фото */}
-                                            <div>
-                                                <Label htmlFor="photo-filter">Фото</Label>
-                                                <div className="mt-1.5">
-                                                    <SearchableSelect
-                                                        value={hasPhoto}
-                                                        onValueChange={(value) => setHasPhoto(value)}
-                                                        options={photoOptions}
-                                                        placeholder="Все"
-                                                        searchPlaceholder="Поиск по фото..."
-                                                        emptyMessage="Опция не найдена"
-                                                        className="bg-transparent border border-gray-300"
-                                                    />
-                                                </div>
+                                        {/* Панель сброса и сводки под вкладками */}
+                                        <div className="mt-4 pt-3 border-t flex flex-col sm:flex-row items-center justify-between gap-2">
+                                            <div className="text-xs text-muted-foreground">
+                                                {activeFiltersCount > 0 ? (
+                                                    <span>Активно фильтров: <strong className="text-foreground">{activeFiltersCount}</strong></span>
+                                                ) : (
+                                                    <span>Фильтры не выбраны</span>
+                                                )}
                                             </div>
-
-                                            {/* Цена от */}
-                                            <div>
-                                                <Label htmlFor="min-price-filter">Цена от (₽)</Label>
-                                                <Input
-                                                    id="min-price-filter"
-                                                    type="number"
-                                                    value={minPrice}
-                                                    onChange={(e) => setMinPrice(e.target.value)}
-                                                    placeholder="0"
-                                                    min="0"
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
-
-                                            {/* Цена до */}
-                                            <div>
-                                                <Label htmlFor="max-price-filter">Цена до (₽)</Label>
-                                                <Input
-                                                    id="max-price-filter"
-                                                    type="number"
-                                                    value={maxPrice}
-                                                    onChange={(e) => setMaxPrice(e.target.value)}
-                                                    placeholder="100000"
-                                                    min="0"
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
-
-                                            {/* Количество от */}
-                                            <div>
-                                                <Label htmlFor="min-quantity-filter">Количество от</Label>
-                                                <Input
-                                                    id="min-quantity-filter"
-                                                    type="number"
-                                                    value={minQuantity}
-                                                    onChange={(e) => setMinQuantity(e.target.value)}
-                                                    placeholder="1"
-                                                    min="0"
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
-
-                                            {/* Количество до */}
-                                            <div>
-                                                <Label htmlFor="max-quantity-filter">Количество до</Label>
-                                                <Input
-                                                    id="max-quantity-filter"
-                                                    type="number"
-                                                    value={maxQuantity}
-                                                    onChange={(e) => setMaxQuantity(e.target.value)}
-                                                    placeholder="100"
-                                                    min="0"
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
-
-                                            {/* Продавец */}
-                                            <div>
-                                                <Label htmlFor="salesman-filter">Продавец</Label>
-                                                <Input
-                                                    id="salesman-filter"
-                                                    type="text"
-                                                    value={salesman}
-                                                    onChange={(e) => setSalesman(e.target.value)}
-                                                    placeholder="Имя продавца..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
-
-                                            {/* Перед / зад */}
-                                            <div>
-                                                <Label htmlFor="front-rear-filter">Перед / зад</Label>
-                                                <div className="mt-1.5">
-                                                    <SearchableSelect
-                                                        value={frontRear}
-                                                        onValueChange={(value) => setFrontRear(value)}
-                                                        options={frontRearOptions}
-                                                        placeholder="Все расположения"
-                                                        searchPlaceholder="Поиск..."
-                                                        emptyMessage="Не найдено"
-                                                        className="bg-transparent border border-gray-300"
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            {/* Право / лево */}
-                                            <div>
-                                                <Label htmlFor="left-right-filter">Право / лево</Label>
-                                                <div className="mt-1.5">
-                                                    <SearchableSelect
-                                                        value={leftRight}
-                                                        onValueChange={(value) => setLeftRight(value)}
-                                                        options={leftRightOptions}
-                                                        placeholder="Все стороны"
-                                                        searchPlaceholder="Поиск..."
-                                                        emptyMessage="Не найдено"
-                                                        className="bg-transparent border border-gray-300"
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            {/* Верх / низ */}
-                                            <div>
-                                                <Label htmlFor="top-bottom-filter">Верх / низ</Label>
-                                                <div className="mt-1.5">
-                                                    <SearchableSelect
-                                                        value={topBottom}
-                                                        onValueChange={(value) => setTopBottom(value)}
-                                                        options={topBottomOptions}
-                                                        placeholder="Все положения"
-                                                        searchPlaceholder="Поиск..."
-                                                        emptyMessage="Не найдено"
-                                                        className="bg-transparent border border-gray-300"
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            {/* Код производителя */}
-                                            <div>
-                                                <Label htmlFor="manufacturer-code-filter">Код производителя</Label>
-                                                <Input
-                                                    id="manufacturer-code-filter"
-                                                    type="text"
-                                                    value={manufacturerCode}
-                                                    onChange={(e) => setManufacturerCode(e.target.value)}
-                                                    placeholder="Код производителя..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
-
-                                            {/* Код поставщика */}
-                                            <div>
-                                                <Label htmlFor="supplier-code-filter">Код поставщика</Label>
-                                                <Input
-                                                    id="supplier-code-filter"
-                                                    type="text"
-                                                    value={supplierCode}
-                                                    onChange={(e) => setSupplierCode(e.target.value)}
-                                                    placeholder="Код поставщика..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
-
-                                            {/* Модель КПП */}
-                                            <div>
-                                                <Label htmlFor="transmission-model-filter">Модель КПП</Label>
-                                                <Input
-                                                    id="transmission-model-filter"
-                                                    type="text"
-                                                    value={transmissionModel}
-                                                    onChange={(e) => setTransmissionModel(e.target.value)}
-                                                    placeholder="U140F, RE4F04B..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
-
-                                            {/* Процент износа */}
-                                            <div>
-                                                <Label htmlFor="wear-percentage-filter">Процент износа</Label>
-                                                <Input
-                                                    id="wear-percentage-filter"
-                                                    type="text"
-                                                    value={wearPercentage}
-                                                    onChange={(e) => setWearPercentage(e.target.value)}
-                                                    placeholder="5%, 10%..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
-
-                                            {/* Сезонность */}
-                                            <div>
-                                                <Label htmlFor="season-filter">Сезонность шин</Label>
-                                                <div className="mt-1.5">
-                                                    <SearchableSelect
-                                                        value={season}
-                                                        onValueChange={(value) => setSeason(value)}
-                                                        options={seasonOptions}
-                                                        placeholder="Все сезоны"
-                                                        searchPlaceholder="Поиск сезона..."
-                                                        emptyMessage="Сезон не найден"
-                                                        className="bg-transparent border border-gray-300"
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            {/* Диаметр */}
-                                            <div>
-                                                <Label htmlFor="diameter-filter">Диаметр</Label>
-                                                <Input
-                                                    id="diameter-filter"
-                                                    type="text"
-                                                    value={diameter}
-                                                    onChange={(e) => setDiameter(e.target.value)}
-                                                    placeholder="R15, R16, R17..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
-
-                                            {/* Ширина шины */}
-                                            <div>
-                                                <Label htmlFor="width-filter">Ширина шины</Label>
-                                                <Input
-                                                    id="width-filter"
-                                                    type="text"
-                                                    value={width}
-                                                    onChange={(e) => setWidth(e.target.value)}
-                                                    placeholder="205, 215, 225..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
-
-                                            {/* Профиль */}
-                                            <div>
-                                                <Label htmlFor="profile-filter">Профиль шины</Label>
-                                                <Input
-                                                    id="profile-filter"
-                                                    type="text"
-                                                    value={profile}
-                                                    onChange={(e) => setProfile(e.target.value)}
-                                                    placeholder="55, 60, 65..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
-
-                                            {/* Количество шин */}
-                                            <div>
-                                                <Label htmlFor="tire-quantity-filter">Количество шин</Label>
-                                                <Input
-                                                    id="tire-quantity-filter"
-                                                    type="text"
-                                                    value={tireQuantity}
-                                                    onChange={(e) => setTireQuantity(e.target.value)}
-                                                    placeholder="4 шт, пара..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
-
-                                            {/* Сверловка (PCD) */}
-                                            <div>
-                                                <Label htmlFor="drilling-filter">Сверловка (PCD)</Label>
-                                                <Input
-                                                    id="drilling-filter"
-                                                    type="text"
-                                                    value={drilling}
-                                                    onChange={(e) => setDrilling(e.target.value)}
-                                                    placeholder="5x114.3, 4x100..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
-
-                                            {/* Вылет (ET) */}
-                                            <div>
-                                                <Label htmlFor="offset-filter">Вылет (ET)</Label>
-                                                <Input
-                                                    id="offset-filter"
-                                                    type="text"
-                                                    value={offset}
-                                                    onChange={(e) => setOffset(e.target.value)}
-                                                    placeholder="ET45, ET38..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
-
-                                            {/* Диаметр ЦО (DIA) */}
-                                            <div>
-                                                <Label htmlFor="center-hole-diameter-filter">Диаметр ЦО (DIA)</Label>
-                                                <Input
-                                                    id="center-hole-diameter-filter"
-                                                    type="text"
-                                                    value={centerHoleDiameter}
-                                                    onChange={(e) => setCenterHoleDiameter(e.target.value)}
-                                                    placeholder="60.1, 67.1..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
-
-                                            {/* Модель шины */}
-                                            <div>
-                                                <Label htmlFor="tire-model-filter">Модель шины</Label>
-                                                <Input
-                                                    id="tire-model-filter"
-                                                    type="text"
-                                                    value={tireModel}
-                                                    onChange={(e) => setTireModel(e.target.value)}
-                                                    placeholder="Hakkapeliitta 8, Ice Cruiser..."
-                                                    className="mt-1.5 bg-transparent border border-gray-300"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {/* Кнопка очистки фильтров */}
-                                        <div className="mt-4 flex justify-end">
                                             <Button
                                                 onClick={clearFilters}
                                                 type="button"
                                                 variant="outline"
+                                                size="sm"
                                                 disabled={isSearching || (activeFiltersCount === 0 && !searchQuery)}
-                                                className="gap-2"
+                                                className="gap-2 shrink-0 border-input"
                                             >
                                                 <X className="h-4 w-4" />
                                                 Очистить все фильтры
