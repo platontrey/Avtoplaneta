@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/api_client.dart';
+import '../../../core/utils/formatters.dart';
 import '../providers/inventory_provider.dart';
 import '../providers/part_catalog_provider.dart';
 
@@ -259,6 +261,8 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
               _carReleasePeriodCtrl,
               'Период выпуска автомобиля',
               hint: 'Например: 2001-2007',
+              keyboard: TextInputType.number,
+              inputFormatters: const [CarReleasePeriodFormatter()],
             ),
             _buildTextField(
               _mileageCtrl,
@@ -339,6 +343,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
     bool required = false,
     int maxLines = 1,
     TextInputType keyboard = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters,
     String? hint,
     ValueChanged<String>? onChanged,
   }) {
@@ -348,6 +353,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
         controller: ctrl,
         maxLines: maxLines,
         keyboardType: keyboard,
+        inputFormatters: inputFormatters,
         onChanged: onChanged,
         style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(

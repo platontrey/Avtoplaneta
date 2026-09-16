@@ -18,6 +18,7 @@ import { getAuthHeaders } from "@/lib/csrf";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { API_BASE_URL } from '@/lib/api';
 import { brandOptions } from '@/lib/constants';
+import { formatCarReleasePeriod } from "@/lib/utils";
 import {
   flattenCatalogParts,
   expandDefectReportParts,
@@ -266,7 +267,13 @@ export default function DefectReport() {
                 <Label htmlFor="car_release_period">Период выпуска автомобиля</Label>
                 <Input
                   id="car_release_period"
-                  {...register("car_release_period")}
+                  {...register("car_release_period", {
+                    onChange: (e) => {
+                      const formatted = formatCarReleasePeriod(e.target.value);
+                      e.target.value = formatted;
+                      setValue("car_release_period", formatted);
+                    },
+                  })}
                   type="text"
                   placeholder="Например: 2001-2007"
                   className="h-10"

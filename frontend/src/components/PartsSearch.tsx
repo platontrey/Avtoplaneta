@@ -75,6 +75,7 @@ import { API_BASE_URL } from '@/lib/api';
 import { brandOptions } from '@/lib/constants';
 import { usePartCatalog } from '@/features/catalog/usePartCatalog';
 import type { PartFilters } from '@/hooks/useParts';
+import { formatCarReleasePeriod } from '@/lib/utils';
 
 interface PartsSearchProps {
     onSearchChange?: (searchQuery: string) => void;
@@ -1168,7 +1169,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                                                             id="car-release-period-filter"
                                                             type="text"
                                                             value={carReleasePeriod}
-                                                            onChange={(e) => setCarReleasePeriod(e.target.value)}
+                                                            onChange={(e) => setCarReleasePeriod(formatCarReleasePeriod(e.target.value))}
                                                             placeholder="2001-2007..."
                                                             className="mt-1.5 bg-transparent border border-gray-300"
                                                         />

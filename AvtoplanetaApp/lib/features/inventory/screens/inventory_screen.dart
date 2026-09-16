@@ -7,6 +7,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../app/theme.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/part.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../core/utils/qr_signer.dart';
 import '../../../shared/widgets/app_states.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -1533,6 +1534,8 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: _carReleasePeriodController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: const [CarReleasePeriodFormatter()],
                       onChanged: (_) => setState(() {}),
                       decoration: const InputDecoration(
                         labelText: 'Период выпуска автомобиля',

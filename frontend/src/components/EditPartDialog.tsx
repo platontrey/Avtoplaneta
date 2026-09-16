@@ -18,6 +18,7 @@ import { API_BASE_URL } from "@/lib/api";
 import SelectUserDropdown from "./SelectUserDropdown";
 import type { User } from "@/features/messaging/types";
 import { usePartCatalog } from "@/features/catalog/usePartCatalog";
+import { formatCarReleasePeriod } from "@/lib/utils";
 
 interface EditPartDialogProps {
     partEdit: UsePartEditReturn;
@@ -132,7 +133,7 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                             autoComplete="off"
                                             placeholder="Например: 2001-2007"
                                             value={partEdit.editForm.car_release_period || ''}
-                                            onChange={(e) => partEdit.updateFormField('car_release_period', e.target.value)}
+                                            onChange={(e) => partEdit.updateFormField('car_release_period', formatCarReleasePeriod(e.target.value))}
                                         />
                                     </FormRow>
                                 )}
@@ -344,7 +345,7 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                             id="car_release_period_spec"
                                             placeholder="Например: 2001-2007"
                                             value={partEdit.editForm.car_release_period || ''}
-                                            onChange={(e) => partEdit.updateFormField('car_release_period', e.target.value)}
+                                            onChange={(e) => partEdit.updateFormField('car_release_period', formatCarReleasePeriod(e.target.value))}
                                         />
                                     </FormRow>
                                 )}

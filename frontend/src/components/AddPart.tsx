@@ -28,6 +28,7 @@ import ImageEditor from "./ImageEditor";
 import { API_BASE_URL } from '@/lib/api';
 import { brandOptions } from '@/lib/constants';
 import { usePartCatalog } from '@/features/catalog/usePartCatalog';
+import { formatCarReleasePeriod } from '@/lib/utils';
 
 const partSchema = z.object({
     brand: z.string().min(1, "Выберите бренд"),
@@ -527,7 +528,13 @@ export default function AddPart() {
                                             <Label htmlFor="car_release_period" className="min-w-[120px] mb-1">Период выпуска автомобиля</Label>
                                             <Input
                                                 id="car_release_period"
-                                                {...register("car_release_period")}
+                                                {...register("car_release_period", {
+                                                    onChange: (e) => {
+                                                        const formatted = formatCarReleasePeriod(e.target.value);
+                                                        e.target.value = formatted;
+                                                        setValue("car_release_period", formatted);
+                                                    },
+                                                })}
                                                 type="text"
                                                 placeholder="Например: 2001-2007"
                                                 className="h-10"

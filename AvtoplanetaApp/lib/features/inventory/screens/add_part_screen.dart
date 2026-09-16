@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,6 +8,7 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import '../../../core/api/api_client.dart';
+import '../../../core/utils/formatters.dart';
 import '../data/part_catalog.dart';
 import '../providers/inventory_provider.dart';
 import '../providers/part_catalog_provider.dart';
@@ -564,7 +566,13 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
 
             _section('Идентификация'),
             _field(_vinCtrl, 'VIN / Номер кузова'),
-            _field(_carReleasePeriodCtrl, 'Период выпуска автомобиля'),
+            _field(
+              _carReleasePeriodCtrl,
+              'Период выпуска автомобиля',
+              hint: '2001-2007',
+              keyboard: TextInputType.number,
+              inputFormatters: const [CarReleasePeriodFormatter()],
+            ),
 
             _section('Расположение'),
             _field(_locationCtrl, 'Место хранения'),
@@ -756,6 +764,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
     bool required = false,
     int maxLines = 1,
     TextInputType keyboard = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters,
     String? hint,
   }) => Padding(
     padding: const EdgeInsets.only(bottom: 12),
@@ -763,6 +772,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       controller: ctrl,
       maxLines: maxLines,
       keyboardType: keyboard,
+      inputFormatters: inputFormatters,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(labelText: label, hintText: hint),
       validator: required
