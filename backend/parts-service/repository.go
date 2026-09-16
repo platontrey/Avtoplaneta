@@ -116,7 +116,7 @@ func scanParts(rows pgx.Rows) ([]Part, error) {
 			&p.ID, &p.Name, &p.Quantity, &p.Description, &p.Category, &p.Price,
 			&p.Salesman, &p.Location, &p.Address, &p.Status, &p.Brand, &p.Model, &photos,
 			&p.SellerID, &toDeleteAt, &p.VIN,
-			&p.BodyBrand, &p.EngineBrand, &p.CarReleaseDate, &p.FrontRear, &p.LeftRight, &p.TopBottom,
+			&p.BodyBrand, &p.EngineBrand, &p.CarReleaseDate, &p.CarReleasePeriod, &p.FrontRear, &p.LeftRight, &p.TopBottom,
 			&p.Number, &p.Manufacturer, &p.ManufacturerCode, &p.OEMCode, &p.Color, &p.Condition,
 			&p.SupplierCode, &p.Defect, &p.Transmission, &p.TransmissionModel, &p.Drive, &p.WearPercentage,
 			&p.Season, &p.Diameter, &p.Width, &p.Profile, &p.TireQuantity, &p.Drilling, &p.Offset,

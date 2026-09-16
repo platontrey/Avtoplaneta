@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -269,6 +270,28 @@ func (suite *RepositoryTestSuite) TestGetSupplierCodes() {
 	codes, err := suite.repo.GetSupplierCodes(context.Background())
 	assert.NoError(suite.T(), err)
 	assert.Len(suite.T(), codes, 2)
+}
+
+func (suite *RepositoryTestSuite) TestPartColumnsConsistency() {
+	cols := strings.Split(partColumns, ",")
+	assert.Equal(suite.T(), 47, len(cols), "partColumns must have exactly 47 columns")
+
+	var foundPeriod, foundDate, foundVin bool
+	for _, col := range cols {
+		trimmed := strings.TrimSpace(col)
+		if trimmed == "car_release_period" {
+			foundPeriod = true
+		}
+		if trimmed == "car_release_date" {
+			foundDate = true
+		}
+		if trimmed == "vin" {
+			foundVin = true
+		}
+	}
+	assert.True(suite.T(), foundPeriod, "partColumns must contain car_release_period")
+	assert.True(suite.T(), foundDate, "partColumns must contain car_release_date")
+	assert.True(suite.T(), foundVin, "partColumns must contain vin")
 }
 
 func TestRepositoryTestSuite(t *testing.T) {
