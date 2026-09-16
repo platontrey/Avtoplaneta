@@ -43,88 +43,15 @@ class PartCatalogCategory {
       );
 }
 
-class PartCatalogBinding {
-  final String source;
-  final String target;
-  final Set<String> categories;
-  final Set<String> excludedCategories;
-  final String? defaultValue;
-
-  const PartCatalogBinding({
-    required this.source,
-    required this.target,
-    this.categories = const {},
-    this.excludedCategories = const {},
-    this.defaultValue,
-  });
-
-  factory PartCatalogBinding.fromJson(Map<String, dynamic> json) =>
-      PartCatalogBinding(
-        source: json['source'] as String? ?? '',
-        target: json['target'] as String? ?? '',
-        categories: (json['categories'] as List<dynamic>? ?? const [])
-            .map((value) => value.toString())
-            .toSet(),
-        excludedCategories:
-            (json['excluded_categories'] as List<dynamic>? ?? const [])
-                .map((value) => value.toString())
-                .toSet(),
-        defaultValue: json['default_value'] as String?,
-      );
-}
-
-class PartCatalogTemplate {
-  final String id;
-  final String name;
-  final String category;
-  final int quantity;
-  final double price;
-  final Map<String, String> defaults;
-
-  const PartCatalogTemplate({
-    required this.id,
-    required this.name,
-    required this.category,
-    required this.quantity,
-    required this.price,
-    this.defaults = const {},
-  });
-
-  factory PartCatalogTemplate.fromJson(Map<String, dynamic> json) =>
-      PartCatalogTemplate(
-        id: json['id'] as String? ?? '',
-        name: json['name'] as String? ?? '',
-        category: json['category'] as String? ?? '',
-        quantity: (json['quantity'] as num?)?.toInt() ?? 0,
-        price: (json['price'] as num?)?.toDouble() ?? 0,
-        defaults: Map<String, dynamic>.from(
-          json['defaults'] as Map? ?? const {},
-        ).map((key, value) => MapEntry(key, value.toString())),
-      );
-
-  Map<String, dynamic> toPreviewMap() => {
-    'id': id,
-    'name': name,
-    'category': category,
-    'quantity': quantity,
-    'price': price,
-    ...defaults,
-  };
-}
-
 class PartCatalog {
   final String version;
   final List<PartCatalogAttribute> attributes;
   final List<PartCatalogCategory> partFormCategories;
-  final List<PartCatalogBinding> reportBindings;
-  final List<PartCatalogTemplate> parts;
 
   const PartCatalog({
     required this.version,
     required this.attributes,
     required this.partFormCategories,
-    required this.reportBindings,
-    required this.parts,
   });
 
   factory PartCatalog.fromJson(Map<String, dynamic> json) => PartCatalog(
@@ -144,30 +71,7 @@ class PartCatalog {
               ),
             )
             .toList(),
-    reportBindings: (json['report_bindings'] as List<dynamic>? ?? const [])
-        .map(
-          (value) => PartCatalogBinding.fromJson(
-            Map<String, dynamic>.from(value as Map),
-          ),
-        )
-        .toList(),
-    parts: (json['parts'] as List<dynamic>? ?? const [])
-        .map(
-          (value) => PartCatalogTemplate.fromJson(
-            Map<String, dynamic>.from(value as Map),
-          ),
-        )
-        .toList(),
   );
-
-  Set<String> categoriesForBinding(String source) {
-    for (final binding in reportBindings) {
-      if (binding.source == source) {
-        return binding.categories;
-      }
-    }
-    return const {};
-  }
 
   Set<String> attributesForCategory(String category) {
     for (final item in partFormCategories) {
@@ -186,38 +90,4 @@ class PartCatalog {
     }
     return const [];
   }
-
-  List<Map<String, dynamic>> expandDefectReportParts(
-    Map<String, dynamic> values, {
-    required String supplierCode,
-  }) => parts.map((template) {
-    final specifications = <String, dynamic>{
-      ...template.defaults,
-      'supplier_code': supplierCode,
-    };
-
-    for (final binding in reportBindings) {
-      final included = binding.categories.isEmpty ||
-          binding.categories.contains(template.category);
-      final excluded = binding.excludedCategories.contains(template.category);
-      if (!included || excluded) continue;
-
-      final rawValue = values[binding.source];
-      final value = rawValue == null || rawValue.toString().trim().isEmpty
-          ? binding.defaultValue
-          : rawValue.toString().trim();
-      if (value != null && value.isNotEmpty) {
-        specifications[binding.target] = value;
-      }
-    }
-
-    return <String, dynamic>{
-      'name': template.name,
-      'category': template.category,
-      'description': '',
-      'quantity': template.quantity,
-      'price': template.price,
-      ...specifications,
-    };
-  }).toList();
 }

@@ -260,59 +260,23 @@ void main() {
     });
   });
 
-  group('Defect report catalog expansion', () {
-    test('keeps template and vehicle specifications in selected parts', () {
+  group('Part catalog metadata', () {
+    test('parses attributes used by client forms', () {
       final catalog = PartCatalog.fromJson({
         'version': 'test',
-        'attributes': const [],
+        'attributes': [
+          {
+            'code': 'transmission',
+            'label': 'Тип трансмиссии',
+            'input_type': 'select',
+            'options': ['АКПП', 'МКПП'],
+          },
+        ],
         'part_form_categories': const [],
-        'report_bindings': [
-          {'source': 'year', 'target': 'car_release_date'},
-          {'source': 'car_release_period', 'target': 'car_release_period'},
-          {'source': 'transmission', 'target': 'transmission'},
-          {'source': 'transmission_model', 'target': 'transmission_model'},
-          {'source': 'drive', 'target': 'drive'},
-        ],
-        'parts': [
-          {
-            'id': 'part_1',
-            'name': 'Привод',
-            'category': 'Трансмиссия',
-            'quantity': 0,
-            'price': 1000,
-            'defaults': {'front_rear': 'F', 'left_right': 'L'},
-          },
-          {
-            'id': 'part_2',
-            'name': 'Стекло',
-            'category': 'Стекла',
-            'quantity': 0,
-            'price': 2000,
-          },
-        ],
       });
 
-      final parts = catalog.expandDefectReportParts({
-        'year': 2011,
-        'car_release_period': '2008-2015',
-        'transmission': 'АКПП',
-        'transmission_model': '6HP19',
-        'drive': 'Задний',
-      }, supplierCode: 'report-123');
-
-      expect(parts.first['front_rear'], 'F');
-      expect(parts.first['left_right'], 'L');
-      expect(parts.first['car_release_date'], '2011');
-      expect(parts.first['car_release_period'], '2008-2015');
-      expect(parts.first['transmission'], 'АКПП');
-      expect(parts.first['transmission_model'], '6HP19');
-      expect(parts.first['drive'], 'Задний');
-      expect(parts.first['supplier_code'], 'report-123');
-      expect(parts.last['car_release_date'], '2011');
-      expect(parts.last['car_release_period'], '2008-2015');
-      expect(parts.last['transmission'], 'АКПП');
-      expect(parts.last['transmission_model'], '6HP19');
-      expect(parts.last['drive'], 'Задний');
+      expect(catalog.version, 'test');
+      expect(catalog.optionsForAttribute('transmission'), ['АКПП', 'МКПП']);
     });
   });
 

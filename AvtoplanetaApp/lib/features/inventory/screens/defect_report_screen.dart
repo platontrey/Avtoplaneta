@@ -1,9 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/api/api_client.dart';
 import '../../../core/utils/formatters.dart';
+import '../data/defect_report_api.dart';
 import '../providers/inventory_provider.dart';
 import '../providers/part_catalog_provider.dart';
 
@@ -79,9 +81,32 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
   // Preview management
   int _displayLimit = 10;
   String _previewFilter = '';
+  List<Map<String, dynamic>> _previewParts = const [];
+  bool _previewLoading = false;
+  String? _previewError;
+  String? _catalogVersion;
+  Timer? _previewDebounce;
+  int _previewRequestId = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    for (final controller in [
+      _yearCtrl,
+      _vinCtrl,
+      _carReleasePeriodCtrl,
+      _engineBrandCtrl,
+      _bodyBrandCtrl,
+      _transmissionModelCtrl,
+      _driveCtrl,
+    ]) {
+      controller.addListener(_schedulePreview);
+    }
+  }
 
   @override
   void dispose() {
+    _previewDebounce?.cancel();
     _modelCtrl.dispose();
     _yearCtrl.dispose();
     _vinCtrl.dispose();
@@ -93,6 +118,63 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
     _driveCtrl.dispose();
     _descCtrl.dispose();
     super.dispose();
+  }
+
+  Map<String, dynamic> _buildPayload(String catalogVersion) => {
+    'brand': _selectedBrand,
+    'model': _modelCtrl.text.trim(),
+    'year': int.tryParse(_yearCtrl.text) ?? 0,
+    'vin': _vinCtrl.text.trim(),
+    'car_release_period': _carReleasePeriodCtrl.text.trim(),
+    'mileage': int.tryParse(_mileageCtrl.text) ?? 0,
+    'engine_brand': _engineBrandCtrl.text.trim(),
+    'body_brand': _bodyBrandCtrl.text.trim(),
+    'interior_color': _selectedInteriorColor,
+    'body_color': _selectedBodyColor,
+    'transmission': _selectedTransmission,
+    'transmission_model': _transmissionModelCtrl.text.trim(),
+    'drive': _driveCtrl.text.trim(),
+    'description': _descCtrl.text.trim(),
+    'catalog_version': catalogVersion,
+  };
+
+  void _schedulePreview() {
+    final catalogVersion = _catalogVersion;
+    if (catalogVersion == null) return;
+
+    _previewDebounce?.cancel();
+    _previewDebounce = Timer(
+      const Duration(milliseconds: 350),
+      () => _loadPreview(catalogVersion),
+    );
+  }
+
+  Future<void> _loadPreview(String catalogVersion) async {
+    final requestId = ++_previewRequestId;
+    if (mounted) {
+      setState(() {
+        _previewLoading = true;
+        _previewError = null;
+      });
+    }
+
+    try {
+      final preview = await DefectReportApi.preview(
+        _buildPayload(catalogVersion),
+      );
+      if (!mounted || requestId != _previewRequestId) return;
+      setState(() {
+        _previewParts = preview.parts;
+        _previewLoading = false;
+      });
+    } catch (error) {
+      if (!mounted || requestId != _previewRequestId) return;
+      setState(() {
+        _previewParts = const [];
+        _previewLoading = false;
+        _previewError = 'Не удалось построить превью: $error';
+      });
+    }
   }
 
   Future<void> _submit() async {
@@ -108,42 +190,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
 
     try {
       final catalog = await ref.read(partCatalogProvider.future);
-      final values = <String, dynamic>{
-        'body_brand': _bodyBrandCtrl.text.trim(),
-        'engine_brand': _engineBrandCtrl.text.trim(),
-        'year': int.tryParse(_yearCtrl.text) ?? 0,
-        'vin': _vinCtrl.text.trim(),
-        'car_release_period': _carReleasePeriodCtrl.text.trim(),
-        'transmission': _selectedTransmission,
-        'transmission_model': _transmissionModelCtrl.text.trim(),
-        'drive': _driveCtrl.text.trim(),
-        'interior_color': _selectedInteriorColor,
-        'body_color': _selectedBodyColor,
-      };
-
-      final payload = {
-        'brand': _selectedBrand,
-        'model': _modelCtrl.text.trim(),
-        'year': int.tryParse(_yearCtrl.text) ?? 0,
-        'vin': _vinCtrl.text.trim(),
-        'car_release_period': _carReleasePeriodCtrl.text.trim(),
-        'mileage': int.tryParse(_mileageCtrl.text) ?? 0,
-        'engine_brand': _engineBrandCtrl.text.trim(),
-        'body_brand': _bodyBrandCtrl.text.trim(),
-        'interior_color': _selectedInteriorColor,
-        'body_color': _selectedBodyColor,
-        'transmission': _selectedTransmission,
-        'transmission_model': _transmissionModelCtrl.text.trim(),
-        'drive': _driveCtrl.text.trim(),
-        'description': _descCtrl.text.trim(),
-        'catalog_version': catalog.version,
-        'selectedParts': catalog.expandDefectReportParts(
-          values,
-          supplierCode: DateTime.now().millisecondsSinceEpoch.toString(),
-        ),
-      };
-
-      await apiClient.dio.post('/api/defect-reports', data: payload);
+      await DefectReportApi.create(_buildPayload(catalog.version));
 
       if (!mounted) return;
 
@@ -183,18 +230,12 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
       );
     }
 
-    final allParts = catalog.expandDefectReportParts({
-      'body_brand': _bodyBrandCtrl.text.trim(),
-      'engine_brand': _engineBrandCtrl.text.trim(),
-      'year': int.tryParse(_yearCtrl.text) ?? 0,
-      'vin': _vinCtrl.text.trim(),
-      'car_release_period': _carReleasePeriodCtrl.text.trim(),
-      'transmission': _selectedTransmission,
-      'transmission_model': _transmissionModelCtrl.text.trim(),
-      'drive': _driveCtrl.text.trim(),
-      'interior_color': _selectedInteriorColor,
-      'body_color': _selectedBodyColor,
-    }, supplierCode: 'preview');
+    if (_catalogVersion != catalog.version) {
+      _catalogVersion = catalog.version;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _schedulePreview());
+    }
+
+    final allParts = _previewParts;
     final transmissionOptions = catalog.optionsForAttribute('transmission');
     final driveOptions = catalog.optionsForAttribute('drive');
 
@@ -222,7 +263,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
             )
           else
             TextButton(
-              onPressed: _submit,
+              onPressed: _previewError == null ? _submit : null,
               child: const Text(
                 'Создать',
                 style: TextStyle(
@@ -244,7 +285,10 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
               value: _selectedBrand,
               label: 'Бренд *',
               items: _brands,
-              onChanged: (val) => setState(() => _selectedBrand = val),
+              onChanged: (val) {
+                setState(() => _selectedBrand = val);
+                _schedulePreview();
+              },
             ),
             _buildTextField(_modelCtrl, 'Модель *', required: true),
             _buildTextField(
@@ -270,7 +314,6 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
               hint: 'Например: 2001-2007',
               keyboard: TextInputType.number,
               inputFormatters: const [CarReleasePeriodFormatter()],
-              onChanged: (_) => setState(() {}),
             ),
             _buildTextField(
               _mileageCtrl,
@@ -282,13 +325,15 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
               value: _selectedTransmission,
               label: 'Тип трансмиссии',
               items: transmissionOptions,
-              onChanged: (val) => setState(() => _selectedTransmission = val),
+              onChanged: (val) {
+                setState(() => _selectedTransmission = val);
+                _schedulePreview();
+              },
             ),
             _buildTextField(
               _transmissionModelCtrl,
               'Модель трансмиссии',
               hint: 'Применяется ко всем запчастям ведомости',
-              onChanged: (_) => setState(() {}),
             ),
             _buildDropdown(
               value: driveOptions.contains(_driveCtrl.text.trim())
@@ -304,13 +349,19 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
               value: _selectedInteriorColor,
               label: 'Цвет салона',
               items: _availableColors,
-              onChanged: (val) => setState(() => _selectedInteriorColor = val),
+              onChanged: (val) {
+                setState(() => _selectedInteriorColor = val);
+                _schedulePreview();
+              },
             ),
             _buildDropdown(
               value: _selectedBodyColor,
               label: 'Цвет кузовных деталей',
               items: _availableColors,
-              onChanged: (val) => setState(() => _selectedBodyColor = val),
+              onChanged: (val) {
+                setState(() => _selectedBodyColor = val);
+                _schedulePreview();
+              },
             ),
 
             const SizedBox(height: 12),
@@ -422,6 +473,19 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
           ],
         ),
         const SizedBox(height: 8),
+        if (_previewLoading)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: LinearProgressIndicator(),
+          ),
+        if (_previewError != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              _previewError!,
+              style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+            ),
+          ),
         TextField(
           style: const TextStyle(color: Colors.white, fontSize: 14),
           decoration: const InputDecoration(
@@ -455,10 +519,14 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
             border: Border.all(color: Colors.white10),
           ),
           child: filteredParts.isEmpty
-              ? const Center(
+              ? Center(
                   child: Text(
-                    'Ничего не найдено',
-                    style: TextStyle(color: Colors.white30),
+                    _previewLoading
+                        ? 'Формируем превью...'
+                        : _previewError != null
+                        ? 'Превью временно недоступно'
+                        : 'Ничего не найдено',
+                    style: const TextStyle(color: Colors.white30),
                   ),
                 )
               : ListView.builder(

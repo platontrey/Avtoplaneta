@@ -1,8 +1,8 @@
 /*
-* Copyright (c) 2025 Avtoplaneta. All rights reserved.
-*/
+ * Copyright (c) 2025 Avtoplaneta. All rights reserved.
+ */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -14,16 +14,11 @@ import { ClearableSelect } from "@/components/ClearableSelect";
 import { SelectItem } from "@/components/ui/select";
 import { Save, ArrowLeft, Search } from "lucide-react";
 import { Link } from "react-router-dom";
-import { getAuthHeaders } from "@/lib/csrf";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { API_BASE_URL } from '@/lib/api';
-import { brandOptions } from '@/lib/constants';
+import { brandOptions } from "@/lib/constants";
 import { formatCarReleasePeriod } from "@/lib/utils";
-import {
-  flattenCatalogParts,
-  expandDefectReportParts,
-  usePartCatalog,
-} from '@/features/catalog/usePartCatalog';
+import { usePartCatalog } from "@/features/catalog/usePartCatalog";
+import { createDefectReport, previewDefectReport, type DefectReportPayload, type DefectReportPreviewPart } from "@/features/defectReport/api";
 
 const availableColors = [
   "Черный",
@@ -56,7 +51,10 @@ const availableColors = [
 const defectReportSchema = z.object({
   brand: z.string().min(1, "Выберите бренд"),
   model: z.string().min(1, "Введите модель"),
-  year: z.number().min(1900, "Введите корректный год").max(new Date().getFullYear() + 1, "Год не может быть в будущем"),
+  year: z
+    .number()
+    .min(1900, "Введите корректный год")
+    .max(new Date().getFullYear() + 1, "Год не может быть в будущем"),
   vin: z.string().optional(),
   car_release_period: z.string().optional(),
   mileage: z.number().min(0, "Пробег должен быть положительным числом"),
@@ -72,15 +70,32 @@ const defectReportSchema = z.object({
 
 type DefectReportFormData = z.infer<typeof defectReportSchema>;
 
+const buildDefectReportPayload = (data: DefectReportFormData, catalogVersion?: string): DefectReportPayload => ({
+  brand: data.brand || "",
+  model: data.model || "",
+  year: Number(data.year) || 0,
+  car_release_period: data.car_release_period,
+  vin: data.vin,
+  mileage: Number(data.mileage) || 0,
+  engine_brand: data.engine_brand,
+  body_brand: data.body_brand,
+  interior_color: data.interior_color,
+  body_color: data.body_color,
+  transmission: data.transmission,
+  transmission_model: data.transmission_model,
+  drive: data.drive,
+  description: data.description,
+  catalog_version: catalogVersion,
+});
+
 export default function DefectReport() {
   const [loading, setLoading] = useState<boolean>(false);
   const [displayLimit, setDisplayLimit] = useState<number>(10);
   const [previewSearch, setPreviewSearch] = useState<string>("");
-  const {
-    data: partCatalog,
-    isLoading: catalogLoading,
-    error: catalogError,
-  } = usePartCatalog();
+  const [previewParts, setPreviewParts] = useState<DefectReportPreviewPart[]>([]);
+  const [previewLoading, setPreviewLoading] = useState<boolean>(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const { data: partCatalog, isLoading: catalogLoading, error: catalogError } = usePartCatalog();
 
   const {
     register,
@@ -108,30 +123,95 @@ export default function DefectReport() {
     },
   });
 
-  const brand = watch("brand");
+  const transmissionOptions = partCatalog?.attributes.find((attribute) => attribute.code === "transmission")?.options ?? [];
+  const driveOptions = partCatalog?.attributes.find((attribute) => attribute.code === "drive")?.options ?? [];
 
-  // Каталог и зависимости загружаются из единого источника parts-service.
-  const commonParts = useMemo(() => flattenCatalogParts(partCatalog), [partCatalog]);
-  const transmissionOptions =
-    partCatalog?.attributes.find((attribute) => attribute.code === 'transmission')?.options ?? [];
-  const driveOptions =
-    partCatalog?.attributes.find((attribute) => attribute.code === 'drive')?.options ?? [];
+  const {
+    brand,
+    model,
+    year,
+    car_release_period,
+    vin,
+    mileage,
+    engine_brand,
+    body_brand,
+    interior_color,
+    body_color,
+    transmission,
+    transmission_model,
+    drive,
+    description,
+  } = watch();
 
-  const formValues = watch();
+  const reportPayload = useMemo<DefectReportPayload>(
+    () =>
+      buildDefectReportPayload(
+        {
+          brand,
+          model,
+          year,
+          car_release_period,
+          vin,
+          mileage,
+          engine_brand,
+          body_brand,
+          interior_color,
+          body_color,
+          transmission,
+          transmission_model,
+          drive,
+          description,
+        },
+        partCatalog?.version,
+      ),
+    [
+      brand,
+      model,
+      year,
+      car_release_period,
+      vin,
+      mileage,
+      engine_brand,
+      body_brand,
+      interior_color,
+      body_color,
+      transmission,
+      transmission_model,
+      drive,
+      description,
+      partCatalog?.version,
+    ],
+  );
 
-  const previewParts = useMemo(() => {
-    if (!partCatalog) return commonParts;
-    return expandDefectReportParts(partCatalog, formValues, "preview");
-  }, [partCatalog, formValues, commonParts]);
+  useEffect(() => {
+    if (!partCatalog) return;
+
+    const abortController = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      setPreviewLoading(true);
+      setPreviewError(null);
+      try {
+        const preview = await previewDefectReport(reportPayload, abortController.signal);
+        setPreviewParts(preview.parts);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setPreviewParts([]);
+        setPreviewError(error instanceof Error ? error.message : "Не удалось построить превью");
+      } finally {
+        if (!abortController.signal.aborted) setPreviewLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timeout);
+      abortController.abort();
+    };
+  }, [partCatalog, reportPayload]);
 
   const filteredParts = useMemo(() => {
     if (!previewSearch.trim()) return previewParts;
     const query = previewSearch.toLowerCase().trim();
-    return previewParts.filter(
-      (part) =>
-        part.name.toLowerCase().includes(query) ||
-        part.category.toLowerCase().includes(query)
-    );
+    return previewParts.filter((part) => part.name.toLowerCase().includes(query) || part.category.toLowerCase().includes(query));
   }, [previewParts, previewSearch]);
 
   const onSubmit = async (data: DefectReportFormData) => {
@@ -142,59 +222,14 @@ export default function DefectReport() {
     setLoading(true);
 
     try {
-      // Создание дефектной ведомости
-      const defectReportData = {
-        brand: data.brand,
-        model: data.model,
-        year: data.year,
-        car_release_period: data.car_release_period,
-        vin: data.vin,
-        mileage: data.mileage,
-        engine_brand: data.engine_brand,
-        body_brand: data.body_brand,
-        interior_color: data.interior_color,
-        body_color: data.body_color,
-        transmission: data.transmission,
-        transmission_model: data.transmission_model,
-        drive: data.drive,
-        description: data.description,
-        catalog_version: partCatalog.version,
-        selectedParts: expandDefectReportParts(partCatalog, {
-          body_brand: data.body_brand,
-          engine_brand: data.engine_brand,
-          year: data.year,
-          car_release_period: data.car_release_period,
-          vin: data.vin,
-          transmission: data.transmission,
-          transmission_model: data.transmission_model,
-          drive: data.drive,
-          interior_color: data.interior_color,
-          body_color: data.body_color,
-        }),
-      };
-
-      const response = await fetch(`${API_BASE_URL}/api/defect-reports`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        credentials: 'include',
-        body: JSON.stringify(defectReportData),
-      });
-
-      if (!response.ok) {
-        const text = await response.text().catch(() => null);
-        alert(text || `Ошибка сервера: ${response.status}`);
-        setLoading(false);
-        return;
-      }
-
-      const result = await response.json().catch(() => ({ message: "OK" }));
+      const result = await createDefectReport(buildDefectReportPayload(data, partCatalog.version));
       alert(result.message || "Дефектная ведомость успешно создана!");
 
       // Перейти к инвентарю
-      window.location.href = '/inventory';
+      window.location.href = "/inventory";
     } catch (err) {
       console.error("Ошибка сети:", err);
-      alert("Ошибка сети при создании дефектной ведомости");
+      alert(err instanceof Error ? err.message : "Ошибка при создании дефектной ведомости");
     } finally {
       setLoading(false);
     }
@@ -202,18 +237,13 @@ export default function DefectReport() {
 
   return (
     <div className="max-w-5xl mx-auto p-4 sm:p-8">
-      <Link
-        to="/add-car"
-        className="flex items-center gap-1 text-gray-600 hover:text-black mb-6 text-sm sm:text-base"
-      >
+      <Link to="/add-car" className="flex items-center gap-1 text-gray-600 hover:text-black mb-6 text-sm sm:text-base">
         <ArrowLeft size={16} />
         Назад к выбору действия
       </Link>
 
       <h2 className="text-2xl sm:text-3xl font-semibold mb-4">Создание дефектной ведомости</h2>
-      <p className="text-gray-500 mb-8 text-base sm:text-lg">
-        Будет создана дефектная ведомость со всеми распространёнными запчастями для автомобиля.
-      </p>
+      <p className="text-gray-500 mb-8 text-base sm:text-lg">Будет создана дефектная ведомость со всеми распространёнными запчастями для автомобиля.</p>
 
       <div className="bg-white rounded-lg border p-4 sm:p-8 shadow-lg w-full max-w-4xl">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -243,39 +273,19 @@ export default function DefectReport() {
 
               <div>
                 <Label htmlFor="model">Модель *</Label>
-                <Input
-                  id="model"
-                  {...register("model")}
-                  type="text"
-                  placeholder="E90"
-                  className="h-10"
-                  autoComplete="model"
-                />
+                <Input id="model" {...register("model")} type="text" placeholder="E90" className="h-10" autoComplete="model" />
                 {errors.model && <p className="text-red-500 text-sm mt-1">{errors.model.message}</p>}
               </div>
 
               <div>
                 <Label htmlFor="year">Год выпуска *</Label>
-                <Input
-                  id="year"
-                  {...register("year", { valueAsNumber: true })}
-                  type="number"
-                  className="h-10"
-                  autoComplete="off"
-                />
+                <Input id="year" {...register("year", { valueAsNumber: true })} type="number" className="h-10" autoComplete="off" />
                 {errors.year && <p className="text-red-500 text-sm mt-1">{errors.year.message}</p>}
               </div>
 
               <div>
                 <Label htmlFor="vin">VIN / Номер кузова</Label>
-                <Input
-                  id="vin"
-                  {...register("vin")}
-                  type="text"
-                  placeholder="WVWZZZ1JZ3W386549"
-                  className="h-10"
-                  autoComplete="off"
-                />
+                <Input id="vin" {...register("vin")} type="text" placeholder="WVWZZZ1JZ3W386549" className="h-10" autoComplete="off" />
               </div>
 
               <div>
@@ -299,38 +309,18 @@ export default function DefectReport() {
 
               <div>
                 <Label htmlFor="mileage">Пробег (км) *</Label>
-                <Input
-                  id="mileage"
-                  {...register("mileage", { valueAsNumber: true })}
-                  type="number"
-                  className="h-10"
-                  autoComplete="off"
-                />
+                <Input id="mileage" {...register("mileage", { valueAsNumber: true })} type="number" className="h-10" autoComplete="off" />
                 {errors.mileage && <p className="text-red-500 text-sm mt-1">{errors.mileage.message}</p>}
               </div>
 
               <div>
                 <Label htmlFor="body-brand">Марка кузова</Label>
-                <Input
-                  id="body-brand"
-                  {...register("body_brand")}
-                  type="text"
-                  placeholder="Например: E90"
-                  className="h-10"
-                  autoComplete="off"
-                />
+                <Input id="body-brand" {...register("body_brand")} type="text" placeholder="Например: E90" className="h-10" autoComplete="off" />
               </div>
 
               <div>
                 <Label htmlFor="engine-brand">Марка двигателя</Label>
-                <Input
-                  id="engine-brand"
-                  {...register("engine_brand")}
-                  type="text"
-                  placeholder="Например: Toyota 1NZ-FE"
-                  className="h-10"
-                  autoComplete="off"
-                />
+                <Input id="engine-brand" {...register("engine_brand")} type="text" placeholder="Например: Toyota 1NZ-FE" className="h-10" autoComplete="off" />
               </div>
             </div>
 
@@ -342,15 +332,11 @@ export default function DefectReport() {
                   control={control}
                   name="transmission"
                   render={({ field }) => (
-                    <ClearableSelect
-                      value={field.value || ""}
-                      onValueChange={field.onChange}
-                      placeholder="Выберите тип трансмиссии"
-                      id="transmission-select"
-                      className="h-10 w-full"
-                    >
+                    <ClearableSelect value={field.value || ""} onValueChange={field.onChange} placeholder="Выберите тип трансмиссии" id="transmission-select" className="h-10 w-full">
                       {transmissionOptions.map((option) => (
-                        <SelectItem key={option} value={option}>{option}</SelectItem>
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
                       ))}
                     </ClearableSelect>
                   )}
@@ -363,21 +349,10 @@ export default function DefectReport() {
                   control={control}
                   name="transmission_model"
                   render={({ field }) => (
-                    <Input
-                      id="transmission-model"
-                      value={field.value || ""}
-                      onChange={field.onChange}
-                      type="text"
-                      placeholder="Введите номер трансмиссии"
-                      className="h-10"
-                      autoComplete="off"
-                    />
+                    <Input id="transmission-model" value={field.value || ""} onChange={field.onChange} type="text" placeholder="Введите номер трансмиссии" className="h-10" autoComplete="off" />
                   )}
                 />
-                <p className="mt-1 text-xs text-gray-500">
-                  Укажите номер трансмиссии. Значение будет добавлено ко всем
-                  запчастям ведомости.
-                </p>
+                <p className="mt-1 text-xs text-gray-500">Укажите номер трансмиссии. Значение будет добавлено ко всем запчастям ведомости.</p>
               </div>
 
               <div>
@@ -386,22 +361,16 @@ export default function DefectReport() {
                   control={control}
                   name="drive"
                   render={({ field }) => (
-                    <ClearableSelect
-                      value={field.value || ""}
-                      onValueChange={field.onChange}
-                      placeholder="Выберите привод"
-                      id="drive-select"
-                      className="h-10 w-full"
-                    >
+                    <ClearableSelect value={field.value || ""} onValueChange={field.onChange} placeholder="Выберите привод" id="drive-select" className="h-10 w-full">
                       {driveOptions.map((option) => (
-                        <SelectItem key={option} value={option}>{option}</SelectItem>
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
                       ))}
                     </ClearableSelect>
                   )}
                 />
-                <p className="mt-1 text-xs text-gray-500">
-                  Значение будет добавлено ко всем запчастям ведомости.
-                </p>
+                <p className="mt-1 text-xs text-gray-500">Значение будет добавлено ко всем запчастям ведомости.</p>
               </div>
 
               <div>
@@ -413,7 +382,10 @@ export default function DefectReport() {
                     <SearchableSelect
                       value={field.value || ""}
                       onValueChange={field.onChange}
-                      options={availableColors.map((color) => ({ value: color, label: color }))}
+                      options={availableColors.map((color) => ({
+                        value: color,
+                        label: color,
+                      }))}
                       placeholder="Выберите цвет кузовных деталей"
                       searchPlaceholder="Поиск цвета..."
                       className="h-10 w-full"
@@ -431,7 +403,10 @@ export default function DefectReport() {
                     <SearchableSelect
                       value={field.value || ""}
                       onValueChange={field.onChange}
-                      options={availableColors.map((color) => ({ value: color, label: color }))}
+                      options={availableColors.map((color) => ({
+                        value: color,
+                        label: color,
+                      }))}
                       placeholder="Выберите цвет салона"
                       searchPlaceholder="Поиск цвета..."
                       className="h-10 w-full"
@@ -445,13 +420,7 @@ export default function DefectReport() {
           {/* Заметки */}
           <div>
             <Label htmlFor="description">Заметки</Label>
-            <Textarea
-              id="description"
-              {...register("description")}
-              placeholder="Дополнительная информация..."
-              className="min-h-[100px] sm:min-h-[140px] mt-3"
-              autoComplete="off"
-            />
+            <Textarea id="description" {...register("description")} placeholder="Дополнительная информация..." className="min-h-[100px] sm:min-h-[140px] mt-3" autoComplete="off" />
             {errors.description && <p className="text-red-500 text-sm">{errors.description.message}</p>}
           </div>
 
@@ -459,28 +428,18 @@ export default function DefectReport() {
           <div>
             <Label className="text-lg font-medium mb-4 block">Создаваемые запчасти</Label>
             {catalogLoading && <p className="mb-3 text-sm text-gray-500">Загрузка каталога...</p>}
-            {catalogError && (
-              <p className="mb-3 text-sm text-red-600">{catalogError.message}</p>
-            )}
+            {catalogError && <p className="mb-3 text-sm text-red-600">{catalogError.message}</p>}
+            {previewLoading && <p className="mb-3 text-sm text-gray-500">Сервер обновляет превью...</p>}
+            {previewError && <p className="mb-3 text-sm text-red-600">{previewError}</p>}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <p className="text-gray-500 text-sm">
-                Будет создано {previewParts.length} распространённых запчастей для автомобиля {brand || "—"} {watch("model") || ""}:
-                {previewSearch.trim() && (
-                  <span className="ml-1 text-blue-600 font-medium">
-                    (найдено: {filteredParts.length})
-                  </span>
-                )}
+                Будет создано {previewParts.length} распространённых запчастей для автомобиля {brand || "—"} {model || ""}:
+                {previewSearch.trim() && <span className="ml-1 text-blue-600 font-medium">(найдено: {filteredParts.length})</span>}
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative w-full sm:w-60">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-                  <Input
-                    type="text"
-                    placeholder="Поиск запчасти / категории..."
-                    value={previewSearch}
-                    onChange={(e) => setPreviewSearch(e.target.value)}
-                    className="pl-9 h-8 text-sm"
-                  />
+                  <Input type="text" placeholder="Поиск запчасти / категории..." value={previewSearch} onChange={(e) => setPreviewSearch(e.target.value)} className="pl-9 h-8 text-sm" />
                 </div>
                 <div className="flex items-center gap-1">
                   {[10, 20, 50, 100].map((limit) => (
@@ -510,37 +469,31 @@ export default function DefectReport() {
             <div className="max-h-96 overflow-y-auto border rounded-lg p-4 bg-gray-50">
               {filteredParts.length === 0 ? (
                 <div className="text-center py-8 text-gray-400 text-sm">
-                  {previewSearch.trim()
-                    ? `Ничего не найдено по запросу "${previewSearch}"`
-                    : "Нет доступных запчастей в каталоге"}
+                  {previewLoading
+                    ? "Формируем превью..."
+                    : previewError
+                      ? "Превью временно недоступно"
+                      : previewSearch.trim()
+                        ? `Ничего не найдено по запросу "${previewSearch}"`
+                        : "Нет доступных запчастей в каталоге"}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-2">
                   {filteredParts.slice(0, displayLimit).map((part, index) => (
                     <div key={index} className="p-2 border-b border-gray-100 last:border-b-0">
                       <div className="flex-1">
-                        <Label className="font-medium text-sm">
-                          {part.name}
-                        </Label>
+                        <Label className="font-medium text-sm">{part.name}</Label>
                         <div className="mt-1 text-xs text-gray-600">
                           <div>Категория: {part.category}</div>
                           {part.color && <div>Цвет: {part.color}</div>}
                           {part.car_release_date && <div>Год: {part.car_release_date}</div>}
-                          {part.car_release_period && (
-                            <div className="text-blue-700 font-medium">Период выпуска: {part.car_release_period}</div>
-                          )}
+                          {part.car_release_period && <div className="text-blue-700 font-medium">Период выпуска: {part.car_release_period}</div>}
                           {part.body_brand && <div>Марка кузова: {part.body_brand}</div>}
                           {part.engine_brand && <div>Марка двигателя: {part.engine_brand}</div>}
                           {part.vin && <div>VIN: {part.vin}</div>}
-                          {part.transmission && (
-                            <div className="text-blue-700 font-medium">Трансмиссия: {part.transmission}</div>
-                          )}
-                          {part.transmission_model && (
-                            <div className="text-blue-700 font-medium">Модель трансмиссии: {part.transmission_model}</div>
-                          )}
-                          {part.drive && (
-                            <div className="text-blue-700 font-medium">Привод: {part.drive}</div>
-                          )}
+                          {part.transmission && <div className="text-blue-700 font-medium">Трансмиссия: {part.transmission}</div>}
+                          {part.transmission_model && <div className="text-blue-700 font-medium">Модель трансмиссии: {part.transmission_model}</div>}
+                          {part.drive && <div className="text-blue-700 font-medium">Привод: {part.drive}</div>}
                           {part.front_rear && <div>Перед/зад: {part.front_rear}</div>}
                           {part.left_right && <div>Лево/право: {part.left_right}</div>}
                           {part.top_bottom && <div>Верх/низ: {part.top_bottom}</div>}
@@ -560,16 +513,14 @@ export default function DefectReport() {
                           {part.offset && <div>Вылет: {part.offset}</div>}
                           {part.center_hole_diameter && <div>Диаметр ЦО: {part.center_hole_diameter}</div>}
                           {part.tire_model && <div>Модель шины: {part.tire_model}</div>}
-                          <div className="text-green-600">Кол-во: {part.quantity}, Цена: {part.price}₽</div>
+                          <div className="text-green-600">
+                            Кол-во: {part.quantity}, Цена: {part.price}₽
+                          </div>
                         </div>
                       </div>
                     </div>
                   ))}
-                  {filteredParts.length > displayLimit && (
-                    <div className="text-center text-sm text-gray-500 mt-2">
-                      ... и ещё {filteredParts.length - displayLimit} запчастей
-                    </div>
-                  )}
+                  {filteredParts.length > displayLimit && <div className="text-center text-sm text-gray-500 mt-2">... и ещё {filteredParts.length - displayLimit} запчастей</div>}
                 </div>
               )}
             </div>
@@ -577,11 +528,7 @@ export default function DefectReport() {
 
           {/* Кнопка отправки */}
           <div className="flex justify-start">
-            <Button
-              type="submit"
-              disabled={loading || catalogLoading || Boolean(catalogError)}
-              className="px-8 sm:px-12 py-3 sm:py-4 text-sm sm:text-base"
-            >
+            <Button type="submit" disabled={loading || catalogLoading || Boolean(catalogError) || Boolean(previewError)} className="px-8 sm:px-12 py-3 sm:py-4 text-sm sm:text-base">
               <Save className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3" />
               {loading ? "Создание..." : "Создать ведомость"}
             </Button>

@@ -372,6 +372,7 @@ func (g *Gateway) setupPartsRoutes() {
 		"/api/uploadpartphoto/:id",
 		"/api/deletepartphoto/:id",
 		"/api/markpartfordeletion/:id",
+		"/api/defect-reports/preview",
 		"/api/defect-reports",
 		"/api/admin/delete-zero-quantity-parts/:supplier_code",
 		"/api/admin/supplier-codes",

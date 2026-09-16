@@ -35,6 +35,7 @@ func SetupRoutes(r *gin.Engine, handler *Handler) {
 	// Маршруты для характеристик запчастей больше не нужны - характеристики хранятся в основной таблице Part
 
 	// Маршруты для дефектных ведомостей
+	r.POST("/api/defect-reports/preview", handler.PreviewDefectReportHandler)
 	r.POST("/api/defect-reports", handler.CreateDefectReportHandler)
 
 	// Админ маршруты

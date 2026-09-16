@@ -80,6 +80,12 @@ func TestDefectReportHTTPThroughRedisConsumer(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, messages, 1)
 	require.Equal(t, "defect_report_created", messages[0].Values["type"])
+	queuedData, ok := messages[0].Values["data"].(string)
+	require.True(t, ok)
+	var queuedReport DefectReportRequest
+	require.NoError(t, json.Unmarshal([]byte(queuedData), &queuedReport))
+	require.Equal(t, defectReportEventVersion, queuedReport.EventVersion)
+	require.Len(t, queuedReport.SelectedParts, len(catalog.Parts))
 
 	require.Eventually(t, func() bool {
 		return len(recordingService.snapshot()) == len(catalog.Parts)
@@ -129,6 +135,55 @@ func TestDefectReportHTTPThroughRedisConsumer(t *testing.T) {
 	require.Equal(t, "Черный металлик", findRecordedPart(t, createdParts, "Стекла").Color)
 	require.Equal(t, "6HP19", findRecordedPart(t, createdParts, "Подвеска ДВС/КПП").TransmissionModel)
 	require.Equal(t, "6HP19", findRecordedPart(t, createdParts, "Подвеска передних колес").TransmissionModel)
+}
+
+func TestDefectReportPreviewUsesServerCatalog(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	catalog, err := LoadPartCatalog()
+	require.NoError(t, err)
+
+	handler := NewHandler(&recordingInventoryService{}, catalog)
+	router := gin.New()
+	router.POST("/api/defect-reports/preview", handler.PreviewDefectReportHandler)
+
+	payload := map[string]any{
+		"brand":              "Toyota",
+		"model":              "Camry",
+		"year":               2015,
+		"car_release_period": "2011-2017",
+		"vin":                "TESTVIN",
+		"engine_brand":       "2AR-FE",
+		"body_brand":         "XV50",
+		"transmission":       "АКПП",
+		"transmission_model": "U660E",
+		"drive":              "Передний",
+		// Клиентский список должен быть проигнорирован preview-ом.
+		"selectedParts": []map[string]any{{
+			"name":     "Подмененная деталь",
+			"category": "Другое",
+		}},
+	}
+	body, err := json.Marshal(payload)
+	require.NoError(t, err)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/defect-reports/preview", bytes.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+
+	var preview DefectReportPreviewResponse
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &preview))
+	require.Equal(t, catalog.Version, preview.CatalogVersion)
+	require.Equal(t, len(catalog.Parts), preview.Total)
+	require.Len(t, preview.Parts, len(catalog.Parts))
+
+	part := findExpandedPart(t, preview.Parts, "Кузов снаружи")
+	require.Equal(t, "2011-2017", part.CarReleasePeriod)
+	require.Equal(t, "АКПП", part.Transmission)
+	require.Equal(t, "U660E", part.TransmissionModel)
+	require.Equal(t, "Передний", part.Drive)
+	require.NotEqual(t, "Подмененная деталь", preview.Parts[0].Name)
 }
 
 func TestDefectReportHTTPThroughRedisConsumer_WithSelectedParts(t *testing.T) {

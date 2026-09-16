@@ -336,49 +336,54 @@ func (c *RedisEventConsumer) handleDefectReportCreated(ctx context.Context, msg 
 			defer func() { <-sem }() // Освобождаем слот
 
 			vin := strings.TrimSpace(selectedPart.VIN)
-			if vin == "" {
-				vin = strings.TrimSpace(defectReportData.VIN)
-			}
 			carReleaseDate := strings.TrimSpace(selectedPart.CarReleaseDate)
-			if carReleaseDate == "" && defectReportData.Year > 0 {
-				carReleaseDate = strconv.Itoa(defectReportData.Year)
-			}
 			carReleasePeriod := strings.TrimSpace(selectedPart.CarReleasePeriod)
-			if carReleasePeriod == "" {
-				carReleasePeriod = strings.TrimSpace(defectReportData.CarReleasePeriod)
-			}
 			bodyBrand := strings.TrimSpace(selectedPart.BodyBrand)
-			if bodyBrand == "" {
-				bodyBrand = strings.TrimSpace(defectReportData.BodyBrand)
-			}
 			engineBrand := strings.TrimSpace(selectedPart.EngineBrand)
-			if engineBrand == "" {
-				engineBrand = strings.TrimSpace(defectReportData.EngineBrand)
-			}
 			transmission := strings.TrimSpace(selectedPart.Transmission)
-			if transmission == "" {
-				transmission = strings.TrimSpace(defectReportData.Transmission)
-			}
 			transmissionModel := strings.TrimSpace(selectedPart.TransmissionModel)
-			if transmissionModel == "" {
-				transmissionModel = strings.TrimSpace(defectReportData.TransmissionModel)
-			}
 			drive := strings.TrimSpace(selectedPart.Drive)
-			if drive == "" {
-				drive = strings.TrimSpace(defectReportData.Drive)
-			}
 			color := strings.TrimSpace(selectedPart.Color)
-			if color == "" {
-				switch selectedPart.Category {
-				case "Электрооснащение", "Система кондиционирования", "Сопутствующие товары":
-					color = strings.TrimSpace(defectReportData.InteriorColor)
-					if color == "" {
-						color = "Черный"
-					}
-				default:
-					color = strings.TrimSpace(defectReportData.BodyColor)
-					if color == "" {
-						color = "Белый"
+
+			// События версии 1 уже полностью подготовлены parts-service. Ветка ниже
+			// нужна только для событий старого формата, оставшихся в очереди при деплое.
+			if defectReportData.EventVersion < defectReportEventVersion {
+				if vin == "" {
+					vin = strings.TrimSpace(defectReportData.VIN)
+				}
+				if carReleaseDate == "" && defectReportData.Year > 0 {
+					carReleaseDate = strconv.Itoa(defectReportData.Year)
+				}
+				if carReleasePeriod == "" {
+					carReleasePeriod = strings.TrimSpace(defectReportData.CarReleasePeriod)
+				}
+				if bodyBrand == "" {
+					bodyBrand = strings.TrimSpace(defectReportData.BodyBrand)
+				}
+				if engineBrand == "" {
+					engineBrand = strings.TrimSpace(defectReportData.EngineBrand)
+				}
+				if transmission == "" {
+					transmission = strings.TrimSpace(defectReportData.Transmission)
+				}
+				if transmissionModel == "" {
+					transmissionModel = strings.TrimSpace(defectReportData.TransmissionModel)
+				}
+				if drive == "" {
+					drive = strings.TrimSpace(defectReportData.Drive)
+				}
+				if color == "" {
+					switch selectedPart.Category {
+					case "Электрооснащение", "Система кондиционирования", "Сопутствующие товары":
+						color = strings.TrimSpace(defectReportData.InteriorColor)
+						if color == "" {
+							color = "Черный"
+						}
+					default:
+						color = strings.TrimSpace(defectReportData.BodyColor)
+						if color == "" {
+							color = "Белый"
+						}
 					}
 				}
 			}

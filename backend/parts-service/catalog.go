@@ -106,6 +106,7 @@ type DefectReportPart struct {
 }
 
 type DefectReportRequest struct {
+	EventVersion      int                `json:"event_version,omitempty"`
 	Brand             string             `json:"brand"`
 	Model             string             `json:"model"`
 	Year              int                `json:"year"`

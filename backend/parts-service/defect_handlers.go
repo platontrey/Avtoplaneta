@@ -2,12 +2,62 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 )
+
+var errPartCatalogUnavailable = errors.New("каталог шаблонов запчастей недоступен")
+
+const defectReportEventVersion = 1
+
+type DefectReportPreviewResponse struct {
+	CatalogVersion string             `json:"catalog_version"`
+	Total          int                `json:"total"`
+	Parts          []DefectReportPart `json:"parts"`
+}
+
+// prepareDefectReport централизует разворачивание каталога. Новые клиенты не передают
+// selectedParts; поддержка clientParts оставлена временно для уже установленных версий.
+func (h *Handler) prepareDefectReport(report *DefectReportRequest, clientParts bool) error {
+	if h.partCatalog == nil {
+		return errPartCatalogUnavailable
+	}
+
+	if !clientParts || len(report.SelectedParts) == 0 {
+		report.SelectedParts = h.partCatalog.ExpandDefectReport(*report)
+	} else {
+		h.partCatalog.ApplyBindingsToParts(report.SelectedParts, *report)
+	}
+	report.CatalogVersion = h.partCatalog.Version
+	report.EventVersion = defectReportEventVersion
+	return nil
+}
+
+// PreviewDefectReportHandler возвращает ровно тот набор запчастей, который будет позже создан.
+func (h *Handler) PreviewDefectReportHandler(c *gin.Context) {
+	var report DefectReportRequest
+	if err := c.ShouldBindJSON(&report); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Preview всегда строится сервером и не доверяет selectedParts из запроса.
+	report.SelectedParts = nil
+	if err := h.prepareDefectReport(&report, false); err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, DefectReportPreviewResponse{
+		CatalogVersion: report.CatalogVersion,
+		Total:          len(report.SelectedParts),
+		Parts:          report.SelectedParts,
+	})
+}
 
 // CreateDefectReportHandler отправляет дефектную ведомость в Redis Streams для асинхронной обработки
 func (h *Handler) CreateDefectReportHandler(c *gin.Context) {
@@ -19,16 +69,9 @@ func (h *Handler) CreateDefectReportHandler(c *gin.Context) {
 		return
 	}
 
-	// Новые клиенты отправляют только данные автомобиля и характеристики.
-	// Старый selectedParts временно поддерживается для уже установленных версий.
-	if len(defectReportData.SelectedParts) == 0 {
-		if h.partCatalog == nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Каталог шаблонов запчастей недоступен"})
-			return
-		}
-		defectReportData.SelectedParts = h.partCatalog.ExpandDefectReport(defectReportData)
-	} else if h.partCatalog != nil {
-		h.partCatalog.ApplyBindingsToParts(defectReportData.SelectedParts, defectReportData)
+	if err := h.prepareDefectReport(&defectReportData, true); err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+		return
 	}
 
 	userIDStr := c.GetHeader("X-User-ID")
