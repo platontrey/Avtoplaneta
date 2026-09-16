@@ -283,6 +283,60 @@ final inventoryFilterProvider = StateProvider<InventoryFilter>(
   (ref) => const InventoryFilter(),
 );
 
+bool _matchesFrontRear(String? partVal, String filterVal) {
+  if (partVal == null || partVal.isEmpty) return false;
+  final p = partVal.trim().toLowerCase();
+  final f = filterVal.trim().toLowerCase();
+  if (p == f || p.contains(f)) return true;
+
+  if (f == 'перед' || f == 'передний' || f == 'f' || f == 'front') {
+    return p == 'f' || p.contains('перед') || p.contains('front') || p.contains('f/r');
+  }
+  if (f == 'зад' || f == 'задний' || f == 'r' || f == 'rear') {
+    return p == 'r' || p.contains('зад') || p.contains('rear') || p.contains('f/r');
+  }
+  if (f == 'перед / зад' || f == 'перед/зад' || f == 'f/r') {
+    return p.contains('перед') || p.contains('зад') || p == 'f' || p == 'r' || p.contains('f/r');
+  }
+  return false;
+}
+
+bool _matchesLeftRight(String? partVal, String filterVal) {
+  if (partVal == null || partVal.isEmpty) return false;
+  final p = partVal.trim().toLowerCase();
+  final f = filterVal.trim().toLowerCase();
+  if (p == f || p.contains(f)) return true;
+
+  if (f == 'право' || f == 'правый' || f == 'r' || f == 'right') {
+    return p == 'r' || p.contains('прав') || p.contains('right') || p.contains('l/r');
+  }
+  if (f == 'лево' || f == 'левый' || f == 'l' || f == 'left') {
+    return p == 'l' || p.contains('лев') || p.contains('left') || p.contains('l/r');
+  }
+  if (f == 'лево / право' || f == 'лево/право' || f == 'l/r') {
+    return p.contains('лев') || p.contains('прав') || p == 'l' || p == 'r' || p.contains('l/r');
+  }
+  return false;
+}
+
+bool _matchesTopBottom(String? partVal, String filterVal) {
+  if (partVal == null || partVal.isEmpty) return false;
+  final p = partVal.trim().toLowerCase();
+  final f = filterVal.trim().toLowerCase();
+  if (p == f || p.contains(f)) return true;
+
+  if (f == 'верх' || f == 'верхний' || f == 't' || f == 'u' || f == 'top' || f == 'upper') {
+    return p == 't' || p == 'u' || p.contains('верх') || p.contains('top') || p.contains('upper');
+  }
+  if (f == 'низ' || f == 'нижний' || f == 'b' || f == 'l' || f == 'bottom' || f == 'lower') {
+    return p == 'b' || p == 'l' || p.contains('низ') || p.contains('bottom') || p.contains('lower');
+  }
+  if (f == 'верх / низ' || f == 'верх/низ') {
+    return p.contains('верх') || p.contains('низ') || p == 't' || p == 'b';
+  }
+  return false;
+}
+
 final inventoryProvider =
     FutureProvider.family<InventoryResponse, InventoryFilter>((
       ref,
@@ -335,18 +389,52 @@ final inventoryProvider =
           // Локальная фильтрация в кэше
           if (filter.search.isNotEmpty) {
             final query = filter.search.toLowerCase();
-            filteredList = filteredList
-                .where(
-                  (p) =>
-                      p.name.toLowerCase().contains(query) ||
-                      (p.brand != null &&
-                          p.brand!.toLowerCase().contains(query)) ||
-                      (p.model != null &&
-                          p.model!.toLowerCase().contains(query)) ||
-                      (p.oemCode != null &&
-                          p.oemCode!.toLowerCase().contains(query)),
-                )
-                .toList();
+            final terms = query.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
+            filteredList = filteredList.where((p) {
+              final name = p.name.toLowerCase();
+              final brand = p.brand?.toLowerCase() ?? '';
+              final model = p.model?.toLowerCase() ?? '';
+              final oem = p.oemCode?.toLowerCase() ?? '';
+              final number = p.number?.toLowerCase() ?? '';
+
+              for (final term in terms) {
+                final inText = name.contains(term) ||
+                    brand.contains(term) ||
+                    model.contains(term) ||
+                    oem.contains(term) ||
+                    number.contains(term);
+                if (inText) continue;
+
+                // Проверка совпадения со свойствами положения
+                if ((term.startsWith('перед') || term == 'front') &&
+                    _matchesFrontRear(p.frontRear, 'перед')) {
+                  continue;
+                }
+                if ((term.startsWith('зад') || term == 'rear') &&
+                    _matchesFrontRear(p.frontRear, 'зад')) {
+                  continue;
+                }
+                if ((term.startsWith('прав') || term == 'right') &&
+                    _matchesLeftRight(p.leftRight, 'право')) {
+                  continue;
+                }
+                if ((term.startsWith('лев') || term == 'left') &&
+                    _matchesLeftRight(p.leftRight, 'лево')) {
+                  continue;
+                }
+                if ((term.startsWith('верх') || term == 'top') &&
+                    _matchesTopBottom(p.topBottom, 'верх')) {
+                  continue;
+                }
+                if ((term.startsWith('низ') || term == 'bottom') &&
+                    _matchesTopBottom(p.topBottom, 'низ')) {
+                  continue;
+                }
+
+                return false;
+              }
+              return true;
+            }).toList();
           }
           if (filter.category.isNotEmpty) {
             final value = filter.category.toLowerCase();
@@ -503,21 +591,18 @@ final inventoryProvider =
             }
           }
           if (filter.frontRear.isNotEmpty) {
-            final value = filter.frontRear.toLowerCase();
             filteredList = filteredList
-                .where((part) => part.frontRear?.toLowerCase().contains(value) == true)
+                .where((part) => _matchesFrontRear(part.frontRear, filter.frontRear))
                 .toList();
           }
           if (filter.leftRight.isNotEmpty) {
-            final value = filter.leftRight.toLowerCase();
             filteredList = filteredList
-                .where((part) => part.leftRight?.toLowerCase().contains(value) == true)
+                .where((part) => _matchesLeftRight(part.leftRight, filter.leftRight))
                 .toList();
           }
           if (filter.topBottom.isNotEmpty) {
-            final value = filter.topBottom.toLowerCase();
             filteredList = filteredList
-                .where((part) => part.topBottom?.toLowerCase().contains(value) == true)
+                .where((part) => _matchesTopBottom(part.topBottom, filter.topBottom))
                 .toList();
           }
           if (filter.manufacturerCode.isNotEmpty) {

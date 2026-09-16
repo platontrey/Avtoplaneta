@@ -321,11 +321,38 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 		case "max_quantity":
 			builder = builder.Where(squirrel.LtOrEq{"quantity": value})
 		case "front_rear_ilike":
-			builder = builder.Where("front_rear ILIKE ?", "%"+value.(string)+"%")
+			synonyms := ExpandFrontRearSynonyms(value.(string))
+			conds := make([]squirrel.Sqlizer, 0, len(synonyms))
+			for _, syn := range synonyms {
+				if len(syn) == 1 {
+					conds = append(conds, squirrel.Eq{"front_rear": syn})
+				} else {
+					conds = append(conds, squirrel.Expr("front_rear ILIKE ?", "%"+syn+"%"))
+				}
+			}
+			builder = builder.Where(squirrel.Or(conds))
 		case "left_right_ilike":
-			builder = builder.Where("left_right ILIKE ?", "%"+value.(string)+"%")
+			synonyms := ExpandLeftRightSynonyms(value.(string))
+			conds := make([]squirrel.Sqlizer, 0, len(synonyms))
+			for _, syn := range synonyms {
+				if len(syn) == 1 {
+					conds = append(conds, squirrel.Eq{"left_right": syn})
+				} else {
+					conds = append(conds, squirrel.Expr("left_right ILIKE ?", "%"+syn+"%"))
+				}
+			}
+			builder = builder.Where(squirrel.Or(conds))
 		case "top_bottom_ilike":
-			builder = builder.Where("top_bottom ILIKE ?", "%"+value.(string)+"%")
+			synonyms := ExpandTopBottomSynonyms(value.(string))
+			conds := make([]squirrel.Sqlizer, 0, len(synonyms))
+			for _, syn := range synonyms {
+				if len(syn) == 1 {
+					conds = append(conds, squirrel.Eq{"top_bottom": syn})
+				} else {
+					conds = append(conds, squirrel.Expr("top_bottom ILIKE ?", "%"+syn+"%"))
+				}
+			}
+			builder = builder.Where(squirrel.Or(conds))
 		case "manufacturer_code_ilike":
 			builder = builder.Where("manufacturer_code ILIKE ?", "%"+value.(string)+"%")
 		case "supplier_code_ilike":
@@ -358,10 +385,30 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 				terms := strings.Fields(searchStr)
 				for _, term := range terms {
 					termPattern := "%" + term + "%"
-					builder = builder.Where(
-						"(name ILIKE ? OR description ILIKE ? OR brand ILIKE ? OR model ILIKE ? OR number ILIKE ? OR oem_code ILIKE ? OR vin ILIKE ? OR category ILIKE ? OR car_release_date ILIKE ? OR body_brand ILIKE ? OR engine_brand ILIKE ? OR front_rear ILIKE ? OR left_right ILIKE ? OR top_bottom ILIKE ? OR color ILIKE ? OR condition ILIKE ? OR transmission ILIKE ? OR transmission_model ILIKE ? OR drive ILIKE ? OR defect ILIKE ? OR wear_percentage ILIKE ? OR season ILIKE ? OR diameter ILIKE ? OR width ILIKE ? OR profile ILIKE ? OR drilling ILIKE ? OR \"offset\" ILIKE ? OR center_hole_diameter ILIKE ? OR tire_model ILIKE ? OR tire_quantity ILIKE ? OR location ILIKE ? OR address ILIKE ? OR salesman ILIKE ? OR manufacturer ILIKE ? OR manufacturer_code ILIKE ? OR supplier_code ILIKE ?)",
-						termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern, termPattern,
-					)
+					baseExpr := "(name ILIKE ? OR description ILIKE ? OR brand ILIKE ? OR model ILIKE ? OR number ILIKE ? OR oem_code ILIKE ? OR vin ILIKE ? OR category ILIKE ? OR car_release_date ILIKE ? OR body_brand ILIKE ? OR engine_brand ILIKE ? OR front_rear ILIKE ? OR left_right ILIKE ? OR top_bottom ILIKE ? OR color ILIKE ? OR condition ILIKE ? OR transmission ILIKE ? OR transmission_model ILIKE ? OR drive ILIKE ? OR defect ILIKE ? OR wear_percentage ILIKE ? OR season ILIKE ? OR diameter ILIKE ? OR width ILIKE ? OR profile ILIKE ? OR drilling ILIKE ? OR \"offset\" ILIKE ? OR center_hole_diameter ILIKE ? OR tire_model ILIKE ? OR tire_quantity ILIKE ? OR location ILIKE ? OR address ILIKE ? OR salesman ILIKE ? OR manufacturer ILIKE ? OR manufacturer_code ILIKE ? OR supplier_code ILIKE ?"
+					args := make([]interface{}, 36)
+					for i := range args {
+						args[i] = termPattern
+					}
+
+					cleanTerm := strings.ToLower(term)
+					if strings.HasPrefix(cleanTerm, "перед") || cleanTerm == "front" {
+						baseExpr += " OR front_rear = 'F' OR front_rear ILIKE '%перед%'"
+					} else if strings.HasPrefix(cleanTerm, "зад") || cleanTerm == "rear" {
+						baseExpr += " OR front_rear = 'R' OR front_rear ILIKE '%зад%'"
+					}
+					if strings.HasPrefix(cleanTerm, "прав") || cleanTerm == "right" {
+						baseExpr += " OR left_right = 'R' OR left_right ILIKE '%прав%'"
+					} else if strings.HasPrefix(cleanTerm, "лев") || cleanTerm == "left" {
+						baseExpr += " OR left_right = 'L' OR left_right ILIKE '%лев%'"
+					}
+					if strings.HasPrefix(cleanTerm, "верх") || cleanTerm == "top" || cleanTerm == "upper" {
+						baseExpr += " OR top_bottom = 'T' OR top_bottom = 'U' OR top_bottom ILIKE '%верх%'"
+					} else if strings.HasPrefix(cleanTerm, "низ") || cleanTerm == "bottom" || cleanTerm == "lower" {
+						baseExpr += " OR top_bottom = 'B' OR top_bottom = 'L' OR top_bottom ILIKE '%низ%'"
+					}
+					baseExpr += ")"
+					builder = builder.Where(squirrel.Expr(baseExpr, args...))
 				}
 			}
 		}

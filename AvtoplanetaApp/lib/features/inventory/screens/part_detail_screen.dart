@@ -85,6 +85,20 @@ class PartDetailScreen extends ConsumerWidget {
             return true;
           }
           String val(String? v) => _notEmpty(v) ? v! : '—';
+          String formatFrontRear(String? v) {
+            if (!_notEmpty(v)) return '—';
+            final upper = v!.trim().toUpperCase();
+            if (upper == 'F') return 'F (Перед)';
+            if (upper == 'R') return 'R (Зад)';
+            return v;
+          }
+          String formatLeftRight(String? v) {
+            if (!_notEmpty(v)) return '—';
+            final upper = v!.trim().toUpperCase();
+            if (upper == 'L') return 'L (Лево)';
+            if (upper == 'R') return 'R (Право)';
+            return v;
+          }
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -187,9 +201,9 @@ class PartDetailScreen extends ConsumerWidget {
                     if (shows('drive')) _row('Привод', val(part.drive)),
                     if (part.color != null) _row('Цвет кузовных деталей', part.color!),
                     if (shows('front_rear'))
-                      _row('Перед / зад', val(part.frontRear)),
+                      _row('Перед / зад', formatFrontRear(part.frontRear)),
                     if (shows('left_right'))
-                      _row('Лево / право', val(part.leftRight)),
+                      _row('Лево / право', formatLeftRight(part.leftRight)),
                     if (shows('top_bottom'))
                       _row('Верх / низ', val(part.topBottom)),
                     if (shows('number'))

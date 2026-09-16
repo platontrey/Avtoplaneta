@@ -322,6 +322,123 @@ func escapeESQuery(s string) string {
 	return sb.String()
 }
 
+// ExpandFrontRearSynonyms разворачивает любое обозначение положения перед/зад (русское, английское, F/R)
+// во все возможные синонимы для поиска в БД и Elasticsearch.
+func ExpandFrontRearSynonyms(val string) []string {
+	clean := strings.ToLower(strings.TrimSpace(val))
+	switch {
+	case clean == "f" || clean == "front" || strings.HasPrefix(clean, "перед"):
+		return []string{"F", "f", "Front", "front", "перед", "передний", "передняя", "переднее", "передние", "перед / зад", "перед/зад", "F/R", "F / R"}
+	case clean == "r" || clean == "rear" || strings.HasPrefix(clean, "зад"):
+		return []string{"R", "r", "Rear", "rear", "зад", "задний", "задняя", "заднее", "задние", "перед / зад", "перед/зад", "F/R", "F / R"}
+	case clean == "перед / зад" || clean == "перед/зад" || clean == "f/r" || clean == "f / r":
+		return []string{"перед / зад", "перед/зад", "F/R", "F / R", "F", "R"}
+	default:
+		return []string{val}
+	}
+}
+
+// ExpandLeftRightSynonyms разворачивает любое обозначение стороны право/лево (русское, английское, L/R)
+// во все возможные синонимы для поиска в БД и Elasticsearch.
+func ExpandLeftRightSynonyms(val string) []string {
+	clean := strings.ToLower(strings.TrimSpace(val))
+	switch {
+	case clean == "r" || clean == "right" || strings.HasPrefix(clean, "прав"):
+		return []string{"R", "r", "Right", "right", "право", "правый", "правая", "правое", "правые", "прав", "лево / право", "лево/право", "L/R", "L / R"}
+	case clean == "l" || clean == "left" || strings.HasPrefix(clean, "лев"):
+		return []string{"L", "l", "Left", "left", "лево", "левый", "левая", "левое", "левые", "лев", "лево / право", "лево/право", "L/R", "L / R"}
+	case clean == "лево / право" || clean == "лево/право" || clean == "l/r" || clean == "l / r":
+		return []string{"лево / право", "лево/право", "L/R", "L / R", "L", "R"}
+	default:
+		return []string{val}
+	}
+}
+
+// ExpandTopBottomSynonyms разворачивает любое обозначение вертикального положения верх/низ
+// во все возможные синонимы для поиска в БД и Elasticsearch.
+func ExpandTopBottomSynonyms(val string) []string {
+	clean := strings.ToLower(strings.TrimSpace(val))
+	switch {
+	case clean == "t" || clean == "u" || clean == "top" || clean == "upper" || strings.HasPrefix(clean, "верх"):
+		return []string{"T", "t", "U", "u", "Top", "top", "Upper", "upper", "верх", "верхний", "верхняя", "верхнее", "верхние", "верх / низ", "верх/низ"}
+	case clean == "b" || clean == "bottom" || clean == "lower" || strings.HasPrefix(clean, "низ"):
+		return []string{"B", "b", "L", "l", "Bottom", "bottom", "Lower", "lower", "низ", "нижний", "нижняя", "нижнее", "нижние", "верх / низ", "верх/низ"}
+	case clean == "верх / низ" || clean == "верх/низ" || clean == "t/b" || clean == "u/l":
+		return []string{"верх / низ", "верх/низ", "T/B", "U/L", "T", "B"}
+	default:
+		return []string{val}
+	}
+}
+
+// GetPositionTermQueries проверяет, является ли терм маркером расположения/стороны,
+// и возвращает запросы к колонкам front_rear, left_right, top_bottom.
+func GetPositionTermQueries(term string) []map[string]interface{} {
+	clean := strings.ToLower(strings.TrimSpace(term))
+	var queries []map[string]interface{}
+
+	// Проверка на Перед: "перед", "передний", "передняя", "переднее", "передние", "front"
+	if strings.HasPrefix(clean, "перед") || clean == "front" {
+		synonyms := []interface{}{"F", "f", "Front", "front", "перед", "передний", "передняя", "переднее", "перед / зад"}
+		queries = append(queries, map[string]interface{}{
+			"terms": map[string]interface{}{
+				"front_rear": synonyms,
+			},
+		})
+	}
+
+	// Проверка на Зад: "зад", "задний", "задняя", "заднее", "задние", "rear"
+	if strings.HasPrefix(clean, "зад") || clean == "rear" {
+		synonyms := []interface{}{"R", "r", "Rear", "rear", "зад", "задний", "задняя", "заднее", "перед / зад"}
+		queries = append(queries, map[string]interface{}{
+			"terms": map[string]interface{}{
+				"front_rear": synonyms,
+			},
+		})
+	}
+
+	// Проверка на Право: "прав", "правый", "правая", "правое", "правые", "право", "right"
+	if strings.HasPrefix(clean, "прав") || clean == "right" {
+		synonyms := []interface{}{"R", "r", "Right", "right", "право", "правый", "правая", "правое", "лево / право"}
+		queries = append(queries, map[string]interface{}{
+			"terms": map[string]interface{}{
+				"left_right": synonyms,
+			},
+		})
+	}
+
+	// Проверка на Лево: "лев", "левый", "левая", "левое", "левые", "лево", "left"
+	if strings.HasPrefix(clean, "лев") || clean == "left" {
+		synonyms := []interface{}{"L", "l", "Left", "left", "лево", "левый", "левая", "левое", "лево / право"}
+		queries = append(queries, map[string]interface{}{
+			"terms": map[string]interface{}{
+				"left_right": synonyms,
+			},
+		})
+	}
+
+	// Проверка на Верх: "верх", "верхний", "верхняя", "верхнее", "top", "upper"
+	if strings.HasPrefix(clean, "верх") || clean == "top" || clean == "upper" {
+		synonyms := []interface{}{"T", "t", "U", "u", "Top", "top", "Upper", "upper", "верх", "верхний", "верхняя", "верх / низ"}
+		queries = append(queries, map[string]interface{}{
+			"terms": map[string]interface{}{
+				"top_bottom": synonyms,
+			},
+		})
+	}
+
+	// Проверка на Низ: "низ", "нижний", "нижняя", "нижнее", "bottom", "lower"
+	if strings.HasPrefix(clean, "низ") || clean == "bottom" || clean == "lower" {
+		synonyms := []interface{}{"B", "b", "L", "l", "Bottom", "bottom", "Lower", "lower", "низ", "нижний", "нижняя", "верх / низ"}
+		queries = append(queries, map[string]interface{}{
+			"terms": map[string]interface{}{
+				"top_bottom": synonyms,
+			},
+		})
+	}
+
+	return queries
+}
+
 // buildElasticsearchQuery строит запрос для Elasticsearch
 func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) map[string]interface{} {
 	must := []map[string]interface{}{}
@@ -443,6 +560,11 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 							"boost":            1.0,
 						},
 					})
+				}
+
+				// 5. Позиционные синонимы (F/R/L и перед/зад/право/лево/верх/низ)
+				if posQueries := GetPositionTermQueries(variant); len(posQueries) > 0 {
+					termQueries = append(termQueries, posQueries...)
 				}
 			}
 
@@ -819,36 +941,66 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 	}
 
 	if params.FrontRear != "" {
+		synonyms := ExpandFrontRearSynonyms(params.FrontRear)
+		synInterfaces := make([]interface{}, len(synonyms))
+		for i, v := range synonyms {
+			synInterfaces[i] = v
+		}
+		shouldClauses := []map[string]interface{}{
+			{"terms": map[string]interface{}{"front_rear": synInterfaces}},
+		}
+		for _, syn := range synonyms {
+			shouldClauses = append(shouldClauses, map[string]interface{}{
+				"match": map[string]interface{}{"front_rear.text": syn},
+			})
+		}
 		filter = append(filter, map[string]interface{}{
 			"bool": map[string]interface{}{
-				"should": []map[string]interface{}{
-					{"term": map[string]interface{}{"front_rear": params.FrontRear}},
-					{"match": map[string]interface{}{"front_rear.text": params.FrontRear}},
-				},
+				"should":               shouldClauses,
 				"minimum_should_match": 1,
 			},
 		})
 	}
 
 	if params.LeftRight != "" {
+		synonyms := ExpandLeftRightSynonyms(params.LeftRight)
+		synInterfaces := make([]interface{}, len(synonyms))
+		for i, v := range synonyms {
+			synInterfaces[i] = v
+		}
+		shouldClauses := []map[string]interface{}{
+			{"terms": map[string]interface{}{"left_right": synInterfaces}},
+		}
+		for _, syn := range synonyms {
+			shouldClauses = append(shouldClauses, map[string]interface{}{
+				"match": map[string]interface{}{"left_right.text": syn},
+			})
+		}
 		filter = append(filter, map[string]interface{}{
 			"bool": map[string]interface{}{
-				"should": []map[string]interface{}{
-					{"term": map[string]interface{}{"left_right": params.LeftRight}},
-					{"match": map[string]interface{}{"left_right.text": params.LeftRight}},
-				},
+				"should":               shouldClauses,
 				"minimum_should_match": 1,
 			},
 		})
 	}
 
 	if params.TopBottom != "" {
+		synonyms := ExpandTopBottomSynonyms(params.TopBottom)
+		synInterfaces := make([]interface{}, len(synonyms))
+		for i, v := range synonyms {
+			synInterfaces[i] = v
+		}
+		shouldClauses := []map[string]interface{}{
+			{"terms": map[string]interface{}{"top_bottom": synInterfaces}},
+		}
+		for _, syn := range synonyms {
+			shouldClauses = append(shouldClauses, map[string]interface{}{
+				"match": map[string]interface{}{"top_bottom.text": syn},
+			})
+		}
 		filter = append(filter, map[string]interface{}{
 			"bool": map[string]interface{}{
-				"should": []map[string]interface{}{
-					{"term": map[string]interface{}{"top_bottom": params.TopBottom}},
-					{"match": map[string]interface{}{"top_bottom.text": params.TopBottom}},
-				},
+				"should":               shouldClauses,
 				"minimum_should_match": 1,
 			},
 		})

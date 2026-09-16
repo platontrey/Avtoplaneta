@@ -623,7 +623,99 @@ func (suite *ServiceTestSuite) TestShouldUseElasticsearch_Specifications() {
 	assert.True(suite.T(), s.shouldUseElasticsearch(InventoryQueryParams{Color: "Белый"}))
 }
 
+// TestPositionSynonyms_AndSearch проверяет нормализацию синонимов перед/зад, право/лево, верх/низ и полнотекстовый поиск
+func (suite *ServiceTestSuite) TestPositionSynonyms_AndSearch() {
+	// 1. Проверяем разворачивание синонимов
+	frSyns := ExpandFrontRearSynonyms("зад")
+	assert.Contains(suite.T(), frSyns, "R")
+	assert.Contains(suite.T(), frSyns, "Rear")
+	assert.Contains(suite.T(), frSyns, "зад")
+	assert.Contains(suite.T(), frSyns, "задний")
+
+	frontSyns := ExpandFrontRearSynonyms("передний")
+	assert.Contains(suite.T(), frontSyns, "F")
+	assert.Contains(suite.T(), frontSyns, "Front")
+	assert.Contains(suite.T(), frontSyns, "перед")
+
+	lrSyns := ExpandLeftRightSynonyms("право")
+	assert.Contains(suite.T(), lrSyns, "R")
+	assert.Contains(suite.T(), lrSyns, "Right")
+	assert.Contains(suite.T(), lrSyns, "правый")
+
+	leftSyns := ExpandLeftRightSynonyms("левый")
+	assert.Contains(suite.T(), leftSyns, "L")
+	assert.Contains(suite.T(), leftSyns, "Left")
+	assert.Contains(suite.T(), leftSyns, "лево")
+
+	tbSyns := ExpandTopBottomSynonyms("верхний")
+	assert.Contains(suite.T(), tbSyns, "T")
+	assert.Contains(suite.T(), tbSyns, "U")
+	assert.Contains(suite.T(), tbSyns, "верх")
+
+	// 2. Проверяем построение фильтра Elasticsearch для "Зад" и "Право"
+	s := suite.service.(*inventoryService)
+	params := InventoryQueryParams{
+		FrontRear: "Зад",
+		LeftRight: "Право",
+	}
+	esQuery := s.buildElasticsearchQuery(params)
+	boolQ := esQuery["bool"].(map[string]interface{})
+	filters := boolQ["filter"].([]map[string]interface{})
+
+	// Должны присутствовать фильтры front_rear и left_right
+	foundFR := false
+	foundLR := false
+	for _, f := range filters {
+		if b, ok := f["bool"].(map[string]interface{}); ok {
+			if shouldList, ok := b["should"].([]map[string]interface{}); ok {
+				for _, sh := range shouldList {
+					if termsQ, ok := sh["terms"].(map[string]interface{}); ok {
+						if frList, ok := termsQ["front_rear"].([]interface{}); ok {
+							assert.Contains(suite.T(), frList, "R")
+							assert.Contains(suite.T(), frList, "зад")
+							foundFR = true
+						}
+						if lrList, ok := termsQ["left_right"].([]interface{}); ok {
+							assert.Contains(suite.T(), lrList, "R")
+							assert.Contains(suite.T(), lrList, "право")
+							foundLR = true
+						}
+					}
+				}
+			}
+		}
+	}
+	assert.True(suite.T(), foundFR, "Фильтр front_rear должен содержать синонимы")
+	assert.True(suite.T(), foundLR, "Фильтр left_right должен содержать синонимы")
+
+	// 3. Проверяем, что при текстовом поиске со словами "бампер задний"
+	// терм "задний" генерирует terms запрос для front_rear
+	searchParams := InventoryQueryParams{
+		Search: "бампер задний",
+	}
+	searchESQuery := s.buildElasticsearchQuery(searchParams)
+	searchBoolQ := searchESQuery["bool"].(map[string]interface{})
+	mustClauses := searchBoolQ["must"].([]map[string]interface{})
+	assert.Equal(suite.T(), 2, len(mustClauses))
+
+	// Ищем clause для "задний"
+	term1 := mustClauses[1]["bool"].(map[string]interface{})
+	shoulds1 := term1["should"].([]map[string]interface{})
+	foundPosTerm := false
+	for _, sh := range shoulds1 {
+		if termsQ, ok := sh["terms"].(map[string]interface{}); ok {
+			if frList, ok := termsQ["front_rear"].([]interface{}); ok {
+				assert.Contains(suite.T(), frList, "R")
+				assert.Contains(suite.T(), frList, "зад")
+				foundPosTerm = true
+			}
+		}
+	}
+	assert.True(suite.T(), foundPosTerm, "Текстовый поиск 'задний' должен включать terms front_rear со значением 'R'")
+}
+
 // TestRunSuite - запуск всех тестов сервиса
 func TestServiceTestSuite(t *testing.T) {
 	suite.Run(t, new(ServiceTestSuite))
 }
+
