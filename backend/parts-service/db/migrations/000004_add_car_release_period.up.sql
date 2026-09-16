@@ -1,0 +1,2 @@
+ALTER TABLE parts
+ADD COLUMN IF NOT EXISTS car_release_period TEXT NOT NULL DEFAULT '';

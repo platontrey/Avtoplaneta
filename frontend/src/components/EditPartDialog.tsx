@@ -125,6 +125,17 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                         onChange={(e) => partEdit.updateFormField('vin', e.target.value)}
                                     />
                                 </FormRow>
+                                {shows('car_release_period') && (
+                                    <FormRow label="Период выпуска автомобиля" htmlFor="car_release_period">
+                                        <Input
+                                            id="car_release_period"
+                                            autoComplete="off"
+                                            placeholder="Например: 2001-2007"
+                                            value={partEdit.editForm.car_release_period || ''}
+                                            onChange={(e) => partEdit.updateFormField('car_release_period', e.target.value)}
+                                        />
+                                    </FormRow>
+                                )}
                                 <FormRow label="Количество" htmlFor="quantity">
                                     <Input
                                         id="quantity"
@@ -323,6 +334,17 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                             id="car_release_date"
                                             value={partEdit.editForm.car_release_date || ''}
                                             onChange={(e) => partEdit.updateFormField('car_release_date', e.target.value)}
+                                        />
+                                    </FormRow>
+                                )}
+
+                                {shows('car_release_period') && (
+                                    <FormRow label="Период выпуска автомобиля" htmlFor="car_release_period_spec">
+                                        <Input
+                                            id="car_release_period_spec"
+                                            placeholder="Например: 2001-2007"
+                                            value={partEdit.editForm.car_release_period || ''}
+                                            onChange={(e) => partEdit.updateFormField('car_release_period', e.target.value)}
                                         />
                                     </FormRow>
                                 )}

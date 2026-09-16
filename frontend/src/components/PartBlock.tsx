@@ -696,8 +696,9 @@ function PartBlock({
                                         const allSpecs = [
                                             { code: 'body_brand', label: 'Марка кузова', value: part.body_brand },
                                             { code: 'engine_brand', label: 'Марка двигателя', value: part.engine_brand },
-                                            { code: 'car_release_date', label: 'Дата выпуска авто', value: part.car_release_date },
+                                            { code: 'car_release_date', label: 'Год выпуска', value: part.car_release_date },
                                             { code: 'vin', label: 'VIN / Номер кузова', value: part.vin },
+                                            { code: 'car_release_period', label: 'Период выпуска автомобиля', value: part.car_release_period },
                                             { code: 'drive', label: 'Привод', value: part.drive },
                                             { code: 'color', label: 'Цвет кузовных деталей', value: part.color },
                                             { code: 'front_rear', label: 'Перед/зад', value: formatPosValue('front_rear', part.front_rear) },

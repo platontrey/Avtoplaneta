@@ -23,6 +23,7 @@ void main() {
         'oem_code': '81150-33630',
         'supplier_code': 'SUPP-998',
         'vin': 'WBAXX...1',
+        'car_release_period': '2001-2007',
         'location': 'Стеллаж A-1',
         'salesman': 'Иван',
         'photos': ['/uploads/photo1.jpg', '/uploads/photo2.jpg'],
@@ -35,6 +36,7 @@ void main() {
       expect(part.name, 'Фара левая');
       expect(part.price, 15000.50);
       expect(part.quantity, 3);
+      expect(part.carReleasePeriod, '2001-2007');
       expect(part.photos.length, 2);
       expect(part.photos[0], '/uploads/photo1.jpg');
       expect(part.createdAt, isNotNull);
@@ -50,6 +52,7 @@ void main() {
         quantity: 1,
         brand: 'BMW',
         model: 'E90',
+        carReleasePeriod: '2005-2011',
         location: 'Полка 2',
       );
 
@@ -59,6 +62,7 @@ void main() {
       expect(serialized['price'], 5000.0);
       expect(serialized['quantity'], 1);
       expect(serialized['brand'], 'BMW');
+      expect(serialized['car_release_period'], '2005-2011');
       expect(serialized['location'], 'Полка 2');
     });
 
@@ -268,6 +272,10 @@ void main() {
             'target': 'car_release_date',
           },
           {
+            'source': 'car_release_period',
+            'target': 'car_release_period',
+          },
+          {
             'source': 'drive',
             'target': 'drive',
             'categories': ['Трансмиссия'],
@@ -296,16 +304,18 @@ void main() {
       });
 
       final parts = catalog.expandDefectReportParts(
-        {'year': 2011, 'drive': 'Задний'},
+        {'year': 2011, 'car_release_period': '2008-2015', 'drive': 'Задний'},
         supplierCode: 'report-123',
       );
 
       expect(parts.first['front_rear'], 'F');
       expect(parts.first['left_right'], 'L');
       expect(parts.first['car_release_date'], '2011');
+      expect(parts.first['car_release_period'], '2008-2015');
       expect(parts.first['drive'], 'Задний');
       expect(parts.first['supplier_code'], 'report-123');
       expect(parts.last['car_release_date'], '2011');
+      expect(parts.last['car_release_period'], '2008-2015');
       expect(parts.last.containsKey('drive'), false);
     });
   });

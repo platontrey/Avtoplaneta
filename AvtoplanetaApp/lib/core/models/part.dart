@@ -36,6 +36,7 @@ class Part {
   final String? centerHoleDiameter;
   final String? tireModel;
   final String? vin;
+  final String? carReleasePeriod;
   final String location;
   final String address;
   final String? salesman;
@@ -81,6 +82,7 @@ class Part {
     this.centerHoleDiameter,
     this.tireModel,
     this.vin,
+    this.carReleasePeriod,
     this.location = '',
     this.address = '',
     this.salesman,
@@ -142,6 +144,7 @@ class Part {
       centerHoleDiameter: (json['center_hole_diameter'] ?? json['centerHoleDiameter']) as String?,
       tireModel: (json['tire_model'] ?? json['tireModel']) as String?,
       vin: json['vin'] as String?,
+      carReleasePeriod: (json['car_release_period'] ?? json['carReleasePeriod']) as String?,
       location: json['location'] as String? ?? '',
       address: json['address'] as String? ?? '',
       salesman: json['salesman'] as String?,
@@ -194,6 +197,7 @@ class Part {
     'center_hole_diameter': centerHoleDiameter,
     'tire_model': tireModel,
     'vin': vin,
+    'car_release_period': carReleasePeriod,
     'location': location,
     'address': address,
     'salesman': salesman,

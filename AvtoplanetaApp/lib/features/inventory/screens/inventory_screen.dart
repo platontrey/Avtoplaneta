@@ -143,6 +143,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         a.address == b.address &&
         a.salesman == b.salesman &&
         a.vin == b.vin &&
+        a.carReleasePeriod == b.carReleasePeriod &&
         a.oemCode == b.oemCode &&
         a.supplierCode == b.supplierCode &&
         a.defect == b.defect &&
@@ -655,6 +656,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     if (filter.vin.isNotEmpty) {
       addChip('VIN: ${filter.vin}', filter.copyWith(vin: '', page: 1));
     }
+    if (filter.carReleasePeriod.isNotEmpty) {
+      addChip('Период: ${filter.carReleasePeriod}', filter.copyWith(carReleasePeriod: '', page: 1));
+    }
     if (filter.bodyBrand.isNotEmpty) {
       addChip('Кузов: ${filter.bodyBrand}', filter.copyWith(bodyBrand: '', page: 1));
     }
@@ -929,6 +933,7 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
   late final TextEditingController _numberController;
   late final TextEditingController _oemCodeController;
   late final TextEditingController _vinController;
+  late final TextEditingController _carReleasePeriodController;
   late final TextEditingController _bodyBrandController;
   late final TextEditingController _engineBrandController;
   late final TextEditingController _carReleaseDateController;
@@ -974,6 +979,7 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
     _numberController = TextEditingController(text: widget.current.number);
     _oemCodeController = TextEditingController(text: widget.current.oemCode);
     _vinController = TextEditingController(text: widget.current.vin);
+    _carReleasePeriodController = TextEditingController(text: widget.current.carReleasePeriod);
     _bodyBrandController = TextEditingController(text: widget.current.bodyBrand);
     _engineBrandController = TextEditingController(text: widget.current.engineBrand);
     _carReleaseDateController = TextEditingController(text: widget.current.carReleaseDate);
@@ -1019,6 +1025,7 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
     _numberController.dispose();
     _oemCodeController.dispose();
     _vinController.dispose();
+    _carReleasePeriodController.dispose();
     _bodyBrandController.dispose();
     _engineBrandController.dispose();
     _carReleaseDateController.dispose();
@@ -1055,6 +1062,7 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
       _numberController.clear();
       _oemCodeController.clear();
       _vinController.clear();
+      _carReleasePeriodController.clear();
       _bodyBrandController.clear();
       _engineBrandController.clear();
       _carReleaseDateController.clear();
@@ -1104,6 +1112,7 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
         number: _numberController.text.trim(),
         oemCode: _oemCodeController.text.trim(),
         vin: _vinController.text.trim(),
+        carReleasePeriod: _carReleasePeriodController.text.trim(),
         bodyBrand: _bodyBrandController.text.trim(),
         engineBrand: _engineBrandController.text.trim(),
         carReleaseDate: _carReleaseDateController.text.trim(),
@@ -1161,6 +1170,7 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
     if (_bodyBrandController.text.trim().isNotEmpty) count++;
     if (_engineBrandController.text.trim().isNotEmpty) count++;
     if (_vinController.text.trim().isNotEmpty) count++;
+    if (_carReleasePeriodController.text.trim().isNotEmpty) count++;
     if (_numberController.text.trim().isNotEmpty) count++;
     if (_oemCodeController.text.trim().isNotEmpty) count++;
     if (_defectController.text.trim().isNotEmpty) count++;
@@ -1518,6 +1528,15 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
                       decoration: const InputDecoration(
                         labelText: 'VIN / Номер кузова',
                         hintText: 'WBA…',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _carReleasePeriodController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Период выпуска автомобиля',
+                        hintText: '2001-2007…',
                       ),
                     ),
                     const SizedBox(height: 12),

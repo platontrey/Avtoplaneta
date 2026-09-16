@@ -20,6 +20,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
   final _modelCtrl = TextEditingController();
   final _yearCtrl = TextEditingController();
   final _vinCtrl = TextEditingController();
+  final _carReleasePeriodCtrl = TextEditingController();
   final _mileageCtrl = TextEditingController();
   final _engineBrandCtrl = TextEditingController();
   final _bodyBrandCtrl = TextEditingController();
@@ -82,6 +83,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
     _modelCtrl.dispose();
     _yearCtrl.dispose();
     _vinCtrl.dispose();
+    _carReleasePeriodCtrl.dispose();
     _mileageCtrl.dispose();
     _engineBrandCtrl.dispose();
     _bodyBrandCtrl.dispose();
@@ -109,6 +111,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
         'engine_brand': _engineBrandCtrl.text.trim(),
         'year': int.tryParse(_yearCtrl.text) ?? 0,
         'vin': _vinCtrl.text.trim(),
+        'car_release_period': _carReleasePeriodCtrl.text.trim(),
         'transmission': _selectedTransmission,
         'transmission_model': _transmissionModelCtrl.text.trim(),
         'drive': _driveCtrl.text.trim(),
@@ -121,6 +124,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
         'model': _modelCtrl.text.trim(),
         'year': int.tryParse(_yearCtrl.text) ?? 0,
         'vin': _vinCtrl.text.trim(),
+        'car_release_period': _carReleasePeriodCtrl.text.trim(),
         'mileage': int.tryParse(_mileageCtrl.text) ?? 0,
         'engine_brand': _engineBrandCtrl.text.trim(),
         'body_brand': _bodyBrandCtrl.text.trim(),
@@ -251,6 +255,11 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
               keyboard: TextInputType.number,
             ),
             _buildTextField(_vinCtrl, 'VIN / Номер кузова'),
+            _buildTextField(
+              _carReleasePeriodCtrl,
+              'Период выпуска автомобиля',
+              hint: 'Например: 2001-2007',
+            ),
             _buildTextField(
               _mileageCtrl,
               'Пробег (км) *',

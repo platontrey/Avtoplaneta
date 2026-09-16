@@ -355,6 +355,7 @@ func (c *RedisEventConsumer) handleDefectReportCreated(ctx context.Context, msg 
 					BodyBrand:         selectedPart.BodyBrand,
 					EngineBrand:       selectedPart.EngineBrand,
 					CarReleaseDate:    selectedPart.CarReleaseDate,
+					CarReleasePeriod:  selectedPart.CarReleasePeriod,
 					FrontRear:         selectedPart.FrontRear,
 					LeftRight:         selectedPart.LeftRight,
 					TopBottom:         selectedPart.TopBottom,

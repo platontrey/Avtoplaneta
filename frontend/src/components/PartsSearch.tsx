@@ -95,6 +95,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
     const [number, setNumber] = useState('');
     const [oemCode, setOemCode] = useState('');
     const [vin, setVin] = useState('');
+    const [carReleasePeriod, setCarReleasePeriod] = useState('');
     const [bodyBrand, setBodyBrand] = useState('');
     const [engineBrand, setEngineBrand] = useState('');
     const [carReleaseDate, setCarReleaseDate] = useState('');
@@ -244,6 +245,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                 number,
                 oem_code: oemCode,
                 vin,
+                car_release_period: carReleasePeriod,
                 body_brand: bodyBrand,
                 engine_brand: engineBrand,
                 car_release_date: carReleaseDate,
@@ -277,7 +279,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         }
     }, [
         searchQuery, category, brand, model, location, address, salesman, status, hasPhoto,
-        number, oemCode, vin, bodyBrand, engineBrand, carReleaseDate,
+        number, oemCode, vin, carReleasePeriod, bodyBrand, engineBrand, carReleaseDate,
         transmission, drive, condition, manufacturer, defect, color,
         minPrice, maxPrice, minQuantity, maxQuantity,
         frontRear, leftRight, topBottom, manufacturerCode, supplierCode, transmissionModel, wearPercentage,
@@ -461,6 +463,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         setNumber('');
         setOemCode('');
         setVin('');
+        setCarReleasePeriod('');
         setBodyBrand('');
         setEngineBrand('');
         setCarReleaseDate('');
@@ -525,6 +528,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         number,
         oemCode,
         vin,
+        carReleasePeriod,
         bodyBrand,
         engineBrand,
         carReleaseDate,
@@ -557,7 +561,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         tireModel,
     ].filter(Boolean).length, [
         category, brand, model, location, address, status, hasPhoto,
-        number, oemCode, vin, bodyBrand, engineBrand, carReleaseDate,
+        number, oemCode, vin, carReleasePeriod, bodyBrand, engineBrand, carReleaseDate,
         transmission, drive, condition, manufacturer, defect, color,
         salesman, minPrice, maxPrice, minQuantity, maxQuantity,
         frontRear, leftRight, topBottom, manufacturerCode, supplierCode,
@@ -583,11 +587,12 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         bodyBrand,
         engineBrand,
         vin,
+        carReleasePeriod,
         number,
         oemCode,
         defect,
         color,
-    ].filter(Boolean).length, [bodyBrand, engineBrand, vin, number, oemCode, defect, color]);
+    ].filter(Boolean).length, [bodyBrand, engineBrand, vin, carReleasePeriod, number, oemCode, defect, color]);
 
     const transmissionFiltersCount = useMemo(() => [
         transmission,
@@ -1152,6 +1157,19 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                                                             value={vin}
                                                             onChange={(e) => setVin(e.target.value)}
                                                             placeholder="WVWZZZ1JZ3W386549..."
+                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                        />
+                                                    </div>
+
+                                                    {/* Период выпуска автомобиля */}
+                                                    <div>
+                                                        <Label htmlFor="car-release-period-filter">Период выпуска автомобиля</Label>
+                                                        <Input
+                                                            id="car-release-period-filter"
+                                                            type="text"
+                                                            value={carReleasePeriod}
+                                                            onChange={(e) => setCarReleasePeriod(e.target.value)}
+                                                            placeholder="2001-2007..."
                                                             className="mt-1.5 bg-transparent border border-gray-300"
                                                         />
                                                     </div>
@@ -1763,6 +1781,28 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                                                     className="h-3 w-3"
                                                 />
                                                 <span>VIN: {vin}</span>
+                                            </Badge>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                <AnimatePresence>
+                                    {carReleasePeriod && (
+                                        <motion.div
+                                            key="carReleasePeriod"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <Badge variant="secondary" className="gap-2 bg-transparent border border-gray-300">
+                                                <Checkbox
+                                                    checked={true}
+                                                    onCheckedChange={(checked) => {
+                                                        if (!checked) setCarReleasePeriod('');
+                                                    }}
+                                                    className="h-3 w-3"
+                                                />
+                                                <span>Период: {carReleasePeriod}</span>
                                             </Badge>
                                         </motion.div>
                                     )}

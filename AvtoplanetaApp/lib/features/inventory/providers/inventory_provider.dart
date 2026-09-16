@@ -17,6 +17,7 @@ class InventoryFilter {
   final String number;
   final String oemCode;
   final String vin;
+  final String carReleasePeriod;
   final String bodyBrand;
   final String engineBrand;
   final String carReleaseDate;
@@ -62,6 +63,7 @@ class InventoryFilter {
     this.number = '',
     this.oemCode = '',
     this.vin = '',
+    this.carReleasePeriod = '',
     this.bodyBrand = '',
     this.engineBrand = '',
     this.carReleaseDate = '',
@@ -108,6 +110,7 @@ class InventoryFilter {
     String? number,
     String? oemCode,
     String? vin,
+    String? carReleasePeriod,
     String? bodyBrand,
     String? engineBrand,
     String? carReleaseDate,
@@ -152,6 +155,7 @@ class InventoryFilter {
     number: number ?? this.number,
     oemCode: oemCode ?? this.oemCode,
     vin: vin ?? this.vin,
+    carReleasePeriod: carReleasePeriod ?? this.carReleasePeriod,
     bodyBrand: bodyBrand ?? this.bodyBrand,
     engineBrand: engineBrand ?? this.engineBrand,
     carReleaseDate: carReleaseDate ?? this.carReleaseDate,
@@ -197,6 +201,7 @@ class InventoryFilter {
     number,
     oemCode,
     vin,
+    carReleasePeriod,
     bodyBrand,
     engineBrand,
     carReleaseDate,
@@ -246,6 +251,7 @@ class InventoryFilter {
       if (number.isNotEmpty) 'number': number,
       if (oemCode.isNotEmpty) 'oem_code': oemCode,
       if (vin.isNotEmpty) 'vin': vin,
+      if (carReleasePeriod.isNotEmpty) 'car_release_period': carReleasePeriod,
       if (bodyBrand.isNotEmpty) 'body_brand': bodyBrand,
       if (engineBrand.isNotEmpty) 'engine_brand': engineBrand,
       if (carReleaseDate.isNotEmpty) 'car_release_date': carReleaseDate,
@@ -504,6 +510,12 @@ final inventoryProvider =
             final value = filter.vin.toLowerCase();
             filteredList = filteredList
                 .where((part) => part.vin?.toLowerCase().contains(value) == true)
+                .toList();
+          }
+          if (filter.carReleasePeriod.isNotEmpty) {
+            final value = filter.carReleasePeriod.toLowerCase();
+            filteredList = filteredList
+                .where((part) => part.carReleasePeriod?.toLowerCase().contains(value) == true)
                 .toList();
           }
           if (filter.bodyBrand.isNotEmpty) {

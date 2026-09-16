@@ -60,6 +60,17 @@ func TestEmbeddedCatalogAndDefectExpansion(t *testing.T) {
 		t.Errorf("glass release date = %q, want %q", glass.CarReleaseDate, "2011")
 	}
 
+	reportWithPeriod := report
+	reportWithPeriod.CarReleasePeriod = "2005-2011"
+	partsWithPeriod := catalog.ExpandDefectReport(reportWithPeriod)
+	glassWithPeriod := findExpandedPart(t, partsWithPeriod, "Стекла")
+	if glassWithPeriod.CarReleaseDate != "2011" {
+		t.Errorf("glass release date = %q, want %q", glassWithPeriod.CarReleaseDate, "2011")
+	}
+	if glassWithPeriod.CarReleasePeriod != "2005-2011" {
+		t.Errorf("glass release period = %q, want %q", glassWithPeriod.CarReleasePeriod, "2005-2011")
+	}
+
 	for _, part := range parts {
 		if part.Price != 0 {
 			t.Errorf("part %q has price %v, want 0", part.Name, part.Price)

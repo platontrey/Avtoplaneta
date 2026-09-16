@@ -24,6 +24,7 @@ export interface Part {
   body_brand?: string;
   engine_brand?: string;
   car_release_date?: string;
+  car_release_period?: string;
   front_rear?: string;
   left_right?: string;
   top_bottom?: string;
@@ -67,6 +68,7 @@ export interface PartFormData {
    body_brand?: string;
    engine_brand?: string;
    car_release_date?: string;
+   car_release_period?: string;
    front_rear?: string;
    left_right?: string;
    top_bottom?: string;

@@ -44,6 +44,7 @@ const partSchema = z.object({
     body_brand: z.string().optional(),
     engine_brand: z.string().optional(),
     car_release_date: z.string().optional(),
+    car_release_period: z.string().optional(),
     front_rear: z.string().optional(),
     left_right: z.string().optional(),
     top_bottom: z.string().optional(),
@@ -89,6 +90,7 @@ interface Part {
     body_brand?: string;
     engine_brand?: string;
     car_release_date?: string;
+    car_release_period?: string;
     front_rear?: string;
     left_right?: string;
     top_bottom?: string;
@@ -295,6 +297,7 @@ export default function AddPart() {
             body_brand: data.body_brand,
             engine_brand: data.engine_brand,
             car_release_date: data.car_release_date,
+            car_release_period: data.car_release_period,
             front_rear: data.front_rear,
             left_right: data.left_right,
             top_bottom: data.top_bottom,
@@ -518,6 +521,20 @@ export default function AddPart() {
                                             autoComplete="off"
                                         />
                                     </div>
+
+                                    {visibleFields.includes("car_release_period") && (
+                                        <div>
+                                            <Label htmlFor="car_release_period" className="min-w-[120px] mb-1">Период выпуска автомобиля</Label>
+                                            <Input
+                                                id="car_release_period"
+                                                {...register("car_release_period")}
+                                                type="text"
+                                                placeholder="Например: 2001-2007"
+                                                className="h-10"
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Правая колонка */}

@@ -78,6 +78,7 @@ type InventoryQueryParams struct {
 	BodyBrand          string
 	EngineBrand        string
 	CarReleaseDate     string
+	CarReleasePeriod   string
 	Transmission       string
 	Drive              string
 	Condition          string
@@ -473,6 +474,7 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 			"vin^3", "vin.text^3",
 			"category^3", "category.text^3", "category.ngram^2",
 			"car_release_date^3", "car_release_date.text^3", "car_release_date.ngram^2",
+			"car_release_period^3", "car_release_period.text^3", "car_release_period.ngram^2",
 			"front_rear^3", "front_rear.text^3", "front_rear.ngram^2",
 			"left_right^3", "left_right.text^3", "left_right.ngram^2",
 			"top_bottom^3", "top_bottom.text^3", "top_bottom.ngram^2",
@@ -663,7 +665,7 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 		should = append(should, map[string]interface{}{
 			"multi_match": map[string]interface{}{
 				"query":                params.Search,
-				"fields":               []string{"name^2", "brand.text^1", "model.text^1", "car_release_date.text^1", "front_rear.text^1", "color.text^1", "transmission.text^1"},
+				"fields":               []string{"name^2", "brand.text^1", "model.text^1", "car_release_date.text^1", "car_release_period.text^1", "front_rear.text^1", "color.text^1", "transmission.text^1"},
 				"type":                 "best_fields",
 				"fuzziness":            "AUTO:4,7",
 				"prefix_length":        2,
@@ -836,6 +838,20 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 					{"match": map[string]interface{}{"car_release_date.text": params.CarReleaseDate}},
 					{"match": map[string]interface{}{"car_release_date.ngram": params.CarReleaseDate}},
 					{"wildcard": map[string]interface{}{"car_release_date": "*" + params.CarReleaseDate + "*"}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
+	if params.CarReleasePeriod != "" {
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"car_release_period": params.CarReleasePeriod}},
+					{"match": map[string]interface{}{"car_release_period.text": params.CarReleasePeriod}},
+					{"match": map[string]interface{}{"car_release_period.ngram": params.CarReleasePeriod}},
+					{"wildcard": map[string]interface{}{"car_release_period": "*" + params.CarReleasePeriod + "*"}},
 				},
 				"minimum_should_match": 1,
 			},
@@ -1255,6 +1271,9 @@ func (s *inventoryService) buildDatabaseFilters(params InventoryQueryParams) map
 	}
 	if params.CarReleaseDate != "" {
 		filters["car_release_date_ilike"] = params.CarReleaseDate
+	}
+	if params.CarReleasePeriod != "" {
+		filters["car_release_period_ilike"] = params.CarReleasePeriod
 	}
 	if params.Transmission != "" {
 		filters["transmission_ilike"] = params.Transmission

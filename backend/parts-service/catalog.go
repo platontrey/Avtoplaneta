@@ -77,6 +77,7 @@ type DefectReportPart struct {
 	BodyBrand          string  `json:"body_brand,omitempty"`
 	EngineBrand        string  `json:"engine_brand,omitempty"`
 	CarReleaseDate     string  `json:"car_release_date,omitempty"`
+	CarReleasePeriod   string  `json:"car_release_period,omitempty"`
 	FrontRear          string  `json:"front_rear,omitempty"`
 	LeftRight          string  `json:"left_right,omitempty"`
 	TopBottom          string  `json:"top_bottom,omitempty"`
@@ -108,6 +109,7 @@ type DefectReportRequest struct {
 	Brand             string             `json:"brand"`
 	Model             string             `json:"model"`
 	Year              int                `json:"year"`
+	CarReleasePeriod  string             `json:"car_release_period,omitempty"`
 	VIN               string             `json:"vin"`
 	Mileage           int                `json:"mileage"`
 	Description       string             `json:"description"`
@@ -207,7 +209,7 @@ func validatePartCatalog(catalog *PartCatalog) error {
 
 func isDefectPartField(field string) bool {
 	switch field {
-	case "body_brand", "engine_brand", "car_release_date", "front_rear", "left_right", "top_bottom",
+	case "body_brand", "engine_brand", "car_release_date", "car_release_period", "front_rear", "left_right", "top_bottom",
 		"number", "manufacturer", "manufacturer_code", "oem_code", "color", "condition", "supplier_code",
 		"defect", "transmission", "transmission_model", "drive", "wear_percentage", "season", "diameter",
 		"width", "profile", "tire_quantity", "drilling", "offset", "center_hole_diameter", "tire_model", "vin":
@@ -222,6 +224,7 @@ func (catalog *PartCatalog) ExpandDefectReport(report DefectReportRequest) []Def
 		"body_brand":         strings.TrimSpace(report.BodyBrand),
 		"engine_brand":       strings.TrimSpace(report.EngineBrand),
 		"year":               strconv.Itoa(report.Year),
+		"car_release_period": strings.TrimSpace(report.CarReleasePeriod),
 		"vin":                strings.TrimSpace(report.VIN),
 		"transmission":       strings.TrimSpace(report.Transmission),
 		"transmission_model": strings.TrimSpace(report.TransmissionModel),
@@ -287,6 +290,8 @@ func setDefectPartField(part *DefectReportPart, field, value string) {
 		part.EngineBrand = value
 	case "car_release_date":
 		part.CarReleaseDate = value
+	case "car_release_period":
+		part.CarReleasePeriod = value
 	case "front_rear":
 		part.FrontRear = value
 	case "left_right":

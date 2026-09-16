@@ -65,7 +65,7 @@ func NewPartRepository(pool *pgxpool.Pool) PartRepository {
 
 var partColumns = `id, name, quantity, description, category, price, salesman, location, address, status,
 	brand, model, photos, seller_id, to_delete_at, vin,
-	body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom,
+	body_brand, engine_brand, car_release_date, car_release_period, front_rear, left_right, top_bottom,
 	number, manufacturer, manufacturer_code, oem_code, color, condition,
 	supplier_code, defect, transmission, transmission_model, drive, wear_percentage,
 	season, diameter, width, profile, tire_quantity, drilling, "offset",
@@ -82,7 +82,7 @@ func scanPart(row pgx.Row) (*Part, error) {
 		&p.ID, &p.Name, &p.Quantity, &p.Description, &p.Category, &p.Price,
 		&p.Salesman, &p.Location, &p.Address, &p.Status, &p.Brand, &p.Model, &photos,
 		&p.SellerID, &toDeleteAt, &p.VIN,
-		&p.BodyBrand, &p.EngineBrand, &p.CarReleaseDate, &p.FrontRear, &p.LeftRight, &p.TopBottom,
+		&p.BodyBrand, &p.EngineBrand, &p.CarReleaseDate, &p.CarReleasePeriod, &p.FrontRear, &p.LeftRight, &p.TopBottom,
 		&p.Number, &p.Manufacturer, &p.ManufacturerCode, &p.OEMCode, &p.Color, &p.Condition,
 		&p.SupplierCode, &p.Defect, &p.Transmission, &p.TransmissionModel, &p.Drive, &p.WearPercentage,
 		&p.Season, &p.Diameter, &p.Width, &p.Profile, &p.TireQuantity, &p.Drilling, &p.Offset,
@@ -162,20 +162,20 @@ func (r *partRepository) Create(ctx context.Context, part *Part) error {
 		INSERT INTO parts (
 			name, quantity, description, category, price, salesman, location, address, status,
 			brand, model, photos, seller_id, to_delete_at, vin,
-			body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom,
+			body_brand, engine_brand, car_release_date, car_release_period, front_rear, left_right, top_bottom,
 			number, manufacturer, manufacturer_code, oem_code, color, condition,
 			supplier_code, defect, transmission, transmission_model, drive, wear_percentage,
 			season, diameter, width, profile, tire_quantity, drilling, "offset",
 			center_hole_diameter, tire_model, created_at, updated_at
 		) VALUES (
 			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
-			$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,
-			$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,NOW(),NOW()
+			$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,
+			$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,NOW(),NOW()
 		) RETURNING id, created_at, updated_at`,
 		part.Name, part.Quantity, part.Description, part.Category, part.Price,
 		part.Salesman, part.Location, part.Address, part.Status, part.Brand, part.Model,
 		photosJSON, part.SellerID, toDeleteAt, part.VIN,
-		part.BodyBrand, part.EngineBrand, part.CarReleaseDate, part.FrontRear, part.LeftRight, part.TopBottom,
+		part.BodyBrand, part.EngineBrand, part.CarReleaseDate, part.CarReleasePeriod, part.FrontRear, part.LeftRight, part.TopBottom,
 		part.Number, part.Manufacturer, part.ManufacturerCode, part.OEMCode, part.Color, part.Condition,
 		part.SupplierCode, part.Defect, part.Transmission, part.TransmissionModel, part.Drive, part.WearPercentage,
 		part.Season, part.Diameter, part.Width, part.Profile, part.TireQuantity, part.Drilling, part.Offset,
@@ -300,6 +300,8 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 			builder = builder.Where("engine_brand ILIKE ?", "%"+value.(string)+"%")
 		case "car_release_date_ilike":
 			builder = builder.Where("car_release_date ILIKE ?", "%"+value.(string)+"%")
+		case "car_release_period_ilike":
+			builder = builder.Where("car_release_period ILIKE ?", "%"+value.(string)+"%")
 		case "transmission_ilike":
 			builder = builder.Where("transmission ILIKE ?", "%"+value.(string)+"%")
 		case "drive_ilike":
@@ -385,8 +387,8 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 				terms := strings.Fields(searchStr)
 				for _, term := range terms {
 					termPattern := "%" + term + "%"
-					baseExpr := "(name ILIKE ? OR description ILIKE ? OR brand ILIKE ? OR model ILIKE ? OR number ILIKE ? OR oem_code ILIKE ? OR vin ILIKE ? OR category ILIKE ? OR car_release_date ILIKE ? OR body_brand ILIKE ? OR engine_brand ILIKE ? OR front_rear ILIKE ? OR left_right ILIKE ? OR top_bottom ILIKE ? OR color ILIKE ? OR condition ILIKE ? OR transmission ILIKE ? OR transmission_model ILIKE ? OR drive ILIKE ? OR defect ILIKE ? OR wear_percentage ILIKE ? OR season ILIKE ? OR diameter ILIKE ? OR width ILIKE ? OR profile ILIKE ? OR drilling ILIKE ? OR \"offset\" ILIKE ? OR center_hole_diameter ILIKE ? OR tire_model ILIKE ? OR tire_quantity ILIKE ? OR location ILIKE ? OR address ILIKE ? OR salesman ILIKE ? OR manufacturer ILIKE ? OR manufacturer_code ILIKE ? OR supplier_code ILIKE ?"
-					args := make([]interface{}, 36)
+					baseExpr := "(name ILIKE ? OR description ILIKE ? OR brand ILIKE ? OR model ILIKE ? OR number ILIKE ? OR oem_code ILIKE ? OR vin ILIKE ? OR category ILIKE ? OR car_release_date ILIKE ? OR car_release_period ILIKE ? OR body_brand ILIKE ? OR engine_brand ILIKE ? OR front_rear ILIKE ? OR left_right ILIKE ? OR top_bottom ILIKE ? OR color ILIKE ? OR condition ILIKE ? OR transmission ILIKE ? OR transmission_model ILIKE ? OR drive ILIKE ? OR defect ILIKE ? OR wear_percentage ILIKE ? OR season ILIKE ? OR diameter ILIKE ? OR width ILIKE ? OR profile ILIKE ? OR drilling ILIKE ? OR \"offset\" ILIKE ? OR center_hole_diameter ILIKE ? OR tire_model ILIKE ? OR tire_quantity ILIKE ? OR location ILIKE ? OR address ILIKE ? OR salesman ILIKE ? OR manufacturer ILIKE ? OR manufacturer_code ILIKE ? OR supplier_code ILIKE ?"
+					args := make([]interface{}, 37)
 					for i := range args {
 						args[i] = termPattern
 					}
@@ -536,7 +538,7 @@ func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]in
 			name TEXT, quantity INTEGER, description TEXT, category TEXT,
 			price DOUBLE PRECISION, brand TEXT, model TEXT, location TEXT, address TEXT,
 			salesman TEXT, status TEXT, photos JSONB,
-			body_brand TEXT, engine_brand TEXT, car_release_date TEXT,
+			body_brand TEXT, engine_brand TEXT, car_release_date TEXT, car_release_period TEXT,
 			front_rear TEXT, left_right TEXT, top_bottom TEXT,
 			number TEXT, manufacturer TEXT, manufacturer_code TEXT,
 			oem_code TEXT, color TEXT, condition TEXT,
@@ -576,15 +578,15 @@ func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]in
 
 		_, err = tx.Exec(ctx, `
 			INSERT INTO temp_parts_update (id, name, quantity, description, category, price, brand, model, location, address, salesman, status, photos,
-				body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer,
+				body_brand, engine_brand, car_release_date, car_release_period, front_rear, left_right, top_bottom, number, manufacturer,
 				manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage,
 				season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40)`,
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41)`,
 			id,
 			update["name"], update["quantity"], update["description"], update["category"],
 			update["price"], update["brand"], update["model"], update["location"], update["address"],
 			update["salesman"], update["status"], update["photos"],
-			update["body_brand"], update["engine_brand"], update["car_release_date"],
+			update["body_brand"], update["engine_brand"], update["car_release_date"], update["car_release_period"],
 			update["front_rear"], update["left_right"], update["top_bottom"],
 			update["number"], update["manufacturer"], update["manufacturer_code"],
 			update["oem_code"], update["color"], update["condition"],
@@ -618,6 +620,7 @@ func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]in
 			body_brand = COALESCE(t.body_brand, parts.body_brand),
 			engine_brand = COALESCE(t.engine_brand, parts.engine_brand),
 			car_release_date = COALESCE(t.car_release_date, parts.car_release_date),
+			car_release_period = COALESCE(t.car_release_period, parts.car_release_period),
 			front_rear = COALESCE(t.front_rear, parts.front_rear),
 			left_right = COALESCE(t.left_right, parts.left_right),
 			top_bottom = COALESCE(t.top_bottom, parts.top_bottom),

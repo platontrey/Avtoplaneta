@@ -58,6 +58,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
   final _oemCtrl = TextEditingController();
   final _supplierCtrl = TextEditingController();
   final _vinCtrl = TextEditingController();
+  final _carReleasePeriodCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
   final _addressCtrl = TextEditingController();
   final _salesmanCtrl = TextEditingController();
@@ -168,6 +169,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
         _oemCtrl.text = data['oem_code'] ?? data['oemCode'] ?? '';
         _supplierCtrl.text = data['supplier_code'] ?? data['supplierCode'] ?? '';
         _vinCtrl.text = data['vin'] ?? '';
+        _carReleasePeriodCtrl.text = data['car_release_period'] ?? data['carReleasePeriod'] ?? '';
         _locationCtrl.text = data['location'] ?? '';
         _addressCtrl.text = data['address'] ?? '';
         _salesmanCtrl.text = data['salesman'] ?? '';
@@ -228,6 +230,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       _oemCtrl,
       _supplierCtrl,
       _vinCtrl,
+      _carReleasePeriodCtrl,
       _locationCtrl,
       _addressCtrl,
       _salesmanCtrl,
@@ -395,6 +398,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
         'oem_code': _oemCtrl.text.trim(),
         'supplier_code': _supplierCtrl.text.trim(),
         'vin': _vinCtrl.text.trim(),
+        'car_release_period': _carReleasePeriodCtrl.text.trim(),
         'location': _locationCtrl.text.trim(),
         'address': _addressCtrl.text.trim(),
         'salesman': _salesmanCtrl.text.trim(),
@@ -560,6 +564,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
 
             _section('Идентификация'),
             _field(_vinCtrl, 'VIN / Номер кузова'),
+            _field(_carReleasePeriodCtrl, 'Период выпуска автомобиля'),
 
             _section('Расположение'),
             _field(_locationCtrl, 'Место хранения'),

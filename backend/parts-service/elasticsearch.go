@@ -64,6 +64,7 @@ type ElasticsearchPart struct {
 	BodyBrand          string   `json:"body_brand,omitempty"`
 	EngineBrand        string   `json:"engine_brand,omitempty"`
 	CarReleaseDate     string   `json:"car_release_date,omitempty"`
+	CarReleasePeriod   string   `json:"car_release_period,omitempty"`
 	Transmission       string   `json:"transmission,omitempty"`
 	TransmissionModel  string   `json:"transmission_model,omitempty"`
 	Drive              string   `json:"drive,omitempty"`
@@ -498,6 +499,20 @@ func CreatePartsIndex() error {
 						}
 					}
 				},
+				"car_release_period": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "standard"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
 				"color": {
 					"type": "keyword",
 					"fields": {
@@ -718,6 +733,7 @@ func partToESPart(part *Part) ElasticsearchPart {
 		BodyBrand:          part.BodyBrand,
 		EngineBrand:        part.EngineBrand,
 		CarReleaseDate:     part.CarReleaseDate,
+		CarReleasePeriod:   part.CarReleasePeriod,
 		Transmission:       part.Transmission,
 		TransmissionModel:  part.TransmissionModel,
 		Drive:              part.Drive,

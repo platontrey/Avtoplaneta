@@ -20,6 +20,12 @@
       "sort_order": 3
     },
     {
+      "code": "car_release_period",
+      "label": "Период выпуска автомобиля",
+      "input_type": "text",
+      "sort_order": 4
+    },
+    {
       "code": "front_rear",
       "label": "Перед / зад",
       "input_type": "text",
@@ -200,6 +206,7 @@
       "attributes": [
         "engine_brand",
         "car_release_date",
+        "car_release_period",
         "front_rear",
         "left_right",
         "top_bottom",
@@ -518,6 +525,10 @@
       "source": "year",
       "target": "car_release_date",
       "transform": "string"
+    },
+    {
+      "source": "car_release_period",
+      "target": "car_release_period"
     },
     {
       "source": "vin",

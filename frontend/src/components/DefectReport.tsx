@@ -58,6 +58,7 @@ const defectReportSchema = z.object({
   model: z.string().min(1, "Введите модель"),
   year: z.number().min(1900, "Введите корректный год").max(new Date().getFullYear() + 1, "Год не может быть в будущем"),
   vin: z.string().optional(),
+  car_release_period: z.string().optional(),
   mileage: z.number().min(0, "Пробег должен быть положительным числом"),
   transmission: z.string().optional(),
   transmission_model: z.string().optional(),
@@ -125,6 +126,7 @@ export default function DefectReport() {
         brand: data.brand,
         model: data.model,
         year: data.year,
+        car_release_period: data.car_release_period,
         vin: data.vin,
         mileage: data.mileage,
         engine_brand: data.engine_brand,
@@ -140,6 +142,7 @@ export default function DefectReport() {
           body_brand: data.body_brand,
           engine_brand: data.engine_brand,
           year: data.year,
+          car_release_period: data.car_release_period,
           vin: data.vin,
           transmission: data.transmission,
           transmission_model: data.transmission_model,
@@ -254,6 +257,18 @@ export default function DefectReport() {
                   {...register("vin")}
                   type="text"
                   placeholder="WVWZZZ1JZ3W386549"
+                  className="h-10"
+                  autoComplete="off"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="car_release_period">Период выпуска автомобиля</Label>
+                <Input
+                  id="car_release_period"
+                  {...register("car_release_period")}
+                  type="text"
+                  placeholder="Например: 2001-2007"
                   className="h-10"
                   autoComplete="off"
                 />

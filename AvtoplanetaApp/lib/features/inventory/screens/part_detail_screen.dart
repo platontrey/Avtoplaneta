@@ -194,6 +194,8 @@ class PartDetailScreen extends ConsumerWidget {
                     if (shows('car_release_date'))
                       _row('Год выпуска', val(part.carReleaseDate)),
                     if (part.vin != null) _row('VIN / Номер кузова', part.vin!),
+                    if (shows('car_release_period'))
+                      _row('Период выпуска автомобиля', val(part.carReleasePeriod)),
                     if (shows('transmission'))
                       _row('Тип трансмиссии', val(part.transmission)),
                     if (shows('transmission_model'))

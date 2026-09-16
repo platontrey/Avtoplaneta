@@ -65,6 +65,7 @@ type PartSpecifications struct {
 	BodyBrand         string `json:"body_brand,omitempty"`
 	EngineBrand       string `json:"engine_brand,omitempty"`
 	CarReleaseDate    string `json:"car_release_date,omitempty"`
+	CarReleasePeriod  string `json:"car_release_period,omitempty"`
 	FrontRear         string `json:"front_rear,omitempty"`
 	LeftRight         string `json:"left_right,omitempty"`
 	TopBottom         string `json:"top_bottom,omitempty"`
@@ -125,6 +126,7 @@ func (p *Part) GetFullSpecifications() map[string]interface{} {
 		{"body_brand", p.BodyBrand},
 		{"engine_brand", p.EngineBrand},
 		{"car_release_date", p.CarReleaseDate},
+		{"car_release_period", p.CarReleasePeriod},
 		{"front_rear", p.FrontRear},
 		{"left_right", p.LeftRight},
 		{"top_bottom", p.TopBottom},
@@ -183,6 +185,8 @@ func (p *Part) SetSpecifications(specs map[string]interface{}) {
 			p.EngineBrand = strValue
 		case "car_release_date":
 			p.CarReleaseDate = strValue
+		case "car_release_period":
+			p.CarReleasePeriod = strValue
 		case "front_rear":
 			p.FrontRear = strValue
 		case "left_right":
