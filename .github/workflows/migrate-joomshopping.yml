@@ -161,7 +161,10 @@ jobs:
                 apk add --no-cache openssh-client rsync sshpass >/dev/null
                 mkdir -p /dest/joomla
                 export RSYNC_RSH="sshpass -e ssh -o UserKnownHostsFile=/root/.ssh/known_hosts -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=6"
-                rsync -a --partial --human-readable --info=stats2 \
+                # The migration source currently runs rsync 3.0.9, which does
+                # not support the newer --info=STATS2 selector.  --stats is
+                # supported by both endpoints and still prints transfer totals.
+                rsync -a --partial --human-readable --stats \
                   --files-from=/work/photo-files.txt \
                   "$SOURCE_USER@$SOURCE_HOST:$SOURCE_IMAGES/" /dest/joomla/
               '
