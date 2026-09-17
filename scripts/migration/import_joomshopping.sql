@@ -51,6 +51,16 @@ CREATE TEMP TABLE jshopping_parts_stage (
 
 \copy jshopping_parts_stage FROM '/tmp/joomshopping_parts.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
 
+-- Old imports may contain Joomla's generated vehicle-specification string
+-- (for example, "HYUNDAI, SANTA FE, ..., 04.2007 - 04.2013, ...") instead
+-- of a part name. Hide these
+-- previously imported records as well; the exporter skips them going forward.
+UPDATE parts
+SET deleted_at = NOW(), updated_at = NOW()
+WHERE deleted_at IS NULL
+  AND length(name) - length(replace(name, ',', '')) >= 5
+  AND name ~ '[0-9]{2}\.[0-9]{4}[[:space:]]*-[[:space:]]*[0-9]{2}\.[0-9]{4}';
+
 INSERT INTO parts (
     id, name, quantity, description, category, price, salesman, location, address, status,
     brand, model, photos, seller_id, vin, body_brand, engine_brand, car_release_date,

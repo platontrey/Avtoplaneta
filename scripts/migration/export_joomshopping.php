@@ -96,6 +96,16 @@ function resolveExtra($values, $fieldId, $rawValue)
     return isset($values[$fieldId][$raw]) ? $values[$fieldId][$raw] : $raw;
 }
 
+function isMalformedLegacyName($value)
+{
+    // Some Joomla records contain a comma-separated vehicle specification
+    // instead of a part name, e.g. "HYUNDAI, SANTA FE, ..., 04.2007 -
+    // 04.2013, ...". The first field varies, so do not rely on it being "0".
+    $name = cleanScalar($value);
+    return substr_count($name, ',') >= 5
+        && preg_match('/\b[0-9]{2}\.[0-9]{4}\s*-\s*[0-9]{2}\.[0-9]{4}\b/u', $name) === 1;
+}
+
 function normalizeVehicleText($value)
 {
     $value = cleanScalar($value);
@@ -227,12 +237,18 @@ if ($products === false) {
 }
 
 $count = 0;
+$skippedMalformedNames = 0;
 $now = gmdate('Y-m-d H:i:s');
 while ($row = $products->fetch_assoc()) {
     $quantity = max(0, (int) floor((float) $row['product_quantity']));
     $name = resolveExtra($values, 29, $row['extra_field_29']);
     if ($name === '') {
         $name = cleanScalar($row['name_ru-RU']);
+    }
+    if (isMalformedLegacyName($name)) {
+        fwrite(STDERR, "Skipping product {$row['product_id']}: malformed legacy name\n");
+        ++$skippedMalformedNames;
+        continue;
     }
 
     $address = resolveAddress($values, $row['extra_field_44']);
@@ -324,4 +340,4 @@ $products->free();
 fclose($output);
 $db->close();
 
-fwrite(STDOUT, "Exported {$count} published products to {$outputPath} (photos excluded).\n");
+fwrite(STDOUT, "Exported {$count} published products to {$outputPath} (photos excluded; skipped malformed names={$skippedMalformedNames}).\n");

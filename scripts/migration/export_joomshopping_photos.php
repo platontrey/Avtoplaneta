@@ -27,6 +27,41 @@ if ($db->connect_errno) {
 }
 $db->set_charset('utf8mb4');
 
+$nameValues = array();
+$nameValuesResult = $db->query(
+    "SELECT id, `name_ru-RU` AS value_name " .
+    "FROM `{$prefix}jshopping_products_extra_field_values` WHERE field_id = 29"
+);
+if ($nameValuesResult === false) {
+    fwrite(STDERR, "Part-name values query failed: {$db->error}\n");
+    exit(1);
+}
+while ($value = $nameValuesResult->fetch_assoc()) {
+    $nameValues[(string) $value['id']] = trim((string) $value['value_name']);
+}
+$nameValuesResult->free();
+
+function cleanScalar($value)
+{
+    return trim(str_replace("\0", '', (string) $value));
+}
+
+function productName($nameValues, $extraName, $fallbackName)
+{
+    $raw = cleanScalar($extraName);
+    if ($raw === '' || $raw === '0') {
+        return cleanScalar($fallbackName);
+    }
+    return isset($nameValues[$raw]) ? $nameValues[$raw] : $raw;
+}
+
+function isMalformedLegacyName($value)
+{
+    $name = cleanScalar($value);
+    return substr_count($name, ',') >= 5
+        && preg_match('/\b[0-9]{2}\.[0-9]{4}\s*-\s*[0-9]{2}\.[0-9]{4}\b/u', $name) === 1;
+}
+
 $manifest = fopen($manifestPath, 'wb');
 $files = fopen($filesPath, 'wb');
 if ($manifest === false || $files === false) {
@@ -35,7 +70,7 @@ if ($manifest === false || $files === false) {
 }
 fputcsv($manifest, array('product_id', 'photo_url', 'ordering', 'source_file', 'size_bytes'));
 
-$sql = "SELECT i.image_id, p.product_id, i.image_name, i.ordering " .
+$sql = "SELECT i.image_id, p.product_id, p.`name_ru-RU`, p.extra_field_29, i.image_name, i.ordering " .
     "FROM `{$prefix}jshopping_products` p " .
     "LEFT JOIN `{$prefix}jshopping_products_images` i ON i.product_id = p.product_id " .
     "WHERE p.product_publish = 1 " .
@@ -49,9 +84,14 @@ if ($result === false) {
 $seenFiles = array();
 $manifestRows = 0;
 $photoRows = 0;
+$skippedMalformedNames = 0;
 $missing = 0;
 $bytes = 0;
 while ($row = $result->fetch_assoc()) {
+    if (isMalformedLegacyName(productName($nameValues, $row['extra_field_29'], $row['name_ru-RU']))) {
+        ++$skippedMalformedNames;
+        continue;
+    }
     $name = basename(trim((string) $row['image_name']));
     if ($name === '' || $name === '.' || $name === '..') {
         fputcsv($manifest, array((int) $row['product_id'], '', 0, '', 0));
@@ -104,4 +144,4 @@ $result->free();
 fclose($manifest);
 fclose($files);
 $db->close();
-fwrite(STDERR, "manifest_rows={$manifestRows} photo_rows={$photoRows} unique_files=" . count($seenFiles) . " missing={$missing} bytes={$bytes}\n");
+fwrite(STDERR, "manifest_rows={$manifestRows} photo_rows={$photoRows} skipped_malformed_name_rows={$skippedMalformedNames} unique_files=" . count($seenFiles) . " missing={$missing} bytes={$bytes}\n");
