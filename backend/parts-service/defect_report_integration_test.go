@@ -26,7 +26,7 @@ func TestDefectReportHTTPThroughRedisConsumer(t *testing.T) {
 	t.Cleanup(func() { _ = client.Close() })
 
 	recordingService := &recordingInventoryService{}
-	handler := NewHandler(recordingService, catalog, NewDefectReportWorkflow(
+	handler := NewHandler(recordingService, catalog, nil, NewDefectReportWorkflow(
 		catalog,
 		NewRedisDefectReportEventPublisher(client),
 	))
@@ -141,7 +141,7 @@ func TestDefectReportPreviewUsesServerCatalog(t *testing.T) {
 	catalog, err := LoadPartCatalog()
 	require.NoError(t, err)
 
-	handler := NewHandler(&recordingInventoryService{}, catalog, NewDefectReportWorkflow(catalog, nil))
+	handler := NewHandler(&recordingInventoryService{}, catalog, nil, NewDefectReportWorkflow(catalog, nil))
 	router := gin.New()
 	router.POST("/api/defect-reports/preview", handler.PreviewDefectReportHandler)
 
@@ -195,7 +195,7 @@ func TestDefectReportHTTPThroughRedisConsumer_WithSelectedParts(t *testing.T) {
 	t.Cleanup(func() { _ = client.Close() })
 
 	recordingService := &recordingInventoryService{}
-	handler := NewHandler(recordingService, catalog, NewDefectReportWorkflow(
+	handler := NewHandler(recordingService, catalog, nil, NewDefectReportWorkflow(
 		catalog,
 		NewRedisDefectReportEventPublisher(client),
 	))
@@ -302,7 +302,7 @@ func TestPartCatalogHTTPRevalidation(t *testing.T) {
 	catalog, err := LoadPartCatalog()
 	require.NoError(t, err)
 
-	handler := NewHandler(nil, catalog, nil)
+	handler := NewHandler(nil, catalog, nil, nil)
 	router := gin.New()
 	router.GET("/api/part-catalog", handler.GetPartCatalogHandler)
 
@@ -358,6 +358,9 @@ func (service *recordingInventoryService) MarkPartForDeletion(context.Context, i
 }
 func (service *recordingInventoryService) GetStatistics(context.Context) (StatisticsResponse, error) {
 	return StatisticsResponse{}, nil
+}
+func (service *recordingInventoryService) InventoryVersion(context.Context) (string, error) {
+	return "", nil
 }
 func (service *recordingInventoryService) BulkDeleteParts(context.Context, []int64) error {
 	return nil

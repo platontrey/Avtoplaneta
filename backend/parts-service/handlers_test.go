@@ -49,6 +49,12 @@ func (m *MockInventoryService) GetStatistics(ctx context.Context) (StatisticsRes
 	return args.Get(0).(StatisticsResponse), args.Error(1)
 }
 
+// Версия склада в юнит-тестах не участвует: пустая строка отключает условный
+// ответ, и обработчик идёт по обычному пути.
+func (m *MockInventoryService) InventoryVersion(context.Context) (string, error) {
+	return "", nil
+}
+
 func (m *MockInventoryService) BulkDeleteParts(ctx context.Context, ids []int64) error {
 	args := m.Called(ctx, ids)
 	return args.Error(0)
@@ -110,7 +116,7 @@ type HandlersTestSuite struct {
 func (suite *HandlersTestSuite) SetupTest() {
 	gin.SetMode(gin.TestMode)
 	suite.mockService = new(MockInventoryService)
-	suite.handler = NewHandler(suite.mockService, nil, nil)
+	suite.handler = NewHandler(suite.mockService, nil, nil, nil)
 	suite.router = gin.New()
 
 	// Настраиваем маршруты

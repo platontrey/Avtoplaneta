@@ -6,8 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/utils/formatters.dart';
 import '../data/defect_report_api.dart';
+import '../data/vehicle_catalog.dart';
 import '../providers/inventory_provider.dart';
 import '../providers/part_catalog_provider.dart';
+import '../providers/vehicle_catalog_provider.dart';
+import '../widgets/vehicle_picker_field.dart';
 
 class DefectReportScreen extends ConsumerStatefulWidget {
   const DefectReportScreen({super.key});
@@ -35,20 +38,22 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
         "В связи с изменением цены конечную стоимость товара узнавать по WhatsApp 89138538227",
   );
 
-  String? _selectedBrand;
+  String? get _selectedBrand {
+    final value = _brandCtrl.text.trim();
+    return value.isEmpty ? null : value;
+  }
   String? _selectedTransmission;
   String? _selectedInteriorColor;
   String? _selectedBodyColor;
 
-  final List<String> _brands = [
-    "BMW",
-    "Audi",
-    "Mercedes",
-    "Toyota",
-    "Volkswagen",
-    "Honda",
-    "Ford",
-  ];
+  // Марки и модели приходят из серверного справочника (/api/vehicle-catalog),
+  // общего с веб-клиентом. Раньше здесь лежал свой короткий список из семи марок.
+  VehicleCatalog? _vehicleCatalog;
+  final _brandCtrl = TextEditingController();
+
+  List<String> get _brandOptions => _vehicleCatalog?.brandNames ?? const [];
+  List<String> get _modelOptions =>
+      _vehicleCatalog?.modelsOf(_brandCtrl.text) ?? const [];
 
   final List<String> _availableColors = [
     "Черный",
@@ -102,11 +107,26 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
     ]) {
       controller.addListener(_schedulePreview);
     }
+    _loadVehicleCatalog();
+  }
+
+  /// Справочник марок не блокирует форму: если он не загрузился, поля марки и
+  /// модели работают как обычный текстовый ввод.
+  Future<void> _loadVehicleCatalog() async {
+    try {
+      final catalog = await ref.read(vehicleCatalogProvider.future);
+      if (mounted) {
+        setState(() => _vehicleCatalog = catalog);
+      }
+    } catch (_) {
+      // Ничего: поля деградируют до ввода руками.
+    }
   }
 
   @override
   void dispose() {
     _previewDebounce?.cancel();
+    _brandCtrl.dispose();
     _modelCtrl.dispose();
     _yearCtrl.dispose();
     _vinCtrl.dispose();
@@ -281,16 +301,24 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
           children: [
             _sectionTitle('Информация об автомобиле'),
             const SizedBox(height: 8),
-            _buildDropdown(
-              value: _selectedBrand,
+            VehiclePickerField(
+              controller: _brandCtrl,
               label: 'Бренд *',
-              items: _brands,
-              onChanged: (val) {
-                setState(() => _selectedBrand = val);
+              options: _brandOptions,
+              required: true,
+              onSelected: (_) {
+                // Модель принадлежит марке: пересобираем список моделей и превью.
+                setState(() {});
                 _schedulePreview();
               },
             ),
-            _buildTextField(_modelCtrl, 'Модель *', required: true),
+            VehiclePickerField(
+              controller: _modelCtrl,
+              label: 'Модель *',
+              options: _modelOptions,
+              required: true,
+              hint: _brandCtrl.text.trim().isEmpty ? 'Сначала выберите бренд' : null,
+            ),
             _buildTextField(
               _bodyBrandCtrl,
               'Марка кузова',

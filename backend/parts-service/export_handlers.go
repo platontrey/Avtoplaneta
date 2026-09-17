@@ -3,56 +3,31 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/gin-gonic/gin"
 )
 
-// exportXMLPriceList экспортирует прайс-лист в формате XML для Drom
+// exportXMLPriceList экспортирует прайс-лист в формате XML для Drom.
+// Файл пересобирается только если склад менялся с прошлой сборки.
 func exportXMLPriceList(c *gin.Context) {
-	// Получить все доступные части для экспорта
-	parts, err := GetPartsForXML()
+	meta, rebuilt, err := buildPriceList(c.Request.Context())
 	if err != nil {
-		fmt.Printf("Ошибка получения частей для XML экспорта: %v\n", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось получить данные для экспорта"})
+		fmt.Printf("Ошибка подготовки XML прайс-листа: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось подготовить прайс-лист"})
 		return
 	}
 
-	// Генерировать XML
-	xmlData, err := GenerateXMLPriceList(parts)
-	if err != nil {
-		fmt.Printf("Ошибка генерации XML: %v\n", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось сгенерировать XML"})
-		return
+	message := "Прайс-лист актуален, пересборка не потребовалась"
+	if rebuilt {
+		message = "Прайс-лист успешно сгенерирован"
+		fmt.Printf("Сгенерирован XML прайс-лист с %d предложениями: %s\n", meta.PartsCount, priceListPath)
 	}
-
-	// Сохранить XML файл на сервере
-	filename := "pricelist.xml"
-	filepath := "./uploads/" + filename
-
-	// Создать директорию uploads, если она не существует
-	if err := os.MkdirAll("./uploads", 0755); err != nil {
-		fmt.Printf("Ошибка создания директории uploads: %v\n", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось создать директорию uploads"})
-		return
-	}
-
-	// Записать файл
-	if err := os.WriteFile(filepath, xmlData, 0644); err != nil {
-		fmt.Printf("Ошибка сохранения XML файла: %v\n", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось сохранить XML файл"})
-		return
-	}
-
-	// Ссылка на файл
-	fileURL := "/uploads/" + filename
-
-	fmt.Printf("Успешно сгенерирован и сохранен XML прайс-лист с %d предложениями по пути: %s\n", len(parts), filepath)
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":     "Прайс-лист успешно сгенерирован",
-		"file_url":    fileURL,
-		"parts_count": len(parts),
+		"message":     message,
+		"file_url":    priceListURL,
+		"parts_count": meta.PartsCount,
+		"rebuilt":     rebuilt,
 	})
 }
 

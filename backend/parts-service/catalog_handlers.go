@@ -2,8 +2,11 @@ package main
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"avtoplaneta/pkg/httpcache"
 )
 
 func (h *Handler) GetPartCatalogHandler(c *gin.Context) {
@@ -12,11 +15,7 @@ func (h *Handler) GetPartCatalogHandler(c *gin.Context) {
 		return
 	}
 
-	etag := `"` + h.partCatalog.Version + `"`
-	c.Header("Cache-Control", "public, max-age=300, must-revalidate")
-	c.Header("ETag", etag)
-	if c.GetHeader("If-None-Match") == etag {
-		c.Status(http.StatusNotModified)
+	if httpcache.ServeVersioned(c.Writer, c.Request, h.partCatalog.Version, 5*time.Minute) {
 		return
 	}
 	c.JSON(http.StatusOK, h.partCatalog)

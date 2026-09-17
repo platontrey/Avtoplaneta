@@ -18,6 +18,8 @@ import { API_BASE_URL } from "@/lib/api";
 import SelectUserDropdown from "./SelectUserDropdown";
 import type { User } from "@/features/messaging/types";
 import { usePartCatalog } from "@/features/catalog/usePartCatalog";
+import { useVehicleOptions } from "@/features/vehicles/useVehicleCatalog";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { formatCarReleasePeriod } from "@/lib/utils";
 
 interface EditPartDialogProps {
@@ -33,6 +35,8 @@ interface EditPartDialogProps {
 export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, onDeletePhoto, originalFile }: EditPartDialogProps) {
     console.log('EditPartDialog render, part.photo:', part.photo, 'photoPreview:', partEdit.photoUpload.photoPreview);
     const { data: partCatalog } = usePartCatalog();
+    // Марки и модели — из общего серверного справочника, а не из списка в коде.
+    const { brandOptions, modelOptions } = useVehicleOptions(partEdit.editForm.brand);
 
     const visibleFields = partCatalog?.attributes.map((attribute) => attribute.code) ?? [];
     const shows = (field: string) => visibleFields.length === 0 || visibleFields.includes(field);
@@ -82,20 +86,19 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                 </FormRow>
                                 <FormRow label="Бренд" htmlFor="brand-select">
                                     <div className="relative">
-                                        <Select value={partEdit.editForm.brand || ""} onValueChange={(value) => partEdit.updateFormField('brand', value)}>
-                                            <SelectTrigger id="brand-select" className="w-full">
-                                                <SelectValue placeholder="Выберите бренд" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="BMW">BMW</SelectItem>
-                                                <SelectItem value="Audi">Audi</SelectItem>
-                                                <SelectItem value="Mercedes">Mercedes</SelectItem>
-                                                <SelectItem value="Toyota">Toyota</SelectItem>
-                                                <SelectItem value="Volkswagen">Volkswagen</SelectItem>
-                                                <SelectItem value="Honda">Honda</SelectItem>
-                                                <SelectItem value="Ford">Ford</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                        <SearchableSelect
+                                            value={partEdit.editForm.brand || ""}
+                                            onValueChange={(value) => {
+                                                partEdit.updateFormField('brand', value);
+                                                // Модель принадлежит марке — старое значение к новой марке не относится.
+                                                partEdit.updateFormField('model', '');
+                                            }}
+                                            options={brandOptions}
+                                            placeholder="Выберите или введите бренд"
+                                            searchPlaceholder="Поиск бренда..."
+                                            emptyMessage="Бренд не найден"
+                                            allowCustom={true}
+                                        />
                                         {partEdit.editForm.brand && (
                                             <button
                                                 type="button"
@@ -111,11 +114,14 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                     </div>
                                 </FormRow>
                                 <FormRow label="Модель" htmlFor="model">
-                                    <Input
-                                        id="model"
-                                        autoComplete="off"
+                                    <SearchableSelect
                                         value={partEdit.editForm.model || ''}
-                                        onChange={(e) => partEdit.updateFormField('model', e.target.value)}
+                                        onValueChange={(value) => partEdit.updateFormField('model', value)}
+                                        options={modelOptions}
+                                        placeholder={partEdit.editForm.brand ? "Выберите или введите модель" : "Сначала выберите бренд"}
+                                        searchPlaceholder="Поиск модели..."
+                                        emptyMessage="Модель не найдена — можно ввести свою"
+                                        allowCustom={true}
                                     />
                                 </FormRow>
                                 <FormRow label="VIN / Номер кузова" htmlFor="vin">

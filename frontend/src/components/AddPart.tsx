@@ -26,7 +26,7 @@ import { getAuthHeaders } from "@/lib/csrf";
 import { sanitizeHtml } from "@/lib/security";
 import ImageEditor from "./ImageEditor";
 import { API_BASE_URL } from '@/lib/api';
-import { brandOptions } from '@/lib/constants';
+import { useVehicleOptions } from '@/features/vehicles/useVehicleCatalog';
 import { usePartCatalog } from '@/features/catalog/usePartCatalog';
 import { formatCarReleasePeriod } from '@/lib/utils';
 
@@ -152,6 +152,9 @@ export default function AddPart() {
     });
 
     const brand = watch("brand");
+    // Марки и модели приходят из общего серверного справочника: тот же источник,
+    // что и у мобильного приложения.
+    const { brandOptions, modelOptions } = useVehicleOptions(brand);
     const category = watch("category");
     const sellerId = watch("seller_id");
 
@@ -548,14 +551,17 @@ export default function AddPart() {
                                 <div className="space-y-4 sm:space-y-6">
                                     <div>
                                         <Label htmlFor="model" className="min-w-[120px] mb-1">Модель</Label>
-                                        <Input
-                                            id="model"
-                                            {...register("model")}
-                                            type="text"
-                                            placeholder="E90"
+                                        <SearchableSelect
+                                            value={watch("model") || ""}
+                                            onValueChange={(value) => setValue("model", value, { shouldValidate: true })}
+                                            options={modelOptions}
+                                            placeholder={brand ? "Выберите или введите модель" : "Сначала выберите бренд"}
+                                            searchPlaceholder="Поиск модели или ввод новой..."
+                                            emptyMessage="Модель не найдена — можно ввести свою"
+                                            allowCustom={true}
                                             className="h-10"
-                                            autoComplete="model"
                                         />
+                                        <input type="hidden" {...register("model")} autoComplete="model" />
                                         {errors.model && <p className="text-red-500 text-sm">{errors.model.message}</p>}
                                     </div>
 

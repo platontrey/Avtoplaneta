@@ -5,9 +5,12 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+
+	"avtoplaneta/pkg/httpcache"
 )
 
 // Handler содержит все HTTP handlers для сервиса запчастей
@@ -15,6 +18,7 @@ import (
 type Handler struct {
 	inventoryService InventoryService
 	partCatalog      *PartCatalog
+	vehicleCatalog   *VehicleCatalog
 	defectReports    *DefectReportWorkflow
 }
 
@@ -30,10 +34,11 @@ func getUpdatedFields(updates map[string]interface{}) string {
 // NewHandler создает новый handler с dependency injection.
 // Каталог и workflow передаются явно: конструктор ничего не собирает сам
 // и не обращается к глобальному состоянию.
-func NewHandler(inventoryService InventoryService, catalog *PartCatalog, defectReports *DefectReportWorkflow) *Handler {
+func NewHandler(inventoryService InventoryService, catalog *PartCatalog, vehicles *VehicleCatalog, defectReports *DefectReportWorkflow) *Handler {
 	return &Handler{
 		inventoryService: inventoryService,
 		partCatalog:      catalog,
+		vehicleCatalog:   vehicles,
 		defectReports:    defectReports,
 	}
 }
@@ -254,6 +259,15 @@ func (h *Handler) MarkPartForDeletionHandler(c *gin.Context) {
 // GetStatisticsHandler возвращает статистику по запчастям
 func (h *Handler) GetStatisticsHandler(c *gin.Context) {
 	ctx := c.Request.Context()
+
+	// Проверка версии стоит один индексный запрос, а сбор статистики — агрегаты
+	// по всему складу и поход в orders-service.
+	if version, err := h.inventoryService.InventoryVersion(ctx); err == nil {
+		if httpcache.ServeVersioned(c.Writer, c.Request, version, time.Minute) {
+			return
+		}
+	}
+
 	stats, err := h.inventoryService.GetStatistics(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось получить статистику"})
@@ -434,6 +448,13 @@ func (h *Handler) DeleteZeroQuantityPartsBySupplierHandler(c *gin.Context) {
 // GetSupplierCodesHandler получает коды поставщиков
 func (h *Handler) GetSupplierCodesHandler(c *gin.Context) {
 	ctx := c.Request.Context()
+
+	if version, err := h.inventoryService.InventoryVersion(ctx); err == nil {
+		if httpcache.ServeVersioned(c.Writer, c.Request, version, 5*time.Minute) {
+			return
+		}
+	}
+
 	codes, err := h.inventoryService.GetSupplierCodes(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось получить коды поставщиков"})

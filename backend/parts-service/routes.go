@@ -1,6 +1,8 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -35,6 +37,7 @@ func SetupRoutes(r *gin.Engine, handler *Handler) {
 	// Маршруты для характеристик запчастей больше не нужны - характеристики хранятся в основной таблице Part
 
 	// Маршруты для дефектных ведомостей
+	r.GET("/api/vehicle-catalog", handler.GetVehicleCatalogHandler)
 	r.POST("/api/defect-reports/preview", handler.PreviewDefectReportHandler)
 	r.POST("/api/defect-reports", handler.CreateDefectReportHandler)
 
@@ -45,5 +48,28 @@ func SetupRoutes(r *gin.Engine, handler *Handler) {
 	r.PUT("/api/admin/bulk-update-parts", handler.BulkUpdatePartsHandler)
 
 	// Статическое обслуживание файлов для загрузок
-	r.Static("/uploads", "./uploads")
+	uploads := r.Group("/uploads", uploadsCacheControl())
+	uploads.Static("", "./uploads")
+}
+
+// uploadsCacheControl проставляет политику кэширования для файлов из /uploads.
+//
+// Фото сохраняются под уникальным именем вида <id>_<unix>.jpg и никогда не
+// перезаписываются: при замене фотографии меняется сам адрес. Значит, старый
+// адрес всегда указывает на одно и то же содержимое, и его можно кэшировать
+// навсегда — это самый большой кусок трафика в приложении.
+//
+// Прайс-лист — исключение: он живёт по постоянному адресу и регулярно
+// перезаписывается. Пометить его immutable значило бы отдавать Drom
+// прошлогодний файл, поэтому ему оставляем обязательную перепроверку; она
+// дешёвая, потому что файловый сервер отдаёт Last-Modified и отвечает 304.
+func uploadsCacheControl() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if strings.HasSuffix(c.Request.URL.Path, "/"+priceListFilename) {
+			c.Header("Cache-Control", "no-cache")
+		} else {
+			c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		}
+		c.Next()
+	}
 }

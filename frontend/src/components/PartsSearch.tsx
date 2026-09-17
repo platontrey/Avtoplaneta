@@ -72,7 +72,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_BASE_URL } from '@/lib/api';
-import { brandOptions } from '@/lib/constants';
+import { useVehicleOptions } from '@/features/vehicles/useVehicleCatalog';
 import { usePartCatalog } from '@/features/catalog/usePartCatalog';
 import type { PartFilters } from '@/hooks/useParts';
 import { formatCarReleasePeriod } from '@/lib/utils';
@@ -89,6 +89,8 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
     const [category, setCategory] = useState('');
     const [brand, setBrand] = useState('');
     const [model, setModel] = useState('');
+    // Марки и модели фильтров — из того же серверного справочника, что и формы.
+    const { brandOptions, modelOptions } = useVehicleOptions(brand);
     const [location, setLocation] = useState('');
     const [address, setAddress] = useState('');
     const [status, setStatus] = useState('');
@@ -970,7 +972,12 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                                                         <div className="mt-1.5">
                                                             <SearchableSelect
                                                                 value={brand}
-                                                                onValueChange={(value) => setBrand(value)}
+                                                                onValueChange={(value) => {
+                                                                    setBrand(value);
+                                                                    // Модель принадлежит марке: при смене марки старое значение
+                                                                    // почти наверняка даст пустую выдачу.
+                                                                    setModel('');
+                                                                }}
                                                                 options={brandOptions}
                                                                 placeholder="Все бренды"
                                                                 searchPlaceholder="Поиск бренда..."
@@ -984,14 +991,18 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                                                     {/* Модель */}
                                                     <div>
                                                         <Label htmlFor="model-filter">Модель</Label>
-                                                        <Input
-                                                            id="model-filter"
-                                                            type="text"
-                                                            value={model}
-                                                            onChange={(e) => setModel(e.target.value)}
-                                                            placeholder="E90, A4..."
-                                                            className="mt-1.5 bg-transparent border border-gray-300"
-                                                        />
+                                                        <div className="mt-1.5">
+                                                            <SearchableSelect
+                                                                value={model}
+                                                                onValueChange={(value) => setModel(value)}
+                                                                options={modelOptions}
+                                                                placeholder={brand ? "Все модели" : "Сначала выберите бренд"}
+                                                                searchPlaceholder="Поиск модели..."
+                                                                emptyMessage="Модель не найдена — можно ввести свою"
+                                                                allowCustom={true}
+                                                                className="bg-transparent border border-gray-300"
+                                                            />
+                                                        </div>
                                                     </div>
 
                                                     {/* Категория */}

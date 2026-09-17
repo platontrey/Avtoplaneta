@@ -40,6 +40,7 @@ type InventoryService interface {
 	DeletePart(ctx context.Context, id int64) error                                 // Удаляет запчасть
 	MarkPartForDeletion(ctx context.Context, id int64) error                        // Отмечает запчасть для отложенного удаления
 	GetStatistics(ctx context.Context) (StatisticsResponse, error)                  // Получает статистику по инвентарю
+	InventoryVersion(ctx context.Context) (string, error)                           // Отпечаток состояния склада для условных запросов
 
 	// BulkDeleteParts Админ операции
 	BulkDeleteParts(ctx context.Context, ids []int64) error                                    // Массовое удаление запчастей
@@ -1727,4 +1728,11 @@ func (s *inventoryService) UpdateEarnings(ctx context.Context, amount float64) e
 
 	logrus.WithField("totalEarnings", s.totalEarnings).Info("Updated total earnings in database")
 	return nil
+}
+
+// InventoryVersion пробрасывает отпечаток склада из репозитория. Кэшировать его
+// в Redis не нужно: запрос и так дешёвый, а лишний слой добавил бы окно, в
+// котором клиент получал бы 304 на уже изменившиеся данные.
+func (s *inventoryService) InventoryVersion(ctx context.Context) (string, error) {
+	return s.repo.InventoryVersion(ctx)
 }

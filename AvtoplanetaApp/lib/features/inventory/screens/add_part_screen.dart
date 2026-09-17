@@ -10,8 +10,11 @@ import 'package:dio/dio.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/utils/formatters.dart';
 import '../data/part_catalog.dart';
+import '../data/vehicle_catalog.dart';
 import '../providers/inventory_provider.dart';
 import '../providers/part_catalog_provider.dart';
+import '../providers/vehicle_catalog_provider.dart';
+import '../widgets/vehicle_picker_field.dart';
 
 class AddPartScreen extends ConsumerStatefulWidget {
   final int? editId;
@@ -85,7 +88,13 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
   }
 
   PartCatalog? _partCatalog;
+  VehicleCatalog? _vehicleCatalog;
   String? _catalogError;
+
+  // Марки и модели берём из общего с вебом серверного справочника.
+  List<String> get _brandOptions => _vehicleCatalog?.brandNames ?? const [];
+  List<String> get _modelOptions =>
+      _vehicleCatalog?.modelsOf(_brandCtrl.text) ?? const [];
 
   List<String> get _categories =>
       _partCatalog?.partFormCategories.map((item) => item.name).toList() ??
@@ -115,6 +124,16 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       if (mounted) {
         setState(() => _catalogError = error.toString());
       }
+    }
+    // Справочник марок грузим отдельно: без него форма остаётся рабочей,
+    // поля просто ведут себя как обычный ввод.
+    try {
+      final vehicles = await ref.read(vehicleCatalogProvider.future);
+      if (mounted) {
+        setState(() => _vehicleCatalog = vehicles);
+      }
+    } catch (_) {
+      // Молча: поля выбора деградируют до текстового ввода.
     }
   }
 
@@ -513,8 +532,19 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
             _field(_descCtrl, 'Описание', maxLines: 3),
 
             _section('Характеристики'),
-            _field(_brandCtrl, 'Бренд'),
-            _field(_modelCtrl, 'Модель'),
+            VehiclePickerField(
+              controller: _brandCtrl,
+              label: 'Бренд',
+              options: _brandOptions,
+              // Модели принадлежат марке — при смене марки список пересобирается.
+              onSelected: (_) => setState(() {}),
+            ),
+            VehiclePickerField(
+              controller: _modelCtrl,
+              label: 'Модель',
+              options: _modelOptions,
+              hint: _brandCtrl.text.trim().isEmpty ? 'Сначала выберите бренд' : null,
+            ),
             _field(_bodyBrandCtrl, 'Марка кузова'),
             if (_shows('engine_brand'))
               _field(_engineBrandCtrl, 'Марка двигателя'),

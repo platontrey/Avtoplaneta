@@ -15,7 +15,7 @@ import { SelectItem } from "@/components/ui/select";
 import { Save, ArrowLeft, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { brandOptions } from "@/lib/constants";
+import { useVehicleOptions } from "@/features/vehicles/useVehicleCatalog";
 import { formatCarReleasePeriod } from "@/lib/utils";
 import { usePartCatalog } from "@/features/catalog/usePartCatalog";
 import { createDefectReport, previewDefectReport, type DefectReportPayload, type DefectReportPreviewPart } from "@/features/defectReport/api";
@@ -142,6 +142,10 @@ export default function DefectReport() {
     drive,
     description,
   } = watch();
+
+  // Тот же серверный справочник, что и в мобильном приложении.
+  const selectedBrand = brand;
+  const { brandOptions, modelOptions } = useVehicleOptions(selectedBrand);
 
   const reportPayload = useMemo<DefectReportPayload>(
     () =>
@@ -273,7 +277,22 @@ export default function DefectReport() {
 
               <div>
                 <Label htmlFor="model">Модель *</Label>
-                <Input id="model" {...register("model")} type="text" placeholder="E90" className="h-10" autoComplete="model" />
+                <Controller
+                  control={control}
+                  name="model"
+                  render={({ field }) => (
+                    <SearchableSelect
+                      value={field.value || ""}
+                      onValueChange={field.onChange}
+                      options={modelOptions}
+                      placeholder={selectedBrand ? "Выберите или введите модель" : "Сначала выберите бренд"}
+                      searchPlaceholder="Поиск модели или ввод новой..."
+                      emptyMessage="Модель не найдена — можно ввести свою"
+                      allowCustom={true}
+                      className="h-10 w-full"
+                    />
+                  )}
+                />
                 {errors.model && <p className="text-red-500 text-sm mt-1">{errors.model.message}</p>}
               </div>
 

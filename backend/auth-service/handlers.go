@@ -264,6 +264,8 @@ func (h *Handler) LogoutHandler(c *gin.Context) {
 }
 
 func (h *Handler) GetCurrentUserHandler(c *gin.Context) {
+	c.Header("Cache-Control", "private, no-cache")
+
 	logrus.WithFields(logrus.Fields{
 		"cookies_count": len(c.Request.Cookies()),
 	}).Info("GetCurrentUserHandler: received request")
@@ -349,6 +351,7 @@ func (h *Handler) GetCSRFTokenHandler(c *gin.Context) {
 		}
 	}
 
+	c.Header("Cache-Control", "no-store")
 	c.JSON(http.StatusOK, gin.H{"csrf_token": token})
 }
 

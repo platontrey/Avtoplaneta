@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"os"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -71,35 +70,19 @@ func checkAndGenerateXML(ctx context.Context) {
 	}
 }
 
-// generateXMLPriceList генерирует и сохраняет XML прайс-лист
+// generateXMLPriceList генерирует и сохраняет XML прайс-лист.
+// Та же функция сборки, что и у ручного экспорта: если склад не менялся,
+// планировщик не тратит время на пересборку.
 func generateXMLPriceList() {
-	parts, err := GetPartsForXML()
+	meta, rebuilt, err := buildPriceList(context.Background())
 	if err != nil {
-		logrus.WithError(err).Error("Ошибка получения частей для автоматической генерации XML")
+		logrus.WithError(err).Error("Ошибка автоматической генерации XML прайс-листа")
+		return
+	}
+	if !rebuilt {
+		logrus.Info("XML прайс-лист актуален, пересборка пропущена")
 		return
 	}
 
-	xmlData, err := GenerateXMLPriceList(parts)
-	if err != nil {
-		logrus.WithError(err).Error("Ошибка генерации XML для автоматической генерации")
-		return
-	}
-
-	// Сохранить XML файл на сервере
-	filename := "pricelist.xml"
-	filepath := "./uploads/" + filename
-
-	// Создать директорию uploads, если она не существует
-	if err := os.MkdirAll("./uploads", 0755); err != nil {
-		logrus.WithError(err).Error("Ошибка создания директории uploads для автоматической генерации")
-		return
-	}
-
-	// Записать файл
-	if err := os.WriteFile(filepath, xmlData, 0644); err != nil {
-		logrus.WithError(err).Error("Ошибка сохранения XML файла для автоматической генерации")
-		return
-	}
-
-	logrus.WithField("parts_count", len(parts)).Info("Успешно автоматически сгенерирован и сохранен XML прайс-лист")
+	logrus.WithField("parts_count", meta.PartsCount).Info("Успешно автоматически сгенерирован и сохранен XML прайс-лист")
 }

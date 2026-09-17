@@ -1,4 +1,4 @@
-.PHONY: proto proto-lint proto-clean proto-deps proto-rebuild build-all build-gateway build-services start-dev test test-integration
+.PHONY: proto proto-lint proto-clean proto-deps proto-rebuild build-all build-gateway build-services start-dev test test-integration vehicle-catalog
 
 # Генерация Go-кода из proto-файлов
 proto:
@@ -6,6 +6,14 @@ proto:
 	cd proto && buf generate
 	cd proto && buf generate --template buf.gen.swagger.yaml
 	@echo "Done."
+
+# Обновление справочника марок и моделей с drom.ru.
+# Ходит в сеть, поэтому запускается руками (или отдельной job в CI), а не сервисом:
+# результат коммитится и вшивается в бинарь через go:embed.
+vehicle-catalog:
+	cd tools/vehicle-catalog-sync && go mod tidy && go run . -out ../../parts-service/vehicles/vehicles.json
+	cd parts-service && go test -run Vehicle ./...
+	@echo "Готово. Проверьте дифф parts-service/vehicles/vehicles.json перед коммитом."
 
 # Линтинг proto-файлов
 proto-lint:

@@ -31,6 +31,7 @@ type PartRepository interface {
 	MarkForDeletion(ctx context.Context, id int64, deleteAt time.Time) error
 	DeleteExpiredParts(ctx context.Context, before time.Time) error
 	GetStatistics(ctx context.Context) (StatisticsResponse, error)
+	InventoryVersion(ctx context.Context) (string, error)
 	BulkDelete(ctx context.Context, ids []int64) error
 	BulkUpdate(ctx context.Context, updates []map[string]interface{}) (int, error)
 
@@ -748,4 +749,29 @@ func (r *partRepository) GetLastCreatedPart(ctx context.Context) (*Part, error) 
 	sql := fmt.Sprintf("SELECT %s FROM parts WHERE deleted_at IS NULL ORDER BY id DESC LIMIT 1", partColumns)
 	row := r.pool.QueryRow(ctx, sql)
 	return scanPart(row)
+}
+
+// InventoryVersion возвращает отпечаток состояния склада для условных запросов.
+//
+// Пара «последнее изменение + число живых строк» ловит все четыре вида правок:
+// вставка и обновление двигают updated_at, мягкое и жёсткое удаление меняют
+// счётчик. Запрос ложится на частичный индекс idx_parts_updated_at_alive и
+// стоит на порядки дешевле, чем собрать сам ответ.
+func (r *partRepository) InventoryVersion(ctx context.Context) (string, error) {
+	var lastChange *time.Time
+	var alive int64
+
+	err := r.pool.QueryRow(ctx, `
+		SELECT MAX(updated_at), COUNT(*)
+		FROM parts
+		WHERE deleted_at IS NULL
+	`).Scan(&lastChange, &alive)
+	if err != nil {
+		return "", fmt.Errorf("failed to read inventory version: %w", err)
+	}
+
+	if lastChange == nil {
+		return fmt.Sprintf("empty-%d", alive), nil
+	}
+	return fmt.Sprintf("%d-%d", lastChange.UTC().UnixNano(), alive), nil
 }

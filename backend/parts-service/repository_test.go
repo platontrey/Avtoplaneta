@@ -99,6 +99,10 @@ func (m *MockPartRepository) GetStatistics(ctx context.Context) (StatisticsRespo
 	return args.Get(0).(StatisticsResponse), args.Error(1)
 }
 
+func (m *MockPartRepository) InventoryVersion(context.Context) (string, error) {
+	return "", nil
+}
+
 func (m *MockPartRepository) GetSupplierCodes(ctx context.Context) ([]string, error) {
 	args := m.Called(ctx)
 	return args.Get(0).([]string), args.Error(1)

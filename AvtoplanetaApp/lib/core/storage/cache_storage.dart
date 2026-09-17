@@ -37,6 +37,16 @@ class CacheStorage {
     await _settingsBox.put('part_catalog', catalog);
   }
 
+  static Future<void> saveVehicleCatalog(Map<String, dynamic> catalog) async {
+    await _settingsBox.put('vehicle_catalog', catalog);
+  }
+
+  static Map<String, dynamic>? getVehicleCatalog() {
+    final value = _settingsBox.get('vehicle_catalog');
+    if (value == null) return null;
+    return Map<String, dynamic>.from(value as Map);
+  }
+
   static Map<String, dynamic>? getPartCatalog() {
     final value = _settingsBox.get('part_catalog');
     if (value is! Map) {

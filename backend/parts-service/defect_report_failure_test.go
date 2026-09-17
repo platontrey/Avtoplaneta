@@ -54,7 +54,7 @@ func postDefectReport(t *testing.T, handler *Handler) *httptest.ResponseRecorder
 
 // Каталог не загружен — это отказ инфраструктуры, а не ошибка клиента.
 func TestCreateDefectReportHandlerReportsCatalogUnavailable(t *testing.T) {
-	handler := NewHandler(&recordingInventoryService{}, nil, NewDefectReportWorkflow(nil, failingDefectReportPublisher{}))
+	handler := NewHandler(&recordingInventoryService{}, nil, nil, NewDefectReportWorkflow(nil, failingDefectReportPublisher{}))
 	response := postDefectReport(t, handler)
 	require.Equal(t, http.StatusServiceUnavailable, response.Code, response.Body.String())
 }
@@ -64,7 +64,7 @@ func TestCreateDefectReportHandlerReportsQueueUnavailable(t *testing.T) {
 	catalog, err := LoadPartCatalog()
 	require.NoError(t, err)
 
-	handler := NewHandler(&recordingInventoryService{}, catalog, NewDefectReportWorkflow(catalog, nil))
+	handler := NewHandler(&recordingInventoryService{}, catalog, nil, NewDefectReportWorkflow(catalog, nil))
 	response := postDefectReport(t, handler)
 	require.Equal(t, http.StatusServiceUnavailable, response.Code, response.Body.String())
 }
@@ -74,7 +74,7 @@ func TestCreateDefectReportHandlerReportsPublishFailure(t *testing.T) {
 	catalog, err := LoadPartCatalog()
 	require.NoError(t, err)
 
-	handler := NewHandler(&recordingInventoryService{}, catalog, NewDefectReportWorkflow(catalog, failingDefectReportPublisher{}))
+	handler := NewHandler(&recordingInventoryService{}, catalog, nil, NewDefectReportWorkflow(catalog, failingDefectReportPublisher{}))
 	response := postDefectReport(t, handler)
 	require.Equal(t, http.StatusInternalServerError, response.Code, response.Body.String())
 }
@@ -82,7 +82,7 @@ func TestCreateDefectReportHandlerReportsPublishFailure(t *testing.T) {
 func TestPreviewDefectReportHandlerReportsCatalogUnavailable(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	handler := NewHandler(&recordingInventoryService{}, nil, nil)
+	handler := NewHandler(&recordingInventoryService{}, nil, nil, nil)
 	router := gin.New()
 	router.POST("/api/defect-reports/preview", handler.PreviewDefectReportHandler)
 
