@@ -347,6 +347,11 @@ func (c *RedisEventConsumer) handleDefectReportCreated(ctx context.Context, msg 
 
 			// События версии 1 уже полностью подготовлены parts-service. Ветка ниже
 			// нужна только для событий старого формата, оставшихся в очереди при деплое.
+			//
+			// TODO(legacy): удалить ветку и поле EventVersion после того, как очередь
+			// полностью прокрутится на новом продюсере (события живут минуты, так что
+			// достаточно суток после выката). Поведение ветки закреплено тестом
+			// TestConsumerFillsVehicleSpecsForLegacyEvents — удалять вместе с ним.
 			if defectReportData.EventVersion < defectReportEventVersion {
 				if vin == "" {
 					vin = strings.TrimSpace(defectReportData.VIN)
@@ -396,7 +401,8 @@ func (c *RedisEventConsumer) handleDefectReportCreated(ctx context.Context, msg 
 					Category:    selectedPart.Category,
 					Price:       selectedPart.Price,
 					Salesman:    defaultUserName,
-					Location:    "",
+					Location:    selectedPart.Location,
+					Address:     selectedPart.Address,
 					Status:      true,
 					Brand:       defectReportData.Brand,
 					Model:       defectReportData.Model,

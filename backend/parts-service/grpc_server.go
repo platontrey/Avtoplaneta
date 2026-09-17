@@ -6,7 +6,6 @@ import (
 	"io"
 	"net"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -24,21 +23,17 @@ import (
 // partsGRPCServer реализует gRPC-сервер для PartsService
 type partsGRPCServer struct {
 	partsv1.UnimplementedPartsServiceServer
-	service InventoryService
+	service       InventoryService
+	defectReports *DefectReportWorkflow
 }
 
-// NewPartsGRPCServer создаёт новый gRPC-сервер
-func NewPartsGRPCServer(service InventoryService) *partsGRPCServer {
-	return &partsGRPCServer{service: service}
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if trimmed := strings.TrimSpace(value); trimmed != "" {
-			return trimmed
-		}
+// NewPartsGRPCServer создаёт новый gRPC-сервер.
+// Workflow передаётся явно — адаптер не знает ни про каталог, ни про Redis.
+func NewPartsGRPCServer(service InventoryService, defectReports *DefectReportWorkflow) *partsGRPCServer {
+	return &partsGRPCServer{
+		service:       service,
+		defectReports: defectReports,
 	}
-	return ""
 }
 
 // GetInventory возвращает список запчастей с фильтрами
@@ -469,164 +464,167 @@ func (s *partsGRPCServer) UpdateEarnings(ctx context.Context, req *partsv1.Updat
 	return &partsv1.UpdateEarningsResponse{TotalEarnings: req.Amount}, nil
 }
 
-// CreateDefectReport создаёт дефект-отчёт
-func (s *partsGRPCServer) CreateDefectReport(ctx context.Context, req *partsv1.CreateDefectReportRequest) (*partsv1.CreateDefectReportResponse, error) {
-	var createdParts []*partsv1.Part
-	partsCreated := 0
-
-	if len(req.SelectedParts) == 0 {
-		year, _ := strconv.Atoi(req.Year)
-		mileage, _ := strconv.Atoi(req.Mileage)
-		report := DefectReportRequest{
-			Brand:             req.Brand,
-			Model:             req.Model,
-			Year:              year,
-			CarReleasePeriod:  req.CarReleasePeriod,
-			VIN:               req.Vin,
-			Mileage:           mileage,
-			Description:       req.Description,
-			EngineBrand:       req.EngineBrand,
-			BodyBrand:         req.BodyBrand,
-			InteriorColor:     req.InteriorColor,
-			BodyColor:         req.BodyColor,
-			Transmission:      req.Transmission,
-			TransmissionModel: req.TransmissionModel,
-			Drive:             req.Drive,
-			CatalogVersion:    req.CatalogVersion,
-			SellerName:        req.Salesman,
-			SellerID:          int64(req.SellerId),
-		}
-		cat, err := LoadPartCatalog()
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "не удалось загрузить каталог: %v", err)
-		}
-		expanded := cat.ExpandDefectReport(report)
-		for _, ep := range expanded {
-			part := &Part{
-				PartCore: PartCore{
-					Name:        ep.Name,
-					Category:    ep.Category,
-					Price:       ep.Price,
-					Quantity:    ep.Quantity,
-					Description: ep.Description,
-					Location:    "",
-					Brand:       req.Brand,
-					Model:       req.Model,
-					Salesman:    req.Salesman,
-					SellerID:    int64(req.SellerId),
-					VIN:         req.Vin,
-				},
-				PartSpecifications: PartSpecifications{
-					BodyBrand:         ep.BodyBrand,
-					EngineBrand:       ep.EngineBrand,
-					CarReleaseDate:    ep.CarReleaseDate,
-					CarReleasePeriod:  ep.CarReleasePeriod,
-					FrontRear:         ep.FrontRear,
-					LeftRight:         ep.LeftRight,
-					TopBottom:         ep.TopBottom,
-					Number:            ep.Number,
-					Manufacturer:      ep.Manufacturer,
-					ManufacturerCode:  ep.ManufacturerCode,
-					OEMCode:           ep.OEMCode,
-					Color:             ep.Color,
-					Condition:         ep.Condition,
-					SupplierCode:      ep.SupplierCode,
-					Defect:            ep.Defect,
-					Transmission:      ep.Transmission,
-					TransmissionModel: ep.TransmissionModel,
-					Drive:             ep.Drive,
-					WearPercentage:    ep.WearPercentage,
-				},
-				PartTireSpecifications: PartTireSpecifications{
-					Season:             ep.Season,
-					Diameter:           ep.Diameter,
-					Width:              ep.Width,
-					Profile:            ep.Profile,
-					TireQuantity:       ep.TireQuantity,
-					Drilling:           ep.Drilling,
-					Offset:             ep.Offset,
-					CenterHoleDiameter: ep.CenterHoleDiameter,
-					TireModel:          ep.TireModel,
-				},
-			}
-
-			created, err := s.service.AddPart(ctx, part)
-			if err != nil {
-				logrus.WithError(err).WithField("part_name", ep.Name).Warn("Failed to create defect report part")
-				continue
-			}
-			createdParts = append(createdParts, partToProto(created))
-			partsCreated++
-		}
-
-		return &partsv1.CreateDefectReportResponse{
-			PartsCreated: int32(partsCreated),
-			Parts:        createdParts,
-		}, nil
+func defectReportRequestFromProto(req *partsv1.CreateDefectReportRequest) DefectReportRequest {
+	year, _ := strconv.Atoi(req.Year)
+	mileage, _ := strconv.Atoi(req.Mileage)
+	report := DefectReportRequest{
+		Brand:             req.Brand,
+		Model:             req.Model,
+		Year:              year,
+		CarReleasePeriod:  req.CarReleasePeriod,
+		VIN:               req.Vin,
+		Mileage:           mileage,
+		Description:       req.Description,
+		EngineBrand:       req.EngineBrand,
+		BodyBrand:         req.BodyBrand,
+		InteriorColor:     req.InteriorColor,
+		BodyColor:         req.BodyColor,
+		Transmission:      req.Transmission,
+		TransmissionModel: req.TransmissionModel,
+		Drive:             req.Drive,
+		CatalogVersion:    req.CatalogVersion,
+		SellerName:        req.Salesman,
+		SellerID:          int64(req.SellerId),
+		SelectedParts:     make([]DefectReportPart, 0, len(req.SelectedParts)),
 	}
 
-	for _, dp := range req.SelectedParts {
-		part := &Part{
-			PartCore: PartCore{
-				Name:        dp.Name,
-				Category:    dp.Category,
-				Price:       dp.Price,
-				Quantity:    int(dp.Quantity),
-				Description: dp.Description,
-				Location:    dp.Location,
-				Address:     dp.Address,
-				Brand:       req.Brand,
-				Model:       req.Model,
-				Salesman:    req.Salesman,
-				SellerID:    int64(req.SellerId),
-				VIN:         firstNonEmpty(dp.Vin, req.Vin),
-			},
-			PartSpecifications: PartSpecifications{
-				BodyBrand:         firstNonEmpty(dp.BodyBrand, req.BodyBrand),
-				EngineBrand:       firstNonEmpty(dp.EngineBrand, req.EngineBrand),
-				CarReleaseDate:    firstNonEmpty(dp.CarReleaseDate, req.Year),
-				CarReleasePeriod:  firstNonEmpty(dp.CarReleasePeriod, req.CarReleasePeriod),
-				Condition:         dp.Condition,
-				Defect:            dp.Defect,
-				FrontRear:         dp.FrontRear,
-				LeftRight:         dp.LeftRight,
-				TopBottom:         dp.TopBottom,
-				Number:            dp.Number,
-				OEMCode:           dp.OemCode,
-				Manufacturer:      dp.Manufacturer,
-				ManufacturerCode:  dp.ManufacturerCode,
-				SupplierCode:      dp.SupplierCode,
-				Color:             dp.Color,
-				Transmission:      firstNonEmpty(dp.Transmission, req.Transmission),
-				TransmissionModel: firstNonEmpty(dp.TransmissionModel, req.TransmissionModel),
-				Drive:             firstNonEmpty(dp.Drive, req.Drive),
-				WearPercentage:    dp.WearPercentage,
-			},
-			PartTireSpecifications: PartTireSpecifications{
-				Season:             dp.Season,
-				Diameter:           dp.Diameter,
-				Width:              dp.Width,
-				Profile:            dp.Profile,
-				TireQuantity:       dp.TireQuantity,
-				Drilling:           dp.Drilling,
-				Offset:             dp.Offset,
-				CenterHoleDiameter: dp.CenterHoleDiameter,
-				TireModel:          dp.TireModel,
-			},
-		}
+	for _, part := range req.SelectedParts {
+		report.SelectedParts = append(report.SelectedParts, DefectReportPart{
+			Name:               part.Name,
+			Category:           part.Category,
+			Description:        part.Description,
+			Quantity:           int(part.Quantity),
+			Price:              part.Price,
+			Location:           part.Location,
+			Address:            part.Address,
+			BodyBrand:          part.BodyBrand,
+			EngineBrand:        part.EngineBrand,
+			CarReleaseDate:     part.CarReleaseDate,
+			CarReleasePeriod:   part.CarReleasePeriod,
+			FrontRear:          part.FrontRear,
+			LeftRight:          part.LeftRight,
+			TopBottom:          part.TopBottom,
+			Number:             part.Number,
+			Manufacturer:       part.Manufacturer,
+			ManufacturerCode:   part.ManufacturerCode,
+			OEMCode:            part.OemCode,
+			Color:              part.Color,
+			Condition:          part.Condition,
+			SupplierCode:       part.SupplierCode,
+			Defect:             part.Defect,
+			Transmission:       part.Transmission,
+			TransmissionModel:  part.TransmissionModel,
+			Drive:              part.Drive,
+			WearPercentage:     part.WearPercentage,
+			Season:             part.Season,
+			Diameter:           part.Diameter,
+			Width:              part.Width,
+			Profile:            part.Profile,
+			TireQuantity:       part.TireQuantity,
+			Drilling:           part.Drilling,
+			Offset:             part.Offset,
+			CenterHoleDiameter: part.CenterHoleDiameter,
+			TireModel:          part.TireModel,
+			VIN:                part.Vin,
+		})
+	}
 
-		created, err := s.service.AddPart(ctx, part)
-		if err != nil {
-			logrus.WithError(err).WithField("part_name", dp.Name).Warn("Failed to create defect report part")
-			continue
+	return report
+}
+
+// defectReportPartToProto — обратное преобразование для preview.
+func defectReportPartToProto(part DefectReportPart) *partsv1.DefectReportPart {
+	return &partsv1.DefectReportPart{
+		Name:               part.Name,
+		Category:           part.Category,
+		Description:        part.Description,
+		Quantity:           int32(part.Quantity),
+		Price:              part.Price,
+		Location:           part.Location,
+		Address:            part.Address,
+		BodyBrand:          part.BodyBrand,
+		EngineBrand:        part.EngineBrand,
+		CarReleaseDate:     part.CarReleaseDate,
+		CarReleasePeriod:   part.CarReleasePeriod,
+		FrontRear:          part.FrontRear,
+		LeftRight:          part.LeftRight,
+		TopBottom:          part.TopBottom,
+		Number:             part.Number,
+		Manufacturer:       part.Manufacturer,
+		ManufacturerCode:   part.ManufacturerCode,
+		OemCode:            part.OEMCode,
+		Color:              part.Color,
+		Condition:          part.Condition,
+		SupplierCode:       part.SupplierCode,
+		Defect:             part.Defect,
+		Transmission:       part.Transmission,
+		TransmissionModel:  part.TransmissionModel,
+		Drive:              part.Drive,
+		WearPercentage:     part.WearPercentage,
+		Season:             part.Season,
+		Diameter:           part.Diameter,
+		Width:              part.Width,
+		Profile:            part.Profile,
+		TireQuantity:       part.TireQuantity,
+		Drilling:           part.Drilling,
+		Offset:             part.Offset,
+		CenterHoleDiameter: part.CenterHoleDiameter,
+		TireModel:          part.TireModel,
+		Vin:                part.VIN,
+	}
+}
+
+// PreviewDefectReport возвращает набор запчастей, который создаст CreateDefectReport,
+// ничего не записывая и не публикуя. Набор строит сервер по каталогу.
+func (s *partsGRPCServer) PreviewDefectReport(ctx context.Context, req *partsv1.PreviewDefectReportRequest) (*partsv1.PreviewDefectReportResponse, error) {
+	report := DefectReportRequest{
+		Brand:             req.Brand,
+		Model:             req.Model,
+		CarReleasePeriod:  req.CarReleasePeriod,
+		VIN:               req.Vin,
+		Description:       req.Description,
+		EngineBrand:       req.EngineBrand,
+		BodyBrand:         req.BodyBrand,
+		InteriorColor:     req.InteriorColor,
+		BodyColor:         req.BodyColor,
+		Transmission:      req.Transmission,
+		TransmissionModel: req.TransmissionModel,
+		Drive:             req.Drive,
+		CatalogVersion:    req.CatalogVersion,
+	}
+	report.Year, _ = strconv.Atoi(req.Year)
+	report.Mileage, _ = strconv.Atoi(req.Mileage)
+
+	prepared, err := s.defectReports.Preview(report)
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable, "не удалось построить дефектную ведомость: %v", err)
+	}
+
+	parts := make([]*partsv1.DefectReportPart, 0, len(prepared.SelectedParts))
+	for _, part := range prepared.SelectedParts {
+		parts = append(parts, defectReportPartToProto(part))
+	}
+
+	return &partsv1.PreviewDefectReportResponse{
+		CatalogVersion: prepared.CatalogVersion,
+		Total:          int32(len(parts)),
+		Parts:          parts,
+	}, nil
+}
+
+// CreateDefectReport использует тот же асинхронный workflow, что и HTTP endpoint.
+func (s *partsGRPCServer) CreateDefectReport(ctx context.Context, req *partsv1.CreateDefectReportRequest) (*partsv1.CreateDefectReportResponse, error) {
+	report := defectReportRequestFromProto(req)
+	if err := s.defectReports.Enqueue(ctx, &report, true); err != nil {
+		if defectReportUnavailable(err) {
+			return nil, status.Errorf(codes.Unavailable, "дефектные ведомости временно недоступны: %v", err)
 		}
-		createdParts = append(createdParts, partToProto(created))
-		partsCreated++
+		return nil, status.Errorf(codes.Internal, "не удалось поставить дефектную ведомость в очередь: %v", err)
 	}
 
 	return &partsv1.CreateDefectReportResponse{
-		PartsCreated: int32(partsCreated),
-		Parts:        createdParts,
+		PartsQueued: int32(len(report.SelectedParts)),
+		Message:     "Дефектная ведомость отправлена в очередь обработки",
 	}, nil
 }
 
@@ -746,7 +744,7 @@ func partToProto(p *Part) *partsv1.Part {
 // ─── gRPC Server Startup ────────────────────────────────────────────────────
 
 // StartGRPCServer запускает gRPC-сервер на указанном порту
-func StartGRPCServer(service InventoryService, port string) error {
+func StartGRPCServer(service InventoryService, defectReports *DefectReportWorkflow, port string) error {
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		return fmt.Errorf("failed to listen on port %s: %w", port, err)
@@ -760,7 +758,7 @@ func StartGRPCServer(service InventoryService, port string) error {
 	)
 
 	// Регистрируем parts-сервис
-	partsv1.RegisterPartsServiceServer(srv, NewPartsGRPCServer(service))
+	partsv1.RegisterPartsServiceServer(srv, NewPartsGRPCServer(service, defectReports))
 
 	// Health check
 	healthSrv := health.NewServer()

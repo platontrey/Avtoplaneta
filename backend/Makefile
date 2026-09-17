@@ -4,6 +4,7 @@
 proto:
 	@echo "Generating protobuf code..."
 	cd proto && buf generate
+	cd proto && buf generate --template buf.gen.swagger.yaml
 	@echo "Done."
 
 # Линтинг proto-файлов

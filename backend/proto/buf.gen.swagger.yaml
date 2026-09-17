@@ -1,0 +1,15 @@
+version: v2
+# Отдельный шаблон: allow_merge работает только когда плагин вызывается один раз
+# на весь набор файлов (strategy: all). В общем buf.gen.yaml buf зовёт плагины
+# по директориям, и слияние выдавало пустой api.swagger.json.
+inputs:
+  - directory: .
+    exclude_paths:
+      - google
+plugins:
+  - local: protoc-gen-openapiv2
+    out: ../gen/swagger
+    strategy: all
+    opt:
+      - allow_merge=true
+      - merge_file_name=api

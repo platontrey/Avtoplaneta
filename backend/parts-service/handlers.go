@@ -15,6 +15,7 @@ import (
 type Handler struct {
 	inventoryService InventoryService
 	partCatalog      *PartCatalog
+	defectReports    *DefectReportWorkflow
 }
 
 // getUpdatedFields возвращает строку с именами обновленных полей
@@ -26,15 +27,15 @@ func getUpdatedFields(updates map[string]interface{}) string {
 	return strings.Join(fields, ", ")
 }
 
-// NewHandler создает новый handler с dependency injection
-func NewHandler(inventoryService InventoryService, catalogs ...*PartCatalog) *Handler {
-	handler := &Handler{
+// NewHandler создает новый handler с dependency injection.
+// Каталог и workflow передаются явно: конструктор ничего не собирает сам
+// и не обращается к глобальному состоянию.
+func NewHandler(inventoryService InventoryService, catalog *PartCatalog, defectReports *DefectReportWorkflow) *Handler {
+	return &Handler{
 		inventoryService: inventoryService,
+		partCatalog:      catalog,
+		defectReports:    defectReports,
 	}
-	if len(catalogs) > 0 {
-		handler.partCatalog = catalogs[0]
-	}
-	return handler
 }
 
 // logUserActivity логирует активность пользователя через gRPC (с HTTP fallback)

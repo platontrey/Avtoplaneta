@@ -16,6 +16,15 @@ type inventoryParamsCaptureService struct {
 	params InventoryQueryParams
 }
 
+type recordingDefectReportPublisher struct {
+	report DefectReportRequest
+}
+
+func (publisher *recordingDefectReportPublisher) PublishDefectReport(_ context.Context, report DefectReportRequest) error {
+	publisher.report = report
+	return nil
+}
+
 func (service *inventoryParamsCaptureService) GetInventory(_ context.Context, params InventoryQueryParams) ([]Part, error) {
 	service.params = params
 	return []Part{{
@@ -26,7 +35,7 @@ func (service *inventoryParamsCaptureService) GetInventory(_ context.Context, pa
 
 func TestPartsGRPCServerGetInventoryForwardsEveryFilter(t *testing.T) {
 	service := &inventoryParamsCaptureService{recordingInventoryService: &recordingInventoryService{}}
-	server := NewPartsGRPCServer(service)
+	server := NewPartsGRPCServer(service, nil)
 
 	response, err := server.GetInventory(context.Background(), &partsv1.GetInventoryRequest{
 		Search:             "search",
@@ -147,7 +156,7 @@ func TestInventoryGatewayContractAcceptsAdvancedQueryParameters(t *testing.T) {
 
 func TestPartsGRPCServerAddPartKeepsCarReleasePeriod(t *testing.T) {
 	service := &recordingInventoryService{}
-	server := NewPartsGRPCServer(service)
+	server := NewPartsGRPCServer(service, nil)
 
 	created, err := server.AddPart(context.Background(), &partsv1.AddPartRequest{
 		Name:             "Test part",
@@ -158,9 +167,12 @@ func TestPartsGRPCServerAddPartKeepsCarReleasePeriod(t *testing.T) {
 	require.Equal(t, "2001-2007", service.snapshot()[0].CarReleasePeriod)
 }
 
-func TestPartsGRPCServerDefectReportKeepsVehicleSpecifications(t *testing.T) {
+func TestPartsGRPCServerQueuesPreparedDefectReport(t *testing.T) {
 	service := &recordingInventoryService{}
-	server := NewPartsGRPCServer(service)
+	catalog, err := LoadPartCatalog()
+	require.NoError(t, err)
+	publisher := &recordingDefectReportPublisher{}
+	server := NewPartsGRPCServer(service, NewDefectReportWorkflow(catalog, publisher))
 
 	response, err := server.CreateDefectReport(context.Background(), &partsv1.CreateDefectReportRequest{
 		Brand:             "Toyota",
@@ -179,16 +191,19 @@ func TestPartsGRPCServerDefectReportKeepsVehicleSpecifications(t *testing.T) {
 		}},
 	})
 	require.NoError(t, err)
-	require.EqualValues(t, 1, response.PartsCreated)
-	require.Len(t, response.Parts, 1)
+	require.EqualValues(t, 1, response.PartsQueued)
+	require.NotEmpty(t, response.Message)
+	require.Empty(t, service.snapshot(), "gRPC adapter must not bypass the asynchronous workflow")
+	require.Equal(t, defectReportEventVersion, publisher.report.EventVersion)
+	require.Len(t, publisher.report.SelectedParts, 1)
 
-	created := service.snapshot()[0]
-	require.Equal(t, "TESTVIN", created.VIN)
-	require.Equal(t, "2015", created.CarReleaseDate)
-	require.Equal(t, "2011-2017", created.CarReleasePeriod)
-	require.Equal(t, "XV50", created.BodyBrand)
-	require.Equal(t, "2AR-FE", created.EngineBrand)
-	require.Equal(t, "АКПП", created.Transmission)
-	require.Equal(t, "U660E", created.TransmissionModel)
-	require.Equal(t, "Передний", created.Drive)
+	queued := publisher.report.SelectedParts[0]
+	require.Equal(t, "TESTVIN", queued.VIN)
+	require.Equal(t, "2015", queued.CarReleaseDate)
+	require.Equal(t, "2011-2017", queued.CarReleasePeriod)
+	require.Equal(t, "XV50", queued.BodyBrand)
+	require.Equal(t, "2AR-FE", queued.EngineBrand)
+	require.Equal(t, "АКПП", queued.Transmission)
+	require.Equal(t, "U660E", queued.TransmissionModel)
+	require.Equal(t, "Передний", queued.Drive)
 }

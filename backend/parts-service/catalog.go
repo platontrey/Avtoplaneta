@@ -74,6 +74,8 @@ type DefectReportPart struct {
 	Description        string  `json:"description"`
 	Quantity           int     `json:"quantity"`
 	Price              float64 `json:"price"`
+	Location           string  `json:"location,omitempty"`
+	Address            string  `json:"address,omitempty"`
 	BodyBrand          string  `json:"body_brand,omitempty"`
 	EngineBrand        string  `json:"engine_brand,omitempty"`
 	CarReleaseDate     string  `json:"car_release_date,omitempty"`

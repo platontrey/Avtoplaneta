@@ -32,6 +32,7 @@ const (
 	PartsService_GetStatistics_FullMethodName           = "/parts.v1.PartsService/GetStatistics"
 	PartsService_UpdateEarnings_FullMethodName          = "/parts.v1.PartsService/UpdateEarnings"
 	PartsService_CreateDefectReport_FullMethodName      = "/parts.v1.PartsService/CreateDefectReport"
+	PartsService_PreviewDefectReport_FullMethodName     = "/parts.v1.PartsService/PreviewDefectReport"
 	PartsService_ExportXML_FullMethodName               = "/parts.v1.PartsService/ExportXML"
 	PartsService_SendPriceListToDrom_FullMethodName     = "/parts.v1.PartsService/SendPriceListToDrom"
 	PartsService_BulkDeleteParts_FullMethodName         = "/parts.v1.PartsService/BulkDeleteParts"
@@ -62,6 +63,9 @@ type PartsServiceClient interface {
 	UpdateEarnings(ctx context.Context, in *UpdateEarningsRequest, opts ...grpc.CallOption) (*UpdateEarningsResponse, error)
 	// Дефект-отчёты
 	CreateDefectReport(ctx context.Context, in *CreateDefectReportRequest, opts ...grpc.CallOption) (*CreateDefectReportResponse, error)
+	// PreviewDefectReport возвращает ровно тот набор запчастей, который создаст
+	// CreateDefectReport. selected_parts в запросе игнорируется: набор строит сервер.
+	PreviewDefectReport(ctx context.Context, in *PreviewDefectReportRequest, opts ...grpc.CallOption) (*PreviewDefectReportResponse, error)
 	// Экспорт
 	ExportXML(ctx context.Context, in *ExportXMLRequest, opts ...grpc.CallOption) (*ExportXMLResponse, error)
 	SendPriceListToDrom(ctx context.Context, in *SendPriceListToDromRequest, opts ...grpc.CallOption) (*SendPriceListToDromResponse, error)
@@ -213,6 +217,16 @@ func (c *partsServiceClient) CreateDefectReport(ctx context.Context, in *CreateD
 	return out, nil
 }
 
+func (c *partsServiceClient) PreviewDefectReport(ctx context.Context, in *PreviewDefectReportRequest, opts ...grpc.CallOption) (*PreviewDefectReportResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PreviewDefectReportResponse)
+	err := c.cc.Invoke(ctx, PartsService_PreviewDefectReport_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *partsServiceClient) ExportXML(ctx context.Context, in *ExportXMLRequest, opts ...grpc.CallOption) (*ExportXMLResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ExportXMLResponse)
@@ -295,6 +309,9 @@ type PartsServiceServer interface {
 	UpdateEarnings(context.Context, *UpdateEarningsRequest) (*UpdateEarningsResponse, error)
 	// Дефект-отчёты
 	CreateDefectReport(context.Context, *CreateDefectReportRequest) (*CreateDefectReportResponse, error)
+	// PreviewDefectReport возвращает ровно тот набор запчастей, который создаст
+	// CreateDefectReport. selected_parts в запросе игнорируется: набор строит сервер.
+	PreviewDefectReport(context.Context, *PreviewDefectReportRequest) (*PreviewDefectReportResponse, error)
 	// Экспорт
 	ExportXML(context.Context, *ExportXMLRequest) (*ExportXMLResponse, error)
 	SendPriceListToDrom(context.Context, *SendPriceListToDromRequest) (*SendPriceListToDromResponse, error)
@@ -351,6 +368,9 @@ func (UnimplementedPartsServiceServer) UpdateEarnings(context.Context, *UpdateEa
 }
 func (UnimplementedPartsServiceServer) CreateDefectReport(context.Context, *CreateDefectReportRequest) (*CreateDefectReportResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateDefectReport not implemented")
+}
+func (UnimplementedPartsServiceServer) PreviewDefectReport(context.Context, *PreviewDefectReportRequest) (*PreviewDefectReportResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method PreviewDefectReport not implemented")
 }
 func (UnimplementedPartsServiceServer) ExportXML(context.Context, *ExportXMLRequest) (*ExportXMLResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ExportXML not implemented")
@@ -614,6 +634,24 @@ func _PartsService_CreateDefectReport_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PartsService_PreviewDefectReport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PreviewDefectReportRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PartsServiceServer).PreviewDefectReport(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PartsService_PreviewDefectReport_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PartsServiceServer).PreviewDefectReport(ctx, req.(*PreviewDefectReportRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PartsService_ExportXML_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ExportXMLRequest)
 	if err := dec(in); err != nil {
@@ -776,6 +814,10 @@ var PartsService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateDefectReport",
 			Handler:    _PartsService_CreateDefectReport_Handler,
+		},
+		{
+			MethodName: "PreviewDefectReport",
+			Handler:    _PartsService_PreviewDefectReport_Handler,
 		},
 		{
 			MethodName: "ExportXML",

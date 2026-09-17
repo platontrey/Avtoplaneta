@@ -349,6 +349,9 @@ type Part struct {
 ### 2. Redis & Redis Streams (Кэш и Асинхронные события)
 - **Redis Streams**:
   - Асинхронная гарантированная отправка и обработка дефектных ведомостей (события генерации до 1 400+ частей за дефектовку через Consumer Groups).
+    Разворачивание ведомости по каталогу и публикация события живут в одном месте — `DefectReportWorkflow` (`parts-service/defect_report_workflow.go`).
+    HTTP- и gRPC-эндпоинты являются только транспортными адаптерами и не создают запчасти напрямую: и `POST /api/defect-reports`, и `PartsService.CreateDefectReport`
+    ставят ведомость в очередь, а записью в БД занимается consumer. Превью (`/api/defect-reports/preview`, `PartsService.PreviewDefectReport`) строит тот же набор, ничего не публикуя.
   - Фоновая шина событий между `orders-service` и `parts-service` для мгновенной рассылки сообщений о списании и обновлении количеств товаров.
 - **Redis Caching**:
   - Кэширование активных сессий пользователей и токенов CSRF.

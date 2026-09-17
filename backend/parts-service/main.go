@@ -79,7 +79,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Не удалось загрузить каталог шаблонов запчастей: %v", err)
 	}
-	handler := NewHandler(service, partCatalog)
+	defectReports := NewDefectReportWorkflow(
+		partCatalog,
+		NewRedisDefectReportEventPublisher(redisClient),
+	)
+	handler := NewHandler(service, partCatalog, defectReports)
 
 	// Запуск gRPC-сервера в отдельной горутине
 	grpcPort := os.Getenv("GRPC_PORT")
@@ -87,7 +91,7 @@ func main() {
 		grpcPort = "9081"
 	}
 	go func() {
-		if err := StartGRPCServer(service, grpcPort); err != nil {
+		if err := StartGRPCServer(service, defectReports, grpcPort); err != nil {
 			log.Fatalf("gRPC server failed: %v", err)
 		}
 	}()

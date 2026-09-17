@@ -110,7 +110,7 @@ type HandlersTestSuite struct {
 func (suite *HandlersTestSuite) SetupTest() {
 	gin.SetMode(gin.TestMode)
 	suite.mockService = new(MockInventoryService)
-	suite.handler = NewHandler(suite.mockService)
+	suite.handler = NewHandler(suite.mockService, nil, nil)
 	suite.router = gin.New()
 
 	// Настраиваем маршруты

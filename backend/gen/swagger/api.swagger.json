@@ -1,12 +1,21 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "messaging/v1/messaging.proto",
+    "title": "auth/v1/auth.proto",
     "version": "version not set"
   },
   "tags": [
     {
+      "name": "AuthService"
+    },
+    {
       "name": "MessagingService"
+    },
+    {
+      "name": "OrdersService"
+    },
+    {
+      "name": "PartsService"
     }
   ],
   "consumes": [
@@ -15,8 +24,1399 @@
   "produces": [
     "application/json"
   ],
-  "paths": {},
+  "paths": {
+    "/api/v1/activity": {
+      "get": {
+        "operationId": "AuthService_GetActivityLogs",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ActivityLogList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "resourceType",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      },
+      "post": {
+        "summary": "Активность",
+        "operationId": "AuthService_LogActivity",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1LogActivityResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1LogActivityRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
+    "/api/v1/admin/logs": {
+      "get": {
+        "operationId": "AuthService_GetServerLogs",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ServerLogsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
+    "/api/v1/admin/parts/bulk-delete": {
+      "post": {
+        "summary": "Админ-операции",
+        "operationId": "PartsService_BulkDeleteParts",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BulkDeletePartsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BulkDeletePartsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
+    "/api/v1/admin/parts/bulk-update": {
+      "post": {
+        "operationId": "PartsService_BulkUpdateParts",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BulkUpdatePartsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BulkUpdatePartsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
+    "/api/v1/admin/parts/zero-quantity": {
+      "post": {
+        "operationId": "PartsService_DeleteZeroQuantityParts",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DeleteZeroQuantityPartsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1DeleteZeroQuantityPartsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
+    "/api/v1/admin/status": {
+      "get": {
+        "summary": "Админ",
+        "operationId": "AuthService_GetServerStatus",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ServerStatus"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
+    "/api/v1/admin/supplier-codes": {
+      "get": {
+        "operationId": "PartsService_GetSupplierCodes",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SupplierCodesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
+    "/api/v1/auth/validate": {
+      "post": {
+        "summary": "Валидация сессии — горячий путь, вызывается на каждый защищённый запрос",
+        "operationId": "AuthService_ValidateSession",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ValidateSessionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1ValidateSessionRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
+    "/api/v1/defect-reports": {
+      "post": {
+        "summary": "Дефект-отчёты",
+        "operationId": "PartsService_CreateDefectReport",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1CreateDefectReportResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateDefectReportRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
+    "/api/v1/defect-reports/preview": {
+      "post": {
+        "summary": "PreviewDefectReport возвращает ровно тот набор запчастей, который создаст\nCreateDefectReport. selected_parts в запросе игнорируется: набор строит сервер.",
+        "operationId": "PartsService_PreviewDefectReport",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PreviewDefectReportResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1PreviewDefectReportRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
+    "/api/v1/export/drom": {
+      "post": {
+        "operationId": "PartsService_SendPriceListToDrom",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SendPriceListToDromResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1SendPriceListToDromRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
+    "/api/v1/export/xml": {
+      "get": {
+        "summary": "Экспорт",
+        "operationId": "PartsService_ExportXML",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ExportXMLResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
+    "/api/v1/inventory": {
+      "get": {
+        "summary": "Инвентарь",
+        "operationId": "PartsService_GetInventory",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1InventoryResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "brand",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "model",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "location",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "salesman",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "hasPhoto",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "address",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "number",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "oemCode",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "vin",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "bodyBrand",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "engineBrand",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "carReleaseDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "carReleasePeriod",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "transmission",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "drive",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "condition",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "manufacturer",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "defect",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "color",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "minPrice",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "maxPrice",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "minQuantity",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "maxQuantity",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "frontRear",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "leftRight",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "topBottom",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "manufacturerCode",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "supplierCode",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "transmissionModel",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "wearPercentage",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "season",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "diameter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "width",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "profile",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "tireQuantity",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "drilling",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "centerHoleDiameter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "tireModel",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
+    "/api/v1/parts": {
+      "post": {
+        "operationId": "PartsService_AddPart",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Part"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1AddPartRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
+    "/api/v1/parts/item/{id}": {
+      "get": {
+        "operationId": "PartsService_GetPart",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Part"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
+    "/api/v1/parts/{id}": {
+      "delete": {
+        "operationId": "PartsService_DeletePart",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DeletePartResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "PartsService"
+        ]
+      },
+      "put": {
+        "operationId": "PartsService_UpdatePart",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Part"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PartsServiceUpdatePartBody"
+            }
+          }
+        ],
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
+    "/api/v1/parts/{id}/decrease": {
+      "post": {
+        "summary": "Изменение количества",
+        "operationId": "PartsService_DecreasePartQuantity",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ChangePartQuantityResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PartsServiceDecreasePartQuantityBody"
+            }
+          }
+        ],
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
+    "/api/v1/parts/{id}/increase": {
+      "post": {
+        "operationId": "PartsService_IncreasePartQuantity",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ChangePartQuantityResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PartsServiceIncreasePartQuantityBody"
+            }
+          }
+        ],
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
+    "/api/v1/parts/{id}/mark-deletion": {
+      "post": {
+        "operationId": "PartsService_MarkPartForDeletion",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Part"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PartsServiceMarkPartForDeletionBody"
+            }
+          }
+        ],
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
+    "/api/v1/parts/{partId}/photo": {
+      "delete": {
+        "operationId": "PartsService_DeletePartPhoto",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DeletePartPhotoResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "partId",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "photoUrl",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
+    "/api/v1/statistics": {
+      "get": {
+        "summary": "Статистика",
+        "operationId": "PartsService_GetStatistics",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1StatisticsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
+    "/api/v1/statistics/earnings": {
+      "post": {
+        "operationId": "PartsService_UpdateEarnings",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1UpdateEarningsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1UpdateEarningsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
+    "/api/v1/users": {
+      "get": {
+        "operationId": "AuthService_GetUsers",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1UserList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "AuthService"
+        ]
+      },
+      "post": {
+        "operationId": "AuthService_CreateUser",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1User"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateUserRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
+    "/api/v1/users/{id}": {
+      "get": {
+        "summary": "CRUD пользователей",
+        "operationId": "AuthService_GetUser",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1User"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      },
+      "delete": {
+        "operationId": "AuthService_DeleteUser",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DeleteUserResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      },
+      "put": {
+        "operationId": "AuthService_UpdateUser",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1User"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AuthServiceUpdateUserBody"
+            }
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      }
+    }
+  },
   "definitions": {
+    "AuthServiceUpdateUserBody": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "initials": {
+          "type": "string"
+        },
+        "inn": {
+          "type": "string"
+        }
+      }
+    },
+    "PartsServiceDecreasePartQuantityBody": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "PartsServiceIncreasePartQuantityBody": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "PartsServiceMarkPartForDeletionBody": {
+      "type": "object"
+    },
+    "PartsServiceUpdatePartBody": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Все поля опциональные — обновляется только то, что передано"
+        },
+        "quantity": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "description": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number",
+          "format": "double"
+        },
+        "salesman": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "status": {
+          "type": "boolean"
+        },
+        "brand": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "sellerId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "vin": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "bodyBrand": {
+          "type": "string"
+        },
+        "engineBrand": {
+          "type": "string"
+        },
+        "carReleaseDate": {
+          "type": "string"
+        },
+        "frontRear": {
+          "type": "string"
+        },
+        "leftRight": {
+          "type": "string"
+        },
+        "topBottom": {
+          "type": "string"
+        },
+        "number": {
+          "type": "string"
+        },
+        "manufacturer": {
+          "type": "string"
+        },
+        "manufacturerCode": {
+          "type": "string"
+        },
+        "oemCode": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "condition": {
+          "type": "string"
+        },
+        "supplierCode": {
+          "type": "string"
+        },
+        "defect": {
+          "type": "string"
+        },
+        "transmission": {
+          "type": "string"
+        },
+        "drive": {
+          "type": "string"
+        },
+        "wearPercentage": {
+          "type": "string"
+        },
+        "transmissionModel": {
+          "type": "string"
+        },
+        "carReleasePeriod": {
+          "type": "string"
+        },
+        "season": {
+          "type": "string"
+        },
+        "diameter": {
+          "type": "string"
+        },
+        "width": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "tireQuantity": {
+          "type": "string"
+        },
+        "drilling": {
+          "type": "string"
+        },
+        "offset": {
+          "type": "string"
+        },
+        "centerHoleDiameter": {
+          "type": "string"
+        },
+        "tireModel": {
+          "type": "string"
+        }
+      }
+    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -42,6 +1442,1037 @@
             "type": "object",
             "$ref": "#/definitions/protobufAny"
           }
+        }
+      }
+    },
+    "v1ActivityLog": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "userId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "userName": {
+          "type": "string"
+        },
+        "userEmail": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string"
+        },
+        "resourceType": {
+          "type": "string"
+        },
+        "resourceId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "details": {
+          "type": "string"
+        },
+        "ipAddress": {
+          "type": "string"
+        },
+        "userAgent": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1ActivityLogList": {
+      "type": "object",
+      "properties": {
+        "logs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ActivityLog"
+          }
+        },
+        "total": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "v1AddPartRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "description": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number",
+          "format": "double"
+        },
+        "salesman": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "status": {
+          "type": "boolean"
+        },
+        "brand": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "sellerId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "vin": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "bodyBrand": {
+          "type": "string",
+          "title": "Specifications"
+        },
+        "engineBrand": {
+          "type": "string"
+        },
+        "carReleaseDate": {
+          "type": "string"
+        },
+        "frontRear": {
+          "type": "string"
+        },
+        "leftRight": {
+          "type": "string"
+        },
+        "topBottom": {
+          "type": "string"
+        },
+        "number": {
+          "type": "string"
+        },
+        "manufacturer": {
+          "type": "string"
+        },
+        "manufacturerCode": {
+          "type": "string"
+        },
+        "oemCode": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "condition": {
+          "type": "string"
+        },
+        "supplierCode": {
+          "type": "string"
+        },
+        "defect": {
+          "type": "string"
+        },
+        "transmission": {
+          "type": "string"
+        },
+        "drive": {
+          "type": "string"
+        },
+        "wearPercentage": {
+          "type": "string"
+        },
+        "transmissionModel": {
+          "type": "string"
+        },
+        "carReleasePeriod": {
+          "type": "string"
+        },
+        "season": {
+          "type": "string",
+          "title": "Tire"
+        },
+        "diameter": {
+          "type": "string"
+        },
+        "width": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "tireQuantity": {
+          "type": "string"
+        },
+        "drilling": {
+          "type": "string"
+        },
+        "offset": {
+          "type": "string"
+        },
+        "centerHoleDiameter": {
+          "type": "string"
+        },
+        "tireModel": {
+          "type": "string"
+        }
+      }
+    },
+    "v1BulkDeletePartsRequest": {
+      "type": "object",
+      "properties": {
+        "ids": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      }
+    },
+    "v1BulkDeletePartsResponse": {
+      "type": "object",
+      "properties": {
+        "deletedCount": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "v1BulkUpdatePartData": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1BulkUpdatePartsRequest": {
+      "type": "object",
+      "properties": {
+        "parts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1BulkUpdatePartData"
+          }
+        }
+      }
+    },
+    "v1BulkUpdatePartsResponse": {
+      "type": "object",
+      "properties": {
+        "updatedCount": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "v1CategoryCount": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "count": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "v1ChangePartQuantityResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "newQuantity": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "v1CreateDefectReportRequest": {
+      "type": "object",
+      "properties": {
+        "brand": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "year": {
+          "type": "string"
+        },
+        "vin": {
+          "type": "string"
+        },
+        "mileage": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "salesman": {
+          "type": "string"
+        },
+        "sellerId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "selectedParts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1DefectReportPart"
+          }
+        },
+        "carReleasePeriod": {
+          "type": "string"
+        },
+        "engineBrand": {
+          "type": "string"
+        },
+        "bodyBrand": {
+          "type": "string"
+        },
+        "interiorColor": {
+          "type": "string"
+        },
+        "bodyColor": {
+          "type": "string"
+        },
+        "transmission": {
+          "type": "string"
+        },
+        "transmissionModel": {
+          "type": "string"
+        },
+        "drive": {
+          "type": "string"
+        },
+        "catalogVersion": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CreateDefectReportResponse": {
+      "type": "object",
+      "properties": {
+        "partsCreated": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Part"
+          }
+        },
+        "partsQueued": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CreateUserRequest": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "initials": {
+          "type": "string"
+        },
+        "inn": {
+          "type": "string"
+        }
+      }
+    },
+    "v1DefectReportPart": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number",
+          "format": "double"
+        },
+        "quantity": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "description": {
+          "type": "string"
+        },
+        "condition": {
+          "type": "string"
+        },
+        "defect": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "frontRear": {
+          "type": "string"
+        },
+        "leftRight": {
+          "type": "string"
+        },
+        "topBottom": {
+          "type": "string"
+        },
+        "number": {
+          "type": "string"
+        },
+        "oemCode": {
+          "type": "string"
+        },
+        "manufacturer": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "bodyBrand": {
+          "type": "string"
+        },
+        "engineBrand": {
+          "type": "string"
+        },
+        "carReleaseDate": {
+          "type": "string"
+        },
+        "carReleasePeriod": {
+          "type": "string"
+        },
+        "manufacturerCode": {
+          "type": "string"
+        },
+        "supplierCode": {
+          "type": "string"
+        },
+        "transmission": {
+          "type": "string"
+        },
+        "transmissionModel": {
+          "type": "string"
+        },
+        "drive": {
+          "type": "string"
+        },
+        "wearPercentage": {
+          "type": "string"
+        },
+        "season": {
+          "type": "string"
+        },
+        "diameter": {
+          "type": "string"
+        },
+        "width": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "tireQuantity": {
+          "type": "string"
+        },
+        "drilling": {
+          "type": "string"
+        },
+        "offset": {
+          "type": "string"
+        },
+        "centerHoleDiameter": {
+          "type": "string"
+        },
+        "tireModel": {
+          "type": "string"
+        },
+        "vin": {
+          "type": "string"
+        }
+      }
+    },
+    "v1DeletePartPhotoResponse": {
+      "type": "object"
+    },
+    "v1DeletePartResponse": {
+      "type": "object"
+    },
+    "v1DeleteUserResponse": {
+      "type": "object"
+    },
+    "v1DeleteZeroQuantityPartsRequest": {
+      "type": "object",
+      "properties": {
+        "supplierCode": {
+          "type": "string"
+        }
+      }
+    },
+    "v1DeleteZeroQuantityPartsResponse": {
+      "type": "object",
+      "properties": {
+        "deletedCount": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "v1ExportXMLResponse": {
+      "type": "object",
+      "properties": {
+        "xmlData": {
+          "type": "string",
+          "format": "byte"
+        },
+        "contentType": {
+          "type": "string"
+        }
+      }
+    },
+    "v1InventoryResponse": {
+      "type": "object",
+      "properties": {
+        "parts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Part"
+          }
+        },
+        "total": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "limit": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "v1LogActivityRequest": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "userName": {
+          "type": "string"
+        },
+        "userEmail": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string"
+        },
+        "resourceType": {
+          "type": "string"
+        },
+        "resourceId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "details": {
+          "type": "string"
+        },
+        "ipAddress": {
+          "type": "string"
+        },
+        "userAgent": {
+          "type": "string"
+        }
+      }
+    },
+    "v1LogActivityResponse": {
+      "type": "object"
+    },
+    "v1MonthlySales": {
+      "type": "object",
+      "properties": {
+        "month": {
+          "type": "string"
+        },
+        "sales": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "v1Part": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "name": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "description": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number",
+          "format": "double"
+        },
+        "salesman": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "status": {
+          "type": "boolean"
+        },
+        "brand": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "photos": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sellerId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "toDeleteAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "vin": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "bodyBrand": {
+          "type": "string",
+          "title": "Specifications"
+        },
+        "engineBrand": {
+          "type": "string"
+        },
+        "carReleaseDate": {
+          "type": "string"
+        },
+        "frontRear": {
+          "type": "string"
+        },
+        "leftRight": {
+          "type": "string"
+        },
+        "topBottom": {
+          "type": "string"
+        },
+        "number": {
+          "type": "string"
+        },
+        "manufacturer": {
+          "type": "string"
+        },
+        "manufacturerCode": {
+          "type": "string"
+        },
+        "oemCode": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "condition": {
+          "type": "string"
+        },
+        "supplierCode": {
+          "type": "string"
+        },
+        "defect": {
+          "type": "string"
+        },
+        "transmission": {
+          "type": "string"
+        },
+        "drive": {
+          "type": "string"
+        },
+        "wearPercentage": {
+          "type": "string"
+        },
+        "transmissionModel": {
+          "type": "string"
+        },
+        "carReleasePeriod": {
+          "type": "string"
+        },
+        "season": {
+          "type": "string",
+          "title": "Tire specifications"
+        },
+        "diameter": {
+          "type": "string"
+        },
+        "width": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "tireQuantity": {
+          "type": "string"
+        },
+        "drilling": {
+          "type": "string"
+        },
+        "offset": {
+          "type": "string"
+        },
+        "centerHoleDiameter": {
+          "type": "string"
+        },
+        "tireModel": {
+          "type": "string"
+        },
+        "toDeleteAtFormatted": {
+          "type": "string",
+          "title": "Display fields"
+        },
+        "timeUntilDeletion": {
+          "type": "string"
+        }
+      }
+    },
+    "v1PreviewDefectReportRequest": {
+      "type": "object",
+      "properties": {
+        "brand": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "year": {
+          "type": "string"
+        },
+        "vin": {
+          "type": "string"
+        },
+        "mileage": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "engineBrand": {
+          "type": "string"
+        },
+        "bodyBrand": {
+          "type": "string"
+        },
+        "interiorColor": {
+          "type": "string"
+        },
+        "bodyColor": {
+          "type": "string"
+        },
+        "transmission": {
+          "type": "string"
+        },
+        "transmissionModel": {
+          "type": "string"
+        },
+        "drive": {
+          "type": "string"
+        },
+        "carReleasePeriod": {
+          "type": "string"
+        },
+        "catalogVersion": {
+          "type": "string"
+        }
+      }
+    },
+    "v1PreviewDefectReportResponse": {
+      "type": "object",
+      "properties": {
+        "catalogVersion": {
+          "type": "string"
+        },
+        "total": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1DefectReportPart"
+          }
+        }
+      }
+    },
+    "v1SendPriceListToDromRequest": {
+      "type": "object"
+    },
+    "v1SendPriceListToDromResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ServerLog": {
+      "type": "object",
+      "properties": {
+        "timestamp": {
+          "type": "string"
+        },
+        "level": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ServerLogsResponse": {
+      "type": "object",
+      "properties": {
+        "logs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ServerLog"
+          }
+        }
+      }
+    },
+    "v1ServerStatus": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "uptimeSeconds": {
+          "type": "string",
+          "format": "int64"
+        },
+        "totalUsers": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "activeSessions": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "memoryUsageMb": {
+          "type": "number",
+          "format": "double"
+        },
+        "goroutines": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalParts": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "v1StatisticsResponse": {
+      "type": "object",
+      "properties": {
+        "totalParts": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalQuantity": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalValue": {
+          "type": "number",
+          "format": "double"
+        },
+        "totalEarnings": {
+          "type": "number",
+          "format": "double"
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1CategoryCount"
+          }
+        },
+        "monthlySales": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1MonthlySales"
+          }
+        }
+      }
+    },
+    "v1SupplierCodesResponse": {
+      "type": "object",
+      "properties": {
+        "codes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1UpdateEarningsRequest": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "v1UpdateEarningsResponse": {
+      "type": "object",
+      "properties": {
+        "totalEarnings": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "v1User": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "email": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "initials": {
+          "type": "string"
+        },
+        "inn": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        }
+      }
+    },
+    "v1UserList": {
+      "type": "object",
+      "properties": {
+        "users": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1User"
+          }
+        }
+      }
+    },
+    "v1ValidateSessionRequest": {
+      "type": "object",
+      "properties": {
+        "sessionCookie": {
+          "type": "string"
+        },
+        "authorization": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ValidateSessionResponse": {
+      "type": "object",
+      "properties": {
+        "valid": {
+          "type": "boolean"
+        },
+        "user": {
+          "$ref": "#/definitions/v1User"
         }
       }
     }

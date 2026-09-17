@@ -85,6 +85,14 @@ service PartsService {
       body: "*"
     };
   }
+  // PreviewDefectReport возвращает ровно тот набор запчастей, который создаст
+  // CreateDefectReport. selected_parts в запросе игнорируется: набор строит сервер.
+  rpc PreviewDefectReport(PreviewDefectReportRequest) returns (PreviewDefectReportResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/defect-reports/preview"
+      body: "*"
+    };
+  }
 
   // Экспорт
   rpc ExportXML(ExportXMLRequest) returns (ExportXMLResponse) {
@@ -474,9 +482,35 @@ message CreateDefectReportRequest {
   string catalog_version = 18;
 }
 
+message PreviewDefectReportRequest {
+  string brand = 1;
+  string model = 2;
+  string year = 3;
+  string vin = 4;
+  string mileage = 5;
+  string description = 6;
+  string engine_brand = 7;
+  string body_brand = 8;
+  string interior_color = 9;
+  string body_color = 10;
+  string transmission = 11;
+  string transmission_model = 12;
+  string drive = 13;
+  string car_release_period = 14;
+  string catalog_version = 15;
+}
+
+message PreviewDefectReportResponse {
+  string catalog_version = 1;
+  int32 total = 2;
+  repeated DefectReportPart parts = 3;
+}
+
 message CreateDefectReportResponse {
-  int32 parts_created = 1;
-  repeated Part parts = 2;
+  int32 parts_created = 1 [deprecated = true];
+  repeated Part parts = 2 [deprecated = true];
+  int32 parts_queued = 3;
+  string message = 4;
 }
 
 // ─── Export ─────────────────────────────────────────────────────────────────

@@ -25,12 +25,11 @@ func TestDefectReportHTTPThroughRedisConsumer(t *testing.T) {
 	client := redis.NewClient(&redis.Options{Addr: redisServer.Addr()})
 	t.Cleanup(func() { _ = client.Close() })
 
-	previousRedisClient := redisClient
-	redisClient = client
-	t.Cleanup(func() { redisClient = previousRedisClient })
-
 	recordingService := &recordingInventoryService{}
-	handler := NewHandler(recordingService, catalog)
+	handler := NewHandler(recordingService, catalog, NewDefectReportWorkflow(
+		catalog,
+		NewRedisDefectReportEventPublisher(client),
+	))
 	router := gin.New()
 	router.POST("/api/defect-reports", handler.CreateDefectReportHandler)
 
@@ -142,7 +141,7 @@ func TestDefectReportPreviewUsesServerCatalog(t *testing.T) {
 	catalog, err := LoadPartCatalog()
 	require.NoError(t, err)
 
-	handler := NewHandler(&recordingInventoryService{}, catalog)
+	handler := NewHandler(&recordingInventoryService{}, catalog, NewDefectReportWorkflow(catalog, nil))
 	router := gin.New()
 	router.POST("/api/defect-reports/preview", handler.PreviewDefectReportHandler)
 
@@ -195,12 +194,11 @@ func TestDefectReportHTTPThroughRedisConsumer_WithSelectedParts(t *testing.T) {
 	client := redis.NewClient(&redis.Options{Addr: redisServer.Addr()})
 	t.Cleanup(func() { _ = client.Close() })
 
-	previousRedisClient := redisClient
-	redisClient = client
-	t.Cleanup(func() { redisClient = previousRedisClient })
-
 	recordingService := &recordingInventoryService{}
-	handler := NewHandler(recordingService, catalog)
+	handler := NewHandler(recordingService, catalog, NewDefectReportWorkflow(
+		catalog,
+		NewRedisDefectReportEventPublisher(client),
+	))
 	router := gin.New()
 	router.POST("/api/defect-reports", handler.CreateDefectReportHandler)
 
@@ -234,7 +232,7 @@ func TestDefectReportHTTPThroughRedisConsumer_WithSelectedParts(t *testing.T) {
 		"transmission_model": "DL501",
 		"drive":              "Полный",
 		"selectedParts": []map[string]any{
-			{"name": "КПП в сборе", "category": "Трансмиссия", "quantity": 1, "price": 50000.0},
+			{"name": "КПП в сборе", "category": "Трансмиссия", "quantity": 1, "price": 50000.0, "location": "Стеллаж А-12", "address": "Томск, Мира 1"},
 			{"name": "Рычаг передний", "category": "Подвеска передних колес", "quantity": 1, "price": 3000.0},
 			{"name": "Подрамник", "category": "Подвеска ДВС/КПП", "quantity": 1, "price": 8000.0},
 			{"name": "Редуктор задний", "category": "Подвеска задних колес", "quantity": 1, "price": 15000.0},
@@ -287,6 +285,16 @@ func TestDefectReportHTTPThroughRedisConsumer_WithSelectedParts(t *testing.T) {
 		require.Equal(t, "DL501", part.TransmissionModel, part.Category)
 		require.Equal(t, "Полный", part.Drive, part.Category)
 	}
+
+	// Место хранения принадлежит конкретной позиции: доезжает до созданной запчасти
+	// и не протекает на остальные.
+	gearbox := findRecordedPart(t, createdParts, "Трансмиссия")
+	require.Equal(t, "Стеллаж А-12", gearbox.Location)
+	require.Equal(t, "Томск, Мира 1", gearbox.Address)
+
+	bumper := findRecordedPart(t, createdParts, "Кузов снаружи")
+	require.Empty(t, bumper.Location)
+	require.Empty(t, bumper.Address)
 }
 
 func TestPartCatalogHTTPRevalidation(t *testing.T) {
@@ -294,7 +302,7 @@ func TestPartCatalogHTTPRevalidation(t *testing.T) {
 	catalog, err := LoadPartCatalog()
 	require.NoError(t, err)
 
-	handler := NewHandler(nil, catalog)
+	handler := NewHandler(nil, catalog, nil)
 	router := gin.New()
 	router.GET("/api/part-catalog", handler.GetPartCatalogHandler)
 

@@ -27,7 +27,7 @@ func TestSearchIntegration_ElasticsearchSuccess(t *testing.T) {
 	service := NewInventoryService(mockRepo, mockES, config)
 	catalog, err := LoadPartCatalog()
 	require.NoError(t, err)
-	handler := NewHandler(service, catalog)
+	handler := NewHandler(service, catalog, nil)
 
 	router := gin.New()
 	router.GET("/api/inventory", handler.GetInventoryHandler)
@@ -99,7 +99,7 @@ func TestSearchIntegration_ElasticsearchFallbackToDatabase(t *testing.T) {
 	service := NewInventoryService(mockRepo, mockES, config)
 	catalog, err := LoadPartCatalog()
 	require.NoError(t, err)
-	handler := NewHandler(service, catalog)
+	handler := NewHandler(service, catalog, nil)
 
 	router := gin.New()
 	router.GET("/api/inventory", handler.GetInventoryHandler)
@@ -160,7 +160,7 @@ func TestSearchIntegration_CategoryFilter(t *testing.T) {
 	service := NewInventoryService(mockRepo, mockES, config)
 	catalog, err := LoadPartCatalog()
 	require.NoError(t, err)
-	handler := NewHandler(service, catalog)
+	handler := NewHandler(service, catalog, nil)
 
 	router := gin.New()
 	router.GET("/api/inventory", handler.GetInventoryHandler)
