@@ -154,10 +154,10 @@ export default function BulkOrderDialog({ isOpen, onClose, selectedParts, onSucc
             <Label className="text-sm font-medium mb-3 block">Запчасти для заказа:</Label>
             <div className="space-y-3 max-h-60 overflow-y-auto">
               {selectedParts.map((part) => (
-                <div key={part.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div key={part.id} className="flex items-center justify-between p-3 bg-muted/50 border border-border/50 rounded-lg">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{part.name}</p>
-                    <p className="text-xs text-gray-600">{part.category}</p>
+                    <p className="text-xs text-muted-foreground">{part.category}</p>
                   </div>
                   <div className="flex items-center gap-2 ml-4">
                     <Label htmlFor={`quantity-${part.id}`} className="text-xs">

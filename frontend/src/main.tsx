@@ -12,6 +12,12 @@ import { ThemeProvider } from './contexts/ThemeContext'
 import './index.css'
 import App from './App.tsx'
 
+// Auto-recover from stale cached chunk mismatches upon new deployments
+window.addEventListener('vite:preloadError', () => {
+  console.warn('New version detected or dynamic import failed, reloading page...')
+  window.location.reload()
+})
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

@@ -450,10 +450,10 @@ function PartBlock({
                             )}
                             <div className="flex flex-wrap gap-2 mt-1">
                                 {part.category && (
-                                    <span className="text-sm bg-white border border-border px-3 py-1 rounded-md font-medium">{part.category}</span>
+                                    <span className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium">{part.category}</span>
                                 )}
-                                <span className="text-sm bg-white border border-border px-3 py-1 rounded-md font-medium">Кол: {part.quantity ?? 0}</span>
-                                <span className="text-sm bg-primary text-primary-foreground px-3 py-1 rounded-md font-medium">Цена: {part.price ? `₽${part.price}` : 'TBD'}</span>
+                                <span className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium">Кол: {part.quantity ?? 0}</span>
+                                <span className="text-sm bg-primary text-primary-foreground dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30 border border-primary/20 px-3 py-1 rounded-md font-semibold">Цена: {part.price ? `₽${part.price}` : 'TBD'}</span>
                             </div>
                         </div>
                     </div>
