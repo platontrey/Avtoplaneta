@@ -887,7 +887,7 @@ func getCurrentUser(ctx context.Context, userID string, authHeader string) (*Use
 	req.Header.Set("Authorization", authHeader)
 	req.Header.Set("X-User-ID", userID)
 
-	client := &http.Client{}
+	client := gatewayHTTPClient
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -924,7 +924,7 @@ func getUsers(c *gin.Context) {
 	req.Header.Set("Authorization", authHeader)
 	req.Header.Set("X-User-ID", userIDHeader)
 
-	client := &http.Client{}
+	client := gatewayHTTPClient
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Printf("Messaging getUsers: Failed to connect to gateway: %v", err)
@@ -950,3 +950,9 @@ func getUsers(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"users": response.Users})
 }
+
+// gatewayHTTPClient используется для походов в gateway за данными других
+// сервисов. Таймаут обязателен: без него зависший upstream держит запрос
+// вкладки «Сообщения» до победного конца, и пользователь видит бесконечную
+// загрузку вместо ошибки.
+var gatewayHTTPClient = &http.Client{Timeout: 10 * time.Second}

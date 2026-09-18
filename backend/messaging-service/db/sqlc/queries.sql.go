@@ -275,13 +275,13 @@ func (q *Queries) GetConversation(ctx context.Context, id int64) (Conversation, 
 const GetConversations = `-- name: GetConversations :many
 SELECT c.id, c.participants, c.title, c.created_at, c.last_message_at, c.last_message, COALESCE(u.unread_count, 0)::bigint as unread_count
 FROM conversations c
-LEFT JOIN (
-    SELECT m.conversation_id, COUNT(*) as unread_count
+LEFT JOIN LATERAL (
+    SELECT COUNT(*) as unread_count
     FROM messages m
-    WHERE NOT (m.read_by @> ARRAY[$1::bigint])
+    WHERE m.conversation_id = c.id
       AND m.sender_id != $1::bigint
-    GROUP BY m.conversation_id
-) u ON u.conversation_id = c.id
+      AND NOT (m.read_by @> ARRAY[$1::bigint])
+) u ON TRUE
 WHERE c.participants @> ARRAY[$1::bigint]
 ORDER BY c.last_message_at DESC
 `

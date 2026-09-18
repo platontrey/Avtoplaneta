@@ -1,13 +1,13 @@
 -- name: GetConversations :many
 SELECT c.*, COALESCE(u.unread_count, 0)::bigint as unread_count
 FROM conversations c
-LEFT JOIN (
-    SELECT m.conversation_id, COUNT(*) as unread_count
+LEFT JOIN LATERAL (
+    SELECT COUNT(*) as unread_count
     FROM messages m
-    WHERE NOT (m.read_by @> ARRAY[sqlc.arg(user_id)::bigint])
+    WHERE m.conversation_id = c.id
       AND m.sender_id != sqlc.arg(user_id)::bigint
-    GROUP BY m.conversation_id
-) u ON u.conversation_id = c.id
+      AND NOT (m.read_by @> ARRAY[sqlc.arg(user_id)::bigint])
+) u ON TRUE
 WHERE c.participants @> ARRAY[sqlc.arg(user_id)::bigint]
 ORDER BY c.last_message_at DESC;
 
