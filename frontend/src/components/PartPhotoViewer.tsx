@@ -12,9 +12,21 @@ import {
     ChevronLeft, 
     ChevronRight, 
     X, 
-    ExternalLink
+    ExternalLink,
+    Copy,
+    Check,
+    Share2,
+    Download,
+    Link2
 } from 'lucide-react';
 import { API_BASE_URL } from '@/lib/api';
+import { 
+    copyPhotoToClipboard, 
+    copyPhotoUrlToClipboard, 
+    sharePhoto, 
+    downloadPhoto, 
+    canShareFiles 
+} from '@/lib/photoUtils';
 
 interface PartPhotoViewerProps {
     isOpen: boolean;
@@ -40,6 +52,8 @@ export default function PartPhotoViewer({
     const [scale, setScale] = useState<number>(1);
     const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState<boolean>(false);
+    const [copied, setCopied] = useState<boolean>(false);
+    const [copyNotification, setCopyNotification] = useState<string | null>(null);
     
     const viewportRef = useRef<HTMLDivElement>(null);
     const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -118,6 +132,64 @@ export default function PartPhotoViewer({
 
     const currentPhotoPath = validPhotos[currentIndex] || '';
     const currentPhotoUrl = formatPhotoUrl(currentPhotoPath);
+
+    // Копирование фотографии в буфер обмена (как бинарное изображение, fallback на ссылку)
+    const handleCopyImage = async () => {
+        if (!currentPhotoUrl || currentPhotoUrl === '/placeholder-part.svg') return;
+        try {
+            const resultType = await copyPhotoToClipboard(currentPhotoUrl);
+            setCopied(true);
+            setCopyNotification(resultType === 'image' ? 'Фото скопировано в буфер обмена!' : 'Ссылка на фото скопирована в буфер');
+            setTimeout(() => setCopied(false), 2000);
+            setTimeout(() => setCopyNotification(null), 3000);
+        } catch (err) {
+            console.error('Ошибка копирования:', err);
+            try {
+                await copyPhotoUrlToClipboard(currentPhotoUrl);
+                setCopyNotification('Ссылка на фото скопирована в буфер');
+            } catch {
+                setCopyNotification('Не удалось скопировать фото');
+            }
+            setTimeout(() => setCopyNotification(null), 3000);
+        }
+    };
+
+    // Копирование прямой ссылки на фото
+    const handleCopyLink = async () => {
+        if (!currentPhotoUrl || currentPhotoUrl === '/placeholder-part.svg') return;
+        try {
+            await copyPhotoUrlToClipboard(currentPhotoUrl);
+            setCopyNotification('Ссылка на фото скопирована!');
+            setTimeout(() => setCopyNotification(null), 3000);
+        } catch {
+            setCopyNotification('Не удалось скопировать ссылку');
+            setTimeout(() => setCopyNotification(null), 3000);
+        }
+    };
+
+    // Поделиться фото
+    const handleShareImage = async () => {
+        if (!currentPhotoUrl || currentPhotoUrl === '/placeholder-part.svg') return;
+        try {
+            await sharePhoto(currentPhotoUrl, { 
+                title: partName, 
+                text: `${partName}${partSubtitle ? ` (${partSubtitle})` : ''}`,
+                filename: `${partName.replace(/[\s/\\:]+/g, '_')}_photo_${currentIndex + 1}.jpg`
+            });
+        } catch (err) {
+            console.error('Ошибка отправки:', err);
+        }
+    };
+
+    // Скачать фото
+    const handleDownloadImage = async () => {
+        if (!currentPhotoUrl || currentPhotoUrl === '/placeholder-part.svg') return;
+        try {
+            await downloadPhoto(currentPhotoUrl, `${partName.replace(/[\s/\\:]+/g, '_')}_photo_${currentIndex + 1}.jpg`);
+        } catch (err) {
+            console.error('Ошибка скачивания:', err);
+        }
+    };
 
     // Non-passive wheel zoom
     useEffect(() => {
@@ -304,7 +376,60 @@ export default function PartPhotoViewer({
                         )}
                     </div>
 
-                    <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                    <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+                        {/* Копировать фото в буфер */}
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleCopyImage}
+                            className={`h-8 px-2 sm:px-2.5 rounded-lg text-xs font-medium transition-all ${
+                                copied 
+                                    ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/40' 
+                                    : 'text-neutral-200 hover:text-white hover:bg-neutral-800'
+                            }`}
+                            title="Скопировать фото в буфер обмена"
+                        >
+                            {copied ? <Check className="h-4 w-4 text-emerald-400 sm:mr-1.5" /> : <Copy className="h-4 w-4 text-indigo-400 sm:mr-1.5" />}
+                            <span className="hidden sm:inline">{copied ? 'Скопировано!' : 'Скопировать'}</span>
+                        </Button>
+
+                        {/* Поделиться (Web Share API) */}
+                        {canShareFiles() && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-neutral-300 hover:text-white hover:bg-neutral-800 rounded-lg"
+                                onClick={handleShareImage}
+                                title="Поделиться фото"
+                            >
+                                <Share2 className="h-4 w-4" />
+                            </Button>
+                        )}
+
+                        {/* Скопировать ссылку на фото */}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-neutral-300 hover:text-white hover:bg-neutral-800 rounded-lg hidden sm:flex"
+                            onClick={handleCopyLink}
+                            title="Скопировать ссылку на фото"
+                        >
+                            <Link2 className="h-4 w-4" />
+                        </Button>
+
+                        {/* Скачать фото */}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-neutral-300 hover:text-white hover:bg-neutral-800 rounded-lg hidden sm:flex"
+                            onClick={handleDownloadImage}
+                            title="Скачать фото на устройство"
+                        >
+                            <Download className="h-4 w-4" />
+                        </Button>
+
+                        <div className="w-px h-5 bg-white/10 mx-0.5 sm:mx-1 hidden sm:block" />
+
                         {/* Зум - */}
                         <Button
                             variant="ghost"
@@ -393,6 +518,14 @@ export default function PartPhotoViewer({
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
                 >
+                    {/* Всплывающее уведомление о копировании */}
+                    {copyNotification && (
+                        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-emerald-600/90 text-white backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium shadow-xl animate-in fade-in slide-in-from-top-3 duration-200 flex items-center gap-2 pointer-events-none">
+                            <Check className="h-4 w-4 shrink-0 text-emerald-200" />
+                            <span>{copyNotification}</span>
+                        </div>
+                    )}
+
                     {/* Кнопка Предыдущее фото */}
                     {validPhotos.length > 1 && (
                         <button
@@ -419,7 +552,9 @@ export default function PartPhotoViewer({
                         <img
                             src={currentPhotoUrl}
                             alt={`${partName} - фото ${currentIndex + 1}`}
-                            className="max-h-[75vh] max-w-[92vw] object-contain rounded pointer-events-none drop-shadow-2xl"
+                            className={`max-h-[75vh] max-w-[92vw] object-contain rounded drop-shadow-2xl select-none transition-opacity ${
+                                isDragging ? 'pointer-events-none' : 'cursor-default'
+                            }`}
                             draggable={false}
                             onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
                                 e.currentTarget.onerror = null;

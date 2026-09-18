@@ -24,8 +24,11 @@ import {
     Check,
     RefreshCw,
     ZoomIn,
-    ZoomOut
+    ZoomOut,
+    Copy,
+    Share2
 } from 'lucide-react';
+import { copyPhotoToClipboard, sharePhoto, canShareFiles } from '@/lib/photoUtils';
 
 interface ImageCropperProps {
     src: string;
@@ -77,6 +80,11 @@ export default function ImageCropper({ src, onCropComplete, onCancel, aspect: in
     // History stacks for undo/redo
     const [history, setHistory] = useState<HistoryState[]>([]);
     const [redoStack, setRedoStack] = useState<HistoryState[]>([]);
+
+    // Copy & Share states
+    const [copied, setCopied] = useState(false);
+    const [copyNotification, setCopyNotification] = useState<string | null>(null);
+    const hasNativeShare = typeof window !== 'undefined' && canShareFiles();
 
     // Canvas refs
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -636,6 +644,63 @@ export default function ImageCropper({ src, onCropComplete, onCancel, aspect: in
         setMode('view');
     };
 
+    // Get current resulting canvas (including pending crop selection if in crop mode)
+    const getCurrentCanvas = useCallback((): HTMLCanvasElement | null => {
+        const canvas = canvasRef.current;
+        if (!canvas) return null;
+
+        if (mode === 'crop' && completedCrop && completedCrop.width > 0 && completedCrop.height > 0) {
+            const displayedWidth = canvas.clientWidth;
+            const displayedHeight = canvas.clientHeight;
+            const scaleX = canvas.width / displayedWidth;
+            const scaleY = canvas.height / displayedHeight;
+
+            const cropX = completedCrop.x * scaleX;
+            const cropY = completedCrop.y * scaleY;
+            const cropW = completedCrop.width * scaleX;
+            const cropH = completedCrop.height * scaleY;
+
+            const temp = document.createElement('canvas');
+            temp.width = cropW;
+            temp.height = cropH;
+            const ctx = temp.getContext('2d');
+            ctx?.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+            return temp;
+        }
+
+        return canvas;
+    }, [mode, completedCrop]);
+
+    // Copy edited result directly to clipboard without saving to database
+    const handleCopy = async () => {
+        const targetCanvas = getCurrentCanvas();
+        if (!targetCanvas) return;
+
+        try {
+            await copyPhotoToClipboard(targetCanvas);
+            setCopied(true);
+            setCopyNotification('Отредактированное фото скопировано в буфер!');
+            setTimeout(() => setCopied(false), 2500);
+            setTimeout(() => setCopyNotification(null), 3000);
+        } catch (err) {
+            console.error('Copy failed:', err);
+            setCopyNotification('Не удалось скопировать в буфер');
+            setTimeout(() => setCopyNotification(null), 3000);
+        }
+    };
+
+    // Share edited result via native Web Share API
+    const handleShare = async () => {
+        const targetCanvas = getCurrentCanvas();
+        if (!targetCanvas) return;
+
+        try {
+            await sharePhoto(targetCanvas, { title: 'Отредактированное фото', filename: 'part-edited.png' });
+        } catch (err) {
+            console.error('Share failed:', err);
+        }
+    };
+
     // Finalize editing and export Blob
     const handleSave = () => {
         const canvas = canvasRef.current;
@@ -682,6 +747,16 @@ export default function ImageCropper({ src, onCropComplete, onCancel, aspect: in
                             className="h-8 w-8 sm:h-9 sm:w-9 text-zinc-400 hover:text-zinc-200 disabled:opacity-30 disabled:hover:text-zinc-400 transition-all"
                         >
                             <Redo2 className="h-4 w-4 sm:h-5 sm:w-5" />
+                        </Button>
+                        <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={handleCopy}
+                            title="Скопировать результат в буфер обмена без сохранения"
+                            className={`h-8 sm:h-9 px-2 sm:px-3 text-xs sm:text-sm transition-all ${copied ? 'text-emerald-400 bg-emerald-950/30' : 'text-zinc-300 hover:text-white hover:bg-zinc-800'}`}
+                        >
+                            {copied ? <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5 text-indigo-400" />}
+                            <span className="hidden sm:inline">{copied ? 'Скопировано!' : 'Скопировать'}</span>
                         </Button>
                         <div className="w-px h-5 sm:h-6 bg-zinc-800 mx-0.5 sm:mx-1" />
                         <Button 
@@ -756,6 +831,14 @@ export default function ImageCropper({ src, onCropComplete, onCancel, aspect: in
                             {imgWidthRef.current}x{imgHeightRef.current}px • {Math.round(zoom * 100)}%
                             {spacePressed && <span className="text-emerald-400 ml-2 hidden sm:inline">• Навигация</span>}
                         </div>
+
+                        {/* Copy success notification overlay */}
+                        {copyNotification && (
+                            <div className="absolute top-2 right-3 sm:top-4 sm:right-6 z-30 bg-emerald-600/90 text-white backdrop-blur px-3 py-1.5 rounded-full text-xs font-medium shadow-lg animate-in fade-in slide-in-from-top-2 duration-200 flex items-center gap-1.5 pointer-events-none">
+                                <Check className="h-3.5 w-3.5 shrink-0" />
+                                <span>{copyNotification}</span>
+                            </div>
+                        )}
 
                         {/* Viewport container */}
                         <div 
@@ -1023,21 +1106,48 @@ export default function ImageCropper({ src, onCropComplete, onCancel, aspect: in
                         <canvas ref={cleanCanvasRef} className="hidden" />
                         <canvas ref={blurCanvasRef} className="hidden" />
 
-                        {/* Right sidebar bottom save controls */}
-                        <div className="flex flex-row md:flex-col gap-2 pt-3 md:pt-4 border-t border-zinc-800 shrink-0">
-                            <Button 
-                                variant="outline" 
-                                onClick={onCancel} 
-                                className="flex-1 md:w-full border-zinc-800 bg-zinc-900/30 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 text-xs sm:text-sm h-9 sm:h-10"
-                            >
-                                Отмена
-                            </Button>
-                            <Button 
-                                onClick={handleSave} 
-                                className="flex-1 md:w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg shadow-indigo-900/30 text-xs sm:text-sm h-9 sm:h-10"
-                            >
-                                Сохранить
-                            </Button>
+                        {/* Right sidebar bottom action controls */}
+                        <div className="flex flex-col gap-2 pt-3 md:pt-4 border-t border-zinc-800 shrink-0">
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={handleCopy}
+                                    className={`flex-1 border border-zinc-700/80 bg-zinc-800/80 hover:bg-zinc-700 text-xs sm:text-sm h-9 sm:h-10 transition-colors ${copied ? 'text-emerald-400 border-emerald-600/60 bg-emerald-950/40' : 'text-zinc-200'}`}
+                                    title="Скопировать отредактированное фото в буфер обмена без сохранения"
+                                >
+                                    {copied ? <Check className="h-4 w-4 mr-1.5 text-emerald-400" /> : <Copy className="h-4 w-4 mr-1.5 text-indigo-400" />}
+                                    <span>{copied ? 'Скопировано!' : 'Скопировать фото'}</span>
+                                </Button>
+                                {hasNativeShare && (
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        size="icon"
+                                        onClick={handleShare}
+                                        className="h-9 sm:h-10 w-9 sm:w-10 border border-zinc-700/80 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white shrink-0"
+                                        title="Поделиться отредактированным фото"
+                                    >
+                                        <Share2 className="h-4 w-4" />
+                                    </Button>
+                                )}
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <Button 
+                                    variant="outline" 
+                                    onClick={onCancel} 
+                                    className="flex-1 border-zinc-800 bg-zinc-900/30 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 text-xs sm:text-sm h-9 sm:h-10"
+                                >
+                                    Отмена
+                                </Button>
+                                <Button 
+                                    onClick={handleSave} 
+                                    className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg shadow-indigo-900/30 text-xs sm:text-sm h-9 sm:h-10"
+                                >
+                                    Сохранить
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </div>

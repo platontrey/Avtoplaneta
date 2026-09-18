@@ -4,7 +4,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Trash2, Edit, ShoppingCart, Plus, X, Crop } from "lucide-react";
+import { Trash2, Edit, ShoppingCart, Plus, X, Crop, Copy, Check } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ import type { Part } from "@/features/parts/types";
 import { API_BASE_URL } from "@/lib/api";
 import { useQueryClient } from '@tanstack/react-query';
 import { getAuthHeaders } from '@/lib/csrf';
+import { copyPhotoToClipboard } from "@/lib/photoUtils";
 
 interface PartBlockProps {
     part: Part;
@@ -71,6 +72,22 @@ function PartBlock({
         }
         setPhotoViewerIndex(index);
         setIsPhotoViewerOpen(true);
+    };
+
+    const [copiedPhotoPath, setCopiedPhotoPath] = useState<string | null>(null);
+
+    const handleCopyPhoto = async (photoPath: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        const photoUrl = photoPath.startsWith('http') || photoPath.startsWith('data:')
+            ? photoPath
+            : `${API_BASE_URL}${photoPath.startsWith('/') ? photoPath : `/${photoPath}`}`;
+        try {
+            await copyPhotoToClipboard(photoUrl);
+            setCopiedPhotoPath(photoPath);
+            setTimeout(() => setCopiedPhotoPath(null), 2000);
+        } catch (err) {
+            console.error('Ошибка копирования фото:', err);
+        }
     };
 
     // Для множественных фото используем partsApi напрямую
@@ -562,37 +579,58 @@ function PartBlock({
                                                         />
                                                     </button>
                                                     {/* Кнопки действий над фото */}
-                                                    {user?.role === 'admin' && (
-                                                        <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <button
-                                                                type="button"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    const photoUrl = photoPath.startsWith('http') || photoPath.startsWith('data:')
-                                                                        ? photoPath
-                                                                        : `${API_BASE_URL}${photoPath.startsWith('/') ? photoPath : `/${photoPath}`}`;
-                                                                    setTempImageSrc(photoUrl);
-                                                                    setPhotoToReplace(photoPath);
-                                                                    setShowCropper(true);
-                                                                }}
-                                                                className="bg-neutral-900/80 hover:bg-neutral-800 text-white rounded-full w-6 h-6 flex items-center justify-center shadow transition-colors"
-                                                                title="Редактировать фото"
-                                                            >
-                                                                <Crop className="w-3 h-3" />
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleDeletePhoto(photoPath);
-                                                                }}
-                                                                className="bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center shadow transition-colors"
-                                                                title="Удалить фото"
-                                                            >
-                                                                <X className="w-3 h-3" />
-                                                            </button>
-                                                        </div>
-                                                    )}
+                                                    <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                                        {/* Кнопка быстрого копирования */}
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => handleCopyPhoto(photoPath, e)}
+                                                            className={`rounded-full w-6 h-6 flex items-center justify-center shadow transition-all ${
+                                                                copiedPhotoPath === photoPath 
+                                                                    ? 'bg-emerald-600 text-white' 
+                                                                    : 'bg-neutral-900/85 hover:bg-neutral-800 text-white'
+                                                            }`}
+                                                            title="Скопировать фото в буфер обмена"
+                                                        >
+                                                            {copiedPhotoPath === photoPath ? (
+                                                                <Check className="w-3 h-3 text-white" />
+                                                            ) : (
+                                                                <Copy className="w-3 h-3 text-white" />
+                                                            )}
+                                                        </button>
+
+                                                        {/* Кнопки администратора: Редактировать и Удалить */}
+                                                        {user?.role === 'admin' && (
+                                                            <>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        const photoUrl = photoPath.startsWith('http') || photoPath.startsWith('data:')
+                                                                            ? photoPath
+                                                                            : `${API_BASE_URL}${photoPath.startsWith('/') ? photoPath : `/${photoPath}`}`;
+                                                                        setTempImageSrc(photoUrl);
+                                                                        setPhotoToReplace(photoPath);
+                                                                        setShowCropper(true);
+                                                                    }}
+                                                                    className="bg-neutral-900/85 hover:bg-neutral-800 text-white rounded-full w-6 h-6 flex items-center justify-center shadow transition-colors"
+                                                                    title="Редактировать фото"
+                                                                >
+                                                                    <Crop className="w-3 h-3" />
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleDeletePhoto(photoPath);
+                                                                    }}
+                                                                    className="bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center shadow transition-colors"
+                                                                    title="Удалить фото"
+                                                                >
+                                                                    <X className="w-3 h-3" />
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>

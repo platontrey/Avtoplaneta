@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/utils/formatters.dart';
 import '../data/part_catalog.dart';
@@ -15,6 +16,7 @@ import '../providers/inventory_provider.dart';
 import '../providers/part_catalog_provider.dart';
 import '../providers/vehicle_catalog_provider.dart';
 import '../widgets/vehicle_picker_field.dart';
+import '../widgets/photo_viewer_dialog.dart';
 
 class AddPartScreen extends ConsumerStatefulWidget {
   final int? editId;
@@ -327,6 +329,81 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
     setState(() => _newPhotos.add(File(cropped.path)));
   }
 
+  Future<void> _editNewPhoto(int idx) async {
+    final file = _newPhotos[idx];
+    final cropped = await ImageCropper().cropImage(
+      sourcePath: file.path,
+      compressQuality: 85,
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Редактор фото',
+          toolbarColor: const Color(0xFF1A1A2E),
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.square,
+          lockAspectRatio: false,
+        ),
+        IOSUiSettings(title: 'Редактор фото', aspectRatioLockEnabled: false),
+      ],
+    );
+    if (cropped != null && mounted) {
+      setState(() {
+        _newPhotos[idx] = File(cropped.path);
+      });
+    }
+  }
+
+  Future<void> _editExistingPhoto(int idx) async {
+    final path = _existingPhotos[idx];
+    final fullUrl = apiClient.resolveUrl(path);
+    setState(() => _selectingImage = true);
+
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File(
+        '${tempDir.path}/edit_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
+      await apiClient.dio.download(fullUrl, tempFile.path);
+
+      final cropped = await ImageCropper().cropImage(
+        sourcePath: tempFile.path,
+        compressQuality: 85,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Редактор фото',
+            toolbarColor: const Color(0xFF1A1A2E),
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: false,
+          ),
+          IOSUiSettings(title: 'Редактор фото', aspectRatioLockEnabled: false),
+        ],
+      );
+
+      if (cropped != null && mounted) {
+        setState(() {
+          _photosToDelete.add(path);
+          _existingPhotos.removeAt(idx);
+          _newPhotos.add(File(cropped.path));
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Фото отредактировано')),
+        );
+      }
+    } catch (e) {
+      _showImageError(e);
+    } finally {
+      if (mounted) setState(() => _selectingImage = false);
+    }
+  }
+
+  void _copyExistingPhotoUrl(String path) {
+    final url = apiClient.resolveUrl(path);
+    Clipboard.setData(ClipboardData(text: url));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Ссылка на фото скопирована в буфер')),
+    );
+  }
+
   void _showImageError(Object error) {
     if (!mounted) {
       return;
@@ -622,7 +699,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       children: [
         _section('Фотографии'),
         SizedBox(
-          height: 100,
+          height: 116,
           child: ListView(
             scrollDirection: Axis.horizontal,
             children: [
@@ -636,8 +713,8 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
                   onTap: _selectingImage ? null : _showPhotoOptions,
                   borderRadius: BorderRadius.circular(12),
                   child: SizedBox(
-                    width: 100,
-                    height: 100,
+                    width: 108,
+                    height: 116,
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -678,14 +755,14 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
                         borderRadius: BorderRadius.circular(12),
                         child: Image.file(
                           file,
-                          width: 100,
-                          height: 100,
+                          width: 108,
+                          height: 116,
                           fit: BoxFit.cover,
                         ),
                       ),
                       Positioned(
-                        top: 2,
-                        right: 2,
+                        top: 4,
+                        right: 4,
                         child: CircleAvatar(
                           radius: 12,
                           backgroundColor: Colors.black54,
@@ -704,6 +781,37 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
                           ),
                         ),
                       ),
+                      Positioned(
+                        bottom: 4,
+                        left: 4,
+                        right: 4,
+                        child: InkWell(
+                          onTap: () => _editNewPhoto(idx),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.75),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.crop, size: 13, color: Colors.white),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Изменить',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 );
@@ -716,35 +824,61 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
                   padding: const EdgeInsets.only(right: 8),
                   child: Stack(
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: CachedNetworkImage(
-                          imageUrl: apiClient.resolveUrl(path),
-                          width: 100,
-                          height: 100,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            width: 100,
-                            height: 100,
-                            color: const Color(0xFF16213E),
-                            child: const Center(
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                      GestureDetector(
+                        onTap: () => PhotoViewerDialog.show(
+                          context,
+                          photos: _existingPhotos,
+                          initialIndex: idx,
+                          title: 'Фото детали',
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: CachedNetworkImage(
+                            imageUrl: apiClient.resolveUrl(path),
+                            width: 108,
+                            height: 116,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              width: 108,
+                              height: 116,
+                              color: const Color(0xFF16213E),
+                              child: const Center(
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
                             ),
-                          ),
-                          errorWidget: (context, url, error) => Container(
-                            width: 100,
-                            height: 100,
-                            color: const Color(0xFF16213E),
-                            child: const Icon(
-                              Icons.broken_image_outlined,
-                              color: Colors.white24,
+                            errorWidget: (context, url, error) => Container(
+                              width: 108,
+                              height: 116,
+                              color: const Color(0xFF16213E),
+                              child: const Icon(
+                                Icons.broken_image_outlined,
+                                color: Colors.white24,
+                              ),
                             ),
                           ),
                         ),
                       ),
                       Positioned(
-                        top: 2,
-                        right: 2,
+                        top: 4,
+                        left: 4,
+                        child: CircleAvatar(
+                          radius: 12,
+                          backgroundColor: Colors.black54,
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            icon: const Icon(
+                              Icons.copy,
+                              size: 12,
+                              color: Colors.white,
+                            ),
+                            tooltip: 'Скопировать ссылку',
+                            onPressed: () => _copyExistingPhotoUrl(path),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 4,
+                        right: 4,
                         child: CircleAvatar(
                           radius: 12,
                           backgroundColor: Colors.black54,
@@ -761,6 +895,37 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
                                 _existingPhotos.removeAt(idx);
                               });
                             },
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 4,
+                        left: 4,
+                        right: 4,
+                        child: InkWell(
+                          onTap: () => _editExistingPhoto(idx),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.75),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.crop, size: 13, color: Colors.white),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Изменить',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),

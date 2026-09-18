@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/utils/qr_signer.dart';
+import '../widgets/photo_viewer_dialog.dart';
+import 'package:share_plus/share_plus.dart';
 import '../providers/inventory_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../orders/widgets/part_order_sheet.dart';
@@ -28,6 +30,22 @@ class PartDetailScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Запчасть'),
         actions: [
+          partAsync.maybeWhen(
+            data: (part) => part.photos.isNotEmpty
+                ? IconButton(
+                    tooltip: 'Поделиться фото',
+                    icon: const Icon(Icons.share_outlined),
+                    onPressed: () {
+                      final url = apiClient.resolveUrl(part.photos.first);
+                      final uri = Uri.tryParse(url);
+                      if (uri != null) {
+                        SharePlus.instance.share(ShareParams(uri: uri, subject: part.name));
+                      }
+                    },
+                  )
+                : const SizedBox.shrink(),
+            orElse: () => const SizedBox.shrink(),
+          ),
           if (user?.isOperator == true)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
@@ -115,31 +133,72 @@ class PartDetailScreen extends ConsumerWidget {
                   if (part.photos.isNotEmpty)
                     SizedBox(
                       height: 220,
-                      child: PageView.builder(
-                        itemCount: part.photos.length,
-                        itemBuilder: (_, i) => ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: CachedNetworkImage(
-                            imageUrl: apiClient.resolveUrl(part.photos[i]),
-                            fit: BoxFit.cover,
-                            placeholder: (ctx, url) => Container(
-                              color: const Color(0xFF16213E),
-                              child: const Icon(
-                                Icons.image_outlined,
-                                size: 64,
-                                color: Colors.white24,
+                      child: Stack(
+                        children: [
+                          PageView.builder(
+                            itemCount: part.photos.length,
+                            itemBuilder: (_, i) => GestureDetector(
+                              onTap: () => PhotoViewerDialog.show(
+                                context,
+                                photos: part.photos,
+                                initialIndex: i,
+                                title: part.name,
                               ),
-                            ),
-                            errorWidget: (ctx, url, err) => Container(
-                              color: const Color(0xFF16213E),
-                              child: const Icon(
-                                Icons.broken_image_outlined,
-                                size: 64,
-                                color: Colors.white24,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: CachedNetworkImage(
+                                  imageUrl: apiClient.resolveUrl(part.photos[i]),
+                                  fit: BoxFit.cover,
+                                  placeholder: (ctx, url) => Container(
+                                    color: const Color(0xFF16213E),
+                                    child: const Icon(
+                                      Icons.image_outlined,
+                                      size: 64,
+                                      color: Colors.white24,
+                                    ),
+                                  ),
+                                  errorWidget: (ctx, url, err) => Container(
+                                    color: const Color(0xFF16213E),
+                                    child: const Icon(
+                                      Icons.broken_image_outlined,
+                                      size: 64,
+                                      color: Colors.white24,
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                        ),
+                          Positioned(
+                            bottom: 8,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.zoom_in, size: 14, color: Colors.white),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Увеличить',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     )
                   else
@@ -169,10 +228,12 @@ class PartDetailScreen extends ConsumerWidget {
                   Row(
                     children: [
                       Text(
-                        '${part.price.toStringAsFixed(0)} ₽',
-                        style: const TextStyle(
-                          color: Color(0xFF4F8EF7),
-                          fontSize: 24,
+                        part.price > 0
+                            ? '${part.price.toStringAsFixed(0)} ₽'
+                            : 'отсутствует',
+                        style: TextStyle(
+                          color: part.price > 0 ? const Color(0xFF4F8EF7) : Colors.orangeAccent,
+                          fontSize: part.price > 0 ? 24 : 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),

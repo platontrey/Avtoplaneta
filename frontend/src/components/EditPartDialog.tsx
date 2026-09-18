@@ -9,9 +9,9 @@ import FormRow from "./FormRow";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Crop, Trash2, Plus } from "lucide-react";
+import { Crop, Trash2, Plus, Copy, Check } from "lucide-react";
 import type { UsePartEditReturn } from "@/hooks/usePartEdit";
 import type { Part } from "@/features/parts/types";
 import { API_BASE_URL } from "@/lib/api";
@@ -21,6 +21,7 @@ import { usePartCatalog } from "@/features/catalog/usePartCatalog";
 import { useVehicleOptions } from "@/features/vehicles/useVehicleCatalog";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { formatCarReleasePeriod } from "@/lib/utils";
+import { copyPhotoToClipboard } from "@/lib/photoUtils";
 
 interface EditPartDialogProps {
     partEdit: UsePartEditReturn;
@@ -50,6 +51,18 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
     const existingPhotos = (part.photos && part.photos.length > 0)
         ? part.photos
         : (part.photo ? [part.photo] : []);
+
+    const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+    const handleCopyExistingPhoto = async (photoUrl: string, index: number) => {
+        try {
+            await copyPhotoToClipboard(photoUrl);
+            setCopiedIndex(index);
+            setTimeout(() => setCopiedIndex(null), 2000);
+        } catch (err) {
+            console.error('Ошибка копирования фото:', err);
+        }
+    };
 
     return (
         <Dialog open={partEdit.isEditing} onOpenChange={(open) => { console.log('Edit dialog open state:', open); partEdit.setIsEditing(open); }}>
@@ -293,6 +306,24 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                                             >
                                                                 <Crop className="h-3.5 w-3.5" />
                                                                 <span>Изменить</span>
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className={`h-7 w-7 p-0 transition-colors ${
+                                                                    copiedIndex === index 
+                                                                        ? 'text-emerald-500 border-emerald-500/50 bg-emerald-500/10' 
+                                                                        : 'text-muted-foreground hover:text-foreground'
+                                                                }`}
+                                                                onClick={() => handleCopyExistingPhoto(photoUrl, index)}
+                                                                title="Скопировать фото в буфер обмена"
+                                                            >
+                                                                {copiedIndex === index ? (
+                                                                    <Check className="h-3.5 w-3.5 text-emerald-500" />
+                                                                ) : (
+                                                                    <Copy className="h-3.5 w-3.5" />
+                                                                )}
                                                             </Button>
                                                             <Button
                                                                 type="button"

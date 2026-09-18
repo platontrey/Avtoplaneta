@@ -15,6 +15,7 @@ import '../../orders/widgets/part_order_sheet.dart';
 import '../providers/inventory_provider.dart';
 import '../providers/part_catalog_provider.dart';
 import '../widgets/bulk_part_actions.dart';
+import '../widgets/photo_viewer_dialog.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
   const InventoryScreen({super.key});
@@ -1901,26 +1902,35 @@ class _PartCard extends StatelessWidget {
           child: Row(
             children: [
               // Фото
-              ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: photoUrl != null
-                    ? CachedNetworkImage(
-                        imageUrl: photoUrl,
-                        width: 76,
-                        height: 76,
-                        fit: BoxFit.cover,
-                        placeholder: (ctx, url) => Container(
+              GestureDetector(
+                onTap: part.photos.isNotEmpty
+                    ? () => PhotoViewerDialog.show(
+                          context,
+                          photos: part.photos,
+                          title: part.name,
+                        )
+                    : null,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: photoUrl != null
+                      ? CachedNetworkImage(
+                          imageUrl: photoUrl,
                           width: 76,
                           height: 76,
-                          color: AppTheme.surfaceColor,
-                          child: const Icon(
-                            Icons.image_outlined,
-                            color: Colors.white24,
+                          fit: BoxFit.cover,
+                          placeholder: (ctx, url) => Container(
+                            width: 76,
+                            height: 76,
+                            color: AppTheme.surfaceColor,
+                            child: const Icon(
+                              Icons.image_outlined,
+                              color: Colors.white24,
+                            ),
                           ),
-                        ),
-                        errorWidget: (ctx, url, err) => _placeholder(),
-                      )
-                    : _placeholder(),
+                          errorWidget: (ctx, url, err) => _placeholder(),
+                        )
+                      : _placeholder(),
+                ),
               ),
               const SizedBox(width: 14),
               // Инфо
@@ -1973,11 +1983,15 @@ class _PartCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '${part.price.toStringAsFixed(0)} ₽',
-                    style: const TextStyle(
-                      color: AppTheme.primaryColor,
+                    part.price > 0
+                        ? '${part.price.toStringAsFixed(0)} ₽'
+                        : 'отсутствует',
+                    style: TextStyle(
+                      color: part.price > 0
+                          ? AppTheme.primaryColor
+                          : AppTheme.warningColor,
                       fontWeight: FontWeight.bold,
-                      fontSize: 15,
+                      fontSize: part.price > 0 ? 15 : 13,
                     ),
                   ),
                   const SizedBox(height: 4),
