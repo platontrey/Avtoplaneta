@@ -87,6 +87,10 @@ export default function ImageCropper({ src, onCropComplete, onCancel, aspect: in
     const imgWidthRef = useRef<number>(0);
     const imgHeightRef = useRef<number>(0);
 
+    // Touch gesture tracking for mobile pinch-to-zoom and drawing
+    const touchDistanceRef = useRef<number | null>(null);
+    const initialTouchZoomRef = useRef<number>(1);
+
     // Track spacebar for panning shortcut
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -492,6 +496,90 @@ export default function ImageCropper({ src, onCropComplete, onCancel, aspect: in
         setIsPanning(false);
     };
 
+    // Touch events on display canvas for mobile devices
+    const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+        if (e.touches.length === 2) {
+            // Pinch-to-zoom gesture
+            const dist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            touchDistanceRef.current = dist;
+            initialTouchZoomRef.current = zoom;
+            setIsPanning(false);
+            setIsDrawing(false);
+            return;
+        }
+
+        if (e.touches.length !== 1) return;
+        const touch = e.touches[0];
+
+        if (mode === 'view' || mode === 'pan') {
+            setIsPanning(true);
+            setPanStart({ x: touch.clientX - pan.x, y: touch.clientY - pan.y });
+            return;
+        }
+
+        if (mode === 'crop') return;
+
+        if (e.cancelable) e.preventDefault();
+
+        const coords = getCanvasCoords(touch.clientX, touch.clientY);
+        if (coords) {
+            saveHistory();
+            setIsDrawing(true);
+            setLastPos(coords);
+            drawAtCoords(coords.x, coords.y, coords.x, coords.y);
+        }
+    };
+
+    const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+        if (e.touches.length === 2 && touchDistanceRef.current !== null) {
+            // Pinch-to-zoom calculation
+            if (e.cancelable) e.preventDefault();
+            const currentDist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            const scale = currentDist / touchDistanceRef.current;
+            const newZoom = Math.max(0.2, Math.min(3, initialTouchZoomRef.current * scale));
+            setZoom(newZoom);
+            return;
+        }
+
+        if (e.touches.length !== 1) return;
+        const touch = e.touches[0];
+
+        if (isPanning) {
+            if (e.cancelable) e.preventDefault();
+            setPan({
+                x: touch.clientX - panStart.x,
+                y: touch.clientY - panStart.y,
+            });
+            return;
+        }
+
+        if (!isDrawing) return;
+
+        if (e.cancelable) e.preventDefault();
+
+        const coords = getCanvasCoords(touch.clientX, touch.clientY);
+        if (coords && lastPos) {
+            drawAtCoords(lastPos.x, lastPos.y, coords.x, coords.y);
+            setLastPos(coords);
+        }
+    };
+
+    const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
+        if (e.touches.length < 2) {
+            touchDistanceRef.current = null;
+        }
+        if (e.touches.length === 0) {
+            setIsDrawing(false);
+            setIsPanning(false);
+        }
+    };
+
     // Crop application logic
     const handleApplyCrop = () => {
         if (!completedCrop || !canvasRef.current) return;
@@ -566,24 +654,24 @@ export default function ImageCropper({ src, onCropComplete, onCancel, aspect: in
 
     return (
         <Dialog open={true} onOpenChange={onCancel}>
-            <DialogContent className="w-[96vw] max-w-[96vw] sm:max-w-[96vw] xl:max-w-[94vw] 2xl:max-w-[1600px] h-[94vh] max-h-[96vh] flex flex-col bg-zinc-950 text-zinc-100 border-zinc-800 p-0 overflow-hidden shadow-2xl">
+            <DialogContent className="z-[70] w-full max-w-full h-full max-h-[100dvh] sm:w-[96vw] sm:max-w-[96vw] xl:max-w-[94vw] 2xl:max-w-[1600px] sm:h-[94vh] sm:max-h-[96vh] flex flex-col bg-zinc-950 text-zinc-100 border-0 sm:border border-zinc-800 p-0 overflow-hidden shadow-2xl rounded-none sm:rounded-lg">
                 
                 {/* Header with global options */}
-                <DialogHeader className="p-4 border-b border-zinc-800 flex flex-row items-center justify-between space-y-0 h-16">
-                    <DialogTitle className="text-lg font-semibold tracking-wide bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                        Редактирование изображения
+                <DialogHeader className="p-3 sm:p-4 border-b border-zinc-800 flex flex-row items-center justify-between space-y-0 h-14 sm:h-16 shrink-0">
+                    <DialogTitle className="text-sm sm:text-base md:text-lg font-semibold tracking-wide bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent truncate mr-2">
+                        Редактирование фото
                     </DialogTitle>
                     
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                         <Button 
                             variant="ghost" 
                             size="icon" 
                             onClick={handleUndo} 
                             disabled={history.length === 0}
                             title="Отменить действие"
-                            className="text-zinc-400 hover:text-zinc-200 disabled:opacity-30 disabled:hover:text-zinc-400 transition-all"
+                            className="h-8 w-8 sm:h-9 sm:w-9 text-zinc-400 hover:text-zinc-200 disabled:opacity-30 disabled:hover:text-zinc-400 transition-all"
                         >
-                            <Undo2 className="h-5 w-5" />
+                            <Undo2 className="h-4 w-4 sm:h-5 sm:w-5" />
                         </Button>
                         <Button 
                             variant="ghost" 
@@ -591,86 +679,87 @@ export default function ImageCropper({ src, onCropComplete, onCancel, aspect: in
                             onClick={handleRedo} 
                             disabled={redoStack.length === 0}
                             title="Вернуть действие"
-                            className="text-zinc-400 hover:text-zinc-200 disabled:opacity-30 disabled:hover:text-zinc-400 transition-all"
+                            className="h-8 w-8 sm:h-9 sm:w-9 text-zinc-400 hover:text-zinc-200 disabled:opacity-30 disabled:hover:text-zinc-400 transition-all"
                         >
-                            <Redo2 className="h-5 w-5" />
+                            <Redo2 className="h-4 w-4 sm:h-5 sm:w-5" />
                         </Button>
-                        <div className="w-px h-6 bg-zinc-800 mx-1" />
+                        <div className="w-px h-5 sm:h-6 bg-zinc-800 mx-0.5 sm:mx-1" />
                         <Button 
                             variant="ghost" 
                             size="sm" 
                             onClick={handleReset}
-                            className="text-rose-400 hover:text-rose-300 hover:bg-rose-950/20"
+                            className="h-8 sm:h-9 px-2 sm:px-3 text-xs sm:text-sm text-rose-400 hover:text-rose-300 hover:bg-rose-950/20"
                         >
-                            <RefreshCw className="h-4 w-4 mr-2" /> Сбросить все
+                            <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5" />
+                            <span className="hidden sm:inline">Сбросить</span>
                         </Button>
                     </div>
                 </DialogHeader>
 
                 {/* Main Workspace Area */}
-                <div className="flex-1 flex overflow-hidden">
+                <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
                     
-                    {/* Left Toolbar (Mode selectors) */}
-                    <div className="w-16 border-r border-zinc-800 bg-zinc-900/50 flex flex-col items-center py-4 gap-4">
+                    {/* Left/Top Toolbar (Mode selectors) */}
+                    <div className="w-full md:w-16 border-b md:border-b-0 md:border-r border-zinc-800 bg-zinc-900/50 flex flex-row md:flex-col items-center justify-around md:justify-start py-2 md:py-4 gap-1 md:gap-4 shrink-0">
                         <Button
                             variant={mode === 'view' ? 'default' : 'ghost'}
                             size="icon"
                             onClick={() => setMode('view')}
                             title="Режим просмотра и навигации"
-                            className={`h-11 w-11 rounded-xl transition-all duration-200 ${mode === 'view' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20' : 'text-zinc-400 hover:text-zinc-200'}`}
+                            className={`h-9 w-9 sm:h-10 sm:w-10 md:h-11 md:w-11 rounded-lg md:rounded-xl transition-all duration-200 ${mode === 'view' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20' : 'text-zinc-400 hover:text-zinc-200'}`}
                         >
-                            <Move className="h-5 w-5" />
+                            <Move className="h-4 w-4 md:h-5 md:w-5" />
                         </Button>
                         <Button
                             variant={mode === 'crop' ? 'default' : 'ghost'}
                             size="icon"
                             onClick={() => setMode('crop')}
                             title="Обрезать изображение"
-                            className={`h-11 w-11 rounded-xl transition-all duration-200 ${mode === 'crop' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20' : 'text-zinc-400 hover:text-zinc-200'}`}
+                            className={`h-9 w-9 sm:h-10 sm:w-10 md:h-11 md:w-11 rounded-lg md:rounded-xl transition-all duration-200 ${mode === 'crop' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20' : 'text-zinc-400 hover:text-zinc-200'}`}
                         >
-                            <CropIcon className="h-5 w-5" />
+                            <CropIcon className="h-4 w-4 md:h-5 md:w-5" />
                         </Button>
                         <Button
                             variant={mode === 'brush' ? 'default' : 'ghost'}
                             size="icon"
                             onClick={() => setMode('brush')}
                             title="Рисование маркером"
-                            className={`h-11 w-11 rounded-xl transition-all duration-200 ${mode === 'brush' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20' : 'text-zinc-400 hover:text-zinc-200'}`}
+                            className={`h-9 w-9 sm:h-10 sm:w-10 md:h-11 md:w-11 rounded-lg md:rounded-xl transition-all duration-200 ${mode === 'brush' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20' : 'text-zinc-400 hover:text-zinc-200'}`}
                         >
-                            <Brush className="h-5 w-5" />
+                            <Brush className="h-4 w-4 md:h-5 md:w-5" />
                         </Button>
                         <Button
                             variant={mode === 'blur' ? 'default' : 'ghost'}
                             size="icon"
                             onClick={() => setMode('blur')}
                             title="Размытие / Цензурирование деталей"
-                            className={`h-11 w-11 rounded-xl transition-all duration-200 ${mode === 'blur' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20' : 'text-zinc-400 hover:text-zinc-200'}`}
+                            className={`h-9 w-9 sm:h-10 sm:w-10 md:h-11 md:w-11 rounded-lg md:rounded-xl transition-all duration-200 ${mode === 'blur' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20' : 'text-zinc-400 hover:text-zinc-200'}`}
                         >
-                            <Sparkles className="h-5 w-5" />
+                            <Sparkles className="h-4 w-4 md:h-5 md:w-5" />
                         </Button>
                         <Button
                             variant={mode === 'eraser' ? 'default' : 'ghost'}
                             size="icon"
                             onClick={() => setMode('eraser')}
                             title="Ластик"
-                            className={`h-11 w-11 rounded-xl transition-all duration-200 ${mode === 'eraser' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20' : 'text-zinc-400 hover:text-zinc-200'}`}
+                            className={`h-9 w-9 sm:h-10 sm:w-10 md:h-11 md:w-11 rounded-lg md:rounded-xl transition-all duration-200 ${mode === 'eraser' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20' : 'text-zinc-400 hover:text-zinc-200'}`}
                         >
-                            <Eraser className="h-5 w-5" />
+                            <Eraser className="h-4 w-4 md:h-5 md:w-5" />
                         </Button>
                     </div>
 
                     {/* Center Canvas Viewport */}
-                    <div className="flex-1 bg-zinc-950 flex flex-col justify-between p-4 relative overflow-hidden">
+                    <div className="flex-1 bg-zinc-950 flex flex-col justify-between p-2 sm:p-4 relative overflow-hidden min-h-0">
                         
                         {/* Scale / Coordinate information bar */}
-                        <div className="absolute top-4 left-6 z-10 bg-zinc-900/80 backdrop-blur border border-zinc-800/80 px-3 py-1.5 rounded-full text-xs text-zinc-400 font-mono shadow-md">
-                            Размер: {imgWidthRef.current}x{imgHeightRef.current}px • Масштаб: {Math.round(zoom * 100)}%
-                            {spacePressed && <span className="text-emerald-400 ml-2">• Навигация (Пробел)</span>}
+                        <div className="absolute top-2 left-3 sm:top-4 sm:left-6 z-10 bg-zinc-900/80 backdrop-blur border border-zinc-800/80 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-[10px] sm:text-xs text-zinc-400 font-mono shadow-md pointer-events-none">
+                            {imgWidthRef.current}x{imgHeightRef.current}px • {Math.round(zoom * 100)}%
+                            {spacePressed && <span className="text-emerald-400 ml-2 hidden sm:inline">• Навигация</span>}
                         </div>
 
                         {/* Viewport container */}
                         <div 
-                            className="flex-1 flex items-center justify-center relative overflow-hidden" 
+                            className="flex-1 flex items-center justify-center relative overflow-hidden touch-none" 
                             onWheel={handleWheel}
                         >
                             <div
@@ -688,13 +777,13 @@ export default function ImageCropper({ src, onCropComplete, onCancel, aspect: in
                                         onChange={setCrop}
                                         onComplete={setCompletedCrop}
                                         aspect={aspectPreset ?? undefined}
-                                        className="max-w-full max-h-[68vh]"
+                                        className="max-w-[92vw] md:max-w-full max-h-[46vh] md:max-h-[68vh]"
                                     >
                                         <canvas 
                                             ref={canvasRef} 
                                             draggable={false}
                                             onDragStart={(e) => e.preventDefault()}
-                                            className="max-w-[78vw] max-h-[70vh] shadow-2xl block select-none" 
+                                            className="max-w-[92vw] md:max-w-[78vw] max-h-[46vh] md:max-h-[70vh] shadow-2xl block select-none" 
                                             style={{ touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}
                                         />
                                     </ReactCrop>
@@ -703,26 +792,30 @@ export default function ImageCropper({ src, onCropComplete, onCancel, aspect: in
                                         ref={canvasRef} 
                                         draggable={false}
                                         onDragStart={(e) => e.preventDefault()}
-                                        className="max-w-[78vw] max-h-[70vh] shadow-2xl block select-none"
+                                        className="max-w-[92vw] md:max-w-[78vw] max-h-[46vh] md:max-h-[70vh] shadow-2xl block select-none"
                                         style={{ touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}
                                         onMouseDown={handleMouseDown}
                                         onMouseMove={handleMouseMove}
                                         onMouseUp={handleMouseUpOrLeave}
                                         onMouseLeave={handleMouseUpOrLeave}
+                                        onTouchStart={handleTouchStart}
+                                        onTouchMove={handleTouchMove}
+                                        onTouchEnd={handleTouchEnd}
+                                        onTouchCancel={handleTouchEnd}
                                     />
                                 )}
                             </div>
                         </div>
 
                         {/* Floating bottom zoom bar */}
-                        <div className="flex justify-center items-center gap-3 py-2 z-10">
+                        <div className="flex justify-center items-center gap-2 sm:gap-3 py-1 sm:py-2 z-10 shrink-0">
                             <Button 
                                 variant="ghost" 
                                 size="icon" 
                                 onClick={() => setZoom(prev => Math.max(0.2, prev - 0.15))}
-                                className="h-8 w-8 text-zinc-400 hover:text-zinc-200"
+                                className="h-7 w-7 sm:h-8 sm:w-8 text-zinc-400 hover:text-zinc-200"
                             >
-                                <ZoomOut className="h-4 w-4" />
+                                <ZoomOut className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                             </Button>
                             <Slider
                                 value={[zoom * 100]}
@@ -730,21 +823,21 @@ export default function ImageCropper({ src, onCropComplete, onCancel, aspect: in
                                 min={20}
                                 max={300}
                                 step={5}
-                                className="w-40"
+                                className="w-28 sm:w-40"
                             />
                             <Button 
                                 variant="ghost" 
                                 size="icon" 
                                 onClick={() => setZoom(prev => Math.min(3, prev + 0.15))}
-                                className="h-8 w-8 text-zinc-400 hover:text-zinc-200"
+                                className="h-7 w-7 sm:h-8 sm:w-8 text-zinc-400 hover:text-zinc-200"
                             >
-                                <ZoomIn className="h-4 w-4" />
+                                <ZoomIn className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                             </Button>
                         </div>
                     </div>
 
                     {/* Right Contextual Control Menu */}
-                    <div className="w-72 border-l border-zinc-800 bg-zinc-900/50 p-6 flex flex-col justify-between overflow-y-auto">
+                    <div className="w-full md:w-72 border-t md:border-t-0 md:border-l border-zinc-800 bg-zinc-900/50 p-3 sm:p-4 md:p-6 flex flex-col justify-between overflow-y-auto shrink-0 max-h-[38vh] md:max-h-none">
                         
                         {/* Action parameters based on active edit mode */}
                         <div className="space-y-6">
@@ -931,17 +1024,17 @@ export default function ImageCropper({ src, onCropComplete, onCancel, aspect: in
                         <canvas ref={blurCanvasRef} className="hidden" />
 
                         {/* Right sidebar bottom save controls */}
-                        <div className="space-y-2 pt-4 border-t border-zinc-800">
+                        <div className="flex flex-row md:flex-col gap-2 pt-3 md:pt-4 border-t border-zinc-800 shrink-0">
                             <Button 
                                 variant="outline" 
                                 onClick={onCancel} 
-                                className="w-full border-zinc-800 bg-zinc-900/30 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
+                                className="flex-1 md:w-full border-zinc-800 bg-zinc-900/30 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 text-xs sm:text-sm h-9 sm:h-10"
                             >
                                 Отмена
                             </Button>
                             <Button 
                                 onClick={handleSave} 
-                                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg shadow-indigo-900/30"
+                                className="flex-1 md:w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg shadow-indigo-900/30 text-xs sm:text-sm h-9 sm:h-10"
                             >
                                 Сохранить
                             </Button>

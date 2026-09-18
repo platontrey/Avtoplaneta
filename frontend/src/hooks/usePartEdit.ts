@@ -178,7 +178,7 @@ export function usePartEdit(options: UsePartEditOptions): UsePartEditReturn {
   const queryClient = useQueryClient();
   const updatePartMutation = useUpdatePart();
   const photoUpload = usePhotoUpload({
-    initialPhoto: initialPart.photo,
+    initialPhoto: initialPart.photo || (initialPart.photos && initialPart.photos.length > 0 ? initialPart.photos[0] : undefined),
     onUploadComplete: () => {
       // Invalidate parts list cache when photo upload completes
       queryClient.invalidateQueries({ queryKey: partsKeys.lists() });

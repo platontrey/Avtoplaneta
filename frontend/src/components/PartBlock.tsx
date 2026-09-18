@@ -4,7 +4,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Trash2, Edit, ShoppingCart, Plus, X } from "lucide-react";
+import { Trash2, Edit, ShoppingCart, Plus, X, Crop } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -61,6 +61,7 @@ function PartBlock({
     const [photoViewerIndex, setPhotoViewerIndex] = useState(0);
     const [showCropper, setShowCropper] = useState(false);
     const [tempImageSrc, setTempImageSrc] = useState<string | File>("");
+    const [photoToReplace, setPhotoToReplace] = useState<string | null>(null);
     const [originalFile, setOriginalFile] = useState<File | null>(null);
     const queryClient = useQueryClient();
 
@@ -169,26 +170,47 @@ function PartBlock({
         const croppedFile = new File([croppedImageBlob], 'cropped-image.jpg', { type: 'image/jpeg' });
         console.log('PartBlock created file:', croppedFile.name, 'size:', croppedFile.size, 'type:', croppedFile.type);
 
-        // Upload cropped photo directly
         try {
+            // 1. Загружаем новое (отредактированное) фото
             await partsApi.uploadPhoto(part.id, croppedFile);
+
+            // 2. Если мы редактировали существующее фото на сервере, удаляем старую версию
+            if (photoToReplace) {
+                try {
+                    console.log('Удаляем старую версию фото после редактирования:', photoToReplace);
+                    await fetch(`${API_BASE_URL}/api/v1/parts/${part.id}/photo?photo_url=${encodeURIComponent(photoToReplace)}`, {
+                        method: 'DELETE',
+                        headers: getAuthHeaders(),
+                        credentials: 'include',
+                    });
+                } catch (delErr) {
+                    console.warn('Не удалось удалить старое фото при замене:', delErr);
+                }
+            }
+
             setPhotoUploadTimestamp(Date.now());
             void queryClient.invalidateQueries({ queryKey: partsKeys.lists() });
         } catch (error) {
             console.error('PartBlock handleCropComplete: upload failed:', error);
-            alert('Failed to upload cropped photo. Please try again.');
+            alert('Не удалось сохранить отредактированное фото. Попробуйте еще раз.');
+        } finally {
+            setShowCropper(false);
+            setTempImageSrc("");
+            setPhotoToReplace(null);
+            setOriginalFile(null);
         }
-
-        setShowCropper(false);
-        setTempImageSrc("");
     };
 
     const handleCropCancel = () => {
         setShowCropper(false);
         setTempImageSrc("");
-        // Reset the input
+        setPhotoToReplace(null);
+        setOriginalFile(null);
+        // Reset the inputs
         const input = document.getElementById('photo') as HTMLInputElement;
         if (input) input.value = '';
+        const addInput = document.getElementById('add-photo-input') as HTMLInputElement;
+        if (addInput) addInput.value = '';
     };
 
     const handleAddPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -539,18 +561,37 @@ function PartBlock({
                                                             }}
                                                         />
                                                     </button>
-                                                    {/* Кнопка удаления фото */}
+                                                    {/* Кнопки действий над фото */}
                                                     {user?.role === 'admin' && (
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleDeletePhoto(photoPath);
-                                                            }}
-                                                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                                                            title="Удалить фото"
-                                                        >
-                                                            <X className="w-3 h-3" />
-                                                        </button>
+                                                        <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const photoUrl = photoPath.startsWith('http') || photoPath.startsWith('data:')
+                                                                        ? photoPath
+                                                                        : `${API_BASE_URL}${photoPath.startsWith('/') ? photoPath : `/${photoPath}`}`;
+                                                                    setTempImageSrc(photoUrl);
+                                                                    setPhotoToReplace(photoPath);
+                                                                    setShowCropper(true);
+                                                                }}
+                                                                className="bg-neutral-900/80 hover:bg-neutral-800 text-white rounded-full w-6 h-6 flex items-center justify-center shadow transition-colors"
+                                                                title="Редактировать фото"
+                                                            >
+                                                                <Crop className="w-3 h-3" />
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleDeletePhoto(photoPath);
+                                                                }}
+                                                                className="bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center shadow transition-colors"
+                                                                title="Удалить фото"
+                                                            >
+                                                                <X className="w-3 h-3" />
+                                                            </button>
+                                                        </div>
                                                     )}
                                                 </div>
                                             ))}
@@ -718,38 +759,36 @@ function PartBlock({
                 partEdit={partEdit}
                 part={part}
                 onPhotoChange={handlePhotoChange}
-                onCrop={(src) => {
+                onCrop={(src, pathToReplace) => {
                     if (src) {
                         setTempImageSrc(src);
+                        setPhotoToReplace(pathToReplace || null);
                         setShowCropper(true);
                     }
                 }}
-                onDeletePhoto={async () => {
-                    console.log('Удаление фото начато для детали:', part.id);
-                    console.log('Текущее состояние part.photos:', part.photos);
-                    console.log('Текущее photoPreview:', partEdit.photoUpload.photoPreview);
-                    console.log('Есть ли новое фото (photoFile):', !!partEdit.photoUpload.photoFile);
-
+                onDeletePhoto={async (photoPath?: string) => {
                     // Если есть новое загруженное фото (не сохраненное), просто сбросить его
                     if (partEdit.photoUpload.photoFile) {
-                        console.log('Сброс нового загруженного фото');
                         partEdit.photoUpload.resetPhoto();
                         partEdit.updateFormField('photo', '');
+                        setOriginalFile(null);
                         return;
                     }
 
-                    // Иначе удаляем фото из базы данных
-                    const photoToDelete = (part.photos && part.photos.length > 0) ? part.photos[0] : '';
+                    // Удаляем конкретное фото или первое
+                    const targetPhoto = photoPath || (part.photos && part.photos.length > 0 ? part.photos[0] : '');
 
-                    console.log('photoToDelete (первое фото из массива):', photoToDelete);
-
-                    if (!photoToDelete) {
+                    if (!targetPhoto) {
                         alert('Нет фото для удаления');
                         return;
                     }
 
+                    if (!confirm('Вы уверены, что хотите удалить это фото?')) {
+                        return;
+                    }
+
                     try {
-                        const deleteUrl = `${API_BASE_URL}/api/v1/parts/${part.id}/photo?photo_url=${encodeURIComponent(photoToDelete)}`;
+                        const deleteUrl = `${API_BASE_URL}/api/v1/parts/${part.id}/photo?photo_url=${encodeURIComponent(targetPhoto)}`;
                         console.log('Отправка запроса на удаление:', deleteUrl);
 
                         const response = await fetch(deleteUrl, {
@@ -758,26 +797,19 @@ function PartBlock({
                             credentials: 'include',
                         });
 
-                        console.log('Ответ от сервера status:', response.status, 'ok:', response.ok);
-
                         if (!response.ok) {
                             const errorText = await response.text();
                             console.error('Ошибка ответа сервера:', errorText);
                             throw new Error(`HTTP ${response.status}: ${errorText}`);
                         }
 
-                        const result = await response.json();
-                        console.log('Фото успешно удалено, результат:', result);
-
                         // Обновить локальное состояние
                         partEdit.updateFormField('photo', '');
                         setPhotoUploadTimestamp(Date.now());
-                        // Invalidate queries to refresh the UI
                         void queryClient.invalidateQueries({ queryKey: partsKeys.lists() });
                     } catch (error) {
                         console.error('Ошибка при удалении фото:', error);
                         alert('Не удалось удалить фото. Попробуйте еще раз.');
-                        throw error;
                     }
                 }}
                 originalFile={originalFile}

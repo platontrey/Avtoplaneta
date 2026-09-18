@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import React from "react";
 import { motion } from "framer-motion";
-import { Upload } from "lucide-react";
+import { Crop, Trash2, Plus } from "lucide-react";
 import type { UsePartEditReturn } from "@/hooks/usePartEdit";
 import type { Part } from "@/features/parts/types";
 import { API_BASE_URL } from "@/lib/api";
@@ -26,11 +26,10 @@ interface EditPartDialogProps {
     partEdit: UsePartEditReturn;
     part: Part;
     onPhotoChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    onCrop: (src: string | File | undefined) => void;
-    onDeletePhoto: () => void;
+    onCrop: (src: string | File | undefined, photoPathToReplace?: string) => void;
+    onDeletePhoto: (photoPath?: string) => void;
     originalFile: File | null;
 }
-
 
 export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, onDeletePhoto, originalFile }: EditPartDialogProps) {
     console.log('EditPartDialog render, part.photo:', part.photo, 'photoPreview:', partEdit.photoUpload.photoPreview);
@@ -47,6 +46,10 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
     const driveOptions = partCatalog?.attributes.find(
         (attribute) => attribute.code === "drive",
     )?.options ?? ["Передний", "Задний", "Полный"];
+
+    const existingPhotos = (part.photos && part.photos.length > 0)
+        ? part.photos
+        : (part.photo ? [part.photo] : []);
 
     return (
         <Dialog open={partEdit.isEditing} onOpenChange={(open) => { console.log('Edit dialog open state:', open); partEdit.setIsEditing(open); }}>
@@ -246,70 +249,104 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                         />
                                     </div>
                                 </FormRow>
-                                <FormRow label="Фото" htmlFor="photo">
-                                    <div className="sm:col-span-3 flex flex-col space-y-2">
+                                <FormRow label="Фотографии" htmlFor="add-photo-input">
+                                    <div className="sm:col-span-3 flex flex-col space-y-3">
                                         <input
                                             type="file"
-                                            id="photo"
+                                            id="add-photo-input"
                                             name="photo"
                                             accept="image/*"
                                             onChange={onPhotoChange}
                                             className="hidden"
                                         />
-                                        <label
-                                            htmlFor="photo"
-                                            className={`flex items-center justify-center w-full h-32 border-2 border-dashed rounded-lg transition-colors ${
-                                                partEdit.photoUpload.isUploading
-                                                    ? 'border-blue-300 bg-blue-50 cursor-not-allowed'
-                                                    : 'border-gray-300 hover:border-gray-400 cursor-pointer'
-                                            }`}
-                                            style={{ pointerEvents: partEdit.photoUpload.isUploading ? 'none' : 'auto' }}
-                                        >
-                                            {partEdit.photoUpload.photoPreview ? (
-                                                <img
-                                                    src={partEdit.photoUpload.photoPreview}
-                                                    alt={`Preview of ${partEdit.editForm.name}`}
-                                                    className="max-h-16 max-w-full object-contain"
-                                                    onError={(e) => {
-                                                        console.error('Image failed to load:', partEdit.photoUpload.photoPreview);
-                                                        e.currentTarget.style.display = 'none';
-                                                    }}
-                                                />
-                                            ) : (
-                                                <div className="text-center">
-                                                    {partEdit.photoUpload.isUploading ? (
-                                                        <>
-                                                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto"></div>
-                                                            <p className="mt-1 text-xs text-blue-600">Загрузка...</p>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Upload className="mx-auto h-6 w-6 text-gray-400" />
-                                                            <p className="mt-1 text-xs text-gray-500">Нажмите для выбора фото</p>
-                                                        </>
-                                                    )}
+
+                                        {/* Сетка уже добавленных фотографий и кнопка добавления */}
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                            {existingPhotos.map((photoPath, index) => {
+                                                const photoUrl = photoPath.startsWith('http') || photoPath.startsWith('data:')
+                                                    ? photoPath
+                                                    : `${API_BASE_URL}${photoPath.startsWith('/') ? photoPath : `/${photoPath}`}`;
+                                                return (
+                                                    <div key={index} className="relative rounded-lg border border-border bg-card overflow-hidden flex flex-col shadow-xs">
+                                                        <div className="relative aspect-square w-full bg-muted/40 flex items-center justify-center overflow-hidden">
+                                                            <img
+                                                                src={photoUrl}
+                                                                alt={`${part.name || 'Деталь'} - фото ${index + 1}`}
+                                                                className="w-full h-full object-cover"
+                                                                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                                                                    e.currentTarget.onerror = null;
+                                                                    e.currentTarget.src = '/placeholder-part.svg';
+                                                                }}
+                                                            />
+                                                            <span className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded font-mono font-medium">
+                                                                #{index + 1}
+                                                            </span>
+                                                        </div>
+                                                        <div className="p-1.5 flex items-center gap-1 bg-muted/20 border-t border-border">
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="flex-1 h-7 text-xs px-1.5 gap-1 hover:bg-primary/10 hover:text-primary hover:border-primary/40 transition-colors"
+                                                                onClick={() => onCrop(photoUrl, photoPath)}
+                                                                title="Редактировать фото (кадрировать, маркеры, размытие)"
+                                                            >
+                                                                <Crop className="h-3.5 w-3.5" />
+                                                                <span>Изменить</span>
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                                                onClick={() => onDeletePhoto(photoPath)}
+                                                                title="Удалить фото"
+                                                            >
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+
+                                            {/* Карточка добавления нового фото */}
+                                            <label
+                                                htmlFor="add-photo-input"
+                                                className="relative aspect-square flex flex-col items-center justify-center border-2 border-dashed border-border hover:border-primary/60 rounded-lg cursor-pointer bg-muted/10 hover:bg-muted/30 transition-all p-2 text-center group"
+                                            >
+                                                {partEdit.photoUpload.isUploading ? (
+                                                    <>
+                                                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mb-1"></div>
+                                                        <span className="text-xs text-muted-foreground">Загрузка...</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <div className="p-2 rounded-full bg-muted group-hover:bg-primary/10 transition-colors mb-1">
+                                                            <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                                                        </div>
+                                                        <span className="text-xs font-medium text-foreground">Добавить фото</span>
+                                                        <span className="text-[10px] text-muted-foreground">Нажмите для выбора</span>
+                                                    </>
+                                                )}
+                                            </label>
+                                        </div>
+
+                                        {/* Превью выбранного локального файла перед загрузкой */}
+                                        {originalFile && (
+                                            <div className="flex items-center justify-between p-2.5 rounded-lg border border-blue-500/30 bg-blue-500/10 text-xs mt-2">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <span className="font-semibold text-blue-600 dark:text-blue-400 shrink-0">Выбран файл:</span>
+                                                    <span className="truncate text-muted-foreground">{originalFile.name}</span>
                                                 </div>
-                                            )}
-                                        </label>
-                                        {partEdit.photoUpload.photoPreview && (
-                                            <div className="flex space-x-2">
                                                 <Button
                                                     type="button"
-                                                    onClick={() => onCrop(originalFile || (part.photo ? `${API_BASE_URL}${part.photo}` : undefined))}
                                                     variant="outline"
                                                     size="sm"
-                                                    disabled={!originalFile && !part.photo}
+                                                    className="h-7 text-xs shrink-0 ml-2"
+                                                    onClick={() => onCrop(originalFile)}
                                                 >
-                                                    Изменить фото
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    onClick={onDeletePhoto}
-                                                    className="flex-1 bg-black text-white hover:bg-gray-800"
-                                                    variant="outline"
-                                                    disabled={partEdit.isLoading}
-                                                >
-                                                    Удалить фото
+                                                    <Crop className="h-3.5 w-3.5 mr-1" />
+                                                    Обрезать перед сохранением
                                                 </Button>
                                             </div>
                                         )}
