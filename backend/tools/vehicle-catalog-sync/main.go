@@ -67,6 +67,8 @@ func main() {
 	retries := flag.Int("retries", 3, "число повторов на запрос")
 	limit := flag.Int("limit", 0, "обработать только первые N марок (0 — все); для отладки")
 	userAgent := flag.String("user-agent", defaultUserAgent, "User-Agent")
+	dump := flag.String("dump", "", "сохранить HTML индекса каталога в файл; для диагностики разбора")
+	force := flag.Bool("force", false, "записать результат, даже если марок стало заметно меньше")
 	flag.Parse()
 
 	client := &fetcher{
@@ -76,11 +78,24 @@ func main() {
 		delay:     *delay,
 	}
 
-	brands, err := client.brands()
+	brands, err := client.brands(*dump)
 	if err != nil {
 		log.Fatalf("не удалось получить список марок: %v", err)
 	}
 	log.Printf("марок найдено: %d", len(brands))
+
+	// Источник живёт своей жизнью: вёрстка меняется, страница может отдаться
+	// урезанной. Молча записать вместо двухсот марок двадцать — худшее, что
+	// может сделать синхронизация, поэтому резкое сокращение считаем отказом,
+	// а не результатом.
+	if previous, err := readExisting(*out); err == nil && !*force {
+		if len(brands)*5 < len(previous.Brands)*4 {
+			log.Fatalf(
+				"разбор дал %d марок против %d в %s — похоже, изменилась страница каталога.\n"+
+					"Файл не тронут. Посмотрите разметку (-dump dump.html), а если сокращение настоящее — повторите с -force.",
+				len(brands), len(previous.Brands), *out)
+		}
+	}
 	if *limit > 0 && *limit < len(brands) {
 		brands = brands[:*limit]
 		log.Printf("ограничение -limit: обрабатываем %d", len(brands))
@@ -166,14 +181,27 @@ func (f *fetcher) document(pageURL string) (*goquery.Document, error) {
 
 // brands читает индекс каталога. Разметку не трогаем: берём любые ссылки вида
 // /catalog/<slug>/ — так парсер переживает редизайн, пока живы сами адреса.
-func (f *fetcher) brands() ([]vehicleBrand, error) {
+func (f *fetcher) brands(dumpPath string) ([]vehicleBrand, error) {
 	document, err := f.document(catalogURL)
 	if err != nil {
 		return nil, err
 	}
 
+	if dumpPath != "" {
+		if html, err := document.Html(); err == nil {
+			if err := os.WriteFile(dumpPath, []byte(html), 0o644); err != nil {
+				log.Printf("не удалось сохранить дамп: %v", err)
+			} else {
+				log.Printf("HTML индекса сохранён в %s", dumpPath)
+			}
+		}
+	}
+
+	candidates := 0
 	seen := make(map[string]vehicleBrand)
+	seenNames := make(map[string]struct{})
 	document.Find(`a[href*="/catalog/"]`).Each(func(_ int, selection *goquery.Selection) {
+		candidates++
 		href, ok := selection.Attr("href")
 		if !ok {
 			return
@@ -186,12 +214,21 @@ func (f *fetcher) brands() ([]vehicleBrand, error) {
 		if name == "" {
 			return
 		}
-		// Одна и та же марка встречается и в популярных, и в полном списке —
-		// оставляем первое непустое название.
+		// Одна и та же марка встречается и в популярных, и в полном списке.
+		// Дубли убираем по имени, а не по slug: клиенты показывают именно имя,
+		// и два одинаковых пункта в списке бессмысленны.
+		if _, exists := seenNames[sortKey(name)]; exists {
+			return
+		}
 		if _, exists := seen[slug]; !exists {
 			seen[slug] = vehicleBrand{Name: name, Slug: slug, Models: []vehicleModel{}}
+			seenNames[sortKey(name)] = struct{}{}
 		}
 	})
+
+	// Разница между числом ссылок на странице и числом принятых марок сразу
+	// показывает, что случилось: страница отдалась короткой или фильтр слишком строгий.
+	log.Printf("ссылок на /catalog/ на странице: %d, из них принято марок: %d", candidates, len(seen))
 
 	if len(seen) == 0 {
 		return nil, fmt.Errorf("на %s не нашлось ни одной ссылки на марку", catalogURL)
@@ -214,6 +251,7 @@ func (f *fetcher) models(brandSlugValue string) ([]vehicleModel, error) {
 	}
 
 	seen := make(map[string]vehicleModel)
+	seenNames := make(map[string]struct{})
 	prefix := "/catalog/" + brandSlugValue + "/"
 	document.Find(`a[href*="` + prefix + `"]`).Each(func(_ int, selection *goquery.Selection) {
 		href, ok := selection.Attr("href")
@@ -228,8 +266,13 @@ func (f *fetcher) models(brandSlugValue string) ([]vehicleModel, error) {
 		if name == "" {
 			return
 		}
+		// См. дедупликацию марок: у Drom hilux и hilux_pick_up — оба «Hilux».
+		if _, exists := seenNames[sortKey(name)]; exists {
+			return
+		}
 		if _, exists := seen[slug]; !exists {
 			seen[slug] = vehicleModel{Name: name, Slug: slug}
+			seenNames[sortKey(name)] = struct{}{}
 		}
 	})
 
@@ -319,4 +362,18 @@ func write(path string, catalog vehicleCatalog) error {
 		return err
 	}
 	return os.WriteFile(path, append(payload, '\n'), 0o644)
+}
+
+// readExisting читает уже записанный справочник, чтобы было с чем сравнить
+// результат разбора.
+func readExisting(path string) (vehicleCatalog, error) {
+	payload, err := os.ReadFile(path)
+	if err != nil {
+		return vehicleCatalog{}, err
+	}
+	var catalog vehicleCatalog
+	if err := json.Unmarshal(payload, &catalog); err != nil {
+		return vehicleCatalog{}, err
+	}
+	return catalog, nil
 }
