@@ -364,7 +364,6 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                     if (part.brand != null) _row('Бренд', part.brand!),
                     if (part.model != null) _row('Модель', part.model!),
                     if (part.bodyBrand != null) _row('Марка кузова', part.bodyBrand!),
-                    if (part.condition != null) _row('Состояние', part.condition!),
                   ]),
                   _section('Характеристики', [
                     if (shows('engine_brand'))
@@ -379,7 +378,6 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                     if (shows('transmission_model'))
                       _row('Модель трансмиссии', val(part.transmissionModel)),
                     if (shows('drive')) _row('Привод', val(part.drive)),
-                    if (part.color != null) _row('Цвет кузовных деталей', part.color!),
                     if (shows('front_rear'))
                       _row('Перед / зад', formatFrontRear(part.frontRear)),
                     if (shows('left_right'))
