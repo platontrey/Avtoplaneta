@@ -56,7 +56,7 @@ func main() {
 	partRepo := NewPartRepositoryForOrders(partsClient)
 	cacheService := NewCacheService(redisClient)
 	eventPublisher := NewEventPublisher(redisClient)
-	ordersService := NewOrdersService(orderRepo, partRepo, cacheService, eventPublisher)
+	ordersService := NewOrdersService(orderRepo, partRepo, cacheService, eventPublisher, newUserDirectory(config.AuthServiceURL))
 	handler := NewHandler(ordersService, eventPublisher)
 
 	// Запуск gRPC-сервера в отдельной горутине

@@ -4,6 +4,7 @@ go 1.26.2
 
 require (
 	avtoplaneta/gen v0.0.0
+	avtoplaneta/pkg v0.0.0
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/gin-gonic/gin v1.11.0
 	github.com/gorilla/sessions v1.4.0
