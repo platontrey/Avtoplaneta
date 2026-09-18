@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -27,6 +28,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"golang.org/x/net/html/charset"
 )
 
 const (
@@ -168,7 +170,7 @@ func (f *fetcher) document(pageURL string) (*goquery.Document, error) {
 			lastErr = fmt.Errorf("%s: %s", pageURL, response.Status)
 			continue
 		}
-		document, err := goquery.NewDocumentFromReader(response.Body)
+		document, err := parseDocument(response.Body, response.Header.Get("Content-Type"))
 		response.Body.Close()
 		if err != nil {
 			lastErr = err
@@ -397,4 +399,19 @@ func eachCatalogLink(document *goquery.Document, selector string, visit func(hre
 		}
 		scan(inner.Selection)
 	})
+}
+
+// parseDocument разбирает страницу, приводя её к UTF-8 по объявленной кодировке.
+//
+// Каталог Drom отдаётся в windows-1251, а goquery читает байты как UTF-8.
+// Латиница при этом проходит незаметно — ломаются только кириллические марки
+// («ГАЗ», «Москвич», «ИЖ»), поэтому ошибка легко живёт в коде месяцами.
+// charset.NewReader смотрит на заголовок Content-Type и на <meta charset>
+// и отдаёт поток уже в UTF-8.
+func parseDocument(body io.Reader, contentType string) (*goquery.Document, error) {
+	utf8Body, err := charset.NewReader(body, contentType)
+	if err != nil {
+		return nil, fmt.Errorf("определить кодировку страницы: %w", err)
+	}
+	return goquery.NewDocumentFromReader(utf8Body)
 }

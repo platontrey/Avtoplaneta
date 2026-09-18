@@ -116,3 +116,33 @@ func TestCatalogLinksAreFoundInsideNoscript(t *testing.T) {
 		}
 	}
 }
+
+// Каталог Drom отдаётся в windows-1251. Ошибка кодировки коварна тем, что
+// латиница проходит незаметно, а ломаются только кириллические марки — такое
+// легко не заметить и уехать с мусором в справочнике.
+func TestWindows1251PageDecodesToUTF8(t *testing.T) {
+	// \xc3\xc0\xc7 — это «ГАЗ» в windows-1251.
+	page := "<html><head><meta charset=\"windows-1251\"></head><body>" +
+		"<a href=\"/catalog/gaz/\">\xc3\xc0\xc7</a>" +
+		"<a href=\"/catalog/toyota/\">Toyota</a>" +
+		"</body></html>"
+
+	document, err := parseDocument(strings.NewReader(page), "text/html")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	found := map[string]string{}
+	eachCatalogLink(document, `a[href*="/catalog/"]`, func(href, name string) {
+		if slug, ok := brandSlug(href); ok {
+			found[slug] = name
+		}
+	})
+
+	if found["gaz"] != "ГАЗ" {
+		t.Fatalf("кириллица разобрана неверно: %q", found["gaz"])
+	}
+	if found["toyota"] != "Toyota" {
+		t.Fatalf("латиница разобрана неверно: %q", found["toyota"])
+	}
+}
