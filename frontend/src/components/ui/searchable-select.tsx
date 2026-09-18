@@ -240,7 +240,7 @@ function SearchableSelect({
     return (
         <div className="relative w-full">
             <Select value={value} onValueChange={onValueChange} disabled={disabled} open={open} onOpenChange={setOpen}>
-                <SelectTrigger className={cn("flex h-10 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-black font-normal whitespace-pre-wrap", className)}>
+                <SelectTrigger className={cn("flex h-10 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-foreground font-normal whitespace-pre-wrap", className)}>
                     {selectedOption ? selectedOption.label : (value || placeholder)}
                 </SelectTrigger>
                 <SelectContent>
@@ -257,21 +257,21 @@ function SearchableSelect({
                                     handleSelectCustom(trimmedSearch)
                                 }
                             }}
-                            className="text-black border-gray-300"
+                            className="text-foreground border-input"
                         />
                     </div>
                     {canAddCustom && (
-                        <SelectItem key={`custom-${trimmedSearch}`} value={trimmedSearch} className="font-semibold text-blue-600">
+                        <SelectItem key={`custom-${trimmedSearch}`} value={trimmedSearch} className="font-semibold text-blue-600 dark:text-blue-400">
                             + Использовать "{trimmedSearch}"
                         </SelectItem>
                     )}
                     {value && !options.some((o) => o.value === value) && value !== trimmedSearch && (
-                        <SelectItem key={`current-custom-${value}`} value={value} className="font-semibold text-blue-600">
+                        <SelectItem key={`current-custom-${value}`} value={value} className="font-semibold text-blue-600 dark:text-blue-400">
                             {value}
                         </SelectItem>
                     )}
                     {filteredOptions.length === 0 && !canAddCustom && (!value || options.some(o => o.value === value)) ? (
-                        <div className="py-2 px-3 text-sm text-black">{emptyMessage}</div>
+                        <div className="py-2 px-3 text-sm text-muted-foreground">{emptyMessage}</div>
                     ) : (
                         filteredOptions.map((option) => (
                             <SelectItem key={option.value} value={option.value}>

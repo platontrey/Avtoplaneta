@@ -1,6 +1,6 @@
 /*
-* Copyright (c) 2025 Avtoplaneta. All rights reserved.
-*/
+ * Copyright (c) 2025 Avtoplaneta. All rights reserved.
+ */
 
 import { useState } from 'react';
 import { useForm } from "react-hook-form";
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, EyeOff } from 'lucide-react';
+import ThemeToggle from './ThemeToggle';
 
 import { useAuth } from '../features/auth/hooks/useAuth';
 
@@ -54,13 +55,17 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-background py-12 px-4 sm:px-6 lg:px-8 relative">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+
       <div className="max-w-md w-full space-y-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-foreground">
             Вход в личный кабинет
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-muted-foreground">
             Система управления складом автозапчастей
           </p>
         </div>
@@ -140,10 +145,10 @@ export default function Login() {
           {/* Divider */}
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300" />
+              <div className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-gray-50 text-gray-500">или</span>
+              <span className="px-2 bg-background text-muted-foreground">или</span>
             </div>
           </div>
 

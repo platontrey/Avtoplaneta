@@ -431,8 +431,8 @@ function AIAgent({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }
                           message.sender === 'user'
                             ? 'bg-blue-500 text-white'
                             : message.type === 'error'
-                            ? 'bg-red-100 text-red-800 border border-red-200'
-                            : 'bg-gray-100 text-gray-800'
+                            ? 'bg-destructive/15 text-destructive border border-destructive/30'
+                            : 'bg-muted text-foreground'
                         }`}
                       >
                         {message.text}
@@ -453,7 +453,7 @@ function AIAgent({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                     >
-                      <div className="bg-gray-100 p-3 rounded-lg">
+                      <div className="bg-muted p-3 rounded-lg">
                         <div className="flex space-x-1">
                           <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
                           <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>

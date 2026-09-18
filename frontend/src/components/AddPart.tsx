@@ -419,18 +419,18 @@ export default function AddPart() {
         <div className="max-w-5xl mx-auto p-4 sm:p-8">
             <Link
                 to="/inventory"
-                className="flex items-center gap-1 text-gray-600 hover:text-black mb-6 text-sm sm:text-base"
+                className="flex items-center gap-1 text-muted-foreground hover:text-foreground mb-6 text-sm sm:text-base"
             >
                 <ArrowLeft size={16} />
                 Назад к инвентарю
             </Link>
 
             <h2 className="text-2xl sm:text-3xl font-semibold mb-4">Добавить запчасть</h2>
-            <p className="text-gray-500 mb-8 text-base sm:text-lg">
+            <p className="text-muted-foreground mb-8 text-base sm:text-lg">
                 Заполните форму для добавления новой запчасти в инвентарь.
             </p>
 
-            <div className="bg-white rounded-lg border p-4 sm:p-8 shadow-lg w-full max-w-4xl h-auto min-h-[600px] sm:min-h-[800px]">
+            <div className="bg-card text-card-foreground rounded-lg border border-border p-4 sm:p-8 shadow-lg w-full max-w-4xl h-auto min-h-[600px] sm:min-h-[800px]">
                 <Tabs defaultValue="basic" className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="basic">Основная информация</TabsTrigger>

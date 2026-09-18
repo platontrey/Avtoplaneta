@@ -106,7 +106,7 @@ export default function SelectUserDropdown({
         </Button>
 
         {isOpen && (
-          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+          <div className="absolute z-50 w-full mt-1 bg-popover text-popover-foreground border border-border rounded-md shadow-lg max-h-60 overflow-auto">
             <div className="p-2">
               <Input
                 placeholder="Поиск пользователей..."
@@ -117,29 +117,29 @@ export default function SelectUserDropdown({
             </div>
 
             {loading ? (
-              <div className="p-2 text-center text-gray-500">Загрузка...</div>
+              <div className="p-2 text-center text-muted-foreground">Загрузка...</div>
             ) : (
               <div className="max-h-40 overflow-auto">
                 {filteredUsers.length === 0 ? (
-                  <div className="p-2 text-center text-gray-500">Пользователи не найдены</div>
+                  <div className="p-2 text-center text-muted-foreground">Пользователи не найдены</div>
                 ) : (
                   filteredUsers.map(user => {
                     const isSelected = selectedUsers.some(u => u.id === user.id);
                     return (
                       <div
                         key={user.id}
-                        className={`p-2 cursor-pointer hover:bg-gray-100 ${
-                          isSelected ? 'bg-blue-50' : ''
+                        className={`p-2 cursor-pointer hover:bg-accent hover:text-accent-foreground ${
+                          isSelected ? 'bg-accent text-accent-foreground' : ''
                         }`}
                         onClick={() => handleUserToggle(user)}
                       >
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="font-medium">{user.name || user.email || 'Без имени'}</div>
-                            <div className="text-sm text-gray-500">{user.email || ''}</div>
+                            <div className="text-sm text-muted-foreground">{user.email || ''}</div>
                           </div>
                           {isSelected && (
-                            <span className="text-blue-600">✓</span>
+                            <span className="text-primary font-bold">✓</span>
                           )}
                         </div>
                       </div>

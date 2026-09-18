@@ -477,8 +477,8 @@ export default function AdminPanel() {
 
           {/* Status cards skeleton */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-              <div className="p-6 border-b border-gray-200">
+            <div className="bg-card border border-border rounded-lg shadow-sm">
+              <div className="p-6 border-b border-border">
                 <div className="flex items-center space-x-2">
                   <Skeleton className="h-5 w-5" />
                   <Skeleton className="h-6 w-32" />
@@ -507,8 +507,8 @@ export default function AdminPanel() {
               </div>
             </div>
 
-            <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-              <div className="p-6 border-b border-gray-200">
+            <div className="bg-card border border-border rounded-lg shadow-sm">
+              <div className="p-6 border-b border-border">
                 <div className="flex items-center space-x-2">
                   <Skeleton className="h-5 w-5" />
                   <Skeleton className="h-6 w-24" />
@@ -532,8 +532,8 @@ export default function AdminPanel() {
           </div>
 
           {/* Users list skeleton */}
-          <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-            <div className="p-6 border-b border-gray-200">
+          <div className="bg-card border border-border rounded-lg shadow-sm">
+            <div className="p-6 border-b border-border">
               <div className="flex items-center space-x-2">
                 <Skeleton className="h-5 w-5" />
                 <Skeleton className="h-6 w-24" />
@@ -875,24 +875,24 @@ export default function AdminPanel() {
           ) : activityLogs.length > 0 ? (
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {activityLogs.map((log) => (
-                <div key={log.id} className="flex items-start space-x-3 p-3 border rounded-lg bg-white">
+                <div key={log.id} className="flex items-start space-x-3 p-3 border rounded-lg bg-card">
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-1">
                       <span className={`px-2 py-1 text-xs rounded-full ${
-                        log.action === 'login' ? 'bg-green-100 text-green-800' :
-                        log.action === 'logout' ? 'bg-gray-100 text-gray-800' :
-                        log.action.includes('create') ? 'bg-blue-100 text-blue-800' :
-                        log.action.includes('update') ? 'bg-yellow-100 text-yellow-800' :
-                        log.action.includes('delete') ? 'bg-red-100 text-red-800' :
-                        'bg-purple-100 text-purple-800'
+                        log.action === 'login' ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300' :
+                        log.action === 'logout' ? 'bg-muted text-muted-foreground' :
+                        log.action.includes('create') ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' :
+                        log.action.includes('update') ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300' :
+                        log.action.includes('delete') ? 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300' :
+                        'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
                       }`}>
                         {log.action.replace('_', ' ').toUpperCase()}
                       </span>
                       <span className="text-sm font-medium">{log.user_name}</span>
-                      <span className="text-xs text-gray-500">({log.user_email})</span>
+                      <span className="text-xs text-muted-foreground">({log.user_email})</span>
                     </div>
-                    <p className="text-sm text-gray-700 mb-1">{log.details}</p>
-                    <div className="flex items-center space-x-4 text-xs text-gray-500">
+                    <p className="text-sm text-foreground/90 mb-1">{log.details}</p>
+                    <div className="flex items-center space-x-4 text-xs text-muted-foreground">
                       <span>Тип: {log.resource_type}</span>
                       {log.resource_id && <span>ID: {log.resource_id}</span>}
                       <span>{new Date(log.created_at).toLocaleString()}</span>

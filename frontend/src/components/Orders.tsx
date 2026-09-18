@@ -64,8 +64,8 @@ const Orders = () => {
                     </div>
 
                     {/* Скелетон карточки создания заказа */}
-                    <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-                        <div className="p-6 border-b border-gray-200">
+                    <div className="bg-card border border-border rounded-lg shadow-sm">
+                        <div className="p-6 border-b border-border">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <Skeleton className="h-5 w-5" />
@@ -77,14 +77,14 @@ const Orders = () => {
                     </div>
 
                     {/* Скелетон таблицы заказов */}
-                    <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-                        <div className="p-6 border-b border-gray-200">
+                    <div className="bg-card border border-border rounded-lg shadow-sm">
+                        <div className="p-6 border-b border-border">
                             <Skeleton className="h-6 w-56" />
                         </div>
                         <div className="p-6">
                             <div className="rounded-md border">
                                 {/* Скелетон заголовка таблицы */}
-                                <div className="border-b border-gray-200">
+                                <div className="border-b border-border">
                                     <div className="grid grid-cols-7 gap-4 p-4">
                                         {Array.from({ length: 7 }).map((_, index) => (
                                             <Skeleton key={index} className="h-4 w-full" />
@@ -93,7 +93,7 @@ const Orders = () => {
                                 </div>
                                 {/* Скелетон строк таблицы */}
                         {Array.from({ length: 5 }).map((_, rowIndex) => (
-                            <div key={rowIndex} className="border-b border-gray-200 last:border-b-0">
+                            <div key={rowIndex} className="border-b border-border last:border-b-0">
                                 <div className="grid grid-cols-8 gap-4 p-4">
                                     <Skeleton className="h-4 w-16" />
                                     <Skeleton className="h-4 w-20" />

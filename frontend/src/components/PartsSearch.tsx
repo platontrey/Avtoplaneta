@@ -676,7 +676,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                                 onChange={handleInputChange}
                                 onFocus={() => results.length > 0 && setIsResultsVisible(true)}
                                 placeholder="Поиск по названию или описанию..."
-                                className="pl-10 pr-20 bg-white border-input-border"
+                                className="pl-10 pr-20 bg-white dark:bg-card border-input-border"
                             />
                             {/* Кнопка голосового поиска */}
                             {isSpeechRecognitionSupported() && (

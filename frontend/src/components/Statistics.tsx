@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Package, Boxes, DollarSign, TrendingUp, TrendingDown, ChartNoAxesCombined } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useTheme } from '@/contexts/ThemeContext';
 import { API_BASE_URL } from '@/lib/api';
 import type { StatisticsResponse } from '@/lib/types';
 
@@ -52,13 +53,14 @@ const normalizeStatistics = (value: unknown): StatisticsResponse => {
 function Statistics() {
   const [data, setData] = useState<StatisticsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const { resolvedTheme } = useTheme();
 
   const GrowthIndicator = ({ growth }: { growth: number }) => {
     const Icon = growth >= 0 ? TrendingUp : TrendingDown;
-    const color = growth >= 0 ? 'text-green-600' : 'text-red-600';
+    const color = growth >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
     const sign = growth >= 0 ? '+' : '';
     return (
-      <div className="absolute top-2 right-2 bg-gray-100 rounded-lg p-2 flex items-center gap-1">
+      <div className="absolute top-2 right-2 bg-muted rounded-lg p-2 flex items-center gap-1">
         <Icon className={`h-4 w-4 ${color}`} />
         <span className={`text-sm font-bold ${color}`}>{sign}{growth.toFixed(1)}%</span>
       </div>
@@ -204,11 +206,30 @@ function Statistics() {
     );
   }
 
+  // Tooltip & chart styles for theme adaptation
+  const tooltipContentStyle = {
+    backgroundColor: 'var(--card)',
+    borderColor: 'var(--border)',
+    color: 'var(--card-foreground)',
+    borderRadius: '0.5rem',
+    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+  };
+  const tooltipItemStyle = {
+    color: 'var(--card-foreground)',
+  };
+  const axisTickStyle = {
+    fill: 'var(--muted-foreground)',
+    fontSize: 12,
+  };
+  const chartPalette = resolvedTheme === 'dark'
+    ? ['#38bdf8', '#818cf8', '#c084fc', '#34d399', '#fbbf24', '#f472b6', '#a78bfa']
+    : ['#2563eb', '#4f46e5', '#7c3aed', '#059669', '#d97706', '#db2777', '#6366f1'];
+
   // Prepare data for charts
   const categoryData = data?.categories?.filter(cat => cat && cat.name).map((cat, index) => ({
     name: cat.name,
     count: cat.count,
-    fill: ['#6b7280', '#9ca3af', '#d1d5db', '#f3f4f6', '#e5e7eb'][index % 5]
+    fill: chartPalette[index % chartPalette.length]
   })) || [];
 
   const monthlySalesData = data?.monthlySales?.map((item, index) => ({
@@ -242,7 +263,7 @@ function Statistics() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
       <h2 className="text-2xl sm:text-3xl font-bold mb-2">Статистика продаж</h2>
-      <p className="text-gray-600 mb-6 sm:mb-8 text-sm sm:text-base">Просматривайте аналитику продаж по автоматически удалённым и завершённым заказам</p>
+      <p className="text-muted-foreground mb-6 sm:mb-8 text-sm sm:text-base">Просматривайте аналитику продаж по автоматически удалённым и завершённым заказам</p>
 
       {data ? (
         <div className="space-y-8">
@@ -251,7 +272,7 @@ function Statistics() {
             <Card className="shadow-none gap-0 relative">
               <CardHeader className="pb-0 flex flex-col items-start">
                 <GrowthIndicator growth={partsGrowth} />
-                <div className="bg-gray-100 rounded-lg p-2 mb-0">
+                <div className="bg-muted rounded-lg p-2 mb-0">
                   <Package className="h-8 w-8" />
                 </div>
                 <CardTitle className="text-lg">Всего запчастей</CardTitle>
@@ -263,7 +284,7 @@ function Statistics() {
             <Card className="shadow-none gap-0 relative">
               <CardHeader className="pb-0 flex flex-col items-start">
                 <GrowthIndicator growth={quantityGrowth} />
-                <div className="bg-gray-100 rounded-lg p-2 mb-0">
+                <div className="bg-muted rounded-lg p-2 mb-0">
                   <Boxes className="h-8 w-8" />
                 </div>
                 <CardTitle className="text-lg">Общее количество</CardTitle>
@@ -275,7 +296,7 @@ function Statistics() {
             <Card className="shadow-none gap-0 relative">
               <CardHeader className="pb-0 flex flex-col items-start">
                 <GrowthIndicator growth={valueGrowth} />
-                <div className="bg-gray-100 rounded-lg p-2 mb-0">
+                <div className="bg-muted rounded-lg p-2 mb-0">
                   <DollarSign className="h-8 w-8" />
                 </div>
                 <CardTitle className="text-lg">Общая стоимость</CardTitle>
@@ -287,7 +308,7 @@ function Statistics() {
             <Card className="shadow-none gap-0 relative">
               <CardHeader className="pb-0 flex flex-col items-start">
                 <GrowthIndicator growth={growthPercentage} />
-                <div className="bg-gray-100 rounded-lg p-2 mb-0">
+                <div className="bg-muted rounded-lg p-2 mb-0">
                   <ChartNoAxesCombined className="h-8 w-8" />
                 </div>
                 <CardTitle className="text-lg">Общий заработок</CardTitle>
@@ -308,11 +329,11 @@ function Statistics() {
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={categoryData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="count" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="name" stroke="var(--border)" tick={axisTickStyle} />
+                    <YAxis stroke="var(--border)" tick={axisTickStyle} />
+                    <Tooltip contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
+                    <Bar dataKey="count" fill="var(--primary)" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -330,7 +351,7 @@ function Statistics() {
                       data={categoryData}
                       cx="50%"
                       cy="50%"
-                      labelLine={false}
+                      labelLine={{ stroke: 'var(--muted-foreground)' }}
                       label={({ name, percent }) => `${name} ${((percent as number) * 100).toFixed(0)}%`}
                       outerRadius={80}
                       dataKey="count"
@@ -339,7 +360,7 @@ function Statistics() {
                         <Cell key={`cell-${index}`} fill={entry.fill} />
                       ))}
                     </Pie>
-                    <Tooltip />
+                    <Tooltip contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -354,11 +375,15 @@ function Statistics() {
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={monthlySalesData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => [`₽${formatPrice(Number(value))}`, 'Продажи']} />
-                  <Area type="monotone" dataKey="sales" stroke="#059669" fill="#059669" fillOpacity={0.6} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="name" stroke="var(--border)" tick={axisTickStyle} />
+                  <YAxis stroke="var(--border)" tick={axisTickStyle} />
+                  <Tooltip
+                    contentStyle={tooltipContentStyle}
+                    itemStyle={tooltipItemStyle}
+                    formatter={(value) => [`₽${formatPrice(Number(value))}`, 'Продажи']}
+                  />
+                  <Area type="monotone" dataKey="sales" stroke="#10b981" fill="#10b981" fillOpacity={0.4} />
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>
@@ -372,11 +397,11 @@ function Statistics() {
             <CardContent>
               <ResponsiveContainer width="100%" height={200}>
                 <AreaChart data={summaryData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Area type="monotone" dataKey="value" stroke="#6b7280" fill="#6b7280" fillOpacity={0.1} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="name" stroke="var(--border)" tick={axisTickStyle} />
+                  <YAxis stroke="var(--border)" tick={axisTickStyle} />
+                  <Tooltip contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
+                  <Area type="monotone" dataKey="value" stroke="var(--primary)" fill="var(--primary)" fillOpacity={0.2} />
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>
