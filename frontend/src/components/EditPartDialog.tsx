@@ -295,23 +295,22 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                                                 #{index + 1}
                                                             </span>
                                                         </div>
-                                                        <div className="p-1.5 flex items-center gap-1 bg-muted/20 border-t border-border">
+                                                        <div className="p-1 grid grid-cols-3 gap-1 bg-muted/20 border-t border-border">
                                                             <Button
                                                                 type="button"
                                                                 variant="outline"
                                                                 size="sm"
-                                                                className="flex-1 h-7 text-xs px-1.5 gap-1 hover:bg-primary/10 hover:text-primary hover:border-primary/40 transition-colors"
+                                                                className="h-7 w-full p-0 text-xs hover:bg-primary/10 hover:text-primary hover:border-primary/40 transition-colors"
                                                                 onClick={() => onCrop(photoUrl, photoPath)}
                                                                 title="Редактировать фото (кадрировать, маркеры, размытие)"
                                                             >
                                                                 <Crop className="h-3.5 w-3.5" />
-                                                                <span>Изменить</span>
                                                             </Button>
                                                             <Button
                                                                 type="button"
                                                                 variant="outline"
                                                                 size="sm"
-                                                                className={`h-7 w-7 p-0 transition-colors ${
+                                                                className={`h-7 w-full p-0 text-xs transition-colors ${
                                                                     copiedIndex === index 
                                                                         ? 'text-emerald-500 border-emerald-500/50 bg-emerald-500/10' 
                                                                         : 'text-muted-foreground hover:text-foreground'
@@ -329,7 +328,7 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                                                                 type="button"
                                                                 variant="ghost"
                                                                 size="sm"
-                                                                className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                                                className="h-7 w-full p-0 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                                                                 onClick={() => onDeletePhoto(photoPath)}
                                                                 title="Удалить фото"
                                                             >
