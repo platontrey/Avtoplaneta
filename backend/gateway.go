@@ -358,6 +358,7 @@ func (g *Gateway) setupPartsRoutes() {
 		"/api/inventory/:id",
 		"/api/statistics",
 		"/api/part-catalog",
+		"/api/vehicle-catalog",
 	}
 
 	for _, route := range readRoutes {
