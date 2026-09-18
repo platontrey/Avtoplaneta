@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
@@ -27,7 +28,7 @@ class StatisticsScreen extends ConsumerWidget {
         actions: [
           IconButton(
             tooltip: 'Обновить',
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(LucideIcons.refresh_cw),
             onPressed: () => ref.invalidate(statisticsProvider),
           ),
         ],
@@ -35,7 +36,7 @@ class StatisticsScreen extends ConsumerWidget {
       body: statsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => AppEmptyState(
-          icon: Icons.cloud_off_rounded,
+          icon: LucideIcons.cloud_off,
           title: 'Не удалось загрузить статистику',
           message: 'Проверьте соединение и повторите попытку.',
           actionLabel: 'Повторить',
@@ -75,25 +76,25 @@ class StatisticsScreen extends ConsumerWidget {
                     _StatCard(
                       label: 'Всего позиций',
                       value: data.totalParts.toString(),
-                      icon: Icons.inventory_2_outlined,
+                      icon: LucideIcons.package,
                       color: AppTheme.primaryColor,
                     ),
                     _StatCard(
                       label: 'Общее количество',
                       value: data.totalQuantity.toString(),
-                      icon: Icons.inventory_outlined,
+                      icon: LucideIcons.boxes,
                       color: const Color(0xFF7C3AED),
                     ),
                     _StatCard(
                       label: 'Общая стоимость',
                       value: currency.format(data.totalValue),
-                      icon: Icons.monetization_on_outlined,
+                      icon: LucideIcons.wallet,
                       color: const Color(0xFFEA580C),
                     ),
                     _StatCard(
                       label: 'Общий заработок',
                       value: currency.format(data.totalEarnings),
-                      icon: Icons.trending_up,
+                      icon: LucideIcons.trending_up,
                       color: AppTheme.successColor,
                     ),
                   ],

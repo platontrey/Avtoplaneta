@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
@@ -28,7 +29,7 @@ class OrdersScreen extends ConsumerWidget {
         actions: [
           IconButton(
             tooltip: 'Обновить',
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(LucideIcons.refresh_cw),
             onPressed: () => _refresh(ref),
           ),
         ],
@@ -36,7 +37,7 @@ class OrdersScreen extends ConsumerWidget {
       body: ordersAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => AppEmptyState(
-          icon: Icons.cloud_off_rounded,
+          icon: LucideIcons.cloud_off,
           title: 'Не удалось загрузить заказы',
           message: 'Проверьте соединение и повторите попытку.',
           actionLabel: 'Повторить',
@@ -54,13 +55,13 @@ class OrdersScreen extends ConsumerWidget {
                 return Card(
                   child: ListTile(
                     leading: const CircleAvatar(
-                      child: Icon(Icons.add_shopping_cart_rounded),
+                      child: Icon(LucideIcons.shopping_cart),
                     ),
                     title: const Text('Создать новый заказ'),
                     subtitle: const Text(
                       'Выберите запчасть в инвентаре и оформите заказ',
                     ),
-                    trailing: const Icon(Icons.chevron_right_rounded),
+                    trailing: const Icon(LucideIcons.chevron_right),
                     onTap: () => context.go('/inventory'),
                   ),
                 );
@@ -73,7 +74,7 @@ class OrdersScreen extends ConsumerWidget {
               }
               if (data.orders.isEmpty) {
                 return const AppEmptyState(
-                  icon: Icons.receipt_long_outlined,
+                  icon: LucideIcons.receipt,
                   title: 'Заказов пока нет',
                   message: 'Выберите запчасть и создайте первый заказ.',
                 );
@@ -188,9 +189,9 @@ class _OrderCard extends StatelessWidget {
               runSpacing: 8,
               children: [
                 if (order.location.isNotEmpty)
-                  _info(Icons.location_on_outlined, order.location),
+                  _info(LucideIcons.map_pin, order.location),
                 if (order.sellerName.isNotEmpty)
-                  _info(Icons.person_outline, order.sellerName),
+                  _info(LucideIcons.user, order.sellerName),
               ],
             ),
             if (order.orderNumber.isNotEmpty ||
@@ -201,9 +202,9 @@ class _OrderCard extends StatelessWidget {
                 runSpacing: 8,
                 children: [
                   if (order.orderNumber.isNotEmpty)
-                    _info(Icons.tag, '# ${order.orderNumber}'),
+                    _info(LucideIcons.hash, '# ${order.orderNumber}'),
                   if (order.buyerNumber.isNotEmpty)
-                    _info(Icons.phone_outlined, order.buyerNumber),
+                    _info(LucideIcons.phone, order.buyerNumber),
                 ],
               ),
             ],

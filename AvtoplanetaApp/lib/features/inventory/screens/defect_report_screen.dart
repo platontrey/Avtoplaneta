@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -518,7 +519,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
           style: const TextStyle(color: Colors.white, fontSize: 14),
           decoration: const InputDecoration(
             hintText: 'Поиск по превью деталей...',
-            prefixIcon: Icon(Icons.search, size: 18),
+            prefixIcon: Icon(LucideIcons.search, size: 18),
             contentPadding: EdgeInsets.symmetric(vertical: 8),
           ),
           onChanged: (val) => setState(() => _previewFilter = val),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
@@ -124,7 +125,7 @@ class _PhotoViewerDialogState extends State<PhotoViewerDialog> {
         actions: [
           IconButton(
             tooltip: 'Редактировать фото (маркер, размытие, обрезка)',
-            icon: const Icon(Icons.auto_fix_high_rounded, color: Color(0xFF818CF8)),
+            icon: const Icon(LucideIcons.wand_sparkles, color: Color(0xFF818CF8)),
             onPressed: () async {
               final nav = Navigator.of(context);
               final result = await PhotoEditorScreen.show(
@@ -140,22 +141,22 @@ class _PhotoViewerDialogState extends State<PhotoViewerDialog> {
           ),
           IconButton(
             tooltip: 'Сбросить масштаб',
-            icon: const Icon(Icons.zoom_out_map_rounded),
+            icon: const Icon(LucideIcons.maximize_2),
             onPressed: _resetZoom,
           ),
           IconButton(
             tooltip: 'Скопировать ссылку',
-            icon: const Icon(Icons.copy_rounded),
+            icon: const Icon(LucideIcons.copy),
             onPressed: _copyLink,
           ),
           IconButton(
             tooltip: 'Поделиться',
-            icon: const Icon(Icons.share_rounded),
+            icon: const Icon(LucideIcons.share_2),
             onPressed: _sharePhoto,
           ),
           IconButton(
             tooltip: 'Закрыть',
-            icon: const Icon(Icons.close_rounded),
+            icon: const Icon(LucideIcons.x),
             onPressed: () => Navigator.of(context).pop(),
           ),
         ],
@@ -186,7 +187,7 @@ class _PhotoViewerDialogState extends State<PhotoViewerDialog> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.broken_image_outlined,
+                      Icon(LucideIcons.image_off,
                           size: 64, color: Colors.white38),
                       SizedBox(height: 8),
                       Text('Не удалось загрузить фото',

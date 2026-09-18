@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -35,7 +36,7 @@ class _AppLogsScreenState extends ConsumerState<AppLogsScreen> {
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(LucideIcons.arrow_left),
             tooltip: 'Назад',
             onPressed: () {
               if (context.canPop()) {
@@ -48,7 +49,7 @@ class _AppLogsScreenState extends ConsumerState<AppLogsScreen> {
           title: const Text('Журнал ошибок приложения'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.copy_rounded),
+            icon: const Icon(LucideIcons.copy),
             tooltip: 'Скопировать текстовый отчет',
             onPressed: () => _copyReport(context, reporter),
           ),
@@ -59,12 +60,12 @@ class _AppLogsScreenState extends ConsumerState<AppLogsScreen> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
-                : const Icon(Icons.cloud_upload_outlined),
+                : const Icon(LucideIcons.cloud_upload),
             tooltip: 'Отправить логи на сервер',
             onPressed: _isSending ? null : () => _sendLogsToServer(context, reporter),
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline_rounded),
+            icon: const Icon(LucideIcons.trash),
             tooltip: 'Очистить журнал',
             onPressed: () => _confirmClear(context, reporter),
           ),
@@ -95,7 +96,7 @@ class _AppLogsScreenState extends ConsumerState<AppLogsScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.smartphone_rounded, color: AppTheme.primaryColor, size: 28),
+                    const Icon(LucideIcons.smartphone, color: AppTheme.primaryColor, size: 28),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -148,7 +149,7 @@ class _AppLogsScreenState extends ConsumerState<AppLogsScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.check_circle_outline_rounded,
+                            Icon(LucideIcons.circle_check,
                                 size: 64, color: Colors.green.shade400),
                             const SizedBox(height: 16),
                             const Text(

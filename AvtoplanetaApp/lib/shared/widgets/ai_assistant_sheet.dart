@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import '../../core/api/api_client.dart';
 
 class AIAssistantSheet extends StatefulWidget {
@@ -76,10 +77,10 @@ class _AIAssistantSheetState extends State<AIAssistantSheet> {
           child: Column(
             children: [
               ListTile(
-                leading: const Icon(Icons.smart_toy_outlined),
+                leading: const Icon(LucideIcons.bot),
                 title: const Text('ИИ-помощник'),
                 trailing: IconButton(
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(LucideIcons.x),
                   onPressed: () => Navigator.pop(context),
                 ),
               ),
@@ -137,7 +138,7 @@ class _AIAssistantSheetState extends State<AIAssistantSheet> {
                               height: 20,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Icon(Icons.send),
+                          : const Icon(LucideIcons.send),
                     ),
                   ],
                 ),

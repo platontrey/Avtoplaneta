@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
@@ -46,7 +47,7 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                       if (user?.isOperator == true)
                         IconButton(
                           tooltip: 'Редактировать фото (маркер, размытие, обрезка)',
-                          icon: const Icon(Icons.auto_fix_high_rounded, color: Color(0xFF818CF8)),
+                          icon: const Icon(LucideIcons.wand_sparkles, color: Color(0xFF818CF8)),
                           onPressed: isOffline
                               ? () => ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(content: Text('В оффлайн-режиме редактирование недоступно')),
@@ -63,7 +64,7 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                         ),
                       IconButton(
                         tooltip: 'Поделиться фото',
-                        icon: const Icon(Icons.share_outlined),
+                        icon: const Icon(LucideIcons.share_2),
                         onPressed: () {
                           final idx = _carouselIndex.clamp(0, part.photos.length - 1);
                           final url = apiClient.resolveUrl(part.photos[idx]);
@@ -80,7 +81,7 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
           ),
           if (user?.isOperator == true)
             IconButton(
-              icon: const Icon(Icons.edit_outlined),
+              icon: const Icon(LucideIcons.pencil),
               tooltip: 'Редактировать параметры запчасти',
               onPressed: isOffline
                   ? () => ScaffoldMessenger.of(context).showSnackBar(
@@ -111,7 +112,7 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline,
+                  const Icon(LucideIcons.circle_alert,
                       size: 48, color: Colors.orangeAccent),
                   const SizedBox(height: 12),
                   Text(
@@ -123,7 +124,7 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
                     onPressed: () => ref.invalidate(partProvider(widget.id)),
-                    icon: const Icon(Icons.refresh),
+                    icon: const Icon(LucideIcons.refresh_cw),
                     label: const Text('Повторить'),
                   ),
                 ],
@@ -187,7 +188,7 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                                   placeholder: (ctx, url) => Container(
                                     color: const Color(0xFF16213E),
                                     child: const Icon(
-                                      Icons.image_outlined,
+                                      LucideIcons.image,
                                       size: 64,
                                       color: Colors.white24,
                                     ),
@@ -195,7 +196,7 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                                   errorWidget: (ctx, url, err) => Container(
                                     color: const Color(0xFF16213E),
                                     child: const Icon(
-                                      Icons.broken_image_outlined,
+                                      LucideIcons.image_off,
                                       size: 64,
                                       color: Colors.white24,
                                     ),
@@ -260,7 +261,7 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                                       child: const Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(Icons.auto_fix_high_rounded, size: 14, color: Colors.white),
+                                          Icon(LucideIcons.wand_sparkles, size: 14, color: Colors.white),
                                           SizedBox(width: 4),
                                           Text(
                                             'Редактировать',
@@ -297,7 +298,7 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                                     child: const Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(Icons.zoom_in, size: 14, color: Colors.white),
+                                        Icon(LucideIcons.zoom_in, size: 14, color: Colors.white),
                                         SizedBox(width: 4),
                                         Text(
                                           'Увеличить',
@@ -326,7 +327,7 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                       ),
                       child: const Center(
                         child: Icon(
-                          Icons.directions_car_outlined,
+                          LucideIcons.car,
                           size: 64,
                           color: Colors.white24,
                         ),
@@ -484,7 +485,7 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                             }
                           }
                         : null,
-                    icon: const Icon(Icons.shopping_cart_checkout_rounded),
+                    icon: const Icon(LucideIcons.shopping_cart),
                     label: Text(
                       isOffline
                           ? 'Заказ недоступен оффлайн'

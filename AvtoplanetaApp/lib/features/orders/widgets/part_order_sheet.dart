@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -157,7 +158,7 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
                   IconButton(
                     tooltip: 'Закрыть',
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(LucideIcons.x),
                   ),
                 ],
               ),
@@ -279,7 +280,7 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
                             color: Colors.white,
                           ),
                         )
-                      : const Icon(Icons.shopping_cart_checkout_rounded),
+                      : const Icon(LucideIcons.shopping_cart),
                   label: Text(
                     _addToExisting ? 'Добавить в заказ' : 'Создать заказ',
                   ),

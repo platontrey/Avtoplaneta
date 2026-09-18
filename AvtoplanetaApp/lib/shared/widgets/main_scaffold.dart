@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../app/theme.dart';
@@ -78,7 +79,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                 ),
                 tileColor: AppTheme.cardColor,
                 leading: const Icon(
-                  Icons.add_box_outlined,
+                  LucideIcons.package_plus,
                   color: AppTheme.primaryColor,
                 ),
                 title: const Text('Добавить запчасть'),
@@ -95,7 +96,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                 ),
                 tileColor: AppTheme.cardColor,
                 leading: const Icon(
-                  Icons.fact_check_outlined,
+                  LucideIcons.clipboard_check,
                   color: AppTheme.secondaryColor,
                 ),
                 title: const Text('Создать дефектную ведомость'),
@@ -121,33 +122,33 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
 
     const destinations = [
       NavigationDestination(
-        icon: Icon(Icons.inventory_2_outlined),
-        selectedIcon: Icon(Icons.inventory_2_rounded),
+        icon: Icon(LucideIcons.package),
+        selectedIcon: Icon(LucideIcons.package),
         label: 'Инвентарь',
       ),
       NavigationDestination(
-        icon: Icon(Icons.bar_chart_outlined),
-        selectedIcon: Icon(Icons.bar_chart_rounded),
+        icon: Icon(LucideIcons.chart_column_increasing),
+        selectedIcon: Icon(LucideIcons.chart_column_increasing),
         label: 'Статистика',
       ),
       NavigationDestination(
-        icon: Icon(Icons.chat_outlined),
-        selectedIcon: Icon(Icons.chat_rounded),
+        icon: Icon(LucideIcons.message_circle),
+        selectedIcon: Icon(LucideIcons.message_circle),
         label: 'Сообщения',
       ),
       NavigationDestination(
-        icon: Icon(Icons.add_circle_outline_rounded),
-        selectedIcon: Icon(Icons.add_circle_rounded),
+        icon: Icon(LucideIcons.circle_plus),
+        selectedIcon: Icon(LucideIcons.circle_plus),
         label: 'Добавить',
       ),
       NavigationDestination(
-        icon: Icon(Icons.receipt_long_outlined),
-        selectedIcon: Icon(Icons.receipt_long_rounded),
+        icon: Icon(LucideIcons.receipt),
+        selectedIcon: Icon(LucideIcons.receipt),
         label: 'Заказы',
       ),
       NavigationDestination(
-        icon: Icon(Icons.smart_toy_outlined),
-        selectedIcon: Icon(Icons.smart_toy_rounded),
+        icon: Icon(LucideIcons.bot),
+        selectedIcon: Icon(LucideIcons.bot),
         label: 'ИИ',
       ),
     ];

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme.dart';
 import '../providers/auth_provider.dart';
@@ -118,7 +119,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   ],
                                 ),
                                 child: const Icon(
-                                  Icons.directions_car_rounded,
+                                  LucideIcons.car,
                                   size: 31,
                                   color: Colors.white,
                                 ),
@@ -149,7 +150,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               autocorrect: false,
                               decoration: const InputDecoration(
                                 labelText: 'Почта или имя пользователя',
-                                prefixIcon: Icon(Icons.person_outline_rounded),
+                                prefixIcon: Icon(LucideIcons.user),
                               ),
                               validator: (v) => (v == null || v.isEmpty)
                                   ? 'Введите почту или имя пользователя'
@@ -167,15 +168,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               decoration: InputDecoration(
                                 labelText: 'Пароль',
                                 prefixIcon:
-                                    const Icon(Icons.lock_outline_rounded),
+                                    const Icon(LucideIcons.lock),
                                 suffixIcon: IconButton(
                                   tooltip: _obscure
                                       ? 'Показать пароль'
                                       : 'Скрыть пароль',
                                   icon: Icon(
                                     _obscure
-                                        ? Icons.visibility_outlined
-                                        : Icons.visibility_off_outlined,
+                                        ? LucideIcons.eye
+                                        : LucideIcons.eye_off,
                                   ),
                                   onPressed: () =>
                                       setState(() => _obscure = !_obscure),
@@ -201,7 +202,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 child: Row(
                                   children: [
                                     const Icon(
-                                      Icons.error_outline_rounded,
+                                      LucideIcons.circle_alert,
                                       color: AppTheme.dangerColor,
                                       size: 20,
                                     ),

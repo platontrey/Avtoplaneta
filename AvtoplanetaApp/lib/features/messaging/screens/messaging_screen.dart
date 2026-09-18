@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme.dart';
 import '../../../core/api/api_client.dart';
@@ -161,13 +162,13 @@ class MessagingScreen extends ConsumerWidget {
         actions: [
           IconButton(
             tooltip: 'Новый диалог',
-            icon: const Icon(Icons.edit_square),
+            icon: const Icon(LucideIcons.square_pen),
             onPressed: () =>
                 _createConversation(context, ref, userNames, currentUserId),
           ),
           IconButton(
             tooltip: 'Обновить',
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(LucideIcons.refresh_cw),
             onPressed: () => _refresh(ref),
           ),
         ],
@@ -175,7 +176,7 @@ class MessagingScreen extends ConsumerWidget {
       body: convsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => AppEmptyState(
-          icon: Icons.cloud_off_rounded,
+          icon: LucideIcons.cloud_off,
           title: 'Не удалось загрузить сообщения',
           message: 'Проверьте соединение и повторите попытку.',
           actionLabel: 'Повторить',
@@ -183,7 +184,7 @@ class MessagingScreen extends ConsumerWidget {
         ),
         data: (convs) => convs.isEmpty
             ? const AppEmptyState(
-                icon: Icons.forum_outlined,
+                icon: LucideIcons.message_circle,
                 title: 'Диалогов пока нет',
                 message: 'Здесь появится переписка с вашей командой.',
               )
@@ -269,7 +270,7 @@ class MessagingScreen extends ConsumerWidget {
                       await _openChat(context, conv, userNames, currentUserId);
                       ref.invalidate(conversationsProvider);
                     },
-                    trailing: const Icon(Icons.chevron_right_rounded, size: 20),
+                    trailing: const Icon(LucideIcons.chevron_right, size: 20),
                   );
                 },
               ),
@@ -490,7 +491,7 @@ class _ChatScreenState extends ConsumerState<_ChatScreen> {
             ),
             if (isMine)
               ListTile(
-                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                leading: const Icon(LucideIcons.trash, color: Colors.red),
                 title: const Text('Удалить сообщение'),
                 onTap: () => Navigator.pop(sheetContext, 'delete'),
               ),
@@ -533,7 +534,7 @@ class _ChatScreenState extends ConsumerState<_ChatScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : _loadError != null
                 ? AppEmptyState(
-                    icon: Icons.cloud_off_rounded,
+                    icon: LucideIcons.cloud_off,
                     title: 'Не удалось загрузить сообщения',
                     message: _loadError!,
                     actionLabel: 'Повторить',
@@ -541,7 +542,7 @@ class _ChatScreenState extends ConsumerState<_ChatScreen> {
                   )
                 : _messages.isEmpty
                 ? const AppEmptyState(
-                    icon: Icons.waving_hand_outlined,
+                    icon: LucideIcons.hand,
                     title: 'Начните разговор',
                     message: 'Напишите первое сообщение в этом диалоге.',
                   )
@@ -601,7 +602,7 @@ class _ChatScreenState extends ConsumerState<_ChatScreen> {
                               color: Colors.white,
                             ),
                           )
-                        : const Icon(Icons.arrow_upward_rounded),
+                        : const Icon(LucideIcons.arrow_up),
                     onPressed: _sending ? null : _send,
                   ),
                 ],

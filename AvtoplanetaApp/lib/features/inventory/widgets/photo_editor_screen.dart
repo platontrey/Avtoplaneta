@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
@@ -429,7 +430,7 @@ class _PhotoEditorScreenState extends ConsumerState<PhotoEditorScreen> {
             behavior: SnackBarBehavior.floating,
             content: Row(
               children: const [
-                Icon(Icons.check_circle_rounded, color: Colors.white),
+                Icon(LucideIcons.circle_check, color: Colors.white),
                 SizedBox(width: 8),
                 Text('Отредактированное фото скопировано!', style: TextStyle(fontWeight: FontWeight.bold)),
               ],
@@ -516,7 +517,7 @@ class _PhotoEditorScreenState extends ConsumerState<PhotoEditorScreen> {
               behavior: SnackBarBehavior.floating,
               content: Row(
                 children: const [
-                  Icon(Icons.check_circle_rounded, color: Colors.white),
+                  Icon(LucideIcons.circle_check, color: Colors.white),
                   SizedBox(width: 8),
                   Text('Фото детали успешно сохранено!', style: TextStyle(fontWeight: FontWeight.bold)),
                 ],
@@ -557,27 +558,27 @@ class _PhotoEditorScreenState extends ConsumerState<PhotoEditorScreen> {
         actions: [
           IconButton(
             tooltip: 'Отменить (Undo)',
-            icon: const Icon(Icons.undo_rounded),
+            icon: const Icon(LucideIcons.undo),
             onPressed: _undoStack.isNotEmpty ? _undo : null,
           ),
           IconButton(
             tooltip: 'Вернуть (Redo)',
-            icon: const Icon(Icons.redo_rounded),
+            icon: const Icon(LucideIcons.redo),
             onPressed: _redoStack.isNotEmpty ? _redo : null,
           ),
           IconButton(
             tooltip: 'Скопировать результат в буфер без сохранения',
-            icon: const Icon(Icons.copy_rounded),
+            icon: const Icon(LucideIcons.copy),
             onPressed: _rawImage != null && !_loading ? _handleCopy : null,
           ),
           IconButton(
             tooltip: 'Поделиться результатом',
-            icon: const Icon(Icons.share_rounded),
+            icon: const Icon(LucideIcons.share_2),
             onPressed: _rawImage != null && !_loading ? _handleShare : null,
           ),
           IconButton(
             tooltip: 'Сбросить к оригиналу',
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const Icon(LucideIcons.rotate_ccw),
             onPressed: _rawImage != null && !_loading ? _reset : null,
           ),
         ],
@@ -855,23 +856,23 @@ class _PhotoEditorScreenState extends ConsumerState<PhotoEditorScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.rotate_left_rounded, color: Colors.white70),
+                  icon: const Icon(LucideIcons.rotate_ccw, color: Colors.white70),
                   tooltip: 'Повернуть влево (-90°)',
                   onPressed: _rotateCcw,
                 ),
                 IconButton(
-                  icon: const Icon(Icons.rotate_right_rounded, color: Colors.white70),
+                  icon: const Icon(LucideIcons.rotate_cw, color: Colors.white70),
                   tooltip: 'Повернуть вправо (+90°)',
                   onPressed: _rotateCw,
                 ),
                 const SizedBox(width: 8),
                 IconButton(
-                  icon: const Icon(Icons.flip_rounded, color: Colors.white70),
+                  icon: const Icon(LucideIcons.triangles_centerline_dashed_horizontal, color: Colors.white70),
                   tooltip: 'Отразить по горизонтали',
                   onPressed: _toggleFlipH,
                 ),
                 IconButton(
-                  icon: const RotatedBox(quarterTurns: 1, child: Icon(Icons.flip_rounded, color: Colors.white70)),
+                  icon: const Icon(LucideIcons.triangles_centerline_dashed_vertical, color: Colors.white70),
                   tooltip: 'Отразить по вертикали',
                   onPressed: _toggleFlipV,
                 ),
@@ -1021,10 +1022,10 @@ class _PhotoEditorScreenState extends ConsumerState<PhotoEditorScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildModeTab(EditorMode.crop, Icons.crop_rounded, 'Кадрирование'),
-          _buildModeTab(EditorMode.brush, Icons.brush_rounded, 'Маркер'),
-          _buildModeTab(EditorMode.blur, Icons.blur_on_rounded, 'Размытие'),
-          _buildModeTab(EditorMode.eraser, Icons.auto_fix_normal_rounded, 'Ластик'),
+          _buildModeTab(EditorMode.crop, LucideIcons.crop, 'Кадрирование'),
+          _buildModeTab(EditorMode.brush, LucideIcons.pencil, 'Маркер'),
+          _buildModeTab(EditorMode.blur, LucideIcons.eye_off, 'Размытие'),
+          _buildModeTab(EditorMode.eraser, LucideIcons.eraser, 'Ластик'),
         ],
       ),
     );
@@ -1085,7 +1086,7 @@ class _PhotoEditorScreenState extends ConsumerState<PhotoEditorScreen> {
               backgroundColor: const Color(0xFF27272A),
               foregroundColor: Colors.white,
             ),
-            icon: const Icon(Icons.copy_rounded, size: 20),
+            icon: const Icon(LucideIcons.copy, size: 20),
             onPressed: _rawImage != null && !_loading ? _handleCopy : null,
           ),
           const SizedBox(width: 8),
@@ -1098,7 +1099,7 @@ class _PhotoEditorScreenState extends ConsumerState<PhotoEditorScreen> {
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
-              icon: const Icon(Icons.check_rounded, size: 18),
+              icon: const Icon(LucideIcons.check, size: 18),
               label: const Text('Сохранить', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ),

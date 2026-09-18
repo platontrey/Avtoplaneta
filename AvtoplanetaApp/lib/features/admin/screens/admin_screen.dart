@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
@@ -68,7 +69,7 @@ class AdminScreen extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(LucideIcons.arrow_left),
             tooltip: 'Назад',
             onPressed: () {
               if (context.canPop()) {
@@ -81,17 +82,17 @@ class AdminScreen extends ConsumerWidget {
           title: const Text('Администрирование'),
           actions: [
           IconButton(
-            icon: const Icon(Icons.receipt_long_rounded),
+            icon: const Icon(LucideIcons.receipt),
             tooltip: 'Журнал ошибок',
             onPressed: () => context.go('/admin/logs'),
           ),
           IconButton(
-            icon: const Icon(Icons.system_update_rounded),
+            icon: const Icon(LucideIcons.arrow_down_to_line),
             tooltip: 'Проверить обновления',
             onPressed: () => _checkAppUpdates(context, ref),
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(LucideIcons.refresh_cw),
             tooltip: 'Обновить список',
             onPressed: () => ref.invalidate(usersListProvider),
           ),
@@ -105,7 +106,7 @@ class AdminScreen extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.error_outline_rounded, size: 64, color: Colors.orange.shade400),
+                Icon(LucideIcons.circle_alert, size: 64, color: Colors.orange.shade400),
                 const SizedBox(height: 16),
                 const Text(
                   'Не удалось загрузить пользователей',
@@ -124,13 +125,13 @@ class AdminScreen extends ConsumerWidget {
                   children: [
                     FilledButton.icon(
                       onPressed: () => ref.invalidate(usersListProvider),
-                      icon: const Icon(Icons.refresh_rounded),
+                      icon: const Icon(LucideIcons.refresh_cw),
                       label: const Text('Повторить'),
                     ),
                     const SizedBox(width: 12),
                     OutlinedButton.icon(
                       onPressed: () => context.go('/admin/logs'),
-                      icon: const Icon(Icons.receipt_long_rounded),
+                      icon: const Icon(LucideIcons.receipt),
                       label: const Text('Журнал ошибок'),
                     ),
                   ],
@@ -150,10 +151,10 @@ class AdminScreen extends ConsumerWidget {
                 side: const BorderSide(color: Colors.white10),
               ),
               child: ListTile(
-                leading: const Icon(Icons.receipt_long_rounded, color: AppTheme.primaryColor),
+                leading: const Icon(LucideIcons.receipt, color: AppTheme.primaryColor),
                 title: const Text('Журнал ошибок приложения', style: TextStyle(fontWeight: FontWeight.w600)),
                 subtitle: const Text('Логи сетевых сбоев, крашей и экспорт отчета', style: TextStyle(fontSize: 12)),
-                trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+                trailing: const Icon(LucideIcons.chevron_right, color: Colors.white54),
                 onTap: () => context.go('/admin/logs'),
               ),
             ),
@@ -178,7 +179,7 @@ class AdminScreen extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showCreateUser(context, ref),
-        child: const Icon(Icons.person_add),
+        child: const Icon(LucideIcons.user_plus),
       ),
     ),
   );
@@ -264,7 +265,7 @@ class _UserTile extends StatelessWidget {
             const SizedBox(width: 4),
             IconButton(
               icon: const Icon(
-                Icons.delete_outline,
+                LucideIcons.trash,
                 color: Colors.red,
                 size: 20,
               ),

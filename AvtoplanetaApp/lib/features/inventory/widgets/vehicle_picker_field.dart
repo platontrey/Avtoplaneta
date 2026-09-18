@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 
 /// Поле выбора значения из справочника с поиском.
 ///
@@ -51,7 +52,7 @@ class VehiclePickerField extends StatelessWidget {
           suffixIcon: options.isEmpty
               ? null
               : IconButton(
-                  icon: const Icon(Icons.arrow_drop_down),
+                  icon: const Icon(LucideIcons.chevron_down),
                   tooltip: 'Выбрать из справочника',
                   onPressed: () => _pick(context),
                 ),
@@ -104,7 +105,7 @@ class _VehicleOptionsSheetState extends State<_VehicleOptionsSheet> {
                 decoration: InputDecoration(
                   labelText: widget.title,
                   hintText: 'Поиск',
-                  prefixIcon: const Icon(Icons.search),
+                  prefixIcon: const Icon(LucideIcons.search),
                 ),
                 onChanged: (value) => setState(() => _query = value),
               ),

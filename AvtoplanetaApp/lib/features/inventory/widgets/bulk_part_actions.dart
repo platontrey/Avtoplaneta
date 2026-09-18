@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -170,7 +171,7 @@ class _BulkEditSheetState extends State<_BulkEditSheet> {
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(LucideIcons.x),
                   ),
                 ],
               ),
@@ -251,7 +252,7 @@ class _BulkEditSheetState extends State<_BulkEditSheet> {
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.save_outlined),
+                      : const Icon(LucideIcons.save),
                   label: const Text('Применить изменения'),
                 ),
               ),

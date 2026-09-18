@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import '../../app/theme.dart';
 
 class AppEmptyState extends StatelessWidget {
@@ -58,7 +59,7 @@ class AppEmptyState extends StatelessWidget {
                 const SizedBox(height: 20),
                 FilledButton.icon(
                   onPressed: onAction,
-                  icon: const Icon(Icons.refresh_rounded),
+                  icon: const Icon(LucideIcons.refresh_cw),
                   label: Text(actionLabel!),
                 ),
               ],

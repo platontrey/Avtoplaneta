@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -375,12 +376,12 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
         child: Wrap(
           children: [
             ListTile(
-              leading: const Icon(Icons.camera_alt_outlined),
+              leading: const Icon(LucideIcons.camera),
               title: const Text('Сделать снимок (Камера)'),
               onTap: () => Navigator.pop(context, ImageSource.camera),
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
+              leading: const Icon(LucideIcons.images),
               title: const Text('Выбрать из галереи'),
               onTap: () => Navigator.pop(context, ImageSource.gallery),
             ),
@@ -681,7 +682,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
                           )
                         else
                           const Icon(
-                            Icons.add_a_photo_outlined,
+                            LucideIcons.image_plus,
                             color: Colors.white70,
                           ),
                         const SizedBox(height: 4),
@@ -724,7 +725,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
                           child: IconButton(
                             padding: EdgeInsets.zero,
                             icon: const Icon(
-                              Icons.close,
+                              LucideIcons.x,
                               size: 14,
                               color: Colors.white,
                             ),
@@ -752,7 +753,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
                             child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.auto_fix_high_rounded, size: 13, color: Colors.white),
+                                Icon(LucideIcons.crop, size: 13, color: Colors.white),
                                 SizedBox(width: 4),
                                 Text(
                                   'Изменить',
@@ -807,7 +808,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
                               height: 116,
                               color: const Color(0xFF16213E),
                               child: const Icon(
-                                Icons.broken_image_outlined,
+                                LucideIcons.image_off,
                                 color: Colors.white24,
                               ),
                             ),
@@ -823,7 +824,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
                           child: IconButton(
                             padding: EdgeInsets.zero,
                             icon: const Icon(
-                              Icons.copy,
+                              LucideIcons.copy,
                               size: 12,
                               color: Colors.white,
                             ),
@@ -841,7 +842,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
                           child: IconButton(
                             padding: EdgeInsets.zero,
                             icon: const Icon(
-                              Icons.close,
+                              LucideIcons.x,
                               size: 14,
                               color: Colors.white,
                             ),
@@ -870,7 +871,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
                             child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.auto_fix_high_rounded, size: 13, color: Colors.white),
+                                Icon(LucideIcons.crop, size: 13, color: Colors.white),
                                 SizedBox(width: 4),
                                 Text(
                                   'Изменить',

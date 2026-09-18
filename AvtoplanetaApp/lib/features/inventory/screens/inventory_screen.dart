@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -208,7 +209,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             ? IconButton(
                 tooltip: 'Отменить выбор',
                 onPressed: _clearSelection,
-                icon: const Icon(Icons.close),
+                icon: const Icon(LucideIcons.x),
               )
             : null,
         title: Text(
@@ -222,8 +223,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   : 'Выбрать все на странице',
               icon: Icon(
                 _selectedPartIds.length == displayParts.length
-                    ? Icons.deselect_rounded
-                    : Icons.select_all_rounded,
+                    ? LucideIcons.square_x
+                    : LucideIcons.check_check,
               ),
               onPressed: () {
                 setState(() {
@@ -241,13 +242,13 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           if (!_selectionMode) ...[
             IconButton(
               tooltip: 'Сканировать код',
-              icon: const Icon(Icons.qr_code_scanner_outlined),
+              icon: const Icon(LucideIcons.qr_code),
               onPressed: () => _openScanner(context),
             ),
             if (user?.isOperator == true)
               IconButton(
                 tooltip: 'Добавить',
-                icon: const Icon(Icons.add_circle_outline_rounded),
+                icon: const Icon(LucideIcons.circle_plus),
                 onPressed: isOffline
                     ? () => ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -260,7 +261,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               ),
             IconButton(
               tooltip: 'Профиль',
-              icon: const Icon(Icons.person_outline),
+              icon: const Icon(LucideIcons.user),
               onPressed: () => _showUserMenu(context),
             ),
           ],
@@ -279,11 +280,11 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                           onChanged: _onSearch,
                           decoration: InputDecoration(
                             hintText: 'Название, марка, модель или место',
-                            prefixIcon: const Icon(Icons.search_rounded),
+                            prefixIcon: const Icon(LucideIcons.search),
                             suffixIcon: _searchCtrl.text.isNotEmpty
                                 ? IconButton(
                                     tooltip: 'Очистить поиск',
-                                    icon: const Icon(Icons.close_rounded),
+                                    icon: const Icon(LucideIcons.x),
                                     onPressed: () {
                                       _searchCtrl.clear();
                                       _onSearch('');
@@ -304,7 +305,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                           tooltip: 'Фильтры',
                           onPressed: () =>
                               _showFilters(context, filter, categories),
-                          icon: const Icon(Icons.tune_rounded),
+                          icon: const Icon(LucideIcons.sliders_horizontal),
                         ),
                       ),
                     ],
@@ -315,7 +316,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       body: inventoryAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => AppEmptyState(
-          icon: Icons.cloud_off_rounded,
+          icon: LucideIcons.cloud_off,
           title: 'Не удалось загрузить склад',
           message: 'Проверьте подключение к сети и попробуйте ещё раз.',
           actionLabel: 'Повторить',
@@ -340,7 +341,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 child: const Row(
                   children: [
                     Icon(
-                      Icons.cloud_off_rounded,
+                      LucideIcons.cloud_off,
                       size: 18,
                       color: AppTheme.warningColor,
                     ),
@@ -400,7 +401,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                           ),
                           const SizedBox(width: 4),
                           const Icon(
-                            Icons.arrow_drop_down,
+                            LucideIcons.chevron_down,
                             size: 16,
                             color: AppTheme.primaryColor,
                           ),
@@ -413,7 +414,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                         child: Row(
                           children: [
                             Icon(
-                              Icons.all_inclusive_rounded,
+                              LucideIcons.infinity,
                               size: 18,
                               color: AppTheme.primaryColor,
                             ),
@@ -442,7 +443,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             Expanded(
               child: displayParts.isEmpty
                   ? const AppEmptyState(
-                      icon: Icons.search_off_rounded,
+                      icon: LucideIcons.search_x,
                       title: 'Ничего не найдено',
                       message:
                           'Попробуйте изменить запрос или очистить строку поиска.',
@@ -773,7 +774,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           children: [
             ListTile(
               leading: const Icon(
-                Icons.directions_car_outlined,
+                LucideIcons.car,
                 color: AppTheme.primaryColor,
               ),
               title: const Text('Добавить одну запчасть'),
@@ -784,7 +785,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             ),
             ListTile(
               leading: const Icon(
-                Icons.receipt_long_outlined,
+                LucideIcons.receipt,
                 color: AppTheme.primaryColor,
               ),
               title: const Text('Создать дефектную ведомость'),
@@ -809,7 +810,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           children: [
             if (user?.isAdmin == true)
               ListTile(
-                leading: const Icon(Icons.admin_panel_settings_outlined),
+                leading: const Icon(LucideIcons.shield_check),
                 title: const Text('Администрирование'),
                 onTap: () {
                   Navigator.pop(context);
@@ -817,7 +818,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 },
               ),
             ListTile(
-              leading: const Icon(Icons.logout),
+              leading: const Icon(LucideIcons.log_out),
               title: const Text('Выйти'),
               onTap: () {
                 Navigator.pop(context);
@@ -1309,7 +1310,7 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
                 IconButton(
                   tooltip: 'Закрыть',
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(LucideIcons.x),
                 ),
               ],
             ),
@@ -1319,11 +1320,11 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
             tabAlignment: TabAlignment.start,
             dividerColor: Theme.of(context).dividerColor.withValues(alpha: 0.25),
             tabs: [
-              _buildTab('Основные', Icons.tune_rounded, _mainFiltersCount),
-              _buildTab('Кузов и ДВС', Icons.handyman_rounded, _bodyEngineFiltersCount),
-              _buildTab('КПП и привод', Icons.alt_route_rounded, _transmissionFiltersCount),
-              _buildTab('Склад', Icons.warehouse_rounded, _warehouseFiltersCount),
-              _buildTab('Шины и диски', Icons.album_rounded, _wheelsFiltersCount),
+              _buildTab('Основные', LucideIcons.sliders_horizontal, _mainFiltersCount),
+              _buildTab('Кузов и ДВС', LucideIcons.wrench, _bodyEngineFiltersCount),
+              _buildTab('КПП и привод', LucideIcons.git_fork, _transmissionFiltersCount),
+              _buildTab('Склад', LucideIcons.boxes, _warehouseFiltersCount),
+              _buildTab('Шины и диски', LucideIcons.disc, _wheelsFiltersCount),
             ],
           ),
           Expanded(
@@ -1839,7 +1840,7 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: _reset,
-                    icon: const Icon(Icons.clear_all_rounded),
+                    icon: const Icon(LucideIcons.rotate_ccw),
                     label: const Text('Сбросить'),
                   ),
                 ),
@@ -1847,7 +1848,7 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
                 Expanded(
                   child: FilledButton.icon(
                     onPressed: _apply,
-                    icon: const Icon(Icons.check_rounded),
+                    icon: const Icon(LucideIcons.check),
                     label: Text(
                       _totalFiltersCount > 0
                           ? 'Применить ($_totalFiltersCount)'
@@ -1923,7 +1924,7 @@ class _PartCard extends StatelessWidget {
                             height: 76,
                             color: AppTheme.surfaceColor,
                             child: const Icon(
-                              Icons.image_outlined,
+                              LucideIcons.image,
                               color: Colors.white24,
                             ),
                           ),
@@ -2017,7 +2018,7 @@ class _PartCard extends StatelessWidget {
     width: 76,
     height: 76,
     color: AppTheme.surfaceColor,
-    child: const Icon(Icons.directions_car_outlined, color: Colors.white24),
+    child: const Icon(LucideIcons.car, color: Colors.white24),
   );
 
   Widget _chip(String label, Color color) => Container(
@@ -2056,21 +2057,21 @@ class _BulkActionBar extends StatelessWidget {
           children: [
             Expanded(
               child: _action(
-                Icons.shopping_cart_checkout_rounded,
+                LucideIcons.shopping_cart,
                 'Заказать ($count)',
                 enabled ? onOrder : null,
               ),
             ),
             Expanded(
               child: _action(
-                Icons.edit_outlined,
+                LucideIcons.pencil,
                 'Изменить',
                 enabled ? onEdit : null,
               ),
             ),
             Expanded(
               child: _action(
-                Icons.delete_outline_rounded,
+                LucideIcons.trash,
                 'Удалить',
                 enabled ? onDelete : null,
                 danger: true,
@@ -2115,7 +2116,7 @@ class _Pagination extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           IconButton(
-            icon: const Icon(Icons.chevron_left),
+            icon: const Icon(LucideIcons.chevron_left),
             onPressed: current > 1 ? () => onPage(current - 1) : null,
           ),
           Text(
@@ -2123,7 +2124,7 @@ class _Pagination extends StatelessWidget {
             style: const TextStyle(color: Colors.white70),
           ),
           IconButton(
-            icon: const Icon(Icons.chevron_right),
+            icon: const Icon(LucideIcons.chevron_right),
             onPressed: current < total ? () => onPage(current + 1) : null,
           ),
         ],
@@ -2160,7 +2161,7 @@ class _ScannerModalState extends State<_ScannerModal> {
           style: TextStyle(color: Colors.white),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
+          icon: const Icon(LucideIcons.x, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
@@ -2170,11 +2171,11 @@ class _ScannerModalState extends State<_ScannerModal> {
               builder: (context, state, child) {
                 switch (state.torchState) {
                   case TorchState.off:
-                    return const Icon(Icons.flash_off, color: Colors.white54);
+                    return const Icon(LucideIcons.zap_off, color: Colors.white54);
                   case TorchState.on:
-                    return const Icon(Icons.flash_on, color: Colors.amber);
+                    return const Icon(LucideIcons.zap, color: Colors.amber);
                   default:
-                    return const Icon(Icons.flash_off, color: Colors.white54);
+                    return const Icon(LucideIcons.zap_off, color: Colors.white54);
                 }
               },
             ),
@@ -2186,11 +2187,11 @@ class _ScannerModalState extends State<_ScannerModal> {
               builder: (context, state, child) {
                 switch (state.cameraDirection) {
                   case CameraFacing.front:
-                    return const Icon(Icons.camera_front, color: Colors.white);
+                    return const Icon(LucideIcons.switch_camera, color: Colors.white);
                   case CameraFacing.back:
-                    return const Icon(Icons.camera_rear, color: Colors.white);
+                    return const Icon(LucideIcons.switch_camera, color: Colors.white);
                   default:
-                    return const Icon(Icons.camera_rear, color: Colors.white);
+                    return const Icon(LucideIcons.switch_camera, color: Colors.white);
                 }
               },
             ),

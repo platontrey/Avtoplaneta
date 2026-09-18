@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:open_filex/open_filex.dart';
 
 import '../../../app/theme.dart';
@@ -153,7 +154,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
-                Icons.system_update_rounded,
+                LucideIcons.arrow_down_to_line,
                 color: AppTheme.primaryColor,
                 size: 28,
               ),
@@ -197,7 +198,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                   ),
                   child: const Row(
                     children: [
-                      Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 20),
+                      Icon(LucideIcons.triangle_alert, color: Colors.amber, size: 20),
                       SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -290,7 +291,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
           if (!_isDownloading)
             FilledButton.icon(
               onPressed: _startDownload,
-              icon: Icon(_errorMessage != null ? Icons.refresh_rounded : Icons.download_rounded, size: 18),
+              icon: Icon(_errorMessage != null ? LucideIcons.refresh_cw : LucideIcons.download, size: 18),
               label: Text(_errorMessage != null ? 'Повторить загрузку' : 'Обновить'),
             ),
         ],
