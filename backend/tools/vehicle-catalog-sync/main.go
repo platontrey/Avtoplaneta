@@ -200,17 +200,12 @@ func (f *fetcher) brands(dumpPath string) ([]vehicleBrand, error) {
 	candidates := 0
 	seen := make(map[string]vehicleBrand)
 	seenNames := make(map[string]struct{})
-	document.Find(`a[href*="/catalog/"]`).Each(func(_ int, selection *goquery.Selection) {
+	eachCatalogLink(document, `a[href*="/catalog/"]`, func(href, name string) {
 		candidates++
-		href, ok := selection.Attr("href")
-		if !ok {
-			return
-		}
 		slug, ok := brandSlug(href)
 		if !ok {
 			return
 		}
-		name := strings.TrimSpace(selection.Text())
 		if name == "" {
 			return
 		}
@@ -253,16 +248,11 @@ func (f *fetcher) models(brandSlugValue string) ([]vehicleModel, error) {
 	seen := make(map[string]vehicleModel)
 	seenNames := make(map[string]struct{})
 	prefix := "/catalog/" + brandSlugValue + "/"
-	document.Find(`a[href*="` + prefix + `"]`).Each(func(_ int, selection *goquery.Selection) {
-		href, ok := selection.Attr("href")
-		if !ok {
-			return
-		}
+	eachCatalogLink(document, `a[href*="`+prefix+`"]`, func(href, name string) {
 		slug, ok := modelSlug(href, brandSlugValue)
 		if !ok {
 			return
 		}
-		name := strings.TrimSpace(selection.Text())
 		if name == "" {
 			return
 		}
@@ -376,4 +366,35 @@ func readExisting(path string) (vehicleCatalog, error) {
 		return vehicleCatalog{}, err
 	}
 	return catalog, nil
+}
+
+// eachCatalogLink обходит ссылки каталога и в обычной разметке, и внутри
+// блоков <noscript>.
+//
+// Полный список марок Drom держит именно в <noscript>: браузеру с включённым
+// JavaScript показывают блок популярных, а всё остальное подставляют скриптом.
+// Парсер x/net/html, на котором работает goquery, по умолчанию считает, что
+// скрипты включены, — и тогда содержимое <noscript> для него не разметка, а
+// обычный текст. Селекторы внутрь не заглядывают, поэтому такие блоки
+// приходится разбирать отдельно, как самостоятельный документ.
+func eachCatalogLink(document *goquery.Document, selector string, visit func(href, name string)) {
+	scan := func(root *goquery.Selection) {
+		root.Find(selector).Each(func(_ int, selection *goquery.Selection) {
+			href, ok := selection.Attr("href")
+			if !ok {
+				return
+			}
+			visit(href, strings.TrimSpace(selection.Text()))
+		})
+	}
+
+	scan(document.Selection)
+
+	document.Find("noscript").Each(func(_ int, block *goquery.Selection) {
+		inner, err := goquery.NewDocumentFromReader(strings.NewReader(block.Text()))
+		if err != nil {
+			return
+		}
+		scan(inner.Selection)
+	})
 }

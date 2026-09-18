@@ -3,6 +3,8 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 func TestBrandSlugAcceptsOnlyBrandPages(t *testing.T) {
@@ -74,5 +76,43 @@ func TestSortCatalogIsDeterministic(t *testing.T) {
 	}
 	if catalog.Brands[0].Models[0].Name != "A4" || catalog.Brands[1].Models[0].Name != "Camry" {
 		t.Fatal("модели отсортированы неверно")
+	}
+}
+
+// Полный список марок Drom отдаёт внутри <noscript>, а парсер x/net/html
+// считает содержимое такого блока текстом, а не разметкой. Из-за этого обычные
+// селекторы видели только блок популярных марок — двадцать одну вместо двухсот
+// с лишним, и синхронизация «успешно» затирала справочник.
+func TestCatalogLinksAreFoundInsideNoscript(t *testing.T) {
+	page := `<html><body>
+		<div class="popular">
+			<a href="/catalog/toyota/">Toyota</a>
+		</div>
+		<noscript>
+			<a href="https://www.drom.ru/catalog/alfa_romeo/">Alfa Romeo</a>
+			<a href="https://www.drom.ru/catalog/ferrari/">Ferrari</a>
+		</noscript>
+	</body></html>`
+
+	document, err := goquery.NewDocumentFromReader(strings.NewReader(page))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	found := map[string]string{}
+	eachCatalogLink(document, `a[href*="/catalog/"]`, func(href, name string) {
+		if slug, ok := brandSlug(href); ok {
+			found[slug] = name
+		}
+	})
+
+	for slug, name := range map[string]string{
+		"toyota":     "Toyota",
+		"alfa_romeo": "Alfa Romeo",
+		"ferrari":    "Ferrari",
+	} {
+		if found[slug] != name {
+			t.Fatalf("марка %q не найдена (получено %q); всего найдено: %v", name, found[slug], found)
+		}
 	}
 }
