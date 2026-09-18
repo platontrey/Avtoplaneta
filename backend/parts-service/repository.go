@@ -32,6 +32,7 @@ type PartRepository interface {
 	DeleteExpiredParts(ctx context.Context, before time.Time) error
 	GetStatistics(ctx context.Context) (StatisticsResponse, error)
 	InventoryVersion(ctx context.Context) (string, error)
+	RenameSeller(ctx context.Context, sellerID int64, name string) ([]Part, error)
 	BulkDelete(ctx context.Context, ids []int64) error
 	BulkUpdate(ctx context.Context, updates []map[string]interface{}) (int, error)
 
@@ -774,4 +775,53 @@ func (r *partRepository) InventoryVersion(ctx context.Context) (string, error) {
 		return fmt.Sprintf("empty-%d", alive), nil
 	}
 	return fmt.Sprintf("%d-%d", lastChange.UTC().UnixNano(), alive), nil
+}
+
+// RenameSeller приводит копию имени продавца в строках запчастей в соответствие
+// со справочником и возвращает обновлённые строки для переиндексации.
+//
+// Обновление идёт одним запросом по seller_id (индекс idx_parts_seller_id), а
+// не по одной строке: у продавца могут быть тысячи позиций, и после дефектовки
+// это обычное дело.
+func (r *partRepository) RenameSeller(ctx context.Context, sellerID int64, name string) ([]Part, error) {
+	if sellerID <= 0 || name == "" {
+		return nil, nil
+	}
+
+	rows, err := r.pool.Query(ctx, `
+		UPDATE parts
+		SET salesman = $2, updated_at = NOW()
+		WHERE seller_id = $1 AND deleted_at IS NULL AND salesman IS DISTINCT FROM $2
+		RETURNING id
+	`, sellerID, name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to rename seller in parts: %w", err)
+	}
+
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	updated := make([]Part, 0, len(ids))
+	for _, id := range ids {
+		part, err := r.FindByID(ctx, id)
+		if err != nil || part == nil {
+			continue
+		}
+		updated = append(updated, *part)
+	}
+	return updated, nil
 }

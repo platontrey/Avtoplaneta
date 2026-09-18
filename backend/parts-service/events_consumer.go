@@ -218,6 +218,8 @@ func (c *RedisEventConsumer) processMessage(ctx context.Context, msg redis.XMess
 		return c.handleOrderCompleted(ctx, msg)
 	case "defect_report_created":
 		return c.handleDefectReportCreated(ctx, msg)
+	case sellerRenamedEventType:
+		return c.handleSellerRenamed(ctx, msg)
 	case "part_index_requested":
 		return c.handlePartIndexRequested(ctx, msg)
 	case "part_delete_requested":
@@ -517,5 +519,43 @@ func (c *RedisEventConsumer) handlePartDeleteRequested(ctx context.Context, msg 
 	}
 
 	logrus.WithField("part_id", partID).Info("Successfully deleted part from Elasticsearch via Redis Streams")
+	return nil
+}
+
+// handleSellerRenamed чинит копию имени продавца в запчастях.
+//
+// Имя продавца хранится в строке не для красоты: по нему фильтруют, и фильтр
+// уходит в Elasticsearch, где лежит та же копия. Поэтому после переименования
+// мало показать новое имя — надо обновить строки и переиндексировать их,
+// иначе поиск по новому имени ничего не найдёт.
+func (c *RedisEventConsumer) handleSellerRenamed(ctx context.Context, msg redis.XMessage) error {
+	sellerIDRaw, _ := msg.Values["seller_id"].(string)
+	name, _ := msg.Values["name"].(string)
+
+	sellerID, err := strconv.ParseInt(strings.TrimSpace(sellerIDRaw), 10, 64)
+	if err != nil || sellerID <= 0 || strings.TrimSpace(name) == "" {
+		logrus.WithField("message_id", msg.ID).Warn("Invalid seller_renamed event")
+		return nil
+	}
+
+	updated, err := c.service.RenameSeller(ctx, sellerID, name)
+	if err != nil {
+		return err
+	}
+	if len(updated) == 0 {
+		return nil
+	}
+
+	if err := BulkIndexParts(ctx, updated); err != nil {
+		// Строки в базе уже верные; неудачная переиндексация означает лишь то,
+		// что поиск какое-то время будет знать старое имя.
+		logrus.WithError(err).WithField("seller_id", sellerID).Warn("Failed to reindex parts after seller rename")
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"seller_id": sellerID,
+		"name":      name,
+		"parts":     len(updated),
+	}).Info("Имя продавца обновлено в запчастях")
 	return nil
 }

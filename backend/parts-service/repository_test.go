@@ -301,3 +301,7 @@ func (suite *RepositoryTestSuite) TestPartColumnsConsistency() {
 func TestRepositoryTestSuite(t *testing.T) {
 	suite.Run(t, new(RepositoryTestSuite))
 }
+
+func (m *MockPartRepository) RenameSeller(context.Context, int64, string) ([]Part, error) {
+	return nil, nil
+}

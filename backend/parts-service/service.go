@@ -13,6 +13,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+
+	"avtoplaneta/pkg/userdirectory"
 )
 
 const (
@@ -41,6 +43,7 @@ type InventoryService interface {
 	MarkPartForDeletion(ctx context.Context, id int64) error                        // Отмечает запчасть для отложенного удаления
 	GetStatistics(ctx context.Context) (StatisticsResponse, error)                  // Получает статистику по инвентарю
 	InventoryVersion(ctx context.Context) (string, error)                           // Отпечаток состояния склада для условных запросов
+	RenameSeller(ctx context.Context, sellerID int64, name string) ([]Part, error)  // Приводит копию имени продавца в строках к справочнику
 
 	// BulkDeleteParts Админ операции
 	BulkDeleteParts(ctx context.Context, ids []int64) error                                    // Массовое удаление запчастей
@@ -112,15 +115,17 @@ type InventoryQueryParams struct {
 
 // inventoryService реализует InventoryService
 type inventoryService struct {
-	repo          PartRepository
-	es            ElasticsearchClient
-	redis         *redis.Client
-	totalEarnings float64
-	queryPool     sync.Pool // Pool для повторного использования map для Elasticsearch queries
+	repo           PartRepository
+	es             ElasticsearchClient
+	redis          *redis.Client
+	users          *userdirectory.Directory
+	repairThrottle *sellerRepairThrottle
+	totalEarnings  float64
+	queryPool      sync.Pool // Pool для повторного использования map для Elasticsearch queries
 }
 
 // NewInventoryService создает новый сервис инвентаря
-func NewInventoryService(repo PartRepository, es ElasticsearchClient, config *Config) InventoryService {
+func NewInventoryService(repo PartRepository, es ElasticsearchClient, config *Config, users *userdirectory.Directory) InventoryService {
 	// Инициализация Redis клиента с настройками для IPv4
 	rdb := redis.NewClient(&redis.Options{
 		Addr:         config.RedisURL,
@@ -131,9 +136,11 @@ func NewInventoryService(repo PartRepository, es ElasticsearchClient, config *Co
 	})
 
 	service := &inventoryService{
-		repo:  repo,
-		es:    es,
-		redis: rdb,
+		repo:           repo,
+		es:             es,
+		redis:          rdb,
+		users:          users,
+		repairThrottle: newSellerRepairThrottle(),
 		queryPool: sync.Pool{
 			New: func() interface{} {
 				return make(map[string]interface{})
@@ -166,6 +173,10 @@ func (s *inventoryService) GetInventory(ctx context.Context, params InventoryQue
 	if err != nil {
 		return nil, err
 	}
+
+	// Имя продавца — атрибут человека, а не строки: подставляем актуальное
+	// и чиним копию, если она разошлась со справочником.
+	s.withCurrentSalesman(ctx, parts)
 
 	// Форматируем дополнительные поля для фронтенда
 	s.formatPartsForDisplay(parts)
@@ -1675,7 +1686,14 @@ func (s *inventoryService) DeletePartPhoto(ctx context.Context, id int64, photoP
 
 // GetPartByID получает запчасть по ID
 func (s *inventoryService) GetPartByID(ctx context.Context, id int64) (*Part, error) {
-	return s.repo.FindByID(ctx, id)
+	part, err := s.repo.FindByID(ctx, id)
+	if err != nil || part == nil {
+		return part, err
+	}
+
+	single := []Part{*part}
+	s.withCurrentSalesman(ctx, single)
+	return &single[0], nil
 }
 
 func (s *inventoryService) DecreasePartQuantity(ctx context.Context, id int64, amount int) error {
@@ -1735,4 +1753,9 @@ func (s *inventoryService) UpdateEarnings(ctx context.Context, amount float64) e
 // котором клиент получал бы 304 на уже изменившиеся данные.
 func (s *inventoryService) InventoryVersion(ctx context.Context) (string, error) {
 	return s.repo.InventoryVersion(ctx)
+}
+
+// RenameSeller пробрасывает починку копии имени продавца в репозиторий.
+func (s *inventoryService) RenameSeller(ctx context.Context, sellerID int64, name string) ([]Part, error) {
+	return s.repo.RenameSeller(ctx, sellerID, name)
 }

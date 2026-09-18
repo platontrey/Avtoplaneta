@@ -462,3 +462,7 @@ func (suite *HandlersTestSuite) TestUpdateEarningsHandler() {
 func TestHandlersTestSuite(t *testing.T) {
 	suite.Run(t, new(HandlersTestSuite))
 }
+
+func (m *MockInventoryService) RenameSeller(context.Context, int64, string) ([]Part, error) {
+	return nil, nil
+}

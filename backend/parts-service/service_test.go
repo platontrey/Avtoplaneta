@@ -47,7 +47,7 @@ func (suite *ServiceTestSuite) SetupTest() {
 	// Настраиваем mock для GetTotalEarnings, который вызывается в NewInventoryService
 	suite.mockRepo.On("GetTotalEarnings", mock.Anything).Return(500.0, nil)
 
-	suite.service = NewInventoryService(suite.mockRepo, suite.mockES, config)
+	suite.service = NewInventoryService(suite.mockRepo, suite.mockES, config, nil)
 
 	// Создаем тестовую запчасть
 	suite.testPart = &Part{

@@ -412,3 +412,7 @@ func findRecordedPart(t *testing.T, parts []Part, category string) Part {
 	t.Fatalf("created parts contain no category %q", category)
 	return Part{}
 }
+
+func (service *recordingInventoryService) RenameSeller(context.Context, int64, string) ([]Part, error) {
+	return nil, nil
+}

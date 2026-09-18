@@ -74,7 +74,7 @@ func main() {
 
 	// Создание зависимостей с dependency injection
 	repo := NewPartRepository(dbPool)
-	service := NewInventoryService(repo, esClient, config)
+	service := NewInventoryService(repo, esClient, config, newUserDirectory())
 	partCatalog, err := LoadPartCatalog()
 	if err != nil {
 		log.Fatalf("Не удалось загрузить каталог шаблонов запчастей: %v", err)

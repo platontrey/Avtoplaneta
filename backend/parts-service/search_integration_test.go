@@ -24,7 +24,7 @@ func TestSearchIntegration_ElasticsearchSuccess(t *testing.T) {
 	mockRepo.On("GetTotalEarnings", mock.Anything).Return(1000.0, nil)
 	mockRepo.On("DeleteExpiredParts", mock.Anything, mock.Anything).Return(nil)
 
-	service := NewInventoryService(mockRepo, mockES, config)
+	service := NewInventoryService(mockRepo, mockES, config, nil)
 	catalog, err := LoadPartCatalog()
 	require.NoError(t, err)
 	handler := NewHandler(service, catalog, nil, nil)
@@ -96,7 +96,7 @@ func TestSearchIntegration_ElasticsearchFallbackToDatabase(t *testing.T) {
 	mockRepo.On("GetTotalEarnings", mock.Anything).Return(1000.0, nil)
 	mockRepo.On("DeleteExpiredParts", mock.Anything, mock.Anything).Return(nil)
 
-	service := NewInventoryService(mockRepo, mockES, config)
+	service := NewInventoryService(mockRepo, mockES, config, nil)
 	catalog, err := LoadPartCatalog()
 	require.NoError(t, err)
 	handler := NewHandler(service, catalog, nil, nil)
@@ -157,7 +157,7 @@ func TestSearchIntegration_CategoryFilter(t *testing.T) {
 	mockRepo.On("GetTotalEarnings", mock.Anything).Return(1000.0, nil)
 	mockRepo.On("DeleteExpiredParts", mock.Anything, mock.Anything).Return(nil)
 
-	service := NewInventoryService(mockRepo, mockES, config)
+	service := NewInventoryService(mockRepo, mockES, config, nil)
 	catalog, err := LoadPartCatalog()
 	require.NoError(t, err)
 	handler := NewHandler(service, catalog, nil, nil)
