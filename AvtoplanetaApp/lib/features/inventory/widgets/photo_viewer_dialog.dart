@@ -3,27 +3,31 @@ import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/api/api_client.dart';
+import 'photo_editor_screen.dart';
 
 class PhotoViewerDialog extends StatefulWidget {
   final List<String> photos;
   final int initialIndex;
   final String title;
+  final int? partId;
 
   const PhotoViewerDialog({
     super.key,
     required this.photos,
     this.initialIndex = 0,
     this.title = 'Фото детали',
+    this.partId,
   });
 
-  static void show(
+  static Future<dynamic> show(
     BuildContext context, {
     required List<String> photos,
     int initialIndex = 0,
     String title = 'Фото детали',
+    int? partId,
   }) {
-    if (photos.isEmpty) return;
-    Navigator.of(context).push(
+    if (photos.isEmpty) return Future.value(null);
+    return Navigator.of(context).push(
       PageRouteBuilder(
         opaque: false,
         barrierDismissible: true,
@@ -31,6 +35,7 @@ class PhotoViewerDialog extends StatefulWidget {
           photos: photos,
           initialIndex: initialIndex,
           title: title,
+          partId: partId,
         ),
       ),
     );
@@ -117,6 +122,22 @@ class _PhotoViewerDialogState extends State<PhotoViewerDialog> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Редактировать фото (маркер, размытие, обрезка)',
+            icon: const Icon(Icons.auto_fix_high_rounded, color: Color(0xFF818CF8)),
+            onPressed: () async {
+              final nav = Navigator.of(context);
+              final result = await PhotoEditorScreen.show(
+                context,
+                imageUrl: _currentPhotoUrl,
+                partId: widget.partId,
+                photoPathToReplace: widget.photos.isNotEmpty ? widget.photos[_currentIndex] : null,
+              );
+              if (result == true && mounted) {
+                nav.pop(true);
+              }
+            },
+          ),
           IconButton(
             tooltip: 'Сбросить масштаб',
             icon: const Icon(Icons.zoom_out_map_rounded),

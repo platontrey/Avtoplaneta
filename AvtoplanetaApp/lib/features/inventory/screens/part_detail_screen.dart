@@ -11,14 +11,22 @@ import 'package:share_plus/share_plus.dart';
 import '../providers/inventory_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../orders/widgets/part_order_sheet.dart';
+import '../widgets/photo_editor_screen.dart';
 
-class PartDetailScreen extends ConsumerWidget {
+class PartDetailScreen extends ConsumerStatefulWidget {
   final int id;
   const PartDetailScreen({super.key, required this.id});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final partAsync = ref.watch(partProvider(id));
+  ConsumerState<PartDetailScreen> createState() => _PartDetailScreenState();
+}
+
+class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
+  int _carouselIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final partAsync = ref.watch(partProvider(widget.id));
     final user = ref.watch(authProvider).valueOrNull;
 
     // Читаем текущий оффлайн статус из фильтрованного списка
@@ -32,16 +40,40 @@ class PartDetailScreen extends ConsumerWidget {
         actions: [
           partAsync.maybeWhen(
             data: (part) => part.photos.isNotEmpty
-                ? IconButton(
-                    tooltip: 'Поделиться фото',
-                    icon: const Icon(Icons.share_outlined),
-                    onPressed: () {
-                      final url = apiClient.resolveUrl(part.photos.first);
-                      final uri = Uri.tryParse(url);
-                      if (uri != null) {
-                        SharePlus.instance.share(ShareParams(uri: uri, subject: part.name));
-                      }
-                    },
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (user?.isOperator == true)
+                        IconButton(
+                          tooltip: 'Редактировать фото (маркер, размытие, обрезка)',
+                          icon: const Icon(Icons.auto_fix_high_rounded, color: Color(0xFF818CF8)),
+                          onPressed: isOffline
+                              ? () => ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('В оффлайн-режиме редактирование недоступно')),
+                                  )
+                              : () async {
+                                  final idx = _carouselIndex.clamp(0, part.photos.length - 1);
+                                  await PhotoEditorScreen.show(
+                                    context,
+                                    imageUrl: apiClient.resolveUrl(part.photos[idx]),
+                                    partId: part.id,
+                                    photoPathToReplace: part.photos[idx],
+                                  );
+                                },
+                        ),
+                      IconButton(
+                        tooltip: 'Поделиться фото',
+                        icon: const Icon(Icons.share_outlined),
+                        onPressed: () {
+                          final idx = _carouselIndex.clamp(0, part.photos.length - 1);
+                          final url = apiClient.resolveUrl(part.photos[idx]);
+                          final uri = Uri.tryParse(url);
+                          if (uri != null) {
+                            SharePlus.instance.share(ShareParams(uri: uri, subject: part.name));
+                          }
+                        },
+                      ),
+                    ],
                   )
                 : const SizedBox.shrink(),
             orElse: () => const SizedBox.shrink(),
@@ -49,6 +81,7 @@ class PartDetailScreen extends ConsumerWidget {
           if (user?.isOperator == true)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Редактировать параметры запчасти',
               onPressed: isOffline
                   ? () => ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -57,7 +90,7 @@ class PartDetailScreen extends ConsumerWidget {
                         ),
                       ),
                     )
-                  : () => context.go('/inventory/edit/$id'),
+                  : () => context.go('/inventory/edit/${widget.id}'),
             ),
         ],
       ),
@@ -89,7 +122,7 @@ class PartDetailScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
-                    onPressed: () => ref.invalidate(partProvider(id)),
+                    onPressed: () => ref.invalidate(partProvider(widget.id)),
                     icon: const Icon(Icons.refresh),
                     label: const Text('Повторить'),
                   ),
@@ -120,8 +153,8 @@ class PartDetailScreen extends ConsumerWidget {
 
           return RefreshIndicator(
             onRefresh: () async {
-              ref.invalidate(partProvider(id));
-              await ref.read(partProvider(id).future);
+              ref.invalidate(partProvider(widget.id));
+              await ref.read(partProvider(widget.id).future);
             },
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -137,12 +170,14 @@ class PartDetailScreen extends ConsumerWidget {
                         children: [
                           PageView.builder(
                             itemCount: part.photos.length,
+                            onPageChanged: (idx) => setState(() => _carouselIndex = idx),
                             itemBuilder: (_, i) => GestureDetector(
                               onTap: () => PhotoViewerDialog.show(
                                 context,
                                 photos: part.photos,
                                 initialIndex: i,
                                 title: part.name,
+                                partId: part.id,
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
@@ -169,33 +204,114 @@ class PartDetailScreen extends ConsumerWidget {
                               ),
                             ),
                           ),
+                          // Индикатор индекса фото
+                          if (part.photos.length > 1)
+                            Positioned(
+                              bottom: 8,
+                              left: 8,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '${_carouselIndex + 1} / ${part.photos.length}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          // Кнопки управления фото (Редактировать и Увеличить)
                           Positioned(
                             bottom: 8,
                             right: 8,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.black54,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.zoom_in, size: 14, color: Colors.white),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    'Увеличить',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (user?.isOperator == true) ...[
+                                  GestureDetector(
+                                    onTap: isOffline
+                                        ? () => ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(content: Text('В оффлайн-режиме редактирование недоступно')),
+                                            )
+                                        : () async {
+                                            final idx = _carouselIndex.clamp(0, part.photos.length - 1);
+                                            await PhotoEditorScreen.show(
+                                              context,
+                                              imageUrl: apiClient.resolveUrl(part.photos[idx]),
+                                              partId: part.id,
+                                              photoPathToReplace: part.photos[idx],
+                                            );
+                                          },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 5,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF4F46E5).withValues(alpha: 0.92),
+                                        borderRadius: BorderRadius.circular(16),
+                                        boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 4)],
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.auto_fix_high_rounded, size: 14, color: Colors.white),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Редактировать',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
+                                  const SizedBox(width: 6),
                                 ],
-                              ),
+                                GestureDetector(
+                                  onTap: () => PhotoViewerDialog.show(
+                                    context,
+                                    photos: part.photos,
+                                    initialIndex: _carouselIndex,
+                                    title: part.name,
+                                    partId: part.id,
+                                  ),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black54,
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 4)],
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.zoom_in, size: 14, color: Colors.white),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'Увеличить',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],

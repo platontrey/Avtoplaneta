@@ -4,10 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:image_cropper/image_cropper.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
-import 'package:path_provider/path_provider.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/utils/formatters.dart';
 import '../data/part_catalog.dart';
@@ -17,6 +15,7 @@ import '../providers/part_catalog_provider.dart';
 import '../providers/vehicle_catalog_provider.dart';
 import '../widgets/vehicle_picker_field.dart';
 import '../widgets/photo_viewer_dialog.dart';
+import '../widgets/photo_editor_screen.dart';
 
 class AddPartScreen extends ConsumerStatefulWidget {
   final int? editId;
@@ -309,45 +308,24 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
   }
 
   Future<void> _cropAndAddImage(XFile image) async {
-    final cropped = await ImageCropper().cropImage(
-      sourcePath: image.path,
-      compressQuality: 85,
-      uiSettings: [
-        AndroidUiSettings(
-          toolbarTitle: 'Редактор фото',
-          toolbarColor: const Color(0xFF1A1A2E),
-          toolbarWidgetColor: Colors.white,
-          initAspectRatio: CropAspectRatioPreset.square,
-          lockAspectRatio: true,
-        ),
-        IOSUiSettings(title: 'Редактор фото', aspectRatioLockEnabled: true),
-      ],
+    final edited = await PhotoEditorScreen.show(
+      context,
+      imageFile: File(image.path),
     );
-    if (cropped == null || !mounted) {
-      return;
+    if (edited is File && mounted) {
+      setState(() => _newPhotos.add(edited));
     }
-    setState(() => _newPhotos.add(File(cropped.path)));
   }
 
   Future<void> _editNewPhoto(int idx) async {
     final file = _newPhotos[idx];
-    final cropped = await ImageCropper().cropImage(
-      sourcePath: file.path,
-      compressQuality: 85,
-      uiSettings: [
-        AndroidUiSettings(
-          toolbarTitle: 'Редактор фото',
-          toolbarColor: const Color(0xFF1A1A2E),
-          toolbarWidgetColor: Colors.white,
-          initAspectRatio: CropAspectRatioPreset.square,
-          lockAspectRatio: false,
-        ),
-        IOSUiSettings(title: 'Редактор фото', aspectRatioLockEnabled: false),
-      ],
+    final edited = await PhotoEditorScreen.show(
+      context,
+      imageFile: file,
     );
-    if (cropped != null && mounted) {
+    if (edited is File && mounted) {
       setState(() {
-        _newPhotos[idx] = File(cropped.path);
+        _newPhotos[idx] = edited;
       });
     }
   }
@@ -355,44 +333,21 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
   Future<void> _editExistingPhoto(int idx) async {
     final path = _existingPhotos[idx];
     final fullUrl = apiClient.resolveUrl(path);
-    setState(() => _selectingImage = true);
 
-    try {
-      final tempDir = await getTemporaryDirectory();
-      final tempFile = File(
-        '${tempDir.path}/edit_${DateTime.now().millisecondsSinceEpoch}.jpg',
+    final edited = await PhotoEditorScreen.show(
+      context,
+      imageUrl: fullUrl,
+    );
+
+    if (edited is File && mounted) {
+      setState(() {
+        _photosToDelete.add(path);
+        _existingPhotos.removeAt(idx);
+        _newPhotos.add(edited);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Фото отредактировано')),
       );
-      await apiClient.dio.download(fullUrl, tempFile.path);
-
-      final cropped = await ImageCropper().cropImage(
-        sourcePath: tempFile.path,
-        compressQuality: 85,
-        uiSettings: [
-          AndroidUiSettings(
-            toolbarTitle: 'Редактор фото',
-            toolbarColor: const Color(0xFF1A1A2E),
-            toolbarWidgetColor: Colors.white,
-            initAspectRatio: CropAspectRatioPreset.square,
-            lockAspectRatio: false,
-          ),
-          IOSUiSettings(title: 'Редактор фото', aspectRatioLockEnabled: false),
-        ],
-      );
-
-      if (cropped != null && mounted) {
-        setState(() {
-          _photosToDelete.add(path);
-          _existingPhotos.removeAt(idx);
-          _newPhotos.add(File(cropped.path));
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Фото отредактировано')),
-        );
-      }
-    } catch (e) {
-      _showImageError(e);
-    } finally {
-      if (mounted) setState(() => _selectingImage = false);
     }
   }
 
@@ -797,7 +752,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
                             child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.crop, size: 13, color: Colors.white),
+                                Icon(Icons.auto_fix_high_rounded, size: 13, color: Colors.white),
                                 SizedBox(width: 4),
                                 Text(
                                   'Изменить',
@@ -830,6 +785,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
                           photos: _existingPhotos,
                           initialIndex: idx,
                           title: 'Фото детали',
+                          partId: widget.editId,
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
@@ -914,7 +870,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
                             child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.crop, size: 13, color: Colors.white),
+                                Icon(Icons.auto_fix_high_rounded, size: 13, color: Colors.white),
                                 SizedBox(width: 4),
                                 Text(
                                   'Изменить',
