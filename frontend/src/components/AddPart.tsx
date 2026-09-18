@@ -674,15 +674,15 @@ export default function AddPart() {
                                                     />
                                                 ))}
                                                 {photoPreviews.length > 3 && (
-                                                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-200 rounded flex items-center justify-center text-sm text-gray-600">
+                                                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-muted rounded flex items-center justify-center text-sm text-muted-foreground font-medium">
                                                         +{photoPreviews.length - 3}
                                                     </div>
                                                 )}
                                             </div>
                                         ) : (
                                             <div className="text-center">
-                                                <Upload className="mx-auto h-6 w-6 sm:h-8 sm:w-8 text-gray-400" />
-                                                <p className="mt-2 text-xs sm:text-sm text-gray-500">Нажмите для выбора фото (несколько)</p>
+                                                <Upload className="mx-auto h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
+                                                <p className="mt-2 text-xs sm:text-sm text-muted-foreground">Нажмите для выбора фото (несколько)</p>
                                             </div>
                                         )}
                                     </label>

@@ -1000,22 +1000,22 @@ export default function AdminPanel() {
                   <div className="flex items-center space-x-4">
                     <div>
                         <p className="font-medium">{user.name}</p>
-                        <p className="text-sm text-gray-500">{user.email}</p>
-                        {user.initials && <p className="text-sm text-gray-500">Инициалы: {user.initials}</p>}
-                        {user.inn && <p className="text-sm text-gray-500">ИНН: {user.inn}</p>}
+                        <p className="text-sm text-muted-foreground">{user.email}</p>
+                        {user.initials && <p className="text-sm text-muted-foreground">Инициалы: {user.initials}</p>}
+                        {user.inn && <p className="text-sm text-muted-foreground">ИНН: {user.inn}</p>}
                       </div>
                     <div className="flex space-x-2">
                       <span className={`px-2 py-1 text-xs rounded-full ${
                         user.provider === 'google'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-gray-100 text-gray-800'
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                          : 'bg-muted text-foreground'
                       }`}>
                         {user.provider}
                       </span>
                       <span className={`px-2 py-1 text-xs rounded-full ${
-                        user.role === 'admin' ? 'bg-red-100 text-red-800' :
-                        user.role === 'manager' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-green-100 text-green-800'
+                        user.role === 'admin' ? 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300' :
+                        user.role === 'manager' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300' :
+                        'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300'
                       }`}>
                         {user.role}
                       </span>
@@ -1026,7 +1026,7 @@ export default function AdminPanel() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleEditUser(user)}
-                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/30"
                     >
                       <Edit className="w-4 h-4" />
                     </Button>
@@ -1034,7 +1034,7 @@ export default function AdminPanel() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDeleteUser(user.id)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>

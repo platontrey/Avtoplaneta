@@ -10,7 +10,7 @@ export default function OperatorInstructions() {
       <div className="space-y-8">
         <section>
           <h2 className="text-2xl font-semibold mb-4">Обзор роли</h2>
-          <p className="text-gray-700">
+          <p className="text-muted-foreground">
             Оператор отвечает за ежедневное управление инвентарем автозапчастей. Ваши основные обязанности включают ведение каталога запчастей, ввод и обновление данных о запчастях, а также контроль качества информации.
           </p>
         </section>

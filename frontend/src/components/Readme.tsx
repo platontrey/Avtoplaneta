@@ -17,7 +17,7 @@ export default function Readme({ user }: ReadmeProps) {
       <div className="space-y-8">
         <section>
           <h2 className="text-2xl font-semibold mb-4">Обзор</h2>
-          <p className="text-gray-700">
+          <p className="text-muted-foreground">
             Система реализует ролевую систему контроля доступа (RBAC) с тремя различными ролями пользователей:
             Администратор, Менеджер и Оператор. Каждая роль имеет специфические разрешения и возможности
             в системе управления инвентарем.
@@ -28,9 +28,9 @@ export default function Readme({ user }: ReadmeProps) {
           <h2 className="text-2xl font-semibold mb-4">Роли пользователей</h2>
 
           <div className="space-y-6">
-            <div className="border rounded-lg p-6">
+            <div className="border border-border bg-card rounded-lg p-6">
               <h3 className="text-xl font-medium mb-2">1. Администратор (Admin)</h3>
-              <p className="text-sm text-gray-600 mb-3">Полный доступ к системе и контроль</p>
+              <p className="text-sm text-muted-foreground mb-3">Полный доступ к системе и контроль</p>
 
               <h4 className="font-medium mb-2">Разрешения:</h4>
               <ul className="list-disc list-inside space-y-1 text-sm mb-4">
@@ -50,9 +50,9 @@ export default function Readme({ user }: ReadmeProps) {
               </ul>
             </div>
 
-            <div className="border rounded-lg p-6">
+            <div className="border border-border bg-card rounded-lg p-6">
               <h3 className="text-xl font-medium mb-2">2. Менеджер (Manager)</h3>
-              <p className="text-sm text-gray-600 mb-3">Управление заказами и надзор за пользователями</p>
+              <p className="text-sm text-muted-foreground mb-3">Управление заказами и надзор за пользователями</p>
 
               <h4 className="font-medium mb-2">Разрешения:</h4>
               <ul className="list-disc list-inside space-y-1 text-sm mb-4">
@@ -72,9 +72,9 @@ export default function Readme({ user }: ReadmeProps) {
               </ul>
             </div>
 
-            <div className="border rounded-lg p-6">
+            <div className="border border-border bg-card rounded-lg p-6">
               <h3 className="text-xl font-medium mb-2">3. Оператор (Operator)</h3>
-              <p className="text-sm text-gray-600 mb-3">Базовые операции с инвентарем</p>
+              <p className="text-sm text-muted-foreground mb-3">Базовые операции с инвентарем</p>
 
               <h4 className="font-medium mb-2">Разрешения:</h4>
               <ul className="list-disc list-inside space-y-1 text-sm mb-4">
@@ -100,27 +100,27 @@ export default function Readme({ user }: ReadmeProps) {
         <section>
           <h2 className="text-2xl font-semibold mb-4">Матрица доступа к API Endpoints</h2>
           <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse border border-gray-300">
+            <table className="min-w-full border-collapse border border-border">
               <thead>
-                <tr className="bg-gray-50">
-                  <th className="border border-gray-300 px-4 py-2 text-left">Endpoint</th>
-                  <th className="border border-gray-300 px-4 py-2 text-left">Метод</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center">Админ</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center">Менеджер</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center">Оператор</th>
+                <tr className="bg-muted/50">
+                  <th className="border border-border px-4 py-2 text-left">Endpoint</th>
+                  <th className="border border-border px-4 py-2 text-left">Метод</th>
+                  <th className="border border-border px-4 py-2 text-center">Админ</th>
+                  <th className="border border-border px-4 py-2 text-center">Менеджер</th>
+                  <th className="border border-border px-4 py-2 text-center">Оператор</th>
                 </tr>
               </thead>
               <tbody>
-                <tr><td className="border border-gray-300 px-4 py-2">`/admin/users`</td><td className="border border-gray-300 px-4 py-2">GET</td><td className="border border-gray-300 px-4 py-2 text-center">✅</td><td className="border border-gray-300 px-4 py-2 text-center">✅</td><td className="border border-gray-300 px-4 py-2 text-center">❌</td></tr>
-                <tr><td className="border border-gray-300 px-4 py-2">`/admin/users`</td><td className="border border-gray-300 px-4 py-2">POST</td><td className="border border-gray-300 px-4 py-2 text-center">✅</td><td className="border border-gray-300 px-4 py-2 text-center">❌</td><td className="border border-gray-300 px-4 py-2 text-center">❌</td></tr>
-                <tr><td className="border border-gray-300 px-4 py-2">`/admin/users/:id`</td><td className="border border-gray-300 px-4 py-2">DELETE</td><td className="border border-gray-300 px-4 py-2 text-center">✅</td><td className="border border-gray-300 px-4 py-2 text-center">❌</td><td className="border border-gray-300 px-4 py-2 text-center">❌</td></tr>
-                <tr><td className="border border-gray-300 px-4 py-2">`/admin/status`</td><td className="border border-gray-300 px-4 py-2">GET</td><td className="border border-gray-300 px-4 py-2 text-center">✅</td><td className="border border-gray-300 px-4 py-2 text-center">❌</td><td className="border border-gray-300 px-4 py-2 text-center">❌</td></tr>
-                <tr><td className="border border-gray-300 px-4 py-2">`/admin/logs`</td><td className="border border-gray-300 px-4 py-2">GET</td><td className="border border-gray-300 px-4 py-2 text-center">✅</td><td className="border border-gray-300 px-4 py-2 text-center">❌</td><td className="border border-gray-300 px-4 py-2 text-center">❌</td></tr>
-                <tr><td className="border border-gray-300 px-4 py-2">`/inventory`</td><td className="border border-gray-300 px-4 py-2">GET</td><td className="border border-gray-300 px-4 py-2 text-center">✅</td><td className="border border-gray-300 px-4 py-2 text-center">✅</td><td className="border border-gray-300 px-4 py-2 text-center">✅</td></tr>
-                <tr><td className="border border-gray-300 px-4 py-2">`/addpart`</td><td className="border border-gray-300 px-4 py-2">POST</td><td className="border border-gray-300 px-4 py-2 text-center">✅</td><td className="border border-gray-300 px-4 py-2 text-center">✅</td><td className="border border-gray-300 px-4 py-2 text-center">✅</td></tr>
-                <tr><td className="border border-gray-300 px-4 py-2">`/updatepart/:id`</td><td className="border border-gray-300 px-4 py-2">PUT</td><td className="border border-gray-300 px-4 py-2 text-center">✅</td><td className="border border-gray-300 px-4 py-2 text-center">✅</td><td className="border border-gray-300 px-4 py-2 text-center">✅</td></tr>
-                <tr><td className="border border-gray-300 px-4 py-2">`/deletepart/:id`</td><td className="border border-gray-300 px-4 py-2">DELETE</td><td className="border border-gray-300 px-4 py-2 text-center">✅</td><td className="border border-gray-300 px-4 py-2 text-center">✅</td><td className="border border-gray-300 px-4 py-2 text-center">❌</td></tr>
-                <tr><td className="border border-gray-300 px-4 py-2">`/orders`</td><td className="border border-gray-300 px-4 py-2">GET/POST</td><td className="border border-gray-300 px-4 py-2 text-center">✅</td><td className="border border-gray-300 px-4 py-2 text-center">✅</td><td className="border border-gray-300 px-4 py-2 text-center">❌</td></tr>
+                <tr><td className="border border-border px-4 py-2">`/admin/users`</td><td className="border border-border px-4 py-2">GET</td><td className="border border-border px-4 py-2 text-center">✅</td><td className="border border-border px-4 py-2 text-center">✅</td><td className="border border-border px-4 py-2 text-center">❌</td></tr>
+                <tr><td className="border border-border px-4 py-2">`/admin/users`</td><td className="border border-border px-4 py-2">POST</td><td className="border border-border px-4 py-2 text-center">✅</td><td className="border border-border px-4 py-2 text-center">❌</td><td className="border border-border px-4 py-2 text-center">❌</td></tr>
+                <tr><td className="border border-border px-4 py-2">`/admin/users/:id`</td><td className="border border-border px-4 py-2">DELETE</td><td className="border border-border px-4 py-2 text-center">✅</td><td className="border border-border px-4 py-2 text-center">❌</td><td className="border border-border px-4 py-2 text-center">❌</td></tr>
+                <tr><td className="border border-border px-4 py-2">`/admin/status`</td><td className="border border-border px-4 py-2">GET</td><td className="border border-border px-4 py-2 text-center">✅</td><td className="border border-border px-4 py-2 text-center">❌</td><td className="border border-border px-4 py-2 text-center">❌</td></tr>
+                <tr><td className="border border-border px-4 py-2">`/admin/logs`</td><td className="border border-border px-4 py-2">GET</td><td className="border border-border px-4 py-2 text-center">✅</td><td className="border border-border px-4 py-2 text-center">❌</td><td className="border border-border px-4 py-2 text-center">❌</td></tr>
+                <tr><td className="border border-border px-4 py-2">`/inventory`</td><td className="border border-border px-4 py-2">GET</td><td className="border border-border px-4 py-2 text-center">✅</td><td className="border border-border px-4 py-2 text-center">✅</td><td className="border border-border px-4 py-2 text-center">✅</td></tr>
+                <tr><td className="border border-border px-4 py-2">`/addpart`</td><td className="border border-border px-4 py-2">POST</td><td className="border border-border px-4 py-2 text-center">✅</td><td className="border border-border px-4 py-2 text-center">✅</td><td className="border border-border px-4 py-2 text-center">✅</td></tr>
+                <tr><td className="border border-border px-4 py-2">`/updatepart/:id`</td><td className="border border-border px-4 py-2">PUT</td><td className="border border-border px-4 py-2 text-center">✅</td><td className="border border-border px-4 py-2 text-center">✅</td><td className="border border-border px-4 py-2 text-center">✅</td></tr>
+                <tr><td className="border border-border px-4 py-2">`/deletepart/:id`</td><td className="border border-border px-4 py-2">DELETE</td><td className="border border-border px-4 py-2 text-center">✅</td><td className="border border-border px-4 py-2 text-center">✅</td><td className="border border-border px-4 py-2 text-center">❌</td></tr>
+                <tr><td className="border border-border px-4 py-2">`/orders`</td><td className="border border-border px-4 py-2">GET/POST</td><td className="border border-border px-4 py-2 text-center">✅</td><td className="border border-border px-4 py-2 text-center">✅</td><td className="border border-border px-4 py-2 text-center">❌</td></tr>
               </tbody>
             </table>
           </div>

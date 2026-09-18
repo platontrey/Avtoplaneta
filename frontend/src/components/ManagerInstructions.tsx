@@ -10,7 +10,7 @@ export default function ManagerInstructions() {
       <div className="space-y-8">
         <section>
           <h2 className="text-2xl font-semibold mb-4">Обзор роли</h2>
-          <p className="text-gray-700">
+          <p className="text-muted-foreground">
             Менеджер отвечает за управление заказами, надзор за инвентарем и координацию работы команды. Ваши обязанности включают обработку заказов, управление отношениями с клиентами и контроль за состоянием склада.
           </p>
         </section>

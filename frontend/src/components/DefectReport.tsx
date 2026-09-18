@@ -499,20 +499,20 @@ export default function DefectReport() {
               ) : (
                 <div className="grid grid-cols-1 gap-2">
                   {filteredParts.slice(0, displayLimit).map((part, index) => (
-                    <div key={index} className="p-2 border-b border-gray-100 last:border-b-0">
+                    <div key={index} className="p-2 border-b border-border/60 last:border-b-0">
                       <div className="flex-1">
                         <Label className="font-medium text-sm">{part.name}</Label>
-                        <div className="mt-1 text-xs text-gray-600">
+                        <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
                           <div>Категория: {part.category}</div>
                           {part.color && <div>Цвет: {part.color}</div>}
                           {part.car_release_date && <div>Год: {part.car_release_date}</div>}
-                          {part.car_release_period && <div className="text-blue-700 font-medium">Период выпуска: {part.car_release_period}</div>}
+                          {part.car_release_period && <div className="text-blue-600 dark:text-blue-400 font-medium">Период выпуска: {part.car_release_period}</div>}
                           {part.body_brand && <div>Марка кузова: {part.body_brand}</div>}
                           {part.engine_brand && <div>Марка двигателя: {part.engine_brand}</div>}
                           {part.vin && <div>VIN: {part.vin}</div>}
-                          {part.transmission && <div className="text-blue-700 font-medium">Трансмиссия: {part.transmission}</div>}
-                          {part.transmission_model && <div className="text-blue-700 font-medium">Модель трансмиссии: {part.transmission_model}</div>}
-                          {part.drive && <div className="text-blue-700 font-medium">Привод: {part.drive}</div>}
+                          {part.transmission && <div className="text-blue-600 dark:text-blue-400 font-medium">Трансмиссия: {part.transmission}</div>}
+                          {part.transmission_model && <div className="text-blue-600 dark:text-blue-400 font-medium">Модель трансмиссии: {part.transmission_model}</div>}
+                          {part.drive && <div className="text-blue-600 dark:text-blue-400 font-medium">Привод: {part.drive}</div>}
                           {part.front_rear && <div>Перед/зад: {part.front_rear}</div>}
                           {part.left_right && <div>Лево/право: {part.left_right}</div>}
                           {part.top_bottom && <div>Верх/низ: {part.top_bottom}</div>}
@@ -532,7 +532,7 @@ export default function DefectReport() {
                           {part.offset && <div>Вылет: {part.offset}</div>}
                           {part.center_hole_diameter && <div>Диаметр ЦО: {part.center_hole_diameter}</div>}
                           {part.tire_model && <div>Модель шины: {part.tire_model}</div>}
-                          <div className="text-green-600">
+                          <div className="text-emerald-600 dark:text-emerald-400 font-medium pt-0.5">
                             Кол-во: {part.quantity}, Цена: {part.price}₽
                           </div>
                         </div>

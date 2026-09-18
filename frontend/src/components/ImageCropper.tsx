@@ -566,7 +566,7 @@ export default function ImageCropper({ src, onCropComplete, onCancel, aspect: in
 
     return (
         <Dialog open={true} onOpenChange={onCancel}>
-            <DialogContent className="max-w-6xl w-full h-[90vh] flex flex-col bg-zinc-950 text-zinc-100 border-zinc-800 p-0 overflow-hidden">
+            <DialogContent className="w-[96vw] max-w-[96vw] sm:max-w-[96vw] xl:max-w-[94vw] 2xl:max-w-[1600px] h-[94vh] max-h-[96vh] flex flex-col bg-zinc-950 text-zinc-100 border-zinc-800 p-0 overflow-hidden shadow-2xl">
                 
                 {/* Header with global options */}
                 <DialogHeader className="p-4 border-b border-zinc-800 flex flex-row items-center justify-between space-y-0 h-16">
@@ -688,13 +688,13 @@ export default function ImageCropper({ src, onCropComplete, onCancel, aspect: in
                                         onChange={setCrop}
                                         onComplete={setCompletedCrop}
                                         aspect={aspectPreset ?? undefined}
-                                        className="max-w-full max-h-[50vh]"
+                                        className="max-w-full max-h-[68vh]"
                                     >
                                         <canvas 
                                             ref={canvasRef} 
                                             draggable={false}
                                             onDragStart={(e) => e.preventDefault()}
-                                            className="max-w-[70vw] max-h-[55vh] shadow-2xl block select-none" 
+                                            className="max-w-[78vw] max-h-[70vh] shadow-2xl block select-none" 
                                             style={{ touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}
                                         />
                                     </ReactCrop>
@@ -703,7 +703,7 @@ export default function ImageCropper({ src, onCropComplete, onCancel, aspect: in
                                         ref={canvasRef} 
                                         draggable={false}
                                         onDragStart={(e) => e.preventDefault()}
-                                        className="max-w-[70vw] max-h-[55vh] shadow-2xl block select-none"
+                                        className="max-w-[78vw] max-h-[70vh] shadow-2xl block select-none"
                                         style={{ touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}
                                         onMouseDown={handleMouseDown}
                                         onMouseMove={handleMouseMove}

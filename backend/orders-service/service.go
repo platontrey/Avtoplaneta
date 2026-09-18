@@ -115,7 +115,7 @@ func (s *ordersService) CreateOrder(ctx context.Context, req CreateOrderRequest,
 		PartID:      req.PartID,
 		BuyerNumber: req.BuyerNumber,
 		Status:      "red",
-		StatusText:  "Need to order transport company",
+		StatusText:  "Нужен транспорт",
 		CreatedAt:   time.Now(),
 	}
 

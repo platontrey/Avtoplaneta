@@ -12,7 +12,41 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Skeleton } from './ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { Plus } from 'lucide-react';
-// import { motion, AnimatePresence } from 'framer-motion'; // Закомментировано, так как не используется
+// Helper function for Russian order status localization
+const getOrderStatusInfo = (status: string, statusText?: string) => {
+    switch (status) {
+        case 'red':
+            return { label: 'Нужен транспорт', variant: 'destructive' as const, emoji: '🔴' };
+        case 'brown':
+            return { label: 'Ожидание ответа', variant: 'secondary' as const, emoji: '🟤' };
+        case 'yellow':
+            return { label: 'Нужна доставка', variant: 'secondary' as const, emoji: '🟡' };
+        case 'green':
+            return { label: 'Доставлено', variant: 'default' as const, emoji: '🟢' };
+        case 'pending':
+            return { label: 'В ожидании', variant: 'secondary' as const, emoji: '⏳' };
+        case 'completed':
+            return { label: 'Завершён', variant: 'default' as const, emoji: '✅' };
+        case 'cancelled':
+            return { label: 'Отменён', variant: 'destructive' as const, emoji: '❌' };
+        default: {
+            const lower = (statusText || '').toLowerCase();
+            if (lower.includes('transport') || lower.includes('need to order')) {
+                return { label: 'Нужен транспорт', variant: 'destructive' as const, emoji: '🔴' };
+            }
+            if (lower.includes('wait') || lower.includes('response')) {
+                return { label: 'Ожидание ответа', variant: 'secondary' as const, emoji: '🟤' };
+            }
+            if (lower.includes('delivery') || lower.includes('need delivery')) {
+                return { label: 'Нужна доставка', variant: 'secondary' as const, emoji: '🟡' };
+            }
+            if (lower.includes('delivered') || lower.includes('complete')) {
+                return { label: 'Доставлено', variant: 'default' as const, emoji: '🟢' };
+            }
+            return { label: statusText || status, variant: 'secondary' as const, emoji: '⚪' };
+        }
+    }
+};
 
 const Orders = () => {
     const navigate = useNavigate();
@@ -159,11 +193,8 @@ const Orders = () => {
                                         <span className="font-semibold">Заказ #{order.id}</span>
                                         <div className="text-xs text-muted-foreground mt-0.5">{order.created_at_formatted} · {order.time_ago}</div>
                                     </div>
-                                    <Badge variant={
-                                        order.status === 'red' ? 'destructive' :
-                                            order.status === 'green' ? 'default' : 'secondary'
-                                    }>
-                                        {order.status_text}
+                                    <Badge variant={getOrderStatusInfo(order.status, order.status_text).variant}>
+                                        {getOrderStatusInfo(order.status, order.status_text).label}
                                     </Badge>
                                 </div>
                                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
@@ -303,12 +334,8 @@ const Orders = () => {
                                         <TableCell>{order.buyer_number}</TableCell>
                                         <TableCell>
                                             <div className="flex items-center space-x-2">
-                                                <Badge variant={
-                                                    order.status === 'red' ? 'destructive' :
-                                                        order.status === 'green' ? 'default' :
-                                                            'secondary'
-                                                }>
-                                                    {order.status_text}
+                                                <Badge variant={getOrderStatusInfo(order.status, order.status_text).variant} className="whitespace-nowrap">
+                                                    {getOrderStatusInfo(order.status, order.status_text).label}
                                                 </Badge>
                                                 <Select
                                                     value={order.status}
@@ -335,7 +362,7 @@ const Orders = () => {
                                         <TableCell>
                                             <div className="text-sm">
                                                 <div>{order.created_at_formatted}</div>
-                                                <div className="text-gray-500">{order.time_ago}</div>
+                                                <div className="text-muted-foreground">{order.time_ago}</div>
                                             </div>
                                         </TableCell>
                                         <TableCell>
