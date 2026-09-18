@@ -10,13 +10,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
-import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -34,6 +27,7 @@ import { partsApi } from "@/features/parts/api/partsApi";
 import PartOrderDialog from "./PartOrderDialog";
 import ImageEditor from "./ImageEditor";
 import EditPartDialog from "./EditPartDialog";
+import PartPhotoViewer from "./PartPhotoViewer";
 import type { Part } from "@/features/parts/types";
 import { API_BASE_URL } from "@/lib/api";
 import { useQueryClient } from '@tanstack/react-query';
@@ -63,10 +57,20 @@ function PartBlock({
 
     const [isDeleting, setIsDeleting] = useState(false);
     const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
+    const [isPhotoViewerOpen, setIsPhotoViewerOpen] = useState(false);
+    const [photoViewerIndex, setPhotoViewerIndex] = useState(0);
     const [showCropper, setShowCropper] = useState(false);
     const [tempImageSrc, setTempImageSrc] = useState<string | File>("");
     const [originalFile, setOriginalFile] = useState<File | null>(null);
     const queryClient = useQueryClient();
+
+    const handleOpenPhotoViewer = (index: number = 0, e?: React.MouseEvent) => {
+        if (e) {
+            e.stopPropagation();
+        }
+        setPhotoViewerIndex(index);
+        setIsPhotoViewerOpen(true);
+    };
 
     // Для множественных фото используем partsApi напрямую
     const [photoUploadTimestamp, setPhotoUploadTimestamp] = useState<number>(Date.now());
@@ -387,58 +391,23 @@ function PartBlock({
                                 exit={{ opacity: 0, scale: 0.8 }}
                                 transition={{ duration: 1.0, delay: 0.1 }}
                             >
-                                <Dialog>
-                                    <DialogTrigger asChild>
-                                        <motion.img
-                                            key={photoUploadTimestamp}
-                                            src={(part.photos && part.photos.length > 0) ? `${API_BASE_URL}${part.photos[0]}?t=${photoUploadTimestamp}` : '/placeholder-part.svg'}
-                                            alt={part.name || 'Изображение детали'}
-                                            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                                                e.currentTarget.onerror = null;
-                                                e.currentTarget.src = '/placeholder-part.svg';
-                                            }}
-                                            fetchPriority="high"
-                                            loading="eager"
-                                            className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded-lg border cursor-pointer ml-3 mr-3"
-                                            whileHover={{ scale: 1.1, rotate: 5 }}
-                                            whileTap={{ scale: 0.95 }}
-                                            transition={{ duration: 0.1 }}
-                                        />
-                                    </DialogTrigger>
-                                    <DialogContent className="max-w-4xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                                        <DialogTitle>{part.name}</DialogTitle>
-                                        <DialogDescription>Изображения детали</DialogDescription>
-                                        {(part.photos && part.photos.length > 0) ? (
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                                {part.photos.map((photoPath, index) => (
-                                                    <motion.img
-                                                        key={index}
-                                                        src={`${API_BASE_URL}${photoPath}?t=${partEdit.photoUpload.uploadTimestamp}`}
-                                                        alt={`${part.name} - фото ${index + 1}`}
-                                                        className="w-full h-auto max-h-48 object-contain rounded-lg border"
-                                                        onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                                                            e.currentTarget.onerror = null;
-                                                            e.currentTarget.src = '/placeholder-part.svg';
-                                                        }}
-                                                        initial={{ opacity: 0, scale: 0.9 }}
-                                                        animate={{ opacity: 1, scale: 1 }}
-                                                        transition={{ duration: 0.3, delay: index * 0.1 }}
-                                                    />
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <motion.img
-                                                key={partEdit.photoUpload.forceRefresh}
-                                                src="/placeholder-part.svg"
-                                                alt={part.name}
-                                                className="w-full h-auto max-h-[80vh] object-contain"
-                                                initial={{ opacity: 0, scale: 0.9 }}
-                                                animate={{ opacity: 1, scale: 1 }}
-                                                transition={{ duration: 0.3 }}
-                                            />
-                                        )}
-                                    </DialogContent>
-                                </Dialog>
+                                <motion.img
+                                    key={photoUploadTimestamp}
+                                    src={(part.photos && part.photos.length > 0) ? `${API_BASE_URL}${part.photos[0]}?t=${photoUploadTimestamp}` : '/placeholder-part.svg'}
+                                    alt={part.name || 'Изображение детали'}
+                                    onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                                        e.currentTarget.onerror = null;
+                                        e.currentTarget.src = '/placeholder-part.svg';
+                                    }}
+                                    fetchPriority="high"
+                                    loading="eager"
+                                    className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded-lg border cursor-pointer ml-3 mr-3 hover:ring-2 hover:ring-primary/50 transition-all"
+                                    whileHover={{ scale: 1.08, rotate: 3 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    transition={{ duration: 0.1 }}
+                                    onClick={(e) => handleOpenPhotoViewer(0, e)}
+                                    title="Нажмите для увеличения фото"
+                                />
                             </motion.div>
                         </AnimatePresence>
                         <div className="flex flex-col min-w-0 flex-1">
@@ -551,42 +520,25 @@ function PartBlock({
                                         transition={{ duration: 1.0, delay: 0.1 }}
                                     >
                                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                                            {part.photos.map((photoPath, index) => (
+                                             {part.photos.map((photoPath, index) => (
                                                 <div key={index} className="relative group">
-                                                    <Dialog>
-                                                        <DialogTrigger asChild>
-                                                            <button onClick={(e) => e.stopPropagation()} className="bg-transparent border-none p-0 pointer-events-auto w-full">
-                                                                <motion.img
-                                                                    src={`${API_BASE_URL}${photoPath}?t=${partEdit.photoUpload.uploadTimestamp}`}
-                                                                    alt={`${part.name} - фото ${index + 1}`}
-                                                                    className="w-full h-24 object-cover rounded-lg border cursor-pointer"
-                                                                    transition={{ duration: 0.2 }}
-                                                                    onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                                                                        e.currentTarget.onerror = null;
-                                                                        e.currentTarget.src = '/placeholder-part.svg';
-                                                                    }}
-                                                                />
-                                                            </button>
-                                                        </DialogTrigger>
-                                                        <DialogContent className="max-w-4xl" onClick={(e) => e.stopPropagation()}>
-                                                            <DialogTitle>{part.name} - Фото {index + 1}</DialogTitle>
-                                                            <DialogDescription>Изображение детали</DialogDescription>
-                                                            <motion.img
-                                                                src={`${API_BASE_URL}${photoPath}?t=${partEdit.photoUpload.uploadTimestamp}`}
-                                                                alt={`${part.name} - фото ${index + 1}`}
-                                                                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                                                                    e.currentTarget.onerror = null;
-                                                                    e.currentTarget.src = '/placeholder-part.svg';
-                                                                }}
-                                                                className="w-full h-auto max-h-[80vh] object-contain"
-                                                                style={{ minHeight: '300px' }}
-                                                                initial={{ opacity: 0, scale: 0.9 }}
-                                                                animate={{ opacity: 1, scale: 1 }}
-                                                                transition={{ duration: 1.0, delay: 0.1 }}
-                                                                onClick={(e) => e.stopPropagation()}
-                                                            />
-                                                        </DialogContent>
-                                                    </Dialog>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => handleOpenPhotoViewer(index, e)}
+                                                        className="bg-transparent border-none p-0 pointer-events-auto w-full group/img focus:outline-none"
+                                                        title="Нажмите для увеличения фото"
+                                                    >
+                                                        <motion.img
+                                                            src={`${API_BASE_URL}${photoPath}?t=${partEdit.photoUpload.uploadTimestamp}`}
+                                                            alt={`${part.name} - фото ${index + 1}`}
+                                                            className="w-full h-24 object-cover rounded-lg border cursor-pointer group-hover/img:ring-2 group-hover/img:ring-primary/50 group-hover/img:brightness-105 transition-all"
+                                                            transition={{ duration: 0.2 }}
+                                                            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                                                                e.currentTarget.onerror = null;
+                                                                e.currentTarget.src = '/placeholder-part.svg';
+                                                            }}
+                                                        />
+                                                    </button>
                                                     {/* Кнопка удаления фото */}
                                                     {user?.role === 'admin' && (
                                                         <button
@@ -847,6 +799,17 @@ function PartBlock({
                     aspect={null} // Free aspect ratio for parts photos
                 />
             )}
+
+            {/* Просмотр и масштабирование фотографий детали */}
+            <PartPhotoViewer
+                isOpen={isPhotoViewerOpen}
+                onClose={() => setIsPhotoViewerOpen(false)}
+                photos={part.photos || []}
+                initialIndex={photoViewerIndex}
+                partName={part.name}
+                partSubtitle={part.brand && part.model ? `${part.brand} ${part.model}` : part.brand || part.model}
+                uploadTimestamp={partEdit.photoUpload.uploadTimestamp || photoUploadTimestamp}
+            />
         </motion.div>
     );
 }
