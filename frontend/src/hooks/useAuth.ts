@@ -1,36 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
 import type { User } from '../features/auth/types';
 import { logUserActivity } from '../features/admin/api/adminApi';
+import { AUTH_ME_QUERY_KEY, useCurrentUser } from '../features/auth/hooks/useCurrentUser';
 import { API_BASE_URL } from '@/lib/api';
 
+/**
+ * Пользователь берётся из общего запроса react-query, а не из локального
+ * состояния хука. Это важно: useAuth вызывается в том числе из PartBlock,
+ * который рисуется на каждую строку инвентаря.
+ */
 export const useAuth = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { data: user = null, isLoading: loading } = useCurrentUser();
 
-  useEffect(() => {
-    checkAuthStatus();
-  }, []);
+  const setUser = (value: User | null) => {
+    queryClient.setQueryData(AUTH_ME_QUERY_KEY, value);
+  };
 
   const checkAuthStatus = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/auth/me`, {
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-      } else {
-        setUser(null);
-      }
-    } catch (error) {
-      console.log('Not authenticated', error);
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
+    await queryClient.invalidateQueries({ queryKey: AUTH_ME_QUERY_KEY });
   };
 
   const handleLogin = (userData: User) => {

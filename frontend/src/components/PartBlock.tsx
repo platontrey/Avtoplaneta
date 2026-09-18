@@ -453,7 +453,7 @@ function PartBlock({
                                     <span className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium">{part.category}</span>
                                 )}
                                 <span className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium">Кол: {part.quantity ?? 0}</span>
-                                <span className="text-sm bg-primary text-primary-foreground dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30 border border-primary/20 px-3 py-1 rounded-md font-semibold">Цена: {part.price ? `₽${part.price}` : 'TBD'}</span>
+                                <span className="text-sm bg-primary text-primary-foreground dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30 border border-primary/20 px-3 py-1 rounded-md font-semibold">Цена: {part.price && Number(part.price) > 0 ? `₽${part.price}` : 'отсутствует'}</span>
                             </div>
                         </div>
                     </div>
@@ -756,7 +756,12 @@ function PartBlock({
                 </AccordionContent>
             </AccordionItem>
 
-            {/* Диалог редактирования */}
+            {/* Диалог редактирования.
+                Монтируется только на время редактирования: PartBlock рисуется на
+                каждую строку инвентаря, а EditPartDialog — это семьсот строк разметки
+                и собственные запросы к каталогам. Держать его смонтированным для
+                каждой запчасти незачем. */}
+            {partEdit.isEditing && (
             <EditPartDialog
                 partEdit={partEdit}
                 part={part}
@@ -825,6 +830,7 @@ function PartBlock({
                 }}
                 originalFile={originalFile}
             />
+            )}
 
             {/* Диалог заказа */}
             <PartOrderDialog
