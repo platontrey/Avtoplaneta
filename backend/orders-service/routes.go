@@ -57,7 +57,7 @@ func SetupRoutes(r *gin.Engine, handler *Handler) {
 	// Применение middleware аутентификации ко всем маршрутам
 	r.Use(authMiddleware())
 
-	// Маршруты только для администраторов
+	// Маршруты только для администраторов (Legacy)
 	admin := r.Group("/admin")
 	admin.Use(adminMiddleware())
 	admin.GET("/orders", handler.GetOrdersHandler)
@@ -65,11 +65,27 @@ func SetupRoutes(r *gin.Engine, handler *Handler) {
 	admin.PUT("/orders/:id/complete", handler.CompleteOrderHandler)
 	admin.DELETE("/orders/:id", handler.DeleteOrderHandler)
 
-	// Обычные пользовательские маршруты (для создания заказов)
+	// Обычные пользовательские маршруты (для создания заказов) (Legacy)
 	r.POST("/orders", handler.CreateOrderHandler)
 	r.GET("/orders", handler.GetOrdersHandler)
 	r.POST("/orders/:id/items", handler.AddOrderItemHandler)
 	r.GET("/monthly-sales", handler.GetMonthlySalesHandler)
+
+	// Основные v1 маршруты
+	v1 := r.Group("/api/v1")
+	{
+		v1Admin := v1.Group("/admin")
+		v1Admin.Use(adminMiddleware())
+		v1Admin.GET("/orders", handler.GetOrdersHandler)
+		v1Admin.PUT("/orders/:id/status", handler.UpdateOrderStatusHandler)
+		v1Admin.PUT("/orders/:id/complete", handler.CompleteOrderHandler)
+		v1Admin.DELETE("/orders/:id", handler.DeleteOrderHandler)
+
+		v1.POST("/orders", handler.CreateOrderHandler)
+		v1.GET("/orders", handler.GetOrdersHandler)
+		v1.POST("/orders/:id/items", handler.AddOrderItemHandler)
+		v1.GET("/orders/monthly-sales", handler.GetMonthlySalesHandler)
+	}
 }
 
 // metricsMiddleware measures HTTP request latency and throughput

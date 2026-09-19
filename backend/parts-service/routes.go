@@ -43,6 +43,15 @@ func SetupRoutes(r *gin.Engine, handler *Handler) {
 	r.GET("/api/part-catalog", handler.GetPartCatalogHandler)
 	r.POST("/api/statistics/update-earnings", handler.UpdateEarningsHandler)
 
+	// v1 маршруты и алиасы
+	r.POST("/api/v1/uploadpartphoto/:id", handler.UploadPartPhotoHandler)
+	r.POST("/api/v1/parts/:id/photos", handler.UploadPartPhotoHandler)
+	r.DELETE("/api/v1/deletepartphoto/:id", handler.DeletePartPhotoHandler)
+	r.GET("/api/v1/part-catalog", handler.GetPartCatalogHandler)
+	r.GET("/api/v1/catalogs/parts", handler.GetPartCatalogHandler)
+	r.GET("/api/v1/vehicle-catalog", handler.GetVehicleCatalogHandler)
+	r.GET("/api/v1/catalogs/vehicles", handler.GetVehicleCatalogHandler)
+
 	// Маршруты для характеристик запчастей больше не нужны - характеристики хранятся в основной таблице Part
 
 	// Маршруты для дефектных ведомостей

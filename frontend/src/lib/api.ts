@@ -85,7 +85,7 @@ export const partsApi = {
     const formData = new FormData();
     formData.append('photo', file);
 
-    const response = await fetch(`${API_BASE_URL}/api/uploadpartphoto/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/uploadpartphoto/${id}`, {
       method: 'POST',
       headers: {
         'X-CSRF-Token': getAuthHeaders()['X-CSRF-Token'] || '',

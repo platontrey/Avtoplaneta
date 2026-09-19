@@ -25,7 +25,7 @@ export interface PartCatalog {
 }
 
 const fetchPartCatalog = async (): Promise<PartCatalog> => {
-  const response = await fetch(`${API_BASE_URL}/api/part-catalog`, {
+  const response = await fetch(`${API_BASE_URL}/api/v1/part-catalog`, {
     credentials: 'include',
   })
   if (!response.ok) {

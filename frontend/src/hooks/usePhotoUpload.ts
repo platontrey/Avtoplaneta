@@ -118,7 +118,7 @@ export function usePhotoUpload(options: UsePhotoUploadOptions = {}): UsePhotoUpl
     }
 
     const csrfToken = getAuthHeaders()['X-CSRF-Token'] || '';
-    const uploadUrl = `${API_BASE_URL}/api/uploadpartphoto/${partId}`;
+    const uploadUrl = `${API_BASE_URL}/api/v1/uploadpartphoto/${partId}`;
 
     console.log('Photo upload URL:', uploadUrl);
     console.log('CSRF Token present:', !!csrfToken, 'Token length:', csrfToken.length);

@@ -1,6 +1,7 @@
 import type { Conversation, Message, User, UserStatus, Notification, Reaction, DromDialog, DromMessage } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const MESSAGING_BASE_URL = `${API_BASE_URL}/api/v1/messaging`;
 
 class MessagingApi {
   private getHeaders(): Record<string, string> {
@@ -17,7 +18,7 @@ class MessagingApi {
 
   // Conversations
   async getConversations(): Promise<Conversation[]> { // ✅ используется в ChatList
-    const response = await fetch(`${API_BASE_URL}/api/messaging/conversations`, {
+    const response = await fetch(`${MESSAGING_BASE_URL}/conversations`, {
       headers: this.getHeaders(),
     });
     if (!response.ok) throw new Error('Failed to fetch conversations');
@@ -30,7 +31,7 @@ class MessagingApi {
 
   // Messages
   async getMessages(conversationId: number): Promise<Message[]> { // ✅ используется в ChatWindow
-    const response = await fetch(`${API_BASE_URL}/api/messaging/conversations/${conversationId}/messages`, {
+    const response = await fetch(`${MESSAGING_BASE_URL}/conversations/${conversationId}/messages`, {
       headers: this.getHeaders(),
     });
     if (!response.ok) throw new Error('Failed to fetch messages');
@@ -39,7 +40,7 @@ class MessagingApi {
   }
 
   async sendMessage(conversationId: number, content: string, attachments?: string[]): Promise<Message> { // ✅ используется в ChatWindow
-    const response = await fetch(`${API_BASE_URL}/api/messaging/conversations/${conversationId}/messages`, {
+    const response = await fetch(`${MESSAGING_BASE_URL}/conversations/${conversationId}/messages`, {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify({ content, attachments }),
@@ -52,7 +53,7 @@ class MessagingApi {
     const formData = new FormData();
     formData.append('voice', voiceBlob, 'voice.wav');
 
-    const response = await fetch(`${API_BASE_URL}/api/messaging/conversations/${conversationId}/messages/voice`, {
+    const response = await fetch(`${MESSAGING_BASE_URL}/conversations/${conversationId}/messages/voice`, {
       method: 'POST',
       headers: (() => {
         const headers: Record<string, string> = {
@@ -69,7 +70,7 @@ class MessagingApi {
   }
 
   async deleteMessage(messageId: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/api/messaging/messages/${messageId}`, {
+    const response = await fetch(`${MESSAGING_BASE_URL}/messages/${messageId}`, {
       method: 'DELETE',
       headers: this.getHeaders(),
     });
@@ -78,7 +79,7 @@ class MessagingApi {
 
   // User status
   async getUserStatuses(): Promise<UserStatus[]> {
-    const response = await fetch(`${API_BASE_URL}/api/messaging/users/status`, {
+    const response = await fetch(`${MESSAGING_BASE_URL}/users/status`, {
       headers: this.getHeaders(),
     });
     if (!response.ok) throw new Error('Failed to fetch user statuses');
@@ -87,7 +88,7 @@ class MessagingApi {
   }
 
   async updateUserStatus(isOnline: boolean): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/api/messaging/users/status`, {
+    const response = await fetch(`${MESSAGING_BASE_URL}/users/status`, {
       method: 'PUT',
       headers: this.getHeaders(),
       body: JSON.stringify({ is_online: isOnline }),
@@ -99,7 +100,7 @@ class MessagingApi {
 
   // Conversations
   async createConversation(participants: number[], title?: string): Promise<Conversation> {
-    const response = await fetch(`${API_BASE_URL}/api/messaging/conversations`, {
+    const response = await fetch(`${MESSAGING_BASE_URL}/conversations`, {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify({ participants, title }),
@@ -109,7 +110,7 @@ class MessagingApi {
   }
 
   async updateConversation(conversationId: number, title: string): Promise<Conversation> {
-    const response = await fetch(`${API_BASE_URL}/api/messaging/conversations/${conversationId}`, {
+    const response = await fetch(`${MESSAGING_BASE_URL}/conversations/${conversationId}`, {
       method: 'PUT',
       headers: this.getHeaders(),
       body: JSON.stringify({ title }),
@@ -119,7 +120,7 @@ class MessagingApi {
   }
 
   async deleteConversation(conversationId: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/api/messaging/conversations/${conversationId}`, {
+    const response = await fetch(`${MESSAGING_BASE_URL}/conversations/${conversationId}`, {
       method: 'DELETE',
       headers: this.getHeaders(),
     });
@@ -127,7 +128,7 @@ class MessagingApi {
   }
 
   async removeParticipant(conversationId: number, participantId: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/api/messaging/conversations/${conversationId}/participants/${participantId}`, {
+    const response = await fetch(`${MESSAGING_BASE_URL}/conversations/${conversationId}/participants/${participantId}`, {
       method: 'DELETE',
       headers: this.getHeaders(),
     });
@@ -136,7 +137,7 @@ class MessagingApi {
 
   // Reactions
   async addReaction(messageId: number, emoji: string): Promise<Reaction> {
-    const response = await fetch(`${API_BASE_URL}/api/messaging/messages/${messageId}/reactions`, {
+    const response = await fetch(`${MESSAGING_BASE_URL}/messages/${messageId}/reactions`, {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify({ emoji }),
@@ -146,7 +147,7 @@ class MessagingApi {
   }
 
   async removeReaction(messageId: number, reactionId: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/api/messaging/messages/${messageId}/reactions/${reactionId}`, {
+    const response = await fetch(`${MESSAGING_BASE_URL}/messages/${messageId}/reactions/${reactionId}`, {
       method: 'DELETE',
       headers: this.getHeaders(),
     });
@@ -155,7 +156,7 @@ class MessagingApi {
 
   // Notifications
   async getNotifications(): Promise<Notification[]> {
-    const response = await fetch(`${API_BASE_URL}/api/messaging/notifications`, {
+    const response = await fetch(`${MESSAGING_BASE_URL}/notifications`, {
       headers: this.getHeaders(),
     });
     if (!response.ok) throw new Error('Failed to fetch notifications');
@@ -164,7 +165,7 @@ class MessagingApi {
   }
 
   async markNotificationRead(notificationId: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/api/messaging/notifications/${notificationId}/read`, {
+    const response = await fetch(`${MESSAGING_BASE_URL}/notifications/${notificationId}/read`, {
       method: 'PUT',
       headers: this.getHeaders(),
     });
@@ -172,7 +173,7 @@ class MessagingApi {
   }
 
   async markAllNotificationsRead(): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/api/messaging/notifications/read-all`, {
+    const response = await fetch(`${MESSAGING_BASE_URL}/notifications/read-all`, {
       method: 'PUT',
       headers: this.getHeaders(),
     });
@@ -181,7 +182,7 @@ class MessagingApi {
 
   // Search
   async searchMessages(query: string): Promise<Message[]> {
-    const response = await fetch(`${API_BASE_URL}/api/messaging/search?q=${encodeURIComponent(query)}`, {
+    const response = await fetch(`${MESSAGING_BASE_URL}/search?q=${encodeURIComponent(query)}`, {
       headers: this.getHeaders(),
     });
     if (!response.ok) throw new Error('Failed to search messages');
@@ -191,7 +192,7 @@ class MessagingApi {
 
   // Users
   async getUsers(): Promise<User[]> {
-    const response = await fetch(`${API_BASE_URL}/api/messaging/users`, {
+    const response = await fetch(`${MESSAGING_BASE_URL}/users`, {
       headers: this.getHeaders(),
     });
     if (!response.ok) throw new Error('Failed to fetch users');
@@ -202,7 +203,7 @@ class MessagingApi {
   // === DROM METHODS ===
 
   async getDromDialogs(): Promise<DromDialog[]> {
-    const response = await fetch(`${API_BASE_URL}/api/messaging/drom/dialogs`, {
+    const response = await fetch(`${MESSAGING_BASE_URL}/drom/dialogs`, {
       headers: this.getHeaders(),
     });
     if (!response.ok) throw new Error('Failed to fetch Drom dialogs');
@@ -211,7 +212,7 @@ class MessagingApi {
   }
 
   async getDromMessages(dialogId: string): Promise<DromMessage[]> {
-    const response = await fetch(`${API_BASE_URL}/api/messaging/drom/messages?dialog_id=${encodeURIComponent(dialogId)}`, {
+    const response = await fetch(`${MESSAGING_BASE_URL}/drom/messages?dialog_id=${encodeURIComponent(dialogId)}`, {
       headers: this.getHeaders(),
     });
     if (!response.ok) throw new Error('Failed to fetch Drom messages');
@@ -220,7 +221,7 @@ class MessagingApi {
   }
 
   async sendDromMessage(dialogId: string, content: string): Promise<DromMessage> {
-    const response = await fetch(`${API_BASE_URL}/api/messaging/drom/messages`, {
+    const response = await fetch(`${MESSAGING_BASE_URL}/drom/messages`, {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify({ dialog_id: dialogId, content }),

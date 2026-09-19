@@ -217,7 +217,7 @@ export const partsApi = {
     // Remove Content-Type for FormData
     delete headers['Content-Type'];
 
-    const response = await fetch(`${API_BASE_URL}/api/uploadpartphoto/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/uploadpartphoto/${id}`, {
       method: 'POST',
       headers,
       credentials: 'include',

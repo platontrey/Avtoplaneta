@@ -85,50 +85,55 @@ func setupRoutes(r *gin.Engine) {
 
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	api := r.Group("/api/messaging")
-	{
-		// WebSocket
-		api.GET("/ws", ServeWebSocket)
+	// Основные v1 маршруты
+	registerMessagingEndpoints(r.Group("/api/v1/messaging"))
 
-		// Conversations
-		api.GET("/conversations", getConversations)
-		api.POST("/conversations", createConversation)
-		api.GET("/conversations/:id", getConversation)
-		api.PUT("/conversations/:id", updateConversation)
-		api.DELETE("/conversations/:id", deleteConversation)
-		api.DELETE("/conversations/:id/participants/:userId", removeParticipant)
+	// Legacy-алиасы для обратной совместимости
+	registerMessagingEndpoints(r.Group("/api/messaging"))
+}
 
-		// Messages
-		api.GET("/conversations/:id/messages", getMessages)
-		api.POST("/conversations/:id/messages", sendMessage)
-		api.POST("/conversations/:id/messages/voice", sendVoiceMessage)
-		api.DELETE("/messages/:id", deleteMessage)
-		api.PUT("/messages/:id/read", markMessageRead)
+func registerMessagingEndpoints(api *gin.RouterGroup) {
+	// WebSocket
+	api.GET("/ws", ServeWebSocket)
 
-		// Reactions
-		api.POST("/messages/:id/reactions", addReaction)
-		api.DELETE("/messages/:id/reactions/:reactionId", removeReaction)
+	// Conversations
+	api.GET("/conversations", getConversations)
+	api.POST("/conversations", createConversation)
+	api.GET("/conversations/:id", getConversation)
+	api.PUT("/conversations/:id", updateConversation)
+	api.DELETE("/conversations/:id", deleteConversation)
+	api.DELETE("/conversations/:id/participants/:userId", removeParticipant)
 
-		// Notifications
-		api.GET("/notifications", getNotifications)
-		api.PUT("/notifications/:id/read", markNotificationRead)
-		api.PUT("/notifications/read-all", markAllNotificationsRead)
+	// Messages
+	api.GET("/conversations/:id/messages", getMessages)
+	api.POST("/conversations/:id/messages", sendMessage)
+	api.POST("/conversations/:id/messages/voice", sendVoiceMessage)
+	api.DELETE("/messages/:id", deleteMessage)
+	api.PUT("/messages/:id/read", markMessageRead)
 
-		// User status
-		api.GET("/users/status", getUserStatuses)
-		api.PUT("/users/status", updateUserStatus)
+	// Reactions
+	api.POST("/messages/:id/reactions", addReaction)
+	api.DELETE("/messages/:id/reactions/:reactionId", removeReaction)
 
-		// Users
-		api.GET("/users", getUsers)
+	// Notifications
+	api.GET("/notifications", getNotifications)
+	api.PUT("/notifications/:id/read", markNotificationRead)
+	api.PUT("/notifications/read-all", markAllNotificationsRead)
 
-		// Search
-		api.GET("/search", searchMessages)
+	// User status
+	api.GET("/users/status", getUserStatuses)
+	api.PUT("/users/status", updateUserStatus)
 
-		// Drom
-		api.GET("/drom/dialogs", getDromDialogs)
-		api.GET("/drom/messages", getDromMessages)
-		api.POST("/drom/messages", sendDromMessage)
-	}
+	// Users
+	api.GET("/users", getUsers)
+
+	// Search
+	api.GET("/search", searchMessages)
+
+	// Drom
+	api.GET("/drom/dialogs", getDromDialogs)
+	api.GET("/drom/messages", getDromMessages)
+	api.POST("/drom/messages", sendDromMessage)
 }
 
 func metricsMiddleware() gin.HandlerFunc {

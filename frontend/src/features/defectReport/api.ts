@@ -43,7 +43,7 @@ export const previewDefectReport = async (
   payload: DefectReportPayload,
   signal?: AbortSignal,
 ): Promise<DefectReportPreviewResponse> => {
-  const response = await fetch(`${API_BASE_URL}/api/defect-reports/preview`, {
+  const response = await fetch(`${API_BASE_URL}/api/v1/defect-reports/preview`, {
     method: "POST",
     headers: getAuthHeaders(),
     credentials: "include",
@@ -55,7 +55,7 @@ export const previewDefectReport = async (
 };
 
 export const createDefectReport = async (payload: DefectReportPayload) => {
-  const response = await fetch(`${API_BASE_URL}/api/defect-reports`, {
+  const response = await fetch(`${API_BASE_URL}/api/v1/defect-reports`, {
     method: "POST",
     headers: getAuthHeaders(),
     credentials: "include",

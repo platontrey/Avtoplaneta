@@ -7,8 +7,8 @@ import { logUserActivity } from '../../admin/api/adminApi';
 const ORDERS_API_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export const getOrders = async (): Promise<Order[]> => {
-  console.log('ordersApi.getOrders: Fetching from', `${ORDERS_API_URL}/orders`);
-  const response = await fetch(`${ORDERS_API_URL}/orders`, {
+  console.log('ordersApi.getOrders: Fetching from', `${ORDERS_API_URL}/api/v1/orders`);
+  const response = await fetch(`${ORDERS_API_URL}/api/v1/orders`, {
     credentials: 'include',
     headers: getAuthHeaders(),
   });
@@ -24,7 +24,7 @@ export const getOrders = async (): Promise<Order[]> => {
 };
 
 export const updateOrderStatus = async (orderId: number, status: string) => {
-  const response = await fetch(`${ORDERS_API_URL}/admin/orders/${orderId}/status`, {
+  const response = await fetch(`${ORDERS_API_URL}/api/v1/admin/orders/${orderId}/status`, {
     method: 'PUT',
     headers: getAuthHeaders(),
     credentials: 'include',
@@ -40,7 +40,7 @@ export const updateOrderStatus = async (orderId: number, status: string) => {
 };
 
 export const deleteOrder = async (orderId: number) => {
-  const response = await fetch(`${ORDERS_API_URL}/admin/orders/${orderId}`, {
+  const response = await fetch(`${ORDERS_API_URL}/api/v1/admin/orders/${orderId}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
     credentials: 'include',
@@ -55,7 +55,7 @@ export const deleteOrder = async (orderId: number) => {
 };
 
 export const completeOrder = async (orderId: number) => {
-  const response = await fetch(`${ORDERS_API_URL}/admin/orders/${orderId}/complete`, {
+  const response = await fetch(`${ORDERS_API_URL}/api/v1/admin/orders/${orderId}/complete`, {
     method: 'PUT',
     headers: getAuthHeaders(),
     credentials: 'include',
@@ -73,7 +73,7 @@ export const createOrder = async (orderData: { customer_id: number; order_number
   console.log('ordersApi.createOrder: Creating order with data:', orderData);
 
   // Create the order directly - the backend will handle quantity updates
-  const response = await fetch(`${ORDERS_API_URL}/orders`, {
+  const response = await fetch(`${ORDERS_API_URL}/api/v1/orders`, {
     method: 'POST',
     headers: getAuthHeaders(),
     credentials: 'include',

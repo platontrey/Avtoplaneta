@@ -363,7 +363,7 @@ export default function AddPart() {
                           const photoFormData = new FormData();
                           photoFormData.append("photo", photoFile);
 
-                          const uploadUrl = `${API_BASE_URL}/api/uploadpartphoto/${result.id}`;
+                          const uploadUrl = `${API_BASE_URL}/api/v1/uploadpartphoto/${result.id}`;
                           console.log('AddPart onSubmit: Making photo upload request to:', uploadUrl);
 
                           const photoResponse = await fetch(uploadUrl, {

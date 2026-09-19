@@ -27,7 +27,7 @@ export interface VehicleCatalog {
 }
 
 const fetchVehicleCatalog = async (): Promise<VehicleCatalog> => {
-  const response = await fetch(`${API_BASE_URL}/api/vehicle-catalog`, {
+  const response = await fetch(`${API_BASE_URL}/api/v1/vehicle-catalog`, {
     credentials: 'include',
   })
   if (!response.ok) {
