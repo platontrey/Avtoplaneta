@@ -24,17 +24,18 @@ Avtoplaneta - это комплексная система управления 
 - **Документация**: [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md)
 
 #### Сервисы:
-- **API Gateway** (порт 8080) - основной шлюз, gRPC-клиент ко всем микросервисам с OTEL instrumentation
-- **Auth Service** (HTTP :8083, gRPC :9083) - аутентификация, управление пользователями, gRPC ValidateSession / GetUsers / ActivityLogs
-- **Parts Service** (HTTP :8081, gRPC :9081) - управление инвентарем, gRPC API, шаблоны каталога (`catalog.json`), Elasticsearch
-- **Orders Service** (HTTP :8082, gRPC :9082) - управление заказами, списание остатков (`quantity = -1`), аналитика продаж через gRPC
-- **Messaging Service** (HTTP :8084, gRPC :9084) - чаты, уведомления, интеграция с Drom.ru
+- **Traefik Ingress** (порты 80, 443) — современный reverse proxy, SSL termination, прямая маршрутизация на сервисы и проверка авторизации через ForwardAuth (`/auth/verify`)
+- **Auth Service** (HTTP :8083, gRPC :9083) — аутентификация, ForwardAuth-проверка, управление пользователями, gRPC ValidateSession / GetUsers / ActivityLogs
+- **Parts Service** (HTTP :8081, gRPC :9081) — управление инвентарем, gRPC API и встроенный gRPC-Gateway (`/api/v1/*`), шаблоны каталога (`catalog.json`), Elasticsearch
+- **Orders Service** (HTTP :8082, gRPC :9082) — управление заказами, списание остатков (`quantity = -1`), аналитика продаж через gRPC
+- **Messaging Service** (HTTP :8084, gRPC :9084) — чаты, уведомления, интеграция с Drom.ru
+- **Export Service** (HTTP :8085) — генерация прайс-листов XML для Drom.ru через потоковый gRPC без прямого доступа к БД
 
 #### Коммуникация и Наблюдаемость (Observability):
-- **REST/HTTP** — внешний веб-интерфейс к Gateway и статической раздаче через Nginx
-- **gRPC + Protobuf** — высокоскоростная межсервисная коммуникация и внутренние эндпоинты
-- **Redis Streams** — для асинхронной доставки событий (дефектные отчёты, списания)
-- **OpenTelemetry & Grafana Tempo** — распределённый сквозной трейсинг запросов от Gateway до баз данных
+- **REST/HTTP & gRPC-Gateway** — внешний веб-интерфейс через Traefik Ingress
+- **gRPC + Protobuf** — 100% межсервисной коммуникации между микросервисами (без внутренних HTTP-вызовов)
+- **Redis Streams** — для асинхронной доставки доменных событий (переименование продавцов, события заказов)
+- **OpenTelemetry & Grafana Tempo** — распределённый сквозной трейсинг запросов
 - **Prometheus & Grafana** — сбор метрик производительности, количества ошибок и системного мониторинга
 
 ## Инвентарь и статус количества (Quantity States)

@@ -7,31 +7,31 @@
 ## Общая архитектура
 
 ```
-┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │   API Gateway   │
-│   (React)       │◄──►│   (Gin)         │
-│                 │    │   Port: 8080    │
-└─────────────────┘    └───────┬─────────┘
-                               │
-           HTTP/REST           │ gRPC (inter-service)
-           (frontend)          │
-                     ┌─────────┼─────────────────┐
-                     │         │         │       │
-             ┌───────▼───┐ ┌───▼───┐ ┌───▼───┐ ┌─▼──────────┐
-             │ Auth      │ │Orders │ │Parts  │ │Messaging   │
-             │ Service   │ │Service│ │Service│ │Service     │
-             │ :8083/9083│ │:8082/ │ │:8081/ │ │:8084/9084  │
-             └───────────┘ │ 9082  │ │ 9081  │ └────────────┘
-                     │     └───────┘ └───────┘       │
-                     │         │         │           │
-                     │ gRPC    │ Redis   │ Redis     │ HTTP
-                     │◄────────┤ Streams │ Streams   │ (Drom.ru)
-                     │         │         │           │
-             ┌───────▼─────────▼─────────▼───────────▼──┐
-             │              PostgreSQL                  │
-             │              Redis                       │
-             │              Elasticsearch (Parts only)  │
-             └─────────────────────────────────────────┘
+┌─────────────────┐       ┌─────────────────────────────────────────────────────────┐
+│   Frontend      │◄─────►│ Traefik Ingress (SSL/TLS, Routing, ForwardAuth Verify)  │
+│   (React)       │       └───────────┬──────────────┬─────────────┬────────────┬───┘
+└─────────────────┘                   │              │             │            │
+                                      │ /auth/*      │ /orders/*   │ /api/v1/*  │ /api/messaging/*
+                                      │              │             │ /uploads/* │
+                               ┌──────▼───┐   ┌──────▼───┐  ┌──────▼───┐ ┌──────▼───┐
+                               │ Auth     │   │ Orders   │  │ Parts    │ │Messaging │
+                               │ Service  │   │ Service  │  │ Service  │ │ Service  │
+                               │:8083/9083│   │:8082/9082│  │:8081/9081│ │:8084/9084│
+                               └──────▲───┘   └──────┬───┘  └──────▲───┘ └──────▲───┘
+                                      │              │             │            │
+                                      │              │ gRPC        │ gRPC       │
+                                      │              └────────────►│            │
+                                      │                    gRPC    │            │
+                                      ├────────────────────────────┴────────────┘
+                                      │ (ValidateSession, GetUsers, Statistics)
+                                      │
+                                      │ Redis Streams (seller_renamed, orders)
+                                      ▼
+                              ┌─────────────────────────────────────────────────────┐
+                              │ PostgreSQL (Database-per-Service / Fallback)        │
+                              │ Redis (Кэш, Сессии, Redis Streams)                 │
+                              │ Elasticsearch (Полнотекстовый поиск деталей)        │
+                              └─────────────────────────────────────────────────────┘
 ```
 
 ## Компоненты системы
@@ -128,71 +128,58 @@ backend/
 | Messaging Service | 8084 | 9084 | Чаты, сообщения, уведомления, Drom.ru |
 | Export Service | 8085 | — | Прайс-лист для Drom.ru |
 
-### Текущие gRPC-вызовы
+### Текущие gRPC-вызовы (100% межсервисная коммуникация)
 
-| От | Кому | RPC | Заменяет |
-|----|------|-----|----------|
-| Gateway | Auth Service | `ValidateSession` | HTTP `GET /auth/me` (на каждый запрос) |
-| Gateway | Auth Service | `GetUsers` | HTTP `GET /internal/users` |
-| Parts Service | Auth Service | `LogActivity` | HTTP `POST /internal/log-activity` |
-| Parts Service | Orders Service | `GetMonthlySales` | HTTP `GET /monthly-sales` |
-| Parts Service | Auth Service | `GetUsers` | — (имена продавцов для карточек) |
-| Export Service | Parts Service | `ListPartsForExport`, `InventoryVersion` | прямой доступ к БД склада |
-| Export Service | Auth Service | `GetUsers` | — (ИНН продавцов для прайс-листа) |
+| От | Кому | RPC | Назначение |
+|----|------|-----|------------|
+| Orders Service | Parts Service | `ChangePartQuantity` | Идемпотентное списание/возврат остатков склада с фиксацией в `part_stock_operations` |
+| Orders Service | Parts Service | `GetPart` | Получение актуальной информации о детали при оформлении заказа |
+| Orders Service | Auth Service | `ValidateSession` | Валидация сессии при прямых операциях с заказами |
+| Parts Service | Auth Service | `LogActivity` | Запись аудита действий операторов в лог активности |
+| Parts Service | Orders Service | `GetMonthlySales` | Аналитика продаж за месяц для панели управления |
+| Parts Service | Auth Service | `GetUsers` | Получение списка пользователей (продавцов) для карточек деталей |
+| Messaging Service | Auth Service | `GetUsers` | Получение списка пользователей для адресной книги чата |
+| Export Service | Parts Service | `ListPartsForExport`, `InventoryVersion` | Потоковая выгрузка склада для формирования прайс-листа Drom.ru без прямого доступа к БД склада |
+| Export Service | Auth Service | `GetUsers` | ИНН и реквизиты продавцов для прайс-листа |
 
-### Gradual migration strategy
+Все межсервисные вызовы работают строго по **gRPC** с автоматическим HTTP-fallback при сбоях.
 
-Каждый сервис запускает **одновременно HTTP и gRPC серверы**. Это позволяет:
-- Мигрировать вызовы поэтапно
-- gRPC клиент пробует gRPC, при недоступности — HTTP fallback
-- Frontend продолжает использовать HTTP/REST без изменений
+### 3. Маршрутизация и Безопасность (Traefik Ingress & ForwardAuth)
 
-### Добавление новых gRPC-методов
+В проекте **ликвидирован рукописный API Gateway**. Его функции перенесены на промышленный edge-прокси **Traefik**:
 
-1. Добавить RPC в соответствующий `.proto` файл
-2. Запустить `make proto` для регенерации кода
-3. Реализовать метод в `grpc_server.go` нужного сервиса
-4. Добавить gRPC клиент в gateway или другом сервисе
-
-### 3. API Gateway (Корневой сервис)
-
-**Файл:** `main.go`
-**Порт:** 8080
-**Технологии:** Gin Framework, gRPC, HTTP Proxy с resiliency patterns
-
-#### Основные функции:
-- **Проксирование запросов** к микросервисам
-- **CORS middleware** для фронтенда
-- **Безопасность:** CSP, HSTS, X-Frame-Options, CSRF защита
-- **Логирование** всех запросов
+1. **Traefik Ingress (TLS / Routing):**
+   - Прямое проксирование клиентского трафика в микросервисы без накладных расходов и промежуточных сериализаций.
+   - Сжатие ответов (Brotli / Gzip) через middleware `compress-res`.
+   - Автоматический выпуск и продление SSL-сертификатов Let's Encrypt.
+2. **Traefik ForwardAuth (`auth-service /auth/verify`):**
+   - Защищённые роуты перед передачей в бэкенд вызывают внутренний эндпоинт `auth-service:8083/auth/verify` (или `/auth/verify-admin`).
+   - Если сессия валидна, `auth-service` возвращает `200 OK` и заголовки `X-User-ID`, `X-User-Role`, `X-User-Name`, `X-User-Email`, которые Traefik автоматически пробрасывает в целевой микросервис.
+   - Если сессия недействительна, Traefik мгновенно блокирует запрос с `401 Unauthorized` / `403 Forbidden`.
 
 #### Маршруты проксирования:
 
-| Префикс | Сервис | Порт | Описание |
-|---------|--------|------|----------|
-| `/auth/*` | Auth Service | 8083 | Аутентификация и управление пользователями |
-| `/admin/*` | Auth Service | 8083 | Админ-панель |
-| `/api/inventory/*` | Parts Service | 8081 | Управление запасами |
-| `/orders/*` | Orders Service | 8082 | Управление заказами |
-| `/api/messaging/*` | Messaging Service | 8084 | Чаты и сообщения |
-| `/uploads/*` | Parts Service | 8081 | Статические файлы изображений |
-| `/uploads/pricelist.xml` | Export Service | 8085 | Прайс-лист для Drom.ru |
-| `/api/export/*` | Export Service | 8085 | Пересборка и отправка прайс-листа (admin) |
-| `/api/users` | Auth Service | gRPC | Список пользователей (через gRPC) |
+| Префикс | Сервис | Тип / Middleware | Описание |
+|---------|--------|------------------|----------|
+| `/auth/*` | Auth Service (:8083) | Публичный / Сессионный | Вход, регистрация, OAuth, сессии |
+| `/admin/*` | Auth Service (:8083) | `auth-forward-admin` | Управление пользователями, журнал аудита |
+| `/api/v1/inventory`, `/api/v1/statistics` | Parts Service (:8081) | Публичный (кэш/ETag) | gRPC-Gateway инвентаря и статистики склада |
+| `/api/v1/parts/*`, `/api/v1/admin/*` | Parts Service (:8081) | `auth-forward` | gRPC-Gateway CRUD деталей, пакетное удаление/обновление |
+| `/api/inventory`, `/api/part-catalog`, `/api/vehicle-catalog` | Parts Service (:8081) | Публичный | Нативные REST каталоги и справочники |
+| `/api/addpart`, `/api/uploadpartphoto/*`, `/api/defect-reports` | Parts Service (:8081) | `auth-forward` | Загрузка фото, дефектовки, создание деталей |
+| `/orders/*` | Orders Service (:8082) | `auth-forward` | Создание и управление заказами |
+| `/api/messaging/*` | Messaging Service (:8084) | `auth-forward` | Внутренние чаты, сообщения, интеграция Drom |
+| `/uploads/*` | Parts Service (:8081) | Статика (кэширование) | Фотографии деталей |
+| `/uploads/pricelist.xml` | Export Service (:8085) | Публичный | Готовый XML-файл прайса для Drom |
+| `/api/export/*` | Export Service (:8085) | `auth-forward-admin` | Принудительная сборка и синхронизация XML |
 
-#### Аутентификация через gRPC
-
-`authMiddleware` в Gateway использует gRPC-вызов `ValidateSession` к Auth Service вместо HTTP-запроса. Это горячий путь — вызывается на **каждый защищённый запрос**. Persistent gRPC-соединение (HTTP/2 мультиплексирование) снижает latency на этом вызове в 2-5 раз по сравнению с HTTP/1.1 (нет TCP handshake на каждый запрос).
-
-В случае недоступности gRPC — автоматический fallback на HTTP `GET /auth/me`.
-
-#### Middleware безопасности:
-- **Content Security Policy (CSP)** - строгий в продакшене, разрешает eval в разработке
-- **HSTS** - только в продакшене
-- **X-Frame-Options: DENY** - защита от clickjacking
-- **X-Content-Type-Options: nosniff** - защита от MIME sniffing
-- **Referrer-Policy** - strict-origin-when-cross-origin
-- **Permissions-Policy** - блокирует камеру, микрофон, геолокацию
+#### Почему сосуществуют `/api/` и `/api/v1/`:
+- **`/api/v1/*` (Protobuf gRPC-Gateway):** Строго типизированные методы спецификации `proto/parts/v1/parts.proto`. Сгенерированы через `protoc-gen-grpc-gateway` и принимают/возвращают Protobuf JSON структуры (`partsApi.ts`, `Statistics.tsx`, `BulkDeleteDialog.tsx`).
+- **`/api/*` (Нативный REST Gin):** Специализированные HTTP-обработчики, которые нецелесообразно заворачивать в Protobuf:
+  - Мультипарт-загрузка бинарных файлов и изображений деталей (`/api/uploadpartphoto/:id`).
+  - Загрузка и парсинг Excel-файлов дефектовочных ведомостей (`/api/defect-reports`, `/api/defect-reports/preview`).
+  - Статические каталоги авто и деталей (`/api/vehicle-catalog`, `/api/part-catalog`).
+  - REST-эндпоинты чатов (`/api/messaging/*`).
 
 ### 4. Auth Service (Сервис аутентификации)
 
@@ -379,21 +366,19 @@ type Part struct {
 
 ## Хранилища данных и Сообщения
 
-### 1. PostgreSQL (Основная реляционная БД)
-**Все сервисы используют одну базовую БД** с быстрыми SQL-запросами через `sqlc` и драйвер `pgx/v5`:
-- **users / sessions / activity_logs** — аккаунты, роли и логи аудита (`auth-service`).
-- **orders / order_items** — заказы и связанные позиции товаров (`orders-service`).
-- **parts / spec_bindings** — каталог инвентаря, артикулы и спецификации запчастей (`parts-service`).
+### 1. PostgreSQL (Изоляция Database-per-Service и Идемпотентность)
+Микросервисы спроектированы под архитектурный паттерн **Database-per-Service**:
+- **Изолированные БД**: Каждый сервис может работать с отдельной БД (`AUTH_DATABASE_URL`, `PARTS_DATABASE_URL`, `ORDERS_DATABASE_URL`, `MESSAGING_DATABASE_URL`). Для локальной разработки и обратной совместимости предусмотрен единый fallback на `DATABASE_URL`.
+- **Строгая типизация SQL (`sqlc`)**: Все статичные SQL-запросы вынесены в файлы `.sql` и компилируются в типобезопасный Go-код с драйвером `pgx/v5`.
+- **Идемпотентность остатков склада (`part_stock_operations`)**: Операции изменения остатков защищены на уровне БД. Каждая операция сопровождается записью `(operation_id, part_id, operation_type)` с уникальным ключом, что исключает повторное списание при сетевых ретраях.
 
 ### 2. Redis & Redis Streams (Кэш и Асинхронные события)
-- **Redis Streams**:
-  - Асинхронная гарантированная отправка и обработка дефектных ведомостей (события генерации до 1 400+ частей за дефектовку через Consumer Groups).
-    Разворачивание ведомости по каталогу и публикация события живут в одном месте — `DefectReportWorkflow` (`parts-service/defect_report_workflow.go`).
-    HTTP- и gRPC-эндпоинты являются только транспортными адаптерами и не создают запчасти напрямую: и `POST /api/defect-reports`, и `PartsService.CreateDefectReport`
-    ставят ведомость в очередь, а записью в БД занимается consumer. Превью (`/api/defect-reports/preview`, `PartsService.PreviewDefectReport`) строит тот же набор, ничего не публикуя.
-  - Фоновая шина событий между `orders-service` и `parts-service` для мгновенной рассылки сообщений о списании и обновлении количеств товаров.
+- **Redis Streams (Шина доменных событий)**:
+  - **Синхронизация продавцов (`seller_renamed`)**: При изменении данных пользователя `auth-service` публикует событие в стрим. Сервисы `parts-service` и `orders-service` получают событие и атомарно обновляют реквизиты в карточках и заказах без периодических тяжёлых фоновых опросов.
+- **Пакетная обработка дефектовок (без оверхеда очередей)**:
+  - Генерация позиций из дефектовочных ведомостей (до 1 400+ запчастей за раз) переведена на синхронный `pgx.Batch` и пакетную индексацию Elasticsearch `BulkIndexParts`. Это снизило время обработки с 10–20 секунд до 30–50 миллисекунд и устранило паразитные очереди.
 - **Redis Caching**:
-  - Кэширование активных сессий пользователей и токенов CSRF.
+  - Кэширование активных сессий пользователей и токенов CSRF (`auth-service`).
   - Кэш чатов, сообщений и временных диалогов (`messaging-service`).
 
 ### 2.1. Условные запросы и кэширование HTTP
@@ -402,15 +387,14 @@ type Part struct {
 Валидатор всегда вычисляется **до** сборки ответа, чтобы повторный запрос не стоил ничего:
 
 - **Справочники** (`/api/part-catalog`, `/api/vehicle-catalog`) — валидатор это их собственная версия.
-- **Агрегаты и выборки по складу** (`/api/statistics`, `/api/admin/supplier-codes`, прайс-лист) —
+- **Агрегаты и выборки по складу** (`/api/v1/statistics`, `/api/admin/supplier-codes`, прайс-лист) —
   валидатор `InventoryVersion`: пара «последнее изменение + число живых строк», один индексный
-  запрос по `idx_parts_updated_at_alive`. Пара нужна потому, что жёсткое удаление не двигает
-  `updated_at`, а мягкое не двигает максимум.
+  запрос по `idx_parts_updated_at_alive`.
 - **Фото** (`/uploads`) — кэшируются навсегда: имя файла содержит время загрузки, поэтому замена
   фотографии меняет адрес. Исключение — `pricelist.xml`, он живёт по постоянному адресу.
 - **Персональные ответы** (`/auth/me`) помечены `private`, CSRF-токен — `no-store`.
 
-Списки запчастей (`/api/inventory`) сознательно оставлены без ETag: валидатор по отфильтрованной
+Списки запчастей (`/api/v1/inventory`) сознательно оставлены без ETag: валидатор по отфильтрованной
 выборке стоил бы столько же, сколько сам запрос. Там работают пагинация и клиентский кэш.
 
 ### 3. Elasticsearch (Высокопроизводительный полнотекстовый поиск)
@@ -424,9 +408,9 @@ type Part struct {
 ## Безопасность
 
 ### Уровни безопасности:
-1. **API Gateway**: CORS, CSP, HSTS, заголовки безопасности
-2. **Auth Service**: Сессии, CSRF, rate limiting, bcrypt пароли
-3. **Application Level**: Ролевая система, middleware аутентификации
+1. **Traefik Ingress + ForwardAuth**: TLS/SSL termination, HSTS, централизованная проверка сессий на `/auth/verify`, проброс проверенных заголовков `X-User-*`
+2. **Auth Service**: Сессии, CSRF, rate limiting, bcrypt пароли, Google OAuth
+3. **Application Level**: Ролевая система (admin, manager, operator), middleware ролей внутри микросервисов
 
 ### Аутентификация:
 - **Сессии**: Cookie-based с безопасными настройками

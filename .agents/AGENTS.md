@@ -16,9 +16,8 @@
 - **Pushing:** **DO NOT** execute `git push` on behalf of the user. The terminal requires SSH/password authentication, and the user prefers to manually trigger the `git push` to control the CI/CD pipeline and deployments to the production server.
 - **Docker Compose:** Use `docker compose` (with a space), NOT the legacy `docker-compose` command, as this is the standard syntax supported on the server.
 
-## Architecture & Tech Stack
-- **Microservices:** The backend is split into multiple services (`auth-service`, `orders-service`, `parts-service`, `messaging-service`) and an API Gateway (`gin`).
-- **Communication:** Services use **gRPC** (Protobuf) for fast inter-service communication (with HTTP fallback). Always consider gRPC stubs when creating new inter-service endpoints.
-- **Database:** PostgreSQL accessed via `sqlc` (for type-safe query generation) and `pgx/v5`. Do not use heavy ORMs. If you change SQL queries, remember to run `sqlc generate`.
+- **Microservices:** The backend is split into multiple services (`auth-service`, `orders-service`, `parts-service`, `messaging-service`, `export-service`). External traffic is routed directly via **Traefik Ingress** with session verification via **Traefik ForwardAuth** (`auth-service /auth/verify`). The custom monolithic API Gateway has been removed.
+- **Communication:** Services use **gRPC** (Protobuf) for 100% of inter-service communication (with HTTP fallback). Always consider gRPC stubs when creating new inter-service endpoints.
+- **Database:** PostgreSQL accessed via `sqlc` (for type-safe query generation) and `pgx/v5`. Do not use heavy ORMs. If you change SQL queries, remember to run `sqlc generate`. Each microservice supports its own isolated database (`*_DATABASE_URL`) with fallback to a common `DATABASE_URL`.
 - **Search:** Elasticsearch is used for high-performance full-text search.
-- **Infrastructure:** Traefik for reverse proxy/TLS, Redis Streams for asynchronous event publishing (e.g., between `orders-service` and `parts-service`).
+- **Infrastructure:** Traefik for reverse proxy/TLS and auth forwarding, Redis Streams for asynchronous event publishing (e.g. user rename events, order events).

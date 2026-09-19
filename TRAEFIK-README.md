@@ -34,24 +34,29 @@
 ## Architecture
 
 ```
-Internet → Traefik (SSL/Let's Encrypt) → API Gateway (8080) → Microservices
-                                              ↓
-                                         Dashboard (traefik.yourdomain.com)
+Internet → Traefik (SSL/TLS, ForwardAuth) ──┬──→ Frontend (React, Nginx)
+                                            ├──→ Auth Service (8083, ForwardAuth /auth/verify)
+                                            ├──→ Parts Service (8081, gRPC-Gateway /api/v1/*, REST)
+                                            ├──→ Orders Service (8082, /orders)
+                                            ├──→ Messaging Service (8084, /api/messaging/*)
+                                            └──→ Export Service (8085, /uploads/pricelist.xml, /api/export/*)
+                                                    ↓
+                                               Dashboard (traefik.yourdomain.com)
 ```
 
 ## Services
 
 | Service | Port | Description |
 |---------|------|-------------|
-| Traefik | 80, 443 | Reverse proxy, SSL termination |
+| Traefik | 80, 443 | Reverse proxy, SSL termination, ForwardAuth middleware |
 | Frontend | 80 | React app (nginx) |
-| Gateway | 8080 | API Gateway |
-| Auth | 8083 | Authentication service |
-| Parts | 8081 | Parts inventory service |
-| Orders | 8082 | Orders service |
-| Messaging | 8084 | Messaging service |
-| PostgreSQL | 5432 | Database |
-| Redis | 6379 | Cache/Sessions |
+| Auth | 8083 / 9083 | Authentication service, ForwardAuth verification (`/auth/verify`), gRPC |
+| Parts | 8081 / 9081 | Parts inventory service, gRPC-Gateway (`/api/v1/*`), REST, gRPC |
+| Orders | 8082 / 9082 | Orders service, gRPC |
+| Messaging | 8084 / 9084 | Messaging service, gRPC |
+| Export | 8085 | Export service (pricelist.xml) |
+| PostgreSQL | 5432 | Database (isolated per-service or common fallback) |
+| Redis | 6379 | Cache / Sessions / Redis Streams events |
 | Elasticsearch | 9200 | Search engine |
 | Prometheus | 9090 | Metrics collection |
 | Grafana | 3000 | Dashboards |
@@ -60,7 +65,11 @@ Internet → Traefik (SSL/Let's Encrypt) → API Gateway (8080) → Microservice
 
 - **App**: `https://yourdomain.com`
 - **Dashboard**: `https://traefik.yourdomain.com`
-- **API**: `https://yourdomain.com/api/*`
+- **API (Parts & Inventory)**: `https://yourdomain.com/api/v1/*`, `https://yourdomain.com/api/inventory`
+- **Auth**: `https://yourdomain.com/auth/*`
+- **Orders**: `https://yourdomain.com/orders/*`
+- **Messaging**: `https://yourdomain.com/api/messaging/*`
+- **Export**: `https://yourdomain.com/uploads/pricelist.xml`
 - **Health**: `https://yourdomain.com/health`
 - **Prometheus**: `https://prometheus.yourdomain.com`
 - **Grafana**: `https://grafana.yourdomain.com` (admin/admin123)
@@ -70,15 +79,17 @@ Internet → Traefik (SSL/Let's Encrypt) → API Gateway (8080) → Microservice
 ```bash
 # View logs
 docker compose logs -f traefik
-docker compose logs -f gateway
+docker compose logs -f auth
+docker compose logs -f parts
+docker compose logs -f orders
 docker compose logs -f prometheus
 docker compose logs -f grafana
 
 # Restart service
-docker compose restart gateway
+docker compose restart parts
 
 # Rebuild service
-docker compose up -d --build gateway
+docker compose up -d --build parts
 
 # View Traefik dashboard
 open https://traefik.yourdomain.com
