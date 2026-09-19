@@ -7,7 +7,11 @@ on:
       - main
     paths-ignore:
       - "AvtoplanetaApp/**"
-      - ".github/**"
+      - ".github/workflows/mobile-android.yml"
+      - ".github/workflows/migrate-joomshopping.yml"
+      - ".github/workflows/reset-db.yml"
+      - ".github/workflows/server-command.yml"
+      - ".github/workflows/setup-tailscale.yml"
       - "scripts/migration/**"
       - "backend/bin/**"
       - "backend/**/*.exe"
@@ -26,9 +30,29 @@ jobs:
         
       - name: Pull and Restart Services
         run: |
-          rsync -av --exclude=.git --exclude=docker-compose.override.yml ./ /opt/avtoplaneta/
+          # 1. Удаление устаревших файлов бэкенда, оставшихся на сервере от монолита и старых рефакторингов
+          rm -f /opt/avtoplaneta/backend/parts-service/salesman_sync.go \
+                /opt/avtoplaneta/backend/parts-service/xml_generator.go \
+                /opt/avtoplaneta/backend/orders-service/user_directory.go \
+                /opt/avtoplaneta/backend/gateway.go \
+                /opt/avtoplaneta/backend/Dockerfile \
+                /opt/avtoplaneta/backend/main.go \
+                /opt/avtoplaneta/backend/ai.go \
+                /opt/avtoplaneta/backend/metrics.go \
+                /opt/avtoplaneta/backend/auth_cache.go \
+                /opt/avtoplaneta/backend/routes.go \
+                /opt/avtoplaneta/backend/app_update_test.go \
+                /opt/avtoplaneta/docker-compose.override.yml
+
+          # 2. Синхронизация с удалением старых файлов, исключая переменные окружения, SSL-сертификаты и git
+          rsync -av --delete \
+            --exclude=.git \
+            --exclude='.env*' \
+            --exclude=docker-compose.override.yml \
+            --exclude=traefik/acme.json \
+            ./ /opt/avtoplaneta/
+
           cd /opt/avtoplaneta
-          rm -f docker-compose.override.yml
 
           # КРИТИЧНО: Сервер имеет аппаратную проблему (MCE PCIe error) при 100% нагрузке на все 80 потоков.
           # КРИТИЧНО: Используем docker build с жестким ограничением ядер для предотвращения MCE PCIe
@@ -37,7 +61,6 @@ jobs:
           docker build --cpuset-cpus="0-15" -t avtoplaneta-orders-service:latest ./backend -f ./backend/orders-service/Dockerfile
           docker build --cpuset-cpus="0-15" -t avtoplaneta-messaging-service:latest ./backend -f ./backend/messaging-service/Dockerfile
           docker build --cpuset-cpus="0-15" -t avtoplaneta-export-service:latest ./backend -f ./backend/export-service/Dockerfile
-          docker build --cpuset-cpus="0-15" -t avtoplaneta-gateway:latest ./backend -f ./backend/Dockerfile
           docker build --cpuset-cpus="0-15" -t avtoplaneta-frontend:latest ./frontend -f ./frontend/Dockerfile
           docker compose up -d --remove-orphans
           docker image prune -f
