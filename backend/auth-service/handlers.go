@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,21 +14,27 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/markbates/goth/gothic"
 	"github.com/sirupsen/logrus"
+
+	partsv1 "avtoplaneta/gen/parts/v1"
 )
 
 type Handler struct {
 	authService AuthService
 	config      *Config
+	partsClient partsv1.PartsServiceClient
 }
 
 var googleTokenInfoURL = "https://oauth2.googleapis.com/tokeninfo"
-
 
 func NewHandler(authService AuthService, config *Config) *Handler {
 	return &Handler{
 		authService: authService,
 		config:      config,
 	}
+}
+
+func (h *Handler) SetPartsClient(client partsv1.PartsServiceClient) {
+	h.partsClient = client
 }
 
 func (h *Handler) GoogleAuthHandler(c *gin.Context) {
@@ -644,6 +651,17 @@ func (h *Handler) RefreshTokenHandler(c *gin.Context) {
 }
 
 func (h *Handler) getTotalPartsCount() (int, error) {
+	if h.partsClient != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		resp, err := h.partsClient.GetStatistics(ctx, &partsv1.GetStatisticsRequest{})
+		if err == nil {
+			logrus.WithField("total_parts", resp.TotalParts).Info("Fetched total parts count from parts-service via gRPC")
+			return int(resp.TotalParts), nil
+		}
+		logrus.WithError(err).Warn("Failed to fetch parts statistics via gRPC, attempting HTTP fallback")
+	}
+
 	url := fmt.Sprintf("%s/api/statistics", h.config.PartsServiceURL)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {

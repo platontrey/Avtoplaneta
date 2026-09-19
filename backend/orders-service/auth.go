@@ -1,15 +1,21 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/sessions"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	authv1 "avtoplaneta/gen/auth/v1"
 )
 
 var store *sessions.CookieStore
@@ -50,6 +56,29 @@ func InitAuth(cfg *Config) {
 	}
 }
 
+var (
+	authGRPCClient authv1.AuthServiceClient
+	authGRPCConn   *grpc.ClientConn
+	authClientOnce sync.Once
+)
+
+func getAuthGRPCClient() authv1.AuthServiceClient {
+	authClientOnce.Do(func() {
+		if config == nil || config.AuthServiceGRPCURL == "" {
+			return
+		}
+		conn, err := grpc.NewClient(config.AuthServiceGRPCURL, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Printf("AUTH: Failed to create gRPC connection to auth-service: %v", err)
+			return
+		}
+		authGRPCConn = conn
+		authGRPCClient = authv1.NewAuthServiceClient(conn)
+		log.Printf("AUTH: Connected to auth-service via gRPC at %s", config.AuthServiceGRPCURL)
+	})
+	return authGRPCClient
+}
+
 // authMiddleware проверяет аутентификацию пользователя
 func authMiddleware() gin.HandlerFunc {
 	return gin.HandlerFunc(func(c *gin.Context) {
@@ -59,16 +88,50 @@ func authMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Проверяем, установлены ли заголовки от gateway (для запросов через gateway)
+		// Проверяем, установлены ли заголовки от Traefik ForwardAuth
 		userIDStr := c.GetHeader("X-User-ID")
 		userEmail := c.GetHeader("X-User-Email")
 		userName := c.GetHeader("X-User-Name")
 
-		if userIDStr != "" && userEmail != "" && userName != "" {
-			// Запрос пришел через gateway, аутентификация уже проверена
-			log.Printf("AUTH: Request authenticated via gateway headers for user ID %s from %s", userIDStr, c.ClientIP())
+		if userIDStr != "" && userEmail != "" {
+			// Запрос пришел через Traefik ForwardAuth, аутентификация уже проверена
+			log.Printf("AUTH: Request authenticated via auth headers for user ID %s from %s", userIDStr, c.ClientIP())
+			if uid, err := strconv.ParseInt(userIDStr, 10, 64); err == nil {
+				c.Set("user_id", uid)
+			}
+			if userName != "" {
+				c.Set("user_name", userName)
+			}
 			c.Next()
 			return
+		}
+
+		// Для прямых запросов проверяем аутентификацию через auth-service по gRPC
+		var sessionCookie string
+		if cookie, err := c.Request.Cookie("auth-session"); err == nil {
+			sessionCookie = cookie.Value
+		}
+		authHeader := c.GetHeader("Authorization")
+
+		if client := getAuthGRPCClient(); client != nil && (sessionCookie != "" || authHeader != "") {
+			ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+			defer cancel()
+			resp, err := client.ValidateSession(ctx, &authv1.ValidateSessionRequest{
+				SessionCookie: sessionCookie,
+				Authorization: authHeader,
+			})
+			if err == nil && resp.Valid && resp.User != nil {
+				c.Request.Header.Set("X-User-ID", strconv.FormatUint(uint64(resp.User.Id), 10))
+				c.Request.Header.Set("X-User-Email", resp.User.Email)
+				c.Request.Header.Set("X-User-Name", resp.User.Name)
+				c.Request.Header.Set("X-User-Role", resp.User.Role)
+				c.Set("user_id", int64(resp.User.Id))
+				c.Next()
+				return
+			}
+			if err != nil {
+				log.Printf("AUTH: gRPC ValidateSession failed, trying HTTP fallback: %v", err)
+			}
 		}
 
 		// Для прямых запросов проверяем аутентификацию через auth-service

@@ -9,11 +9,16 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	authv1 "avtoplaneta/gen/auth/v1"
 )
 
 var (
@@ -872,6 +877,32 @@ func sendDromMessage(c *gin.Context) {
 	c.JSON(http.StatusCreated, msg)
 }
 
+var (
+	authGRPCClient authv1.AuthServiceClient
+	authClientOnce sync.Once
+)
+
+func getAuthGRPCClient() authv1.AuthServiceClient {
+	authClientOnce.Do(func() {
+		addr := os.Getenv("AUTH_GRPC_ADDR")
+		if addr == "" {
+			if u := os.Getenv("AUTH_SERVICE_GRPC_URL"); u != "" {
+				addr = u
+			} else {
+				addr = "auth-service:9083"
+			}
+		}
+		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Printf("Messaging: Failed to create gRPC connection to auth-service: %v", err)
+			return
+		}
+		authGRPCClient = authv1.NewAuthServiceClient(conn)
+		log.Printf("Messaging: Connected to auth-service via gRPC at %s", addr)
+	})
+	return authGRPCClient
+}
+
 func getAuthServiceURL() string {
 	if url := os.Getenv("AUTH_SERVICE_URL"); url != "" {
 		return url
@@ -882,41 +913,30 @@ func getAuthServiceURL() string {
 	return "http://auth-service:8083"
 }
 
-// User fetching from auth service
-func getCurrentUser(ctx context.Context, userID string, authHeader string) (*User, error) {
-	authURL := getAuthServiceURL()
-
-	req, err := http.NewRequestWithContext(ctx, "GET", authURL+"/api/users/me", nil)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Authorization", authHeader)
-	req.Header.Set("X-User-ID", userID)
-
-	client := gatewayHTTPClient
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("auth service returned status: %d", resp.StatusCode)
-	}
-
-	var user User
-	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %v", err)
-	}
-
-	return &user, nil
-}
-
 func getUsers(c *gin.Context) {
-	authURL := getAuthServiceURL()
+	if client := getAuthGRPCClient(); client != nil {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+		defer cancel()
 
-	req, err := http.NewRequest("GET", authURL+"/api/users", nil)
+		resp, err := client.GetUsers(ctx, &authv1.GetUsersRequest{})
+		if err == nil {
+			users := make([]User, len(resp.Users))
+			for i, u := range resp.Users {
+				users[i] = User{
+					ID:    int64(u.Id),
+					Name:  u.Name,
+					Email: u.Email,
+					Role:  u.Role,
+				}
+			}
+			c.JSON(http.StatusOK, gin.H{"users": users})
+			return
+		}
+		log.Printf("Messaging getUsers: gRPC call failed, attempting HTTP fallback: %v", err)
+	}
+
+	authURL := getAuthServiceURL()
+	req, err := http.NewRequestWithContext(c.Request.Context(), "GET", authURL+"/api/users", nil)
 	if err != nil {
 		log.Printf("Messaging getUsers: Failed to create request: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request"})
@@ -928,17 +948,17 @@ func getUsers(c *gin.Context) {
 	req.Header.Set("Authorization", authHeader)
 	req.Header.Set("X-User-ID", userIDHeader)
 
-	client := gatewayHTTPClient
+	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("Messaging getUsers: Failed to connect to gateway: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to gateway"})
+		log.Printf("Messaging getUsers: Failed to connect to auth-service: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to auth-service"})
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("Messaging getUsers: Gateway returned error status: %d", resp.StatusCode)
+		log.Printf("Messaging getUsers: Auth service returned error status: %d", resp.StatusCode)
 		c.JSON(resp.StatusCode, gin.H{"error": "Failed to fetch users"})
 		return
 	}
@@ -954,9 +974,3 @@ func getUsers(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"users": response.Users})
 }
-
-// gatewayHTTPClient используется для походов в gateway за данными других
-// сервисов. Таймаут обязателен: без него зависший upstream держит запрос
-// вкладки «Сообщения» до победного конца, и пользователь видит бесконечную
-// загрузку вместо ошибки.
-var gatewayHTTPClient = &http.Client{Timeout: 10 * time.Second}

@@ -14,9 +14,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
-	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	partsv1 "avtoplaneta/gen/parts/v1"
 	"avtoplaneta/pkg/tracing"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
 func main() {
@@ -66,6 +69,17 @@ func main() {
 	activityRepo := NewActivityLogRepository(dbPool)
 	authService := NewAuthService(userRepo, activityRepo, store, nil, eventPublisher)
 	handler := NewHandler(authService, config)
+
+	if config.PartsGRPCAddr != "" {
+		partsConn, err := grpc.NewClient(config.PartsGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			logrus.WithError(err).Warn("Failed to create gRPC connection to parts-service in auth-service")
+		} else {
+			handler.SetPartsClient(partsv1.NewPartsServiceClient(partsConn))
+			logrus.WithField("addr", config.PartsGRPCAddr).Info("Connected to parts-service via gRPC in auth-service")
+			defer partsConn.Close()
+		}
+	}
 
 	log.Println("Сервис аутентификации готов к работе с пользователями.")
 

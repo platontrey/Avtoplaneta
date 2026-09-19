@@ -10,6 +10,7 @@ type Config struct {
 	Port            string
 	AllowedOrigins  string
 	PartsServiceURL string
+	PartsGRPCAddr   string
 	JWTSecret       string
 	RedisURL        string
 }
@@ -23,11 +24,15 @@ func LoadConfig() *Config {
 		Port:            os.Getenv("PORT"),
 		AllowedOrigins:  os.Getenv("ALLOWED_ORIGINS"),
 		PartsServiceURL: os.Getenv("PARTS_SERVICE_URL"),
+		PartsGRPCAddr:   os.Getenv("PARTS_GRPC_ADDR"),
 		JWTSecret:       os.Getenv("JWT_SECRET"),
 		RedisURL:        os.Getenv("REDIS_URL"),
 	}
 
 	// Значения по умолчанию
+	if config.PartsGRPCAddr == "" {
+		config.PartsGRPCAddr = "localhost:9081"
+	}
 	if config.PartsServiceURL == "" {
 		config.PartsServiceURL = "http://localhost:8081"
 	}

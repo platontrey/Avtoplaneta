@@ -85,7 +85,7 @@ services:
       - NODE_ENV=production
       - PORT=8083
       - GRPC_PORT=9083
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${AUTH_DATABASE_URL:-${DATABASE_URL}}
       - SESSION_SECRET=${SESSION_SECRET}
       - JWT_SECRET=${JWT_SECRET}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
@@ -93,6 +93,7 @@ services:
       - GOOGLE_CALLBACK_URL=https://${PUBLIC_DOMAIN:-backend-server.ru}/auth/google/callback
       - ALLOWED_ORIGINS=https://${PUBLIC_DOMAIN:-backend-server.ru},https://www.${PUBLIC_DOMAIN:-backend-server.ru},https://192.168.1.3
       - PARTS_SERVICE_URL=http://parts-service:8081
+      - PARTS_GRPC_ADDR=parts-service:9081
       - REDIS_URL=redis:6379
       - GOMEMLIMIT=1024MiB
       - GOGC=400
@@ -138,7 +139,7 @@ services:
       - NODE_ENV=production
       - PORT=8081
       - GRPC_PORT=9081
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${PARTS_DATABASE_URL:-${DATABASE_URL}}
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - REDIS_URL=redis:6379
       - AUTH_GRPC_ADDR=auth-service:9083
@@ -183,10 +184,11 @@ services:
       - NODE_ENV=production
       - PORT=8082
       - GRPC_PORT=9082
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${ORDERS_DATABASE_URL:-${DATABASE_URL}}
       - SESSION_SECRET=${SESSION_SECRET}
       - REDIS_URL=redis:6379
       - AUTH_SERVICE_URL=http://auth-service:8083
+      - AUTH_GRPC_ADDR=auth-service:9083
       - PARTS_SERVICE_GRPC_URL=parts-service:9081
       - GOMEMLIMIT=1024MiB
       - GOGC=400
@@ -270,9 +272,10 @@ services:
       - NODE_ENV=production
       - PORT=8084
       - GRPC_PORT=9084
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${MESSAGING_DATABASE_URL:-${DATABASE_URL}}
       - REDIS_URL=redis:6379
       - AUTH_SERVICE_URL=http://auth-service:8083
+      - AUTH_GRPC_ADDR=auth-service:9083
       - DROM_API_KEY=${DROM_API_KEY}
       - DROM_PACKET_ID=${DROM_PACKET_ID}
       - MESSAGING_SERVICE_URL=https://${PUBLIC_DOMAIN:-backend-server.ru}/api/messaging
@@ -292,10 +295,12 @@ services:
       - avtoplaneta_network
     volumes:
       - postgres-data:/var/lib/postgresql
+      - ./scripts/init-multiple-databases.sh:/docker-entrypoint-initdb.d/init-multiple-databases.sh:ro
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_DB=${POSTGRES_DB:-avtoplaneta}
+      - POSTGRES_MULTIPLE_DATABASES=avtoplaneta_auth,avtoplaneta_parts,avtoplaneta_orders,avtoplaneta_messaging
     command: 
       - "postgres"
       - "-c"

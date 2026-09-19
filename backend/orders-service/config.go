@@ -12,19 +12,21 @@ type Config struct {
 	RedisPassword       string
 	RedisDB             int
 	AuthServiceURL      string
+	AuthServiceGRPCURL  string
 	PartsServiceGRPCURL string
 }
 
 // LoadConfig загружает конфигурацию из переменных окружения
 func LoadConfig() *Config {
 	config := &Config{
-		DatabaseURL:    os.Getenv("DATABASE_URL"),
-		SessionSecret:  os.Getenv("SESSION_SECRET"),
-		NodeEnv:        os.Getenv("NODE_ENV"),
+		DatabaseURL:         os.Getenv("DATABASE_URL"),
+		SessionSecret:       os.Getenv("SESSION_SECRET"),
+		NodeEnv:             os.Getenv("NODE_ENV"),
 		Port:                os.Getenv("PORT"),
 		RedisURL:            os.Getenv("REDIS_URL"),
 		RedisPassword:       os.Getenv("REDIS_PASSWORD"),
 		AuthServiceURL:      os.Getenv("AUTH_SERVICE_URL"),
+		AuthServiceGRPCURL:  os.Getenv("AUTH_SERVICE_GRPC_URL"),
 		PartsServiceGRPCURL: os.Getenv("PARTS_SERVICE_GRPC_URL"),
 	}
 
@@ -47,6 +49,13 @@ func LoadConfig() *Config {
 	}
 	if config.AuthServiceURL == "" {
 		config.AuthServiceURL = "http://localhost:8083"
+	}
+	if config.AuthServiceGRPCURL == "" {
+		if addr := os.Getenv("AUTH_GRPC_ADDR"); addr != "" {
+			config.AuthServiceGRPCURL = addr
+		} else {
+			config.AuthServiceGRPCURL = "localhost:9083"
+		}
 	}
 	if config.PartsServiceGRPCURL == "" {
 		config.PartsServiceGRPCURL = "localhost:9081"
