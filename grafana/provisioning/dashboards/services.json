@@ -45,7 +45,7 @@
       },
       "targets": [
         {
-          "expr": "up{job=~\"gateway|parts-service|orders-service|messaging-service|auth-service\"}",
+          "expr": "up{job=~\"gateway|parts-service|orders-service|messaging-service|auth-service|export-service\"}",
           "legendFormat": "{{job}}"
         }
       ],
