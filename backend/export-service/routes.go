@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // SetupRoutes описывает весь внешний договор сервиса.
@@ -14,6 +15,10 @@ import (
 // отдаёт, — и это внутреннее дело, а не повод ломать ссылку у Drom.
 func SetupRoutes(router *gin.Engine, handler *Handler) {
 	router.GET("/health", handler.healthCheck)
+
+	// Тот же адрес метрик, что у остальных сервисов: иначе сервис выпадает из
+	// мониторинга просто потому, что о нём забыли.
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	router.GET("/api/export/xml", handler.exportXMLPriceList)
 	router.POST("/api/export/drom", handler.sendPriceListToDrom)
