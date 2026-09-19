@@ -1,20 +1,8 @@
 package main
 
 import (
-	"context"
-	"net/http"
-	"os"
-	"strings"
-
 	"github.com/gin-gonic/gin"
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/encoding/protojson"
-
-	partsv1 "avtoplaneta/gen/parts/v1"
 )
 
 // SetupRoutes настраивает маршруты для приложения с dependency injection
@@ -29,43 +17,86 @@ func SetupRoutes(r *gin.Engine, handler *Handler) {
 	// Add /metrics endpoint
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	// Монтируем grpc-gateway для /api/v1/* (совместимость с фронтендом)
-	setupGRPCGatewayRoutes(r)
+	// v1 и legacy маршруты для инвентаря
+	for _, path := range []string{"/api/v1/inventory", "/api/inventory"} {
+		r.GET(path, handler.GetInventoryHandler)
+	}
 
-	// Основные маршруты сервиса запчастей
-	r.GET("/api/inventory", handler.GetInventoryHandler)
-	r.GET("/api/inventory/:id", handler.GetPartByIDHandler)
-	r.POST("/api/addpart", handler.AddPartHandler)
-	r.DELETE("/api/deletepart/:id", handler.DeletePartHandler)
-	r.PUT("/api/updatepart/:id", handler.UpdatePartHandler)
-	r.POST("/api/uploadpartphoto/:id", handler.UploadPartPhotoHandler)
-	r.DELETE("/api/deletepartphoto/:id", handler.DeletePartPhotoHandler)
-	r.POST("/api/markpartfordeletion/:id", handler.MarkPartForDeletionHandler)
-	r.GET("/api/statistics", handler.GetStatisticsHandler)
-	r.GET("/api/part-catalog", handler.GetPartCatalogHandler)
-	r.POST("/api/statistics/update-earnings", handler.UpdateEarningsHandler)
+	// v1 и legacy маршруты для конкретной детали
+	for _, path := range []string{"/api/v1/parts/item/:id", "/api/v1/parts/:id", "/api/inventory/:id"} {
+		r.GET(path, handler.GetPartByIDHandler)
+	}
 
-	// v1 маршруты и алиасы
-	r.POST("/api/v1/uploadpartphoto/:id", handler.UploadPartPhotoHandler)
-	r.POST("/api/v1/parts/:id/photos", handler.UploadPartPhotoHandler)
-	r.DELETE("/api/v1/deletepartphoto/:id", handler.DeletePartPhotoHandler)
-	r.GET("/api/v1/part-catalog", handler.GetPartCatalogHandler)
-	r.GET("/api/v1/catalogs/parts", handler.GetPartCatalogHandler)
-	r.GET("/api/v1/vehicle-catalog", handler.GetVehicleCatalogHandler)
-	r.GET("/api/v1/catalogs/vehicles", handler.GetVehicleCatalogHandler)
+	// v1 и legacy маршруты создания деталей
+	for _, path := range []string{"/api/v1/parts", "/api/addpart"} {
+		r.POST(path, handler.AddPartHandler)
+	}
 
-	// Маршруты для характеристик запчастей больше не нужны - характеристики хранятся в основной таблице Part
+	// v1 и legacy маршруты обновления деталей
+	for _, path := range []string{"/api/v1/parts/:id", "/api/updatepart/:id"} {
+		r.PUT(path, handler.UpdatePartHandler)
+	}
 
-	// Маршруты для дефектных ведомостей
-	r.GET("/api/vehicle-catalog", handler.GetVehicleCatalogHandler)
-	r.POST("/api/defect-reports/preview", handler.PreviewDefectReportHandler)
-	r.POST("/api/defect-reports", handler.CreateDefectReportHandler)
+	// v1 и legacy маршруты удаления деталей
+	for _, path := range []string{"/api/v1/parts/:id", "/api/deletepart/:id"} {
+		r.DELETE(path, handler.DeletePartHandler)
+	}
 
-	// Админ маршруты
-	r.DELETE("/api/admin/delete-zero-quantity-parts/:supplier_code", handler.DeleteZeroQuantityPartsBySupplierHandler)
-	r.GET("/api/admin/supplier-codes", handler.GetSupplierCodesHandler)
-	r.DELETE("/api/admin/bulk-delete-parts", handler.BulkDeletePartsHandler)
-	r.PUT("/api/admin/bulk-update-parts", handler.BulkUpdatePartsHandler)
+	// v1 и legacy маршруты отметки на удаление
+	for _, path := range []string{"/api/v1/parts/:id/mark-deletion", "/api/markpartfordeletion/:id"} {
+		r.POST(path, handler.MarkPartForDeletionHandler)
+	}
+
+	// v1 и legacy маршруты загрузки фото
+	for _, path := range []string{"/api/v1/uploadpartphoto/:id", "/api/v1/parts/:id/photos", "/api/uploadpartphoto/:id"} {
+		r.POST(path, handler.UploadPartPhotoHandler)
+	}
+
+	// v1 и legacy маршруты удаления фото
+	for _, path := range []string{"/api/v1/deletepartphoto/:id", "/api/v1/parts/:id/photo", "/api/deletepartphoto/:id"} {
+		r.DELETE(path, handler.DeletePartPhotoHandler)
+	}
+
+	// v1 и legacy маршруты статистики
+	for _, path := range []string{"/api/v1/statistics", "/api/statistics"} {
+		r.GET(path, handler.GetStatisticsHandler)
+	}
+	for _, path := range []string{"/api/v1/statistics/earnings", "/api/statistics/update-earnings"} {
+		r.POST(path, handler.UpdateEarningsHandler)
+	}
+
+	// v1 и legacy маршруты каталогов
+	for _, path := range []string{"/api/v1/part-catalog", "/api/v1/catalogs/parts", "/api/part-catalog"} {
+		r.GET(path, handler.GetPartCatalogHandler)
+	}
+	for _, path := range []string{"/api/v1/vehicle-catalog", "/api/v1/catalogs/vehicles", "/api/vehicle-catalog"} {
+		r.GET(path, handler.GetVehicleCatalogHandler)
+	}
+
+	// v1 и legacy маршруты дефектных ведомостей
+	for _, path := range []string{"/api/v1/defect-reports/preview", "/api/defect-reports/preview"} {
+		r.POST(path, handler.PreviewDefectReportHandler)
+	}
+	for _, path := range []string{"/api/v1/defect-reports", "/api/defect-reports"} {
+		r.POST(path, handler.CreateDefectReportHandler)
+	}
+
+	// v1 и legacy админ-маршруты
+	for _, path := range []string{"/api/v1/admin/parts/bulk-delete", "/api/admin/bulk-delete-parts"} {
+		r.DELETE(path, handler.BulkDeletePartsHandler)
+		r.POST(path, handler.BulkDeletePartsHandler)
+	}
+	for _, path := range []string{"/api/v1/admin/parts/bulk-update", "/api/admin/bulk-update-parts"} {
+		r.PUT(path, handler.BulkUpdatePartsHandler)
+		r.POST(path, handler.BulkUpdatePartsHandler)
+	}
+	for _, path := range []string{"/api/v1/admin/supplier-codes", "/api/admin/supplier-codes"} {
+		r.GET(path, handler.GetSupplierCodesHandler)
+	}
+	for _, path := range []string{"/api/v1/admin/parts/zero-quantity", "/api/admin/delete-zero-quantity-parts/:supplier_code"} {
+		r.DELETE(path, handler.DeleteZeroQuantityPartsBySupplierHandler)
+		r.POST(path, handler.DeleteZeroQuantityPartsBySupplierHandler)
+	}
 
 	// Статическое обслуживание файлов для загрузок
 	uploads := r.Group("/uploads", uploadsCacheControl())
@@ -87,42 +118,4 @@ func uploadsCacheControl() gin.HandlerFunc {
 		c.Header("Cache-Control", "public, max-age=31536000, immutable")
 		c.Next()
 	}
-}
-
-func setupGRPCGatewayRoutes(r *gin.Engine) {
-	grpcPort := os.Getenv("GRPC_PORT")
-	if grpcPort == "" {
-		grpcPort = "9081"
-	}
-
-	gwmux := runtime.NewServeMux(
-		runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{
-			MarshalOptions: protojson.MarshalOptions{
-				UseProtoNames:   true,
-				EmitUnpopulated: false,
-			},
-			UnmarshalOptions: protojson.UnmarshalOptions{
-				DiscardUnknown: true,
-			},
-		}),
-	)
-
-	err := partsv1.RegisterPartsServiceHandlerFromEndpoint(
-		context.Background(),
-		gwmux,
-		"localhost:"+grpcPort,
-		[]grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())},
-	)
-	if err != nil {
-		logrus.WithError(err).Error("Failed to register parts service handler in grpc-gateway")
-		return
-	}
-
-	r.NoRoute(func(c *gin.Context) {
-		if strings.HasPrefix(c.Request.URL.Path, "/api/v1/") {
-			gwmux.ServeHTTP(c.Writer, c.Request)
-			return
-		}
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
-	})
 }

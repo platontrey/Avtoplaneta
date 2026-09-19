@@ -142,6 +142,16 @@ func (h *Handler) GetInventoryHandler(c *gin.Context) {
 		return
 	}
 
+	if strings.HasPrefix(c.Request.URL.Path, "/api/v1") {
+		c.JSON(http.StatusOK, gin.H{
+			"parts": parts,
+			"total": len(parts),
+			"page":  page,
+			"limit": limit,
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, parts)
 }
 
@@ -336,6 +346,9 @@ func (h *Handler) DeletePartPhotoHandler(c *gin.Context) {
 
 	// Получить путь к конкретному фото из query параметров (опционально)
 	photoPath := c.Query("photo")
+	if photoPath == "" {
+		photoPath = c.Query("photo_url")
+	}
 	fmt.Printf("DeletePartPhotoHandler: partID=%d, photoPath='%s'\n", partID, photoPath)
 
 	ctx := c.Request.Context()

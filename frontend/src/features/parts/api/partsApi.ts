@@ -120,8 +120,7 @@ export const partsApi = {
     }
 
     const data = await response.json();
-    // grpc-gateway returns { "parts": [...] }
-    return data.parts || [];
+    return Array.isArray(data) ? data : (data.parts || []);
   },
 
   // Add new part

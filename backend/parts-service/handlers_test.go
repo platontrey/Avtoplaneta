@@ -128,6 +128,7 @@ func (suite *HandlersTestSuite) SetupTest() {
 	suite.router = gin.New()
 
 	// Настраиваем маршруты
+	suite.router.GET("/api/v1/inventory", suite.handler.GetInventoryHandler)
 	suite.router.GET("/api/inventory", suite.handler.GetInventoryHandler)
 	suite.router.POST("/api/addpart", suite.handler.AddPartHandler)
 	suite.router.DELETE("/api/deletepart/:id", suite.handler.DeletePartHandler)
@@ -167,6 +168,34 @@ func (suite *HandlersTestSuite) TestGetInventoryHandler() {
 	assert.NoError(suite.T(), err)
 	assert.Len(suite.T(), response, 1)
 	assert.Equal(suite.T(), "Test Part", response[0].Name)
+}
+
+// TestGetInventoryV1Handler - тест получения инвентаря через /api/v1/inventory
+func (suite *HandlersTestSuite) TestGetInventoryV1Handler() {
+	expectedParts := []Part{
+		{PartCore: PartCore{ID: 1, Name: "Test Part", Quantity: 10}},
+	}
+
+	suite.mockService.On("GetInventory", mock.Anything, mock.AnythingOfType("main.InventoryQueryParams")).Return(expectedParts, nil).Once()
+
+	req, _ := http.NewRequest("GET", "/api/v1/inventory?page=1&limit=10", nil)
+	w := httptest.NewRecorder()
+
+	suite.router.ServeHTTP(w, req)
+
+	assert.Equal(suite.T(), http.StatusOK, w.Code)
+
+	var response struct {
+		Parts []Part `json:"parts"`
+		Total int    `json:"total"`
+		Page  int    `json:"page"`
+		Limit int    `json:"limit"`
+	}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.Len(suite.T(), response.Parts, 1)
+	assert.Equal(suite.T(), "Test Part", response.Parts[0].Name)
+	assert.Equal(suite.T(), 1, response.Total)
 }
 
 // TestAddPartHandler - тест добавления запчасти
@@ -482,7 +511,9 @@ func (m *MockInventoryService) PartsForExport(context.Context) ([]Part, error) {
 func TestSetupRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	handler := &Handler{inventoryService: new(MockInventoryService)}
+	mockService := new(MockInventoryService)
+	mockService.On("GetInventory", mock.Anything, mock.AnythingOfType("main.InventoryQueryParams")).Return([]Part{}, nil)
+	handler := &Handler{inventoryService: mockService}
 	assert.NotPanics(t, func() {
 		SetupRoutes(r, handler)
 	})
@@ -492,4 +523,11 @@ func TestSetupRoutes(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
+
+	// Test /api/v1/inventory
+	req2, _ := http.NewRequest("GET", "/api/v1/inventory", nil)
+	w2 := httptest.NewRecorder()
+	r.ServeHTTP(w2, req2)
+	assert.Equal(t, http.StatusOK, w2.Code)
+	t.Logf("Response code for /api/v1/inventory: %d, body: %s", w2.Code, w2.Body.String())
 }
