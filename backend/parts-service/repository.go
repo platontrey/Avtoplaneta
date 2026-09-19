@@ -18,13 +18,14 @@ import (
 // PartRepository определяет контракт для доступа к данным запчастей
 type PartRepository interface {
 	Create(ctx context.Context, part *Part) error
+	CreateBatch(ctx context.Context, parts []Part) ([]Part, error)
 	FindByID(ctx context.Context, id int64) (*Part, error)
 	FindAll(ctx context.Context) ([]Part, error)
 	Update(ctx context.Context, id int64, updates map[string]interface{}) error
 	Delete(ctx context.Context, id int64) error
 
-	DecreaseQuantity(ctx context.Context, id int64, amount int) error
-	IncreaseQuantity(ctx context.Context, id int64, amount int) error
+	DecreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error
+	IncreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error
 
 	FindWithFilters(ctx context.Context, filters map[string]interface{}, offset, limit int) ([]Part, error)
 
@@ -236,14 +237,140 @@ func (r *partRepository) Update(ctx context.Context, id int64, updates map[strin
 	return err
 }
 
-func (r *partRepository) DecreaseQuantity(ctx context.Context, id int64, amount int) error {
+func (r *partRepository) CreateBatch(ctx context.Context, parts []Part) ([]Part, error) {
+	if len(parts) == 0 {
+		return parts, nil
+	}
+
+	batch := &pgx.Batch{}
+	const insertSQL = `
+		INSERT INTO parts (
+			name, quantity, description, category, price, salesman, location, address, status,
+			brand, model, photos, seller_id, to_delete_at, vin,
+			body_brand, engine_brand, car_release_date, car_release_period, front_rear, left_right, top_bottom,
+			number, manufacturer, manufacturer_code, oem_code, color, condition,
+			supplier_code, defect, transmission, transmission_model, drive, wear_percentage,
+			season, diameter, width, profile, tire_quantity, drilling, "offset",
+			center_hole_diameter, tire_model, created_at, updated_at
+		) VALUES (
+			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
+			$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,
+			$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,NOW(),NOW()
+		) RETURNING id, created_at, updated_at`
+
+	for i := range parts {
+		part := &parts[i]
+		photosJSON, _ := json.Marshal(part.Photos)
+		if part.Photo != "" && len(part.Photos) == 0 {
+			photosJSON, _ = json.Marshal(StringArray{part.Photo})
+		}
+		var toDeleteAt *time.Time
+		if part.ToDeleteAt != nil {
+			toDeleteAt = part.ToDeleteAt
+		}
+
+		batch.Queue(insertSQL,
+			part.Name, part.Quantity, part.Description, part.Category, part.Price,
+			part.Salesman, part.Location, part.Address, part.Status, part.Brand, part.Model,
+			photosJSON, part.SellerID, toDeleteAt, part.VIN,
+			part.BodyBrand, part.EngineBrand, part.CarReleaseDate, part.CarReleasePeriod, part.FrontRear, part.LeftRight, part.TopBottom,
+			part.Number, part.Manufacturer, part.ManufacturerCode, part.OEMCode, part.Color, part.Condition,
+			part.SupplierCode, part.Defect, part.Transmission, part.TransmissionModel, part.Drive, part.WearPercentage,
+			part.Season, part.Diameter, part.Width, part.Profile, part.TireQuantity, part.Drilling, part.Offset,
+			part.CenterHoleDiameter, part.TireModel,
+		)
+	}
+
+	br := r.pool.SendBatch(ctx, batch)
+	defer br.Close()
+
+	var createdAt, updatedAt time.Time
+	for i := range parts {
+		err := br.QueryRow().Scan(&parts[i].ID, &createdAt, &updatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan created part %d in batch: %w", i, err)
+		}
+	}
+
+	return parts, nil
+}
+
+func (r *partRepository) DecreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error {
+	if operationID != "" {
+		tx, err := r.pool.Begin(ctx)
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback(ctx)
+
+		tag, err := tx.Exec(ctx, `
+			INSERT INTO part_stock_operations (operation_id, part_id, operation_type, amount)
+			VALUES ($1, $2, 'decrease', $3)
+			ON CONFLICT (operation_id, part_id, operation_type) DO NOTHING
+		`, operationID, id, amount)
+		if err != nil {
+			return fmt.Errorf("failed to record stock operation: %w", err)
+		}
+
+		if tag.RowsAffected() == 0 {
+			logrus.WithFields(logrus.Fields{
+				"operation_id": operationID,
+				"part_id":      id,
+			}).Info("Stock operation already recorded, skipping decrease (idempotent)")
+			return nil
+		}
+
+		q := r.queries.WithTx(tx)
+		if err := q.DecreasePartQuantity(ctx, sqlc.DecreasePartQuantityParams{
+			ID:     id,
+			Amount: int32(amount),
+		}); err != nil {
+			return err
+		}
+		return tx.Commit(ctx)
+	}
+
 	return r.queries.DecreasePartQuantity(ctx, sqlc.DecreasePartQuantityParams{
 		ID:     id,
 		Amount: int32(amount),
 	})
 }
 
-func (r *partRepository) IncreaseQuantity(ctx context.Context, id int64, amount int) error {
+func (r *partRepository) IncreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error {
+	if operationID != "" {
+		tx, err := r.pool.Begin(ctx)
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback(ctx)
+
+		tag, err := tx.Exec(ctx, `
+			INSERT INTO part_stock_operations (operation_id, part_id, operation_type, amount)
+			VALUES ($1, $2, 'increase', $3)
+			ON CONFLICT (operation_id, part_id, operation_type) DO NOTHING
+		`, operationID, id, amount)
+		if err != nil {
+			return fmt.Errorf("failed to record stock operation: %w", err)
+		}
+
+		if tag.RowsAffected() == 0 {
+			logrus.WithFields(logrus.Fields{
+				"operation_id": operationID,
+				"part_id":      id,
+			}).Info("Stock operation already recorded, skipping increase (idempotent)")
+			return nil
+		}
+
+		q := r.queries.WithTx(tx)
+		if err := q.IncreasePartQuantity(ctx, sqlc.IncreasePartQuantityParams{
+			ID:     id,
+			Amount: int32(amount),
+		}); err != nil {
+			return err
+		}
+		return tx.Commit(ctx)
+	}
+
 	return r.queries.IncreasePartQuantity(ctx, sqlc.IncreasePartQuantityParams{
 		ID:     id,
 		Amount: int32(amount),

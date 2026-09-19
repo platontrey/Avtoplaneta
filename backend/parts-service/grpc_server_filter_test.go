@@ -171,8 +171,7 @@ func TestPartsGRPCServerQueuesPreparedDefectReport(t *testing.T) {
 	service := &recordingInventoryService{}
 	catalog, err := LoadPartCatalog()
 	require.NoError(t, err)
-	publisher := &recordingDefectReportPublisher{}
-	server := NewPartsGRPCServer(service, NewDefectReportWorkflow(catalog, publisher))
+	server := NewPartsGRPCServer(service, NewDefectReportWorkflow(catalog, service))
 
 	response, err := server.CreateDefectReport(context.Background(), &partsv1.CreateDefectReportRequest{
 		Brand:             "Toyota",
@@ -193,17 +192,16 @@ func TestPartsGRPCServerQueuesPreparedDefectReport(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 1, response.PartsQueued)
 	require.NotEmpty(t, response.Message)
-	require.Empty(t, service.snapshot(), "gRPC adapter must not bypass the asynchronous workflow")
-	require.Equal(t, defectReportEventVersion, publisher.report.EventVersion)
-	require.Len(t, publisher.report.SelectedParts, 1)
+	created := service.snapshot()
+	require.Len(t, created, 1, "gRPC adapter must create parts directly via service")
 
-	queued := publisher.report.SelectedParts[0]
-	require.Equal(t, "TESTVIN", queued.VIN)
-	require.Equal(t, "2015", queued.CarReleaseDate)
-	require.Equal(t, "2011-2017", queued.CarReleasePeriod)
-	require.Equal(t, "XV50", queued.BodyBrand)
-	require.Equal(t, "2AR-FE", queued.EngineBrand)
-	require.Equal(t, "АКПП", queued.Transmission)
-	require.Equal(t, "U660E", queued.TransmissionModel)
-	require.Equal(t, "Передний", queued.Drive)
+	part := created[0]
+	require.Equal(t, "TESTVIN", part.VIN)
+	require.Equal(t, "2015", part.CarReleaseDate)
+	require.Equal(t, "2011-2017", part.CarReleasePeriod)
+	require.Equal(t, "XV50", part.BodyBrand)
+	require.Equal(t, "2AR-FE", part.EngineBrand)
+	require.Equal(t, "АКПП", part.Transmission)
+	require.Equal(t, "U660E", part.TransmissionModel)
+	require.Equal(t, "Передний", part.Drive)
 }

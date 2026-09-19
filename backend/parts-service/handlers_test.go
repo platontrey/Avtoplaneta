@@ -90,13 +90,21 @@ func (m *MockInventoryService) GetPartByID(ctx context.Context, id int64) (*Part
 	return args.Get(0).(*Part), args.Error(1)
 }
 
-func (m *MockInventoryService) DecreasePartQuantity(ctx context.Context, id int64, amount int) error {
-	args := m.Called(ctx, id, amount)
+func (m *MockInventoryService) AddPartsBatch(ctx context.Context, parts []Part) ([]Part, error) {
+	args := m.Called(ctx, parts)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]Part), args.Error(1)
+}
+
+func (m *MockInventoryService) DecreasePartQuantity(ctx context.Context, id int64, amount int, operationID string) error {
+	args := m.Called(ctx, id, amount, operationID)
 	return args.Error(0)
 }
 
-func (m *MockInventoryService) IncreasePartQuantity(ctx context.Context, id int64, amount int) error {
-	args := m.Called(ctx, id, amount)
+func (m *MockInventoryService) IncreasePartQuantity(ctx context.Context, id int64, amount int, operationID string) error {
+	args := m.Called(ctx, id, amount, operationID)
 	return args.Error(0)
 }
 

@@ -49,13 +49,21 @@ func (m *MockPartRepository) Delete(ctx context.Context, id int64) error {
 	return args.Error(0)
 }
 
-func (m *MockPartRepository) DecreaseQuantity(ctx context.Context, id int64, amount int) error {
-	args := m.Called(ctx, id, amount)
+func (m *MockPartRepository) CreateBatch(ctx context.Context, parts []Part) ([]Part, error) {
+	args := m.Called(ctx, parts)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]Part), args.Error(1)
+}
+
+func (m *MockPartRepository) DecreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error {
+	args := m.Called(ctx, id, amount, operationID)
 	return args.Error(0)
 }
 
-func (m *MockPartRepository) IncreaseQuantity(ctx context.Context, id int64, amount int) error {
-	args := m.Called(ctx, id, amount)
+func (m *MockPartRepository) IncreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error {
+	args := m.Called(ctx, id, amount, operationID)
 	return args.Error(0)
 }
 

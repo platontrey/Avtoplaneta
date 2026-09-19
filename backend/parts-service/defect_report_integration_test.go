@@ -8,46 +8,20 @@ import (
 	"net/http/httptest"
 	"sync"
 	"testing"
-	"time"
 
-	"github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 )
 
-func TestDefectReportHTTPThroughRedisConsumer(t *testing.T) {
+func TestDefectReportHTTPSynchronousBatch(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	catalog, err := LoadPartCatalog()
 	require.NoError(t, err)
 
-	redisServer := miniredis.RunT(t)
-	client := redis.NewClient(&redis.Options{Addr: redisServer.Addr()})
-	t.Cleanup(func() { _ = client.Close() })
-
 	recordingService := &recordingInventoryService{}
-	handler := NewHandler(recordingService, catalog, nil, NewDefectReportWorkflow(
-		catalog,
-		NewRedisDefectReportEventPublisher(client),
-	))
+	handler := NewHandler(recordingService, catalog, nil, NewDefectReportWorkflow(catalog, recordingService))
 	router := gin.New()
 	router.POST("/api/defect-reports", handler.CreateDefectReportHandler)
-
-	consumer := &RedisEventConsumer{
-		client:   client,
-		service:  recordingService,
-		group:    "parts-service-integration",
-		consumer: "worker-integration",
-		stream:   "events:orders",
-	}
-	consumerContext, cancelConsumer := context.WithCancel(context.Background())
-	t.Cleanup(cancelConsumer)
-	consumerDone := make(chan error, 1)
-	go func() { consumerDone <- consumer.Start(consumerContext) }()
-	require.Eventually(t, func() bool {
-		groups, groupErr := client.XInfoGroups(context.Background(), "events:orders").Result()
-		return groupErr == nil && len(groups) == 1
-	}, 5*time.Second, 10*time.Millisecond, "consumer group was not created")
 
 	payload := map[string]any{
 		"brand":              "BMW",
@@ -73,33 +47,7 @@ func TestDefectReportHTTPThroughRedisConsumer(t *testing.T) {
 	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
-	require.Equal(t, http.StatusAccepted, response.Code, response.Body.String())
-
-	messages, err := client.XRange(context.Background(), "events:orders", "-", "+").Result()
-	require.NoError(t, err)
-	require.Len(t, messages, 1)
-	require.Equal(t, "defect_report_created", messages[0].Values["type"])
-	queuedData, ok := messages[0].Values["data"].(string)
-	require.True(t, ok)
-	var queuedReport DefectReportRequest
-	require.NoError(t, json.Unmarshal([]byte(queuedData), &queuedReport))
-	require.Equal(t, defectReportEventVersion, queuedReport.EventVersion)
-	require.Len(t, queuedReport.SelectedParts, len(catalog.Parts))
-
-	require.Eventually(t, func() bool {
-		return len(recordingService.snapshot()) == len(catalog.Parts)
-	}, 10*time.Second, 10*time.Millisecond, "consumer did not create all catalog parts")
-	pending, err := client.XPending(context.Background(), "events:orders", consumer.group).Result()
-	require.NoError(t, err)
-	require.Zero(t, pending.Count, "processed event must be acknowledged")
-
-	cancelConsumer()
-	select {
-	case consumerErr := <-consumerDone:
-		require.NoError(t, consumerErr)
-	case <-time.After(6 * time.Second):
-		t.Fatal("consumer did not stop after context cancellation")
-	}
+	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
 
 	createdParts := recordingService.snapshot()
 	require.Len(t, createdParts, len(catalog.Parts))
@@ -141,7 +89,8 @@ func TestDefectReportPreviewUsesServerCatalog(t *testing.T) {
 	catalog, err := LoadPartCatalog()
 	require.NoError(t, err)
 
-	handler := NewHandler(&recordingInventoryService{}, catalog, nil, NewDefectReportWorkflow(catalog, nil))
+	recordingService := &recordingInventoryService{}
+	handler := NewHandler(recordingService, catalog, nil, NewDefectReportWorkflow(catalog, recordingService))
 	router := gin.New()
 	router.POST("/api/defect-reports/preview", handler.PreviewDefectReportHandler)
 
@@ -185,38 +134,15 @@ func TestDefectReportPreviewUsesServerCatalog(t *testing.T) {
 	require.NotEqual(t, "Подмененная деталь", preview.Parts[0].Name)
 }
 
-func TestDefectReportHTTPThroughRedisConsumer_WithSelectedParts(t *testing.T) {
+func TestDefectReportHTTPSynchronousBatch_WithSelectedParts(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	catalog, err := LoadPartCatalog()
 	require.NoError(t, err)
 
-	redisServer := miniredis.RunT(t)
-	client := redis.NewClient(&redis.Options{Addr: redisServer.Addr()})
-	t.Cleanup(func() { _ = client.Close() })
-
 	recordingService := &recordingInventoryService{}
-	handler := NewHandler(recordingService, catalog, nil, NewDefectReportWorkflow(
-		catalog,
-		NewRedisDefectReportEventPublisher(client),
-	))
+	handler := NewHandler(recordingService, catalog, nil, NewDefectReportWorkflow(catalog, recordingService))
 	router := gin.New()
 	router.POST("/api/defect-reports", handler.CreateDefectReportHandler)
-
-	consumer := &RedisEventConsumer{
-		client:   client,
-		service:  recordingService,
-		group:    "parts-service-integration-selected",
-		consumer: "worker-integration-selected",
-		stream:   "events:orders",
-	}
-	consumerContext, cancelConsumer := context.WithCancel(context.Background())
-	t.Cleanup(cancelConsumer)
-	consumerDone := make(chan error, 1)
-	go func() { consumerDone <- consumer.Start(consumerContext) }()
-	require.Eventually(t, func() bool {
-		groups, groupErr := client.XInfoGroups(context.Background(), "events:orders").Result()
-		return groupErr == nil && len(groups) == 1
-	}, 5*time.Second, 10*time.Millisecond, "consumer group was not created")
 
 	// Клиент присылает сформированные selectedParts без некоторых характеристик
 	payload := map[string]any{
@@ -250,19 +176,7 @@ func TestDefectReportHTTPThroughRedisConsumer_WithSelectedParts(t *testing.T) {
 	request.Header.Set("X-User-Name", "AutoTester")
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
-	require.Equal(t, http.StatusAccepted, response.Code, response.Body.String())
-
-	require.Eventually(t, func() bool {
-		return len(recordingService.snapshot()) == 7
-	}, 10*time.Second, 10*time.Millisecond, "consumer did not create all 7 selected parts")
-
-	cancelConsumer()
-	select {
-	case consumerErr := <-consumerDone:
-		require.NoError(t, consumerErr)
-	case <-time.After(6 * time.Second):
-		t.Fatal("consumer did not stop after context cancellation")
-	}
+	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
 
 	createdParts := recordingService.snapshot()
 	require.Len(t, createdParts, 7)
@@ -383,10 +297,18 @@ func (service *recordingInventoryService) DeletePartPhoto(context.Context, int64
 func (service *recordingInventoryService) GetPartByID(context.Context, int64) (*Part, error) {
 	return nil, nil
 }
-func (service *recordingInventoryService) DecreasePartQuantity(context.Context, int64, int) error {
+func (service *recordingInventoryService) AddPartsBatch(ctx context.Context, parts []Part) ([]Part, error) {
+	service.mu.Lock()
+	defer service.mu.Unlock()
+	for i := range parts {
+		service.parts = append(service.parts, parts[i])
+	}
+	return parts, nil
+}
+func (service *recordingInventoryService) DecreasePartQuantity(context.Context, int64, int, string) error {
 	return nil
 }
-func (service *recordingInventoryService) IncreasePartQuantity(context.Context, int64, int) error {
+func (service *recordingInventoryService) IncreasePartQuantity(context.Context, int64, int, string) error {
 	return nil
 }
 func (service *recordingInventoryService) UpdateEarnings(context.Context, float64) error {

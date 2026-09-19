@@ -255,6 +255,7 @@ message GetPartRequest {
 message ChangePartQuantityRequest {
   uint32 id = 1;
   int32 amount = 2;
+  string operation_id = 3;
 }
 
 message ChangePartQuantityResponse {

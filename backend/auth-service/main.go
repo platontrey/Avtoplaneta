@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
@@ -56,8 +57,14 @@ func main() {
 
 	InitAuth(ctx, config)
 
+	var eventPublisher UserEventPublisher
+	if config.RedisURL != "" {
+		rdb := redis.NewClient(&redis.Options{Addr: config.RedisURL})
+		eventPublisher = NewRedisUserEventPublisher(rdb)
+	}
+
 	activityRepo := NewActivityLogRepository(dbPool)
-	authService := NewAuthService(userRepo, activityRepo, store, nil)
+	authService := NewAuthService(userRepo, activityRepo, store, nil, eventPublisher)
 	handler := NewHandler(authService, config)
 
 	log.Println("Сервис аутентификации готов к работе с пользователями.")

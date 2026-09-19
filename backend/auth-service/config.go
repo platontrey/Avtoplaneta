@@ -11,6 +11,7 @@ type Config struct {
 	AllowedOrigins  string
 	PartsServiceURL string
 	JWTSecret       string
+	RedisURL        string
 }
 
 // LoadConfig загружает конфигурацию из переменных окружения
@@ -23,6 +24,7 @@ func LoadConfig() *Config {
 		AllowedOrigins:  os.Getenv("ALLOWED_ORIGINS"),
 		PartsServiceURL: os.Getenv("PARTS_SERVICE_URL"),
 		JWTSecret:       os.Getenv("JWT_SECRET"),
+		RedisURL:        os.Getenv("REDIS_URL"),
 	}
 
 	// Значения по умолчанию

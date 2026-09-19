@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -9,6 +10,19 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/crypto/bcrypt"
 )
+
+type mockUserEventPublisher struct {
+	called  bool
+	userID  int64
+	newName string
+}
+
+func (m *mockUserEventPublisher) PublishUserRenamed(ctx context.Context, userID int64, newName string) error {
+	m.called = true
+	m.userID = userID
+	m.newName = newName
+	return nil
+}
 
 type ServiceTestSuite struct {
 	suite.Suite
@@ -222,6 +236,24 @@ func (suite *ServiceTestSuite) TestUpdateUser_Success() {
 	assert.NotNil(suite.T(), result)
 	assert.Equal(suite.T(), "New Name", result.Name)
 	assert.Equal(suite.T(), "", result.Password)
+}
+
+func (suite *ServiceTestSuite) TestUpdateUser_PublishesRenamedEvent() {
+	existing := &User{ID: 5, Email: "seller@example.com", Name: "Old Seller", Role: "operator"}
+	updated := &User{ID: 5, Email: "seller@example.com", Name: "Renamed Seller", Role: "operator"}
+
+	suite.mockUserRepo.On("FindByID", int64(5)).Return(existing, nil)
+	suite.mockUserRepo.On("Update", int64(5), UpdateUserParams{Name: "Renamed Seller"}).Return(updated, nil)
+
+	mockPub := &mockUserEventPublisher{}
+	svc := NewAuthService(suite.mockUserRepo, suite.mockActivityRepo, nil, nil, mockPub)
+
+	result, err := svc.UpdateUser(5, UpdateUserRequest{Name: "Renamed Seller"})
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "Renamed Seller", result.Name)
+	assert.True(suite.T(), mockPub.called)
+	assert.Equal(suite.T(), int64(5), mockPub.userID)
+	assert.Equal(suite.T(), "Renamed Seller", mockPub.newName)
 }
 
 func (suite *ServiceTestSuite) TestUpdateUser_NotFound() {

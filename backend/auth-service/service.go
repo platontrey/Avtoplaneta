@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -57,18 +58,24 @@ type UpdateUserRequest struct {
 }
 
 type authService struct {
-	userRepo     UserRepository
-	activityRepo ActivityLogRepository
-	sessionStore SessionStore
-	rateLimiter  RateLimiter
+	userRepo       UserRepository
+	activityRepo   ActivityLogRepository
+	sessionStore   SessionStore
+	rateLimiter    RateLimiter
+	eventPublisher UserEventPublisher
 }
 
-func NewAuthService(userRepo UserRepository, activityRepo ActivityLogRepository, sessionStore SessionStore, rateLimiter RateLimiter) AuthService {
+func NewAuthService(userRepo UserRepository, activityRepo ActivityLogRepository, sessionStore SessionStore, rateLimiter RateLimiter, publisher ...UserEventPublisher) AuthService {
+	var pub UserEventPublisher
+	if len(publisher) > 0 {
+		pub = publisher[0]
+	}
 	return &authService{
-		userRepo:     userRepo,
-		activityRepo: activityRepo,
-		sessionStore: sessionStore,
-		rateLimiter:  rateLimiter,
+		userRepo:       userRepo,
+		activityRepo:   activityRepo,
+		sessionStore:   sessionStore,
+		rateLimiter:    rateLimiter,
+		eventPublisher: pub,
 	}
 }
 
@@ -248,6 +255,7 @@ func (s *authService) UpdateUser(userID int64, req UpdateUserRequest) (*User, er
 		return nil, fmt.Errorf("нет полей для обновления")
 	}
 
+	oldName := user.Name
 	updatedUser, err := s.userRepo.Update(userID, updateParams)
 	if err != nil {
 		logrus.WithError(err).WithField("user_id", userID).Error("Failed to update user")
@@ -255,6 +263,12 @@ func (s *authService) UpdateUser(userID int64, req UpdateUserRequest) (*User, er
 	}
 
 	updatedUser.Password = ""
+
+	if s.eventPublisher != nil && updatedUser.Name != "" && updatedUser.Name != oldName {
+		if err := s.eventPublisher.PublishUserRenamed(context.Background(), userID, updatedUser.Name); err != nil {
+			logrus.WithError(err).WithField("user_id", userID).Warn("Failed to publish seller_renamed event")
+		}
+	}
 
 	logrus.WithField("user_id", userID).Info("User updated successfully")
 	return updatedUser, nil

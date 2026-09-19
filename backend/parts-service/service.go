@@ -58,9 +58,10 @@ type InventoryService interface {
 
 	// GetPartByID Получение запчасти по ID
 	GetPartByID(ctx context.Context, id int64) (*Part, error)
+	AddPartsBatch(ctx context.Context, parts []Part) ([]Part, error)
 
-	DecreasePartQuantity(ctx context.Context, id int64, amount int) error
-	IncreasePartQuantity(ctx context.Context, id int64, amount int) error
+	DecreasePartQuantity(ctx context.Context, id int64, amount int, operationID string) error
+	IncreasePartQuantity(ctx context.Context, id int64, amount int, operationID string) error
 
 	// UpdateEarnings Обновление общего заработка
 	UpdateEarnings(ctx context.Context, amount float64) error
@@ -120,7 +121,6 @@ type inventoryService struct {
 	es             ElasticsearchClient
 	redis          *redis.Client
 	users          *userdirectory.Directory
-	repairThrottle *sellerRepairThrottle
 	totalEarnings  float64
 	queryPool      sync.Pool // Pool для повторного использования map для Elasticsearch queries
 }
@@ -137,11 +137,10 @@ func NewInventoryService(repo PartRepository, es ElasticsearchClient, config *Co
 	})
 
 	service := &inventoryService{
-		repo:           repo,
-		es:             es,
-		redis:          rdb,
-		users:          users,
-		repairThrottle: newSellerRepairThrottle(),
+		repo:          repo,
+		es:            es,
+		redis:         rdb,
+		users:         users,
 		queryPool: sync.Pool{
 			New: func() interface{} {
 				return make(map[string]interface{})
@@ -174,10 +173,6 @@ func (s *inventoryService) GetInventory(ctx context.Context, params InventoryQue
 	if err != nil {
 		return nil, err
 	}
-
-	// Имя продавца — атрибут человека, а не строки: подставляем актуальное
-	// и чиним копию, если она разошлась со справочником.
-	s.withCurrentSalesman(ctx, parts)
 
 	// Форматируем дополнительные поля для фронтенда
 	s.formatPartsForDisplay(parts)
@@ -1412,6 +1407,36 @@ func (s *inventoryService) AddPart(ctx context.Context, part *Part) (*Part, erro
 	return createdPart, nil
 }
 
+// AddPartsBatch пакетно валидирует, создает и индексирует запчасти (для дефектных ведомостей)
+func (s *inventoryService) AddPartsBatch(ctx context.Context, parts []Part) ([]Part, error) {
+	if len(parts) == 0 {
+		return nil, nil
+	}
+
+	for i := range parts {
+		if err := ValidatePart(&parts[i]); err != nil {
+			return nil, fmt.Errorf("ошибка валидации детали #%d (%s): %w", i, parts[i].Name, err)
+		}
+	}
+
+	createdParts, err := s.repo.CreateBatch(ctx, parts)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка пакетной вставки запчастей: %w", err)
+	}
+
+	// Пакетная индексация всех созданных деталей в Elasticsearch
+	if err := BulkIndexParts(ctx, createdParts); err != nil {
+		logrus.WithError(err).Warn("Не удалось пакетно проиндексировать созданные запчасти в Elasticsearch")
+	}
+
+	// Сброс кэша один раз на весь батч
+	s.redis.Del(ctx, inventoryCacheKey)
+	s.redis.Del(ctx, inventoryCacheKeyWithoutPhotos)
+	s.invalidateStatisticsCache(ctx)
+
+	return createdParts, nil
+}
+
 // UpdatePart обновляет запчасть
 func (s *inventoryService) UpdatePart(ctx context.Context, id int64, updates map[string]interface{}) error {
 	// Получаем существующую часть для обработки обновлений
@@ -1692,18 +1717,16 @@ func (s *inventoryService) GetPartByID(ctx context.Context, id int64) (*Part, er
 		return part, err
 	}
 
-	single := []Part{*part}
-	s.withCurrentSalesman(ctx, single)
-	return &single[0], nil
+	return part, nil
 }
 
-func (s *inventoryService) DecreasePartQuantity(ctx context.Context, id int64, amount int) error {
+func (s *inventoryService) DecreasePartQuantity(ctx context.Context, id int64, amount int, operationID string) error {
 	// Сброс кэша
 	s.redis.Del(ctx, inventoryCacheKey)
 	s.redis.Del(ctx, inventoryCacheKeyWithoutPhotos)
-	s.redis.Del(ctx, statisticsCacheKey)
+	s.invalidateStatisticsCache(ctx)
 
-	err := s.repo.DecreaseQuantity(ctx, id, amount)
+	err := s.repo.DecreaseQuantity(ctx, id, amount, operationID)
 	if err != nil {
 		return err
 	}
@@ -1716,13 +1739,13 @@ func (s *inventoryService) DecreasePartQuantity(ctx context.Context, id int64, a
 	return nil
 }
 
-func (s *inventoryService) IncreasePartQuantity(ctx context.Context, id int64, amount int) error {
+func (s *inventoryService) IncreasePartQuantity(ctx context.Context, id int64, amount int, operationID string) error {
 	// Сброс кэша
 	s.redis.Del(ctx, inventoryCacheKey)
 	s.redis.Del(ctx, inventoryCacheKeyWithoutPhotos)
-	s.redis.Del(ctx, statisticsCacheKey)
+	s.invalidateStatisticsCache(ctx)
 
-	err := s.repo.IncreaseQuantity(ctx, id, amount)
+	err := s.repo.IncreaseQuantity(ctx, id, amount, operationID)
 	if err != nil {
 		return err
 	}

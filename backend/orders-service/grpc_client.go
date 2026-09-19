@@ -13,8 +13,8 @@ import (
 // PartsGRPCClient интерфейс для работы с запчастями по gRPC
 type PartsGRPCClient interface {
 	GetPartByID(ctx context.Context, id int64) (*Part, error)
-	DecreaseQuantity(ctx context.Context, id int64, amount int) error
-	IncreaseQuantity(ctx context.Context, id int64, amount int) error
+	DecreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error
+	IncreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error
 	DeletePart(ctx context.Context, id int64) error
 	Close() error
 }
@@ -62,19 +62,21 @@ func (c *partsGRPCClient) GetPartByID(ctx context.Context, id int64) (*Part, err
 	}, nil
 }
 
-func (c *partsGRPCClient) DecreaseQuantity(ctx context.Context, id int64, amount int) error {
+func (c *partsGRPCClient) DecreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error {
 	req := &partsv1.ChangePartQuantityRequest{
-		Id:     uint32(id),
-		Amount: int32(amount),
+		Id:          uint32(id),
+		Amount:      int32(amount),
+		OperationId: operationID,
 	}
 	_, err := c.client.DecreasePartQuantity(ctx, req)
 	return err
 }
 
-func (c *partsGRPCClient) IncreaseQuantity(ctx context.Context, id int64, amount int) error {
+func (c *partsGRPCClient) IncreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error {
 	req := &partsv1.ChangePartQuantityRequest{
-		Id:     uint32(id),
-		Amount: int32(amount),
+		Id:          uint32(id),
+		Amount:      int32(amount),
+		OperationId: operationID,
 	}
 	_, err := c.client.IncreasePartQuantity(ctx, req)
 	return err

@@ -51,6 +51,7 @@ type OrderRepository interface {
 	MarkExpiredAsAutoDeleted(ctx context.Context, before time.Time) error
 	GetMonthlySales(ctx context.Context) ([]MonthlySales, error)
 	CreateSalesHistory(ctx context.Context, history *SalesHistory) error
+	UpdateSellerName(ctx context.Context, sellerID int64, name string) error
 	GetPool() *pgxpool.Pool
 }
 
@@ -58,8 +59,8 @@ type OrderRepository interface {
 type PartRepositoryForOrders interface {
 	FindByID(ctx context.Context, id int64) (*Part, error)
 	UpdateQuantity(ctx context.Context, id int64, newQuantity int) error
-	DecreaseQuantity(ctx context.Context, id int64, amount int) error
-	IncreaseQuantity(ctx context.Context, id int64, amount int) error
+	DecreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error
+	IncreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error
 	DeletePart(ctx context.Context, id int64) error
 }
 
@@ -378,6 +379,13 @@ func (r *orderRepository) CreateSalesHistory(ctx context.Context, history *Sales
 	return nil
 }
 
+func (r *orderRepository) UpdateSellerName(ctx context.Context, sellerID int64, name string) error {
+	return r.getQueries(ctx).UpdateSellerName(ctx, sqlc.UpdateSellerNameParams{
+		SellerID: sellerID,
+		Seller:   name,
+	})
+}
+
 func (r *orderRepository) GetPool() *pgxpool.Pool {
 	return r.pool
 }
@@ -409,16 +417,16 @@ func (r *partRepositoryForOrders) UpdateQuantity(ctx context.Context, id int64, 
 	return fmt.Errorf("UpdateQuantity is not supported via gRPC yet")
 }
 
-func (r *partRepositoryForOrders) DecreaseQuantity(ctx context.Context, id int64, amount int) error {
-	err := r.client.DecreaseQuantity(ctx, id, amount)
+func (r *partRepositoryForOrders) DecreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error {
+	err := r.client.DecreaseQuantity(ctx, id, amount, operationID)
 	if err != nil {
 		return fmt.Errorf("failed to decrease quantity for part %d by %d: %w", id, amount, err)
 	}
 	return nil
 }
 
-func (r *partRepositoryForOrders) IncreaseQuantity(ctx context.Context, id int64, amount int) error {
-	err := r.client.IncreaseQuantity(ctx, id, amount)
+func (r *partRepositoryForOrders) IncreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error {
+	err := r.client.IncreaseQuantity(ctx, id, amount, operationID)
 	if err != nil {
 		return fmt.Errorf("failed to increase quantity for part %d by %d: %w", id, amount, err)
 	}

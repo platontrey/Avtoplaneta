@@ -2,12 +2,10 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -217,8 +215,9 @@ func (c *RedisEventConsumer) processMessage(ctx context.Context, msg redis.XMess
 	case "order_completed":
 		return c.handleOrderCompleted(ctx, msg)
 	case "defect_report_created":
-		return c.handleDefectReportCreated(ctx, msg)
-	case sellerRenamedEventType:
+		logrus.WithField("message_id", msg.ID).Info("Legacy defect_report_created event acknowledged without processing (now processed synchronously)")
+		return nil
+	case "seller_renamed":
 		return c.handleSellerRenamed(ctx, msg)
 	case "part_index_requested":
 		return c.handlePartIndexRequested(ctx, msg)
@@ -300,176 +299,7 @@ func (c *RedisEventConsumer) handleUserAction(msg redis.XMessage) error {
 	return nil
 }
 
-func (c *RedisEventConsumer) handleDefectReportCreated(ctx context.Context, msg redis.XMessage) error {
-	dataStr, ok := msg.Values["data"].(string)
-	if !ok {
-		logrus.WithField("message_id", msg.ID).Warn("Invalid defect_report_created event: missing data")
-		return nil
-	}
 
-	var defectReportData DefectReportRequest
-
-	if err := json.Unmarshal([]byte(dataStr), &defectReportData); err != nil {
-		logrus.WithError(err).Error("Failed to deserialize defect report data")
-		return err
-	}
-
-	// Use a default system user for defect reports as fallback
-	var defaultUserID int64 = 1
-	var defaultUserName string = "System"
-
-	if defectReportData.SellerID > 0 {
-		defaultUserID = defectReportData.SellerID
-	}
-	if defectReportData.SellerName != "" {
-		defaultUserName = defectReportData.SellerName
-	}
-
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, 10) // Ограничиваем параллелизм до 10 горутин
-
-	for _, sp := range defectReportData.SelectedParts {
-		selectedPart := sp // Захватываем переменную для горутины
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-			sem <- struct{}{}        // Занимаем слот
-			defer func() { <-sem }() // Освобождаем слот
-
-			vin := strings.TrimSpace(selectedPart.VIN)
-			carReleaseDate := strings.TrimSpace(selectedPart.CarReleaseDate)
-			carReleasePeriod := strings.TrimSpace(selectedPart.CarReleasePeriod)
-			bodyBrand := strings.TrimSpace(selectedPart.BodyBrand)
-			engineBrand := strings.TrimSpace(selectedPart.EngineBrand)
-			transmission := strings.TrimSpace(selectedPart.Transmission)
-			transmissionModel := strings.TrimSpace(selectedPart.TransmissionModel)
-			drive := strings.TrimSpace(selectedPart.Drive)
-			color := strings.TrimSpace(selectedPart.Color)
-
-			// События версии 1 уже полностью подготовлены parts-service. Ветка ниже
-			// нужна только для событий старого формата, оставшихся в очереди при деплое.
-			//
-			// TODO(legacy): удалить ветку и поле EventVersion после того, как очередь
-			// полностью прокрутится на новом продюсере (события живут минуты, так что
-			// достаточно суток после выката). Поведение ветки закреплено тестом
-			// TestConsumerFillsVehicleSpecsForLegacyEvents — удалять вместе с ним.
-			if defectReportData.EventVersion < defectReportEventVersion {
-				if vin == "" {
-					vin = strings.TrimSpace(defectReportData.VIN)
-				}
-				if carReleaseDate == "" && defectReportData.Year > 0 {
-					carReleaseDate = strconv.Itoa(defectReportData.Year)
-				}
-				if carReleasePeriod == "" {
-					carReleasePeriod = strings.TrimSpace(defectReportData.CarReleasePeriod)
-				}
-				if bodyBrand == "" {
-					bodyBrand = strings.TrimSpace(defectReportData.BodyBrand)
-				}
-				if engineBrand == "" {
-					engineBrand = strings.TrimSpace(defectReportData.EngineBrand)
-				}
-				if transmission == "" {
-					transmission = strings.TrimSpace(defectReportData.Transmission)
-				}
-				if transmissionModel == "" {
-					transmissionModel = strings.TrimSpace(defectReportData.TransmissionModel)
-				}
-				if drive == "" {
-					drive = strings.TrimSpace(defectReportData.Drive)
-				}
-				if color == "" {
-					switch selectedPart.Category {
-					case "Электрооснащение", "Система кондиционирования", "Сопутствующие товары":
-						color = strings.TrimSpace(defectReportData.InteriorColor)
-						if color == "" {
-							color = "Черный"
-						}
-					default:
-						color = strings.TrimSpace(defectReportData.BodyColor)
-						if color == "" {
-							color = "Белый"
-						}
-					}
-				}
-			}
-
-			part := Part{
-				PartCore: PartCore{
-					Name:        selectedPart.Name,
-					Quantity:    selectedPart.Quantity,
-					Description: selectedPart.Description,
-					Category:    selectedPart.Category,
-					Price:       selectedPart.Price,
-					Salesman:    defaultUserName,
-					Location:    selectedPart.Location,
-					Address:     selectedPart.Address,
-					Status:      true,
-					Brand:       defectReportData.Brand,
-					Model:       defectReportData.Model,
-					Photo:       "",
-					SellerID:    defaultUserID,
-					VIN:         vin,
-				},
-				PartSpecifications: PartSpecifications{
-					BodyBrand:         bodyBrand,
-					EngineBrand:       engineBrand,
-					CarReleaseDate:    carReleaseDate,
-					CarReleasePeriod:  carReleasePeriod,
-					FrontRear:         selectedPart.FrontRear,
-					LeftRight:         selectedPart.LeftRight,
-					TopBottom:         selectedPart.TopBottom,
-					Number:            selectedPart.Number,
-					Manufacturer:      selectedPart.Manufacturer,
-					ManufacturerCode:  selectedPart.ManufacturerCode,
-					OEMCode:           selectedPart.OEMCode,
-					Color:             color,
-					Condition:         selectedPart.Condition,
-					SupplierCode:      selectedPart.SupplierCode,
-					Defect:            selectedPart.Defect,
-					Transmission:      transmission,
-					TransmissionModel: transmissionModel,
-					Drive:             drive,
-					WearPercentage:    selectedPart.WearPercentage,
-				},
-				PartTireSpecifications: PartTireSpecifications{
-					Season:             selectedPart.Season,
-					Diameter:           selectedPart.Diameter,
-					Width:              selectedPart.Width,
-					Profile:            selectedPart.Profile,
-					TireQuantity:       selectedPart.TireQuantity,
-					Drilling:           selectedPart.Drilling,
-					Offset:             selectedPart.Offset,
-					CenterHoleDiameter: selectedPart.CenterHoleDiameter,
-					TireModel:          selectedPart.TireModel,
-				},
-			}
-
-			part.PartCore.Name = strings.TrimSpace(part.PartCore.Name)
-			part.PartCore.Description = strings.TrimSpace(part.PartCore.Description)
-			part.PartCore.Category = strings.TrimSpace(part.PartCore.Category)
-			part.PartCore.Salesman = strings.TrimSpace(part.PartCore.Salesman)
-			part.PartCore.Location = strings.TrimSpace(part.PartCore.Location)
-			part.PartCore.Brand = strings.TrimSpace(part.PartCore.Brand)
-			part.PartCore.Model = strings.TrimSpace(part.PartCore.Model)
-
-			if _, err := c.service.AddPart(ctx, &part); err != nil {
-				logrus.WithError(err).WithField("part_name", part.PartCore.Name).Error("Failed to add part from defect report")
-			}
-		}()
-	}
-
-	wg.Wait()
-
-	logrus.WithFields(logrus.Fields{
-		"brand": defectReportData.Brand,
-		"model": defectReportData.Model,
-		"parts": len(defectReportData.SelectedParts),
-	}).Info("Successfully processed defect report event and added parts")
-
-	return nil
-}
 
 func (c *RedisEventConsumer) handlePartIndexRequested(ctx context.Context, msg redis.XMessage) error {
 	partIDStr, ok := msg.Values["part_id"].(string)

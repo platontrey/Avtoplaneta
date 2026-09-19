@@ -934,6 +934,7 @@ type ChangePartQuantityRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	Amount        int32                  `protobuf:"varint,2,opt,name=amount,proto3" json:"amount,omitempty"`
+	OperationId   string                 `protobuf:"bytes,3,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -980,6 +981,13 @@ func (x *ChangePartQuantityRequest) GetAmount() int32 {
 		return x.Amount
 	}
 	return 0
+}
+
+func (x *ChangePartQuantityRequest) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
 }
 
 type ChangePartQuantityResponse struct {
@@ -3838,10 +3846,11 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x04page\x18\x03 \x01(\x05R\x04page\x12\x14\n" +
 	"\x05limit\x18\x04 \x01(\x05R\x05limit\" \n" +
 	"\x0eGetPartRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\rR\x02id\"C\n" +
+	"\x02id\x18\x01 \x01(\rR\x02id\"f\n" +
 	"\x19ChangePartQuantityRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x16\n" +
-	"\x06amount\x18\x02 \x01(\x05R\x06amount\"Y\n" +
+	"\x06amount\x18\x02 \x01(\x05R\x06amount\x12!\n" +
+	"\foperation_id\x18\x03 \x01(\tR\voperationId\"Y\n" +
 	"\x1aChangePartQuantityResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12!\n" +
 	"\fnew_quantity\x18\x02 \x01(\x05R\vnewQuantity\"\xe5\t\n" +

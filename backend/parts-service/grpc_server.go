@@ -121,7 +121,7 @@ func (s *partsGRPCServer) GetPart(ctx context.Context, req *partsv1.GetPartReque
 
 // DecreasePartQuantity уменьшает количество запчастей
 func (s *partsGRPCServer) DecreasePartQuantity(ctx context.Context, req *partsv1.ChangePartQuantityRequest) (*partsv1.ChangePartQuantityResponse, error) {
-	err := s.service.DecreasePartQuantity(ctx, int64(req.Id), int(req.Amount))
+	err := s.service.DecreasePartQuantity(ctx, int64(req.Id), int(req.Amount), req.OperationId)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "ошибка уменьшения количества: %v", err)
 	}
@@ -135,7 +135,7 @@ func (s *partsGRPCServer) DecreasePartQuantity(ctx context.Context, req *partsv1
 
 // IncreasePartQuantity увеличивает количество запчастей
 func (s *partsGRPCServer) IncreasePartQuantity(ctx context.Context, req *partsv1.ChangePartQuantityRequest) (*partsv1.ChangePartQuantityResponse, error) {
-	err := s.service.IncreasePartQuantity(ctx, int64(req.Id), int(req.Amount))
+	err := s.service.IncreasePartQuantity(ctx, int64(req.Id), int(req.Amount), req.OperationId)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "ошибка увеличения количества: %v", err)
 	}
@@ -612,19 +612,21 @@ func (s *partsGRPCServer) PreviewDefectReport(ctx context.Context, req *partsv1.
 	}, nil
 }
 
-// CreateDefectReport использует тот же асинхронный workflow, что и HTTP endpoint.
+// CreateDefectReport пакетно и синхронно создает дефектную ведомость
 func (s *partsGRPCServer) CreateDefectReport(ctx context.Context, req *partsv1.CreateDefectReportRequest) (*partsv1.CreateDefectReportResponse, error) {
 	report := defectReportRequestFromProto(req)
-	if err := s.defectReports.Enqueue(ctx, &report, true); err != nil {
+	createdParts, err := s.defectReports.Create(ctx, &report, true)
+	if err != nil {
 		if defectReportUnavailable(err) {
 			return nil, status.Errorf(codes.Unavailable, "дефектные ведомости временно недоступны: %v", err)
 		}
-		return nil, status.Errorf(codes.Internal, "не удалось поставить дефектную ведомость в очередь: %v", err)
+		return nil, status.Errorf(codes.Internal, "не удалось создать дефектную ведомость: %v", err)
 	}
 
 	return &partsv1.CreateDefectReportResponse{
-		PartsQueued: int32(len(report.SelectedParts)),
-		Message:     "Дефектная ведомость отправлена в очередь обработки",
+		PartsCreated: int32(len(createdParts)),
+		PartsQueued:  int32(len(createdParts)),
+		Message:      "Дефектная ведомость успешно обработана",
 	}, nil
 }
 

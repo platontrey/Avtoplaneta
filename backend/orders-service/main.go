@@ -56,8 +56,16 @@ func main() {
 	partRepo := NewPartRepositoryForOrders(partsClient)
 	cacheService := NewCacheService(redisClient)
 	eventPublisher := NewEventPublisher(redisClient)
-	ordersService := NewOrdersService(orderRepo, partRepo, cacheService, eventPublisher, newUserDirectory(config.AuthServiceURL))
+	ordersService := NewOrdersService(orderRepo, partRepo, cacheService, eventPublisher)
 	handler := NewHandler(ordersService, eventPublisher)
+
+	// Запуск консьюмера событий Redis (для синхронизации имени продавца и др.)
+	eventConsumer := NewRedisEventConsumer(redisClient, orderRepo, cacheService)
+	go func() {
+		if err := eventConsumer.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			logrus.WithError(err).Error("Redis event consumer failed in orders-service")
+		}
+	}()
 
 	// Запуск gRPC-сервера в отдельной горутине
 	grpcPort := os.Getenv("GRPC_PORT")

@@ -67,3 +67,8 @@ WHERE orders.status = 'green' AND orders.auto_deleted = TRUE
 GROUP BY TO_CHAR(orders.created_at, 'YYYY-MM')
 ORDER BY month DESC;
 
+-- name: UpdateSellerName :exec
+UPDATE orders
+SET seller = $2
+WHERE seller_id = $1;
+

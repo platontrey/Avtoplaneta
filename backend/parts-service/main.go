@@ -85,7 +85,7 @@ func main() {
 	}
 	defectReports := NewDefectReportWorkflow(
 		partCatalog,
-		NewRedisDefectReportEventPublisher(redisClient),
+		service,
 	)
 	handler := NewHandler(service, partCatalog, vehicleCatalog, defectReports)
 

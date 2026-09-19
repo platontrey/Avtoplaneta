@@ -56,21 +56,23 @@ func (h *Handler) CreateDefectReportHandler(c *gin.Context) {
 	}
 
 	// TODO(legacy): заменить true на false вместе со снятием allowLegacyClientParts.
-	if err := h.defectReports.Enqueue(c.Request.Context(), &defectReportData, true); err != nil {
-		fmt.Printf("Failed to publish defect report event to Redis: %v\n", err)
+	createdParts, err := h.defectReports.Create(c.Request.Context(), &defectReportData, true)
+	if err != nil {
+		fmt.Printf("Failed to process defect report: %v\n", err)
 		if defectReportUnavailable(err) {
 			c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось отправить ведомость в очередь обработки"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось обработать дефектную ведомость"})
 		return
 	}
-	fmt.Printf("Queued defect report for %s %s %d with %d parts (Seller: %s)\n", defectReportData.Brand, defectReportData.Model, defectReportData.Year, len(defectReportData.SelectedParts), defectReportData.SellerName)
+	fmt.Printf("Created defect report for %s %s %d with %d parts (Seller: %s)\n", defectReportData.Brand, defectReportData.Model, defectReportData.Year, len(createdParts), defectReportData.SellerName)
 
 	// Логируем активность пользователя
-	h.logUserActivity(c, "queue_defect_report", "part", fmt.Sprintf("Queued defect report with %d parts for %s %s %d", len(defectReportData.SelectedParts), defectReportData.Brand, defectReportData.Model, defectReportData.Year), nil)
+	h.logUserActivity(c, "create_defect_report", "part", fmt.Sprintf("Created defect report with %d parts for %s %s %d", len(createdParts), defectReportData.Brand, defectReportData.Model, defectReportData.Year), nil)
 
-	c.JSON(http.StatusAccepted, gin.H{
-		"message": "Дефектная ведомость отправлена в очередь обработки",
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Дефектная ведомость успешно обработана",
+		"total":   len(createdParts),
 	})
 }

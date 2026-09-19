@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-
-	"avtoplaneta/pkg/userdirectory"
 )
 
 // OrdersService определяет интерфейс для бизнес-логики управления заказами
@@ -46,44 +44,16 @@ type ordersService struct {
 	partRepo  PartRepositoryForOrders
 	cache     CacheService
 	publisher EventPublisher
-	users     *userdirectory.Directory
 }
 
 // NewOrdersService создает новый сервис заказов
-func NewOrdersService(orderRepo OrderRepository, partRepo PartRepositoryForOrders, cache CacheService, publisher EventPublisher, users *userdirectory.Directory) OrdersService {
+func NewOrdersService(orderRepo OrderRepository, partRepo PartRepositoryForOrders, cache CacheService, publisher EventPublisher) OrdersService {
 	return &ordersService{
 		orderRepo: orderRepo,
 		partRepo:  partRepo,
 		cache:     cache,
 		publisher: publisher,
-		users:     users,
 	}
-}
-
-// withCurrentSellerNames подставляет актуальные имена продавцов.
-//
-// В строке заказа хранится и seller_id, и имя — копия, снятая в момент продажи.
-// Кто продал, не меняется никогда, а вот как этого человека зовут — вполне:
-// после переименования в админке копия устаревала и расходилась с остальной
-// системой. Идентификатор остаётся хранимой правдой, имя подставляется здесь.
-//
-// Если пользователя в справочнике нет (уволен и удалён) или auth-service не
-// ответил, остаётся то имя, что лежит в строке: лучше устаревшее, чем пустое.
-func (s *ordersService) withCurrentSellerNames(ctx context.Context, orders []Order) []Order {
-	if s.users == nil {
-		return orders
-	}
-	names := s.users.Names(ctx)
-	if len(names) == 0 {
-		return orders
-	}
-
-	for i := range orders {
-		if name, ok := names[orders[i].SellerID]; ok && name != "" {
-			orders[i].Seller = name
-		}
-	}
-	return orders
 }
 
 // GetOrders получает все активные заказы с использованием кеша
@@ -93,9 +63,7 @@ func (s *ordersService) GetOrders(ctx context.Context) ([]Order, error) {
 		logrus.WithError(err).Warn("Failed to get orders from cache, falling back to database")
 	} else if cachedOrders != nil {
 		logrus.Info("Returning orders from cache")
-		// Имена подставляем и на кэшированном пути: кэш хранит заказы, а имя
-		// продавца в них — величина, живущая отдельной жизнью.
-		return s.withCurrentSellerNames(ctx, cachedOrders), nil
+		return cachedOrders, nil
 	}
 
 	orders, err := s.orderRepo.FindActive(ctx)
@@ -126,7 +94,7 @@ func (s *ordersService) GetOrders(ctx context.Context) ([]Order, error) {
 		logrus.WithError(err).Warn("Failed to cache orders")
 	}
 
-	return s.withCurrentSellerNames(ctx, orders), nil
+	return orders, nil
 }
 
 // CreateOrder создает новый заказ (выполняется в транзакции)
@@ -177,7 +145,8 @@ func (s *ordersService) CreateOrder(ctx context.Context, req CreateOrderRequest,
 				return fmt.Errorf("failed to create order item: %w", err)
 			}
 
-			if err := s.partRepo.DecreaseQuantity(txCtx, item.PartID, item.Quantity); err != nil {
+			opID := fmt.Sprintf("order-%d-item-%d", order.ID, item.PartID)
+			if err := s.partRepo.DecreaseQuantity(txCtx, item.PartID, item.Quantity, opID); err != nil {
 				logrus.WithError(err).WithField("part_id", item.PartID).Error("Failed to decrease part quantity")
 				return fmt.Errorf("failed to decrease part quantity for part %d: %w", item.PartID, err)
 			}
@@ -316,7 +285,8 @@ func (s *ordersService) DeleteOrder(ctx context.Context, orderID int64) error {
 		logrus.WithField("order_id", orderID).WithField("items_count", len(orderWithItems.Items)).Info("Found order with items for deletion")
 
 		for _, item := range orderWithItems.Items {
-			if err := s.partRepo.IncreaseQuantity(txCtx, item.PartID, item.Quantity); err != nil {
+			opID := fmt.Sprintf("delete-order-%d-item-%d", orderID, item.PartID)
+			if err := s.partRepo.IncreaseQuantity(txCtx, item.PartID, item.Quantity, opID); err != nil {
 				logrus.WithError(err).WithField("part_id", item.PartID).Error("Failed to return part quantity to inventory")
 				return fmt.Errorf("failed to restore part quantity for part %d: %w", item.PartID, err)
 			}
@@ -387,7 +357,8 @@ func (s *ordersService) AddOrderItem(ctx context.Context, orderID int64, req Add
 			}
 		}
 
-		if err := s.partRepo.DecreaseQuantity(txCtx, req.PartID, req.Quantity); err != nil {
+		opID := fmt.Sprintf("add-item-order-%d-part-%d-%d", orderID, req.PartID, time.Now().Unix())
+		if err := s.partRepo.DecreaseQuantity(txCtx, req.PartID, req.Quantity, opID); err != nil {
 			logrus.WithError(err).WithField("part_id", req.PartID).Error("Failed to decrease part quantity")
 			return fmt.Errorf("failed to decrease part quantity for part %d: %w", req.PartID, err)
 		}
