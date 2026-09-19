@@ -405,61 +405,6 @@
         ]
       }
     },
-    "/api/v1/export/drom": {
-      "post": {
-        "operationId": "PartsService_SendPriceListToDrom",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1SendPriceListToDromResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1SendPriceListToDromRequest"
-            }
-          }
-        ],
-        "tags": [
-          "PartsService"
-        ]
-      }
-    },
-    "/api/v1/export/xml": {
-      "get": {
-        "summary": "Экспорт",
-        "operationId": "PartsService_ExportXML",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1ExportXMLResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "tags": [
-          "PartsService"
-        ]
-      }
-    },
     "/api/v1/inventory": {
       "get": {
         "summary": "Инвентарь",
@@ -1968,18 +1913,6 @@
         }
       }
     },
-    "v1ExportXMLResponse": {
-      "type": "object",
-      "properties": {
-        "xmlData": {
-          "type": "string",
-          "format": "byte"
-        },
-        "contentType": {
-          "type": "string"
-        }
-      }
-    },
     "v1InventoryResponse": {
       "type": "object",
       "properties": {
@@ -2273,20 +2206,6 @@
             "type": "object",
             "$ref": "#/definitions/v1DefectReportPart"
           }
-        }
-      }
-    },
-    "v1SendPriceListToDromRequest": {
-      "type": "object"
-    },
-    "v1SendPriceListToDromResponse": {
-      "type": "object",
-      "properties": {
-        "success": {
-          "type": "boolean"
-        },
-        "message": {
-          "type": "string"
         }
       }
     },

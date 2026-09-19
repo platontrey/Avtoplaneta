@@ -121,7 +121,6 @@ func main() {
 	}()
 
 	// Запуск планировщика автоматической генерации XML с контекстом
-	go StartXMLGenerationScheduler(ctx)
 
 	r := gin.Default()
 	r.Use(otelgin.Middleware("parts-service"))

@@ -416,3 +416,7 @@ func findRecordedPart(t *testing.T, parts []Part, category string) Part {
 func (service *recordingInventoryService) RenameSeller(context.Context, int64, string) ([]Part, error) {
 	return nil, nil
 }
+
+func (service *recordingInventoryService) PartsForExport(context.Context) ([]Part, error) {
+	return nil, nil
+}

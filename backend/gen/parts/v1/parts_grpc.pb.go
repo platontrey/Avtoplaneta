@@ -33,8 +33,8 @@ const (
 	PartsService_UpdateEarnings_FullMethodName          = "/parts.v1.PartsService/UpdateEarnings"
 	PartsService_CreateDefectReport_FullMethodName      = "/parts.v1.PartsService/CreateDefectReport"
 	PartsService_PreviewDefectReport_FullMethodName     = "/parts.v1.PartsService/PreviewDefectReport"
-	PartsService_ExportXML_FullMethodName               = "/parts.v1.PartsService/ExportXML"
-	PartsService_SendPriceListToDrom_FullMethodName     = "/parts.v1.PartsService/SendPriceListToDrom"
+	PartsService_ListPartsForExport_FullMethodName      = "/parts.v1.PartsService/ListPartsForExport"
+	PartsService_InventoryVersion_FullMethodName        = "/parts.v1.PartsService/InventoryVersion"
 	PartsService_BulkDeleteParts_FullMethodName         = "/parts.v1.PartsService/BulkDeleteParts"
 	PartsService_BulkUpdateParts_FullMethodName         = "/parts.v1.PartsService/BulkUpdateParts"
 	PartsService_GetSupplierCodes_FullMethodName        = "/parts.v1.PartsService/GetSupplierCodes"
@@ -66,9 +66,19 @@ type PartsServiceClient interface {
 	// PreviewDefectReport возвращает ровно тот набор запчастей, который создаст
 	// CreateDefectReport. selected_parts в запросе игнорируется: набор строит сервер.
 	PreviewDefectReport(ctx context.Context, in *PreviewDefectReportRequest, opts ...grpc.CallOption) (*PreviewDefectReportResponse, error)
-	// Экспорт
-	ExportXML(ctx context.Context, in *ExportXMLRequest, opts ...grpc.CallOption) (*ExportXMLResponse, error)
-	SendPriceListToDrom(ctx context.Context, in *SendPriceListToDromRequest, opts ...grpc.CallOption) (*SendPriceListToDromResponse, error)
+	// ListPartsForExport отдаёт запчасти для выгрузки прайс-листа потоком.
+	// Их больше ста тысяч, в один ответ они не помещаются: gRPC по умолчанию
+	// ограничивает сообщение четырьмя мегабайтами.
+	//
+	// HTTP-аннотации нет намеренно: это внутренний вызов между сервисами,
+	// наружу через gateway он не публикуется.
+	ListPartsForExport(ctx context.Context, in *ListPartsForExportRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Part], error)
+	// InventoryVersion отдаёт дешёвый отпечаток состояния склада: одна
+	// агрегирующая строка вместо полной выборки. По нему сервис выгрузки решает,
+	// нужно ли вообще вычитывать поток и пересобирать прайс-лист.
+	//
+	// Тоже внутренний RPC, HTTP-аннотации нет.
+	InventoryVersion(ctx context.Context, in *InventoryVersionRequest, opts ...grpc.CallOption) (*InventoryVersionResponse, error)
 	// Админ-операции
 	BulkDeleteParts(ctx context.Context, in *BulkDeletePartsRequest, opts ...grpc.CallOption) (*BulkDeletePartsResponse, error)
 	BulkUpdateParts(ctx context.Context, in *BulkUpdatePartsRequest, opts ...grpc.CallOption) (*BulkUpdatePartsResponse, error)
@@ -227,20 +237,29 @@ func (c *partsServiceClient) PreviewDefectReport(ctx context.Context, in *Previe
 	return out, nil
 }
 
-func (c *partsServiceClient) ExportXML(ctx context.Context, in *ExportXMLRequest, opts ...grpc.CallOption) (*ExportXMLResponse, error) {
+func (c *partsServiceClient) ListPartsForExport(ctx context.Context, in *ListPartsForExportRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Part], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ExportXMLResponse)
-	err := c.cc.Invoke(ctx, PartsService_ExportXML_FullMethodName, in, out, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &PartsService_ServiceDesc.Streams[1], PartsService_ListPartsForExport_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &grpc.GenericClientStream[ListPartsForExportRequest, Part]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
 }
 
-func (c *partsServiceClient) SendPriceListToDrom(ctx context.Context, in *SendPriceListToDromRequest, opts ...grpc.CallOption) (*SendPriceListToDromResponse, error) {
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type PartsService_ListPartsForExportClient = grpc.ServerStreamingClient[Part]
+
+func (c *partsServiceClient) InventoryVersion(ctx context.Context, in *InventoryVersionRequest, opts ...grpc.CallOption) (*InventoryVersionResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SendPriceListToDromResponse)
-	err := c.cc.Invoke(ctx, PartsService_SendPriceListToDrom_FullMethodName, in, out, cOpts...)
+	out := new(InventoryVersionResponse)
+	err := c.cc.Invoke(ctx, PartsService_InventoryVersion_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -312,9 +331,19 @@ type PartsServiceServer interface {
 	// PreviewDefectReport возвращает ровно тот набор запчастей, который создаст
 	// CreateDefectReport. selected_parts в запросе игнорируется: набор строит сервер.
 	PreviewDefectReport(context.Context, *PreviewDefectReportRequest) (*PreviewDefectReportResponse, error)
-	// Экспорт
-	ExportXML(context.Context, *ExportXMLRequest) (*ExportXMLResponse, error)
-	SendPriceListToDrom(context.Context, *SendPriceListToDromRequest) (*SendPriceListToDromResponse, error)
+	// ListPartsForExport отдаёт запчасти для выгрузки прайс-листа потоком.
+	// Их больше ста тысяч, в один ответ они не помещаются: gRPC по умолчанию
+	// ограничивает сообщение четырьмя мегабайтами.
+	//
+	// HTTP-аннотации нет намеренно: это внутренний вызов между сервисами,
+	// наружу через gateway он не публикуется.
+	ListPartsForExport(*ListPartsForExportRequest, grpc.ServerStreamingServer[Part]) error
+	// InventoryVersion отдаёт дешёвый отпечаток состояния склада: одна
+	// агрегирующая строка вместо полной выборки. По нему сервис выгрузки решает,
+	// нужно ли вообще вычитывать поток и пересобирать прайс-лист.
+	//
+	// Тоже внутренний RPC, HTTP-аннотации нет.
+	InventoryVersion(context.Context, *InventoryVersionRequest) (*InventoryVersionResponse, error)
 	// Админ-операции
 	BulkDeleteParts(context.Context, *BulkDeletePartsRequest) (*BulkDeletePartsResponse, error)
 	BulkUpdateParts(context.Context, *BulkUpdatePartsRequest) (*BulkUpdatePartsResponse, error)
@@ -372,11 +401,11 @@ func (UnimplementedPartsServiceServer) CreateDefectReport(context.Context, *Crea
 func (UnimplementedPartsServiceServer) PreviewDefectReport(context.Context, *PreviewDefectReportRequest) (*PreviewDefectReportResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method PreviewDefectReport not implemented")
 }
-func (UnimplementedPartsServiceServer) ExportXML(context.Context, *ExportXMLRequest) (*ExportXMLResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method ExportXML not implemented")
+func (UnimplementedPartsServiceServer) ListPartsForExport(*ListPartsForExportRequest, grpc.ServerStreamingServer[Part]) error {
+	return status.Error(codes.Unimplemented, "method ListPartsForExport not implemented")
 }
-func (UnimplementedPartsServiceServer) SendPriceListToDrom(context.Context, *SendPriceListToDromRequest) (*SendPriceListToDromResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method SendPriceListToDrom not implemented")
+func (UnimplementedPartsServiceServer) InventoryVersion(context.Context, *InventoryVersionRequest) (*InventoryVersionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method InventoryVersion not implemented")
 }
 func (UnimplementedPartsServiceServer) BulkDeleteParts(context.Context, *BulkDeletePartsRequest) (*BulkDeletePartsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method BulkDeleteParts not implemented")
@@ -652,38 +681,31 @@ func _PartsService_PreviewDefectReport_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
-func _PartsService_ExportXML_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ExportXMLRequest)
-	if err := dec(in); err != nil {
-		return nil, err
+func _PartsService_ListPartsForExport_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ListPartsForExportRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
 	}
-	if interceptor == nil {
-		return srv.(PartsServiceServer).ExportXML(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: PartsService_ExportXML_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PartsServiceServer).ExportXML(ctx, req.(*ExportXMLRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return srv.(PartsServiceServer).ListPartsForExport(m, &grpc.GenericServerStream[ListPartsForExportRequest, Part]{ServerStream: stream})
 }
 
-func _PartsService_SendPriceListToDrom_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SendPriceListToDromRequest)
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type PartsService_ListPartsForExportServer = grpc.ServerStreamingServer[Part]
+
+func _PartsService_InventoryVersion_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InventoryVersionRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(PartsServiceServer).SendPriceListToDrom(ctx, in)
+		return srv.(PartsServiceServer).InventoryVersion(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: PartsService_SendPriceListToDrom_FullMethodName,
+		FullMethod: PartsService_InventoryVersion_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PartsServiceServer).SendPriceListToDrom(ctx, req.(*SendPriceListToDromRequest))
+		return srv.(PartsServiceServer).InventoryVersion(ctx, req.(*InventoryVersionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -820,12 +842,8 @@ var PartsService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _PartsService_PreviewDefectReport_Handler,
 		},
 		{
-			MethodName: "ExportXML",
-			Handler:    _PartsService_ExportXML_Handler,
-		},
-		{
-			MethodName: "SendPriceListToDrom",
-			Handler:    _PartsService_SendPriceListToDrom_Handler,
+			MethodName: "InventoryVersion",
+			Handler:    _PartsService_InventoryVersion_Handler,
 		},
 		{
 			MethodName: "BulkDeleteParts",
@@ -849,6 +867,11 @@ var PartsService_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "UploadPartPhoto",
 			Handler:       _PartsService_UploadPartPhoto_Handler,
 			ClientStreams: true,
+		},
+		{
+			StreamName:    "ListPartsForExport",
+			Handler:       _PartsService_ListPartsForExport_Handler,
+			ServerStreams: true,
 		},
 	},
 	Metadata: "parts/v1/parts.proto",

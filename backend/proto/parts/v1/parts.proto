@@ -94,18 +94,20 @@ service PartsService {
     };
   }
 
-  // Экспорт
-  rpc ExportXML(ExportXMLRequest) returns (ExportXMLResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/export/xml"
-    };
-  }
-  rpc SendPriceListToDrom(SendPriceListToDromRequest) returns (SendPriceListToDromResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/export/drom"
-      body: "*"
-    };
-  }
+  // ListPartsForExport отдаёт запчасти для выгрузки прайс-листа потоком.
+  // Их больше ста тысяч, в один ответ они не помещаются: gRPC по умолчанию
+  // ограничивает сообщение четырьмя мегабайтами.
+  //
+  // HTTP-аннотации нет намеренно: это внутренний вызов между сервисами,
+  // наружу через gateway он не публикуется.
+  rpc ListPartsForExport(ListPartsForExportRequest) returns (stream Part) {}
+
+  // InventoryVersion отдаёт дешёвый отпечаток состояния склада: одна
+  // агрегирующая строка вместо полной выборки. По нему сервис выгрузки решает,
+  // нужно ли вообще вычитывать поток и пересобирать прайс-лист.
+  //
+  // Тоже внутренний RPC, HTTP-аннотации нет.
+  rpc InventoryVersion(InventoryVersionRequest) returns (InventoryVersionResponse) {}
 
   // Админ-операции
   rpc BulkDeleteParts(BulkDeletePartsRequest) returns (BulkDeletePartsResponse) {
@@ -515,18 +517,12 @@ message CreateDefectReportResponse {
 
 // ─── Export ─────────────────────────────────────────────────────────────────
 
-message ExportXMLRequest {}
+message ListPartsForExportRequest {}
 
-message ExportXMLResponse {
-  bytes xml_data = 1;
-  string content_type = 2;
-}
+message InventoryVersionRequest {}
 
-message SendPriceListToDromRequest {}
-
-message SendPriceListToDromResponse {
-  bool success = 1;
-  string message = 2;
+message InventoryVersionResponse {
+  string version = 1;
 }
 
 // ─── Admin Bulk Operations ──────────────────────────────────────────────────

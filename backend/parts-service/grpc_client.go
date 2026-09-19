@@ -118,22 +118,6 @@ func getMonthlySalesGRPC(ctx context.Context) ([]MonthlySales, error) {
 	return sales, nil
 }
 
-func getUserINNGRPC(ctx context.Context, userID uint32) (string, error) {
-	if authGRPCClient == nil {
-		return "", errGRPCNotInitialized()
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	resp, err := authGRPCClient.GetUser(ctx, &authv1.GetUserRequest{Id: userID})
-	if err != nil {
-		return "", nil
-	}
-
-	return resp.Inn, nil
-}
-
 func errGRPCNotInitialized() error {
 	return status.Error(codes.Unavailable, "gRPC client not initialized")
 }

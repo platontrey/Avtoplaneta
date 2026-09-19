@@ -10,11 +10,8 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"os"
 	"strings"
 	"time"
-
-	authv1 "avtoplaneta/gen/auth/v1"
 )
 
 // Offers представляет структуры XML для прайс-листа Drom
@@ -52,21 +49,14 @@ type Offer struct {
 	SupplierArt   string  `xml:"supplier_art,omitempty"`
 }
 
-// GenerateXMLPriceList генерирует XML прайс-лист для Drom из списка запчастей
-func GenerateXMLPriceList(parts []Part) ([]byte, error) {
+// GenerateXMLPriceList собирает XML прайс-лист Drom из уже полученных данных.
+//
+// Функция ничего не запрашивает сама: и запчасти, и ИНН продавцов передаются
+// аргументами. Так её можно проверить тестом без сети, а поход за данными
+// остаётся в одном месте — в Clients.
+func GenerateXMLPriceList(parts []Part, sellerINNs map[int64]string) ([]byte, error) {
 	offers := Offers{
 		Offers: make([]Offer, 0, len(parts)),
-	}
-
-	// Получаем ИНН всех продавцов одним запросом для оптимизации
-	sellerINNs := make(map[int64]string)
-	users, err := fetchAllUsers()
-	if err == nil {
-		for _, u := range users {
-			sellerINNs[u.ID] = u.INN
-		}
-	} else {
-		fmt.Printf("Предупреждение: Не удалось пакетно получить ИНН пользователей: %v. Будет использован fallback на одиночные запросы.\n", err)
 	}
 
 	for _, part := range parts {
@@ -85,16 +75,6 @@ func GenerateXMLPriceList(parts []Part) ([]byte, error) {
 		condition := strings.TrimSpace(part.Condition)
 		if condition == "" {
 			condition = "Б/у"
-		}
-
-		// Получаем ИНН из кэша или fallback на одиночный запрос
-		supplierInn := ""
-		if inn, ok := sellerINNs[part.SellerID]; ok {
-			supplierInn = inn
-		} else {
-			if inn, err := getUserINNGRPC(context.Background(), uint32(part.SellerID)); err == nil {
-				supplierInn = inn
-			}
 		}
 
 		offer := Offer{
@@ -121,7 +101,7 @@ func GenerateXMLPriceList(parts []Part) ([]byte, error) {
 			Ud:            strings.TrimSpace(part.TopBottom),
 			Color:         strings.TrimSpace(part.Color),
 			Supplier:      strings.TrimSpace(part.Salesman),
-			SupplierInn:   supplierInn,
+			SupplierInn:   sellerINNs[part.SellerID],
 			Sklad:         strings.TrimSpace(part.Location),
 			SupplierArt:   strings.TrimSpace(part.SupplierCode),
 		}
@@ -129,135 +109,75 @@ func GenerateXMLPriceList(parts []Part) ([]byte, error) {
 		offers.Offers = append(offers.Offers, offer)
 	}
 
-	// Добавляем XML заголовок
 	xmlData, err := xml.MarshalIndent(offers, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("ошибка маршалинга XML: %v", err)
 	}
 
-	// Добавляем XML декларацию
-	xmlWithHeader := []byte(xml.Header + string(xmlData))
-
-	return xmlWithHeader, nil
-}
-
-// fetchAllUsers получает список всех пользователей с их ИНН из auth-service через gRPC
-func fetchAllUsers() ([]struct {
-	ID  int64  `json:"id"`
-	INN string `json:"inn"`
-}, error) {
-	if authGRPCClient == nil {
-		return nil, fmt.Errorf("auth gRPC client not initialized")
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	resp, err := authGRPCClient.GetUsers(ctx, &authv1.GetUsersRequest{})
-	if err != nil {
-		return nil, fmt.Errorf("gRPC error: %w", err)
-	}
-
-	result := make([]struct {
-		ID  int64  `json:"id"`
-		INN string `json:"inn"`
-	}, len(resp.Users))
-
-	for i, u := range resp.Users {
-		result[i] = struct {
-			ID  int64  `json:"id"`
-			INN string `json:"inn"`
-		}{
-			ID:  int64(u.Id),
-			INN: u.Inn,
-		}
-	}
-
-	return result, nil
-}
-
-// GetPartsForXML получает все доступные запчасти для экспорта в XML
-func GetPartsForXML() ([]Part, error) {
-	repo := NewPartRepository(dbPool)
-	parts, err := repo.GetPartsForXML(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("ошибка получения частей из базы данных: %v", err)
-	}
-
-	return parts, nil
+	return []byte(xml.Header + string(xmlData)), nil
 }
 
 // sendToDromAPI отправляет XML прайс-лист на API Drom.ru
-func sendToDromAPI(xmlData []byte) error {
-	// Получаем настройки из переменных окружения
-	apiKey := os.Getenv("DROM_API_KEY")
-	packetID := os.Getenv("DROM_PACKET_ID")
-
-	if apiKey == "" {
+func sendToDromAPI(ctx context.Context, config *Config, xmlData []byte) error {
+	if config.DromAPIKey == "" {
 		return fmt.Errorf("DROM_API_KEY не установлен в переменных окружения")
 	}
-	if packetID == "" {
+	if config.DromPacketID == "" {
 		return fmt.Errorf("DROM_PACKET_ID не установлен в переменных окружения")
 	}
 
 	// Вычисляем auth хэш
-	hash := sha512.Sum512([]byte(apiKey))
+	hash := sha512.Sum512([]byte(config.DromAPIKey))
 	auth := hex.EncodeToString(hash[:])
 
 	// Создаем multipart/form-data
-	var b bytes.Buffer
-	w := multipart.NewWriter(&b)
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
 
-	// Добавляем packetId
-	if err := w.WriteField("packetId", packetID); err != nil {
+	if err := writer.WriteField("packetId", config.DromPacketID); err != nil {
 		return fmt.Errorf("ошибка добавления packetId: %v", err)
 	}
-
-	// Добавляем auth
-	if err := w.WriteField("auth", auth); err != nil {
+	if err := writer.WriteField("auth", auth); err != nil {
 		return fmt.Errorf("ошибка добавления auth: %v", err)
 	}
 
-	// Добавляем файл data
-	fw, err := w.CreateFormFile("data", "pricelist.xml")
+	file, err := writer.CreateFormFile("data", priceListFilename)
 	if err != nil {
 		return fmt.Errorf("ошибка создания form file: %v", err)
 	}
-	if _, err := fw.Write(xmlData); err != nil {
+	if _, err := file.Write(xmlData); err != nil {
 		return fmt.Errorf("ошибка записи XML данных: %v", err)
 	}
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("ошибка закрытия multipart writer: %v", err)
+	}
 
-	// Закрываем writer
-	w.Close()
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
 
-	// Создаем HTTP запрос
-	req, err := http.NewRequest("POST", "https://baza.drom.ru/good/packet/api/sync", &b)
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, config.DromAPIURL, &body)
 	if err != nil {
 		return fmt.Errorf("ошибка создания HTTP запроса: %v", err)
 	}
+	request.Header.Set("Content-Type", writer.FormDataContentType())
 
-	// Устанавливаем Content-Type
-	req.Header.Set("Content-Type", w.FormDataContentType())
-
-	// Выполняем запрос
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	response, err := dromHTTPClient.Do(request)
 	if err != nil {
 		return fmt.Errorf("ошибка выполнения HTTP запроса: %v", err)
 	}
-	defer resp.Body.Close()
+	defer response.Body.Close()
 
-	// Читаем ответ
-	respBody, err := io.ReadAll(resp.Body)
+	responseBody, err := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	if err != nil {
 		return fmt.Errorf("ошибка чтения ответа: %v", err)
 	}
 
-	// Проверяем статус
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("ошибка API Drom: статус %d, ответ: %s", resp.StatusCode, string(respBody))
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("ошибка API Drom: статус %d, ответ: %s", response.StatusCode, string(responseBody))
 	}
 
-	fmt.Printf("Успешно отправлен прайс-лист на Drom API. Ответ: %s\n", string(respBody))
 	return nil
 }
+
+// Один клиент на сервис: соединения переиспользуются, таймаут задан явно.
+var dromHTTPClient = &http.Client{Timeout: 2 * time.Minute}

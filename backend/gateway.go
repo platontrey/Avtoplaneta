@@ -51,6 +51,7 @@ type Gateway struct {
 	partsServiceURL     string
 	ordersServiceURL    string
 	messagingServiceURL string
+	exportServiceURL    string
 	allowedOrigins      []string
 
 	// gRPC clients (замена HTTP proxy)
@@ -65,16 +66,19 @@ type Gateway struct {
 	partsBreaker     *breaker.Breaker
 	ordersBreaker    *breaker.Breaker
 	messagingBreaker *breaker.Breaker
+	exportBreaker    *breaker.Breaker
 
 	authLimiter      *rate.Limiter
 	partsLimiter     *rate.Limiter
 	ordersLimiter    *rate.Limiter
 	messagingLimiter *rate.Limiter
+	exportLimiter    *rate.Limiter
 
 	authSem      chan struct{} // bulkhead for auth service
 	partsSem     chan struct{} // bulkhead for parts service
 	ordersSem    chan struct{} // bulkhead for orders service
 	messagingSem chan struct{} // bulkhead for messaging service
+	exportSem    chan struct{} // bulkhead for export service
 
 	authCache *AuthCache
 }
@@ -120,6 +124,7 @@ func (g *Gateway) loadServiceURLs() {
 	g.partsServiceURL = getEnvOrDefault("PARTS_SERVICE_URL", "http://localhost:8081")
 	g.ordersServiceURL = getEnvOrDefault("ORDERS_SERVICE_URL", "http://localhost:8082")
 	g.messagingServiceURL = getEnvOrDefault("MESSAGING_SERVICE_URL", "http://localhost:8084")
+	g.exportServiceURL = getEnvOrDefault("EXPORT_SERVICE_URL", "http://localhost:8085")
 }
 
 // initResiliencyPatterns инициализирует паттерны устойчивости
@@ -129,18 +134,21 @@ func (g *Gateway) initResiliencyPatterns() {
 	g.partsBreaker = breaker.New(5, 1, 10*time.Second)
 	g.ordersBreaker = breaker.New(5, 1, 10*time.Second)
 	g.messagingBreaker = breaker.New(5, 1, 10*time.Second)
+	g.exportBreaker = breaker.New(5, 1, 10*time.Second)
 
 	// Rate Limiters: 100 запросов в секунду на сервис
 	g.authLimiter = rate.NewLimiter(rate.Limit(100), 100)
 	g.partsLimiter = rate.NewLimiter(rate.Limit(100), 100)
 	g.ordersLimiter = rate.NewLimiter(rate.Limit(100), 100)
 	g.messagingLimiter = rate.NewLimiter(rate.Limit(100), 100)
+	g.exportLimiter = rate.NewLimiter(rate.Limit(100), 100)
 
 	// Bulkhead: максимум 50 одновременных соединений на сервис
 	g.authSem = make(chan struct{}, 50)
 	g.partsSem = make(chan struct{}, 50)
 	g.ordersSem = make(chan struct{}, 50)
 	g.messagingSem = make(chan struct{}, 50)
+	g.exportSem = make(chan struct{}, 50)
 }
 
 // initGRPCClients инициализирует gRPC-соединения к сервисам
@@ -228,6 +236,9 @@ func (g *Gateway) setupRoutes() {
 
 	// Messaging routes
 	g.setupMessagingRoutes()
+
+	// Export routes
+	g.setupExportRoutes()
 
 	// Static files
 	g.setupStaticRoutes()
@@ -386,7 +397,32 @@ func (g *Gateway) setupPartsRoutes() {
 	}
 
 	// Uploads proxy
-	g.router.Any("/uploads/*filepath", g.proxyToPartsService)
+	g.router.Any("/uploads/*filepath", g.proxyToUploads)
+}
+
+// setupExportRoutes подключает сервис выгрузки прайс-листа.
+//
+// Генерация прайс-листа — это полный проход по складу и перезапись публичного
+// файла, а отправка на Drom вдобавок уходит наружу от имени компании. Обе
+// операции админские, поэтому маршруты закрыты ролью, в отличие от самого
+// файла: его Drom забирает анонимно.
+func (g *Gateway) setupExportRoutes() {
+	g.router.GET("/api/export/xml", g.authMiddleware, requireRole("admin"), g.proxyToExportService)
+	g.router.POST("/api/export/drom", g.authMiddleware, requireRole("admin"), g.proxyToExportService)
+}
+
+// proxyToUploads разводит /uploads между двумя сервисами.
+//
+// Адрес один, а владельцев у него теперь два: фотографии запчастей лежат в
+// parts-service, прайс-лист собирает export-service. Развести их отдельными
+// маршрутами нельзя — gin не даёт зарегистрировать конкретный путь рядом с
+// catch-all, — поэтому выбор делается здесь.
+func (g *Gateway) proxyToUploads(c *gin.Context) {
+	if strings.HasSuffix(c.Request.URL.Path, "/pricelist.xml") {
+		g.proxyToExportService(c)
+		return
+	}
+	g.proxyToPartsService(c)
 }
 
 // setupOrdersRoutes настраивает маршруты для работы с заказами
@@ -673,6 +709,10 @@ func (g *Gateway) proxyToMessagingService(c *gin.Context) {
 	g.proxyToService(c, g.messagingServiceURL, c.Request.Method, c.Request.URL.Path)
 }
 
+func (g *Gateway) proxyToExportService(c *gin.Context) {
+	g.proxyToService(c, g.exportServiceURL, c.Request.Method, c.Request.URL.Path)
+}
+
 // proxyToService универсальный метод проксирования с паттернами устойчивости
 func (g *Gateway) proxyToService(c *gin.Context, serviceURL, method, path string) {
 	// Определяем компоненты resiliency на основе serviceURL
@@ -692,6 +732,9 @@ func (g *Gateway) proxyToService(c *gin.Context, serviceURL, method, path string
 	case g.messagingServiceURL:
 		breaker = g.messagingBreaker
 		sem = g.messagingSem
+	case g.exportServiceURL:
+		breaker = g.exportBreaker
+		sem = g.exportSem
 	default:
 		logrus.WithField("serviceURL", serviceURL).Error("Unknown service URL")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unknown service"})

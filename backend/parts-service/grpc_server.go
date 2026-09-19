@@ -802,3 +802,31 @@ func recoveryUnaryInterceptor(ctx context.Context, req interface{}, info *grpc.U
 	}()
 	return handler(ctx, req)
 }
+
+// ListPartsForExport отдаёт запчасти потоком: их больше ста тысяч, и в один
+// gRPC-ответ они не помещаются. Потребитель — export-service, который собирает
+// из них прайс-лист для Drom.
+func (s *partsGRPCServer) ListPartsForExport(_ *partsv1.ListPartsForExportRequest, stream partsv1.PartsService_ListPartsForExportServer) error {
+	parts, err := s.service.PartsForExport(stream.Context())
+	if err != nil {
+		return status.Errorf(codes.Internal, "не удалось получить запчасти для выгрузки: %v", err)
+	}
+
+	for i := range parts {
+		if err := stream.Send(partToProto(&parts[i])); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// InventoryVersion отдаёт отпечаток состояния склада — тот же, что уходит в
+// ETag обычных HTTP-ответов. Нужен, чтобы export-service мог спросить «менялось
+// ли что-нибудь» одной дешёвой строкой, не вычитывая весь склад потоком.
+func (s *partsGRPCServer) InventoryVersion(ctx context.Context, _ *partsv1.InventoryVersionRequest) (*partsv1.InventoryVersionResponse, error) {
+	version, err := s.service.InventoryVersion(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "не удалось получить отпечаток склада: %v", err)
+	}
+	return &partsv1.InventoryVersionResponse{Version: version}, nil
+}

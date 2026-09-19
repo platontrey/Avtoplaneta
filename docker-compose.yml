@@ -84,6 +84,7 @@ services:
       - PARTS_SERVICE_URL=http://parts-service:8081
       - ORDERS_SERVICE_URL=http://orders-service:8082
       - MESSAGING_SERVICE_URL=http://messaging-service:8084
+      - EXPORT_SERVICE_URL=http://export-service:8085
       - AUTH_GRPC_ADDR=auth-service:9083
       - PARTS_GRPC_ADDR=parts-service:9081
       - SESSION_SECRET=${SESSION_SECRET}
@@ -98,6 +99,7 @@ services:
       - parts-service
       - orders-service
       - messaging-service
+      - export-service
       - postgres
       - redis
 
@@ -197,6 +199,35 @@ services:
       - postgres
       - redis
       - parts-service
+
+  export-service:
+    image: avtoplaneta-export-service:latest
+    build:
+      context: ./backend
+      dockerfile: export-service/Dockerfile
+    container_name: avtoplaneta-export
+    cpuset: "20-39,60-79"
+    restart: unless-stopped
+    networks:
+      - avtoplaneta_network
+    volumes:
+      - export-uploads:/app/uploads
+    expose:
+      - "8085"
+    environment:
+      - NODE_ENV=production
+      - PORT=8085
+      - PARTS_SERVICE_GRPC_URL=parts-service:9081
+      - AUTH_SERVICE_GRPC_URL=auth-service:9083
+      - EXPORT_DIR=/app/uploads
+      - DROM_API_KEY=${DROM_API_KEY}
+      - DROM_PACKET_ID=${DROM_PACKET_ID}
+      - GOMEMLIMIT=512MiB
+      - GOGC=400
+      - GOMAXPROCS=4
+    depends_on:
+      - parts-service
+      - auth-service
 
   messaging-service:
     image: avtoplaneta-messaging-service:latest
@@ -405,6 +436,7 @@ volumes:
   redis-data:
   parts-uploads:
   messaging-uploads:
+  export-uploads:
   prometheus-data:
   grafana-data:
   tempo-data:

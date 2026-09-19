@@ -44,6 +44,7 @@ type InventoryService interface {
 	GetStatistics(ctx context.Context) (StatisticsResponse, error)                  // Получает статистику по инвентарю
 	InventoryVersion(ctx context.Context) (string, error)                           // Отпечаток состояния склада для условных запросов
 	RenameSeller(ctx context.Context, sellerID int64, name string) ([]Part, error)  // Приводит копию имени продавца в строках к справочнику
+	PartsForExport(ctx context.Context) ([]Part, error)                             // Запчасти для выгрузки прайс-листа
 
 	// BulkDeleteParts Админ операции
 	BulkDeleteParts(ctx context.Context, ids []int64) error                                    // Массовое удаление запчастей
@@ -1758,4 +1759,10 @@ func (s *inventoryService) InventoryVersion(ctx context.Context) (string, error)
 // RenameSeller пробрасывает починку копии имени продавца в репозиторий.
 func (s *inventoryService) RenameSeller(ctx context.Context, sellerID int64, name string) ([]Part, error) {
 	return s.repo.RenameSeller(ctx, sellerID, name)
+}
+
+// PartsForExport отдаёт запчасти, пригодные для выгрузки прайс-листа.
+// Сам прайс-лист собирает export-service; сервис запчастей только отдаёт данные.
+func (s *inventoryService) PartsForExport(ctx context.Context) ([]Part, error) {
+	return s.repo.GetPartsForXML(ctx)
 }

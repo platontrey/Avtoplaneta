@@ -43,6 +43,7 @@ build-services:
 	cd parts-service && go build -o /dev/null ./...
 	cd orders-service && go build -o /dev/null ./...
 	cd messaging-service && go build -o /dev/null ./...
+	cd export-service && go build -o /dev/null ./...
 	@echo "All services build OK"
 
 # Сборка бинарников для запуска в контейнерах (без компиляции внутри Docker)
@@ -57,6 +58,8 @@ build-binaries:
 	cd orders-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o bin/orders-service .
 	@echo "Building messaging-service static binary..."
 	cd messaging-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o bin/messaging-service .
+	@echo "Building export-service static binary..."
+	cd export-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o bin/export-service .
 	@echo "All static binaries built successfully."
 
 # Установка всех Go-зависимостей
@@ -66,6 +69,7 @@ deps:
 	cd parts-service && go mod download
 	cd orders-service && go mod download
 	cd messaging-service && go mod download
+	cd export-service && go mod download
 	cd gen && go mod download
 	@echo "All dependencies downloaded"
 
@@ -76,6 +80,7 @@ start-dev:
 	cd parts-service && go run . &
 	cd orders-service && go run . &
 	cd messaging-service && go run . &
+	cd export-service && go run . &
 	@echo "All services started"
 
 # Запуск всех юнит-тестов во всех сервисах
@@ -84,6 +89,7 @@ test:
 	cd auth-service && go test ./...
 	cd parts-service && go test ./...
 	cd messaging-service && go test ./...
+	cd export-service && go test ./...
 	@echo "All unit tests passed!"
 
 # Запуск интеграционных тестов (требуется запущенная БД)

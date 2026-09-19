@@ -466,3 +466,7 @@ func TestHandlersTestSuite(t *testing.T) {
 func (m *MockInventoryService) RenameSeller(context.Context, int64, string) ([]Part, error) {
 	return nil, nil
 }
+
+func (m *MockInventoryService) PartsForExport(context.Context) ([]Part, error) {
+	return nil, nil
+}
