@@ -63,3 +63,12 @@ type Part struct {
 	DeletedAt          pgtype.Timestamptz `json:"deleted_at"`
 	CarReleasePeriod   string             `json:"car_release_period"`
 }
+
+type PartStockOperation struct {
+	ID            int64              `json:"id"`
+	OperationID   string             `json:"operation_id"`
+	PartID        int64              `json:"part_id"`
+	OperationType string             `json:"operation_type"`
+	Amount        int32              `json:"amount"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}

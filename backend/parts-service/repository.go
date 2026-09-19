@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
 
@@ -148,6 +150,70 @@ func scanParts(rows pgx.Rows) ([]Part, error) {
 	return parts, nil
 }
 
+func sqlcPartToDomain(p sqlc.Part) *Part {
+	res := &Part{
+		PartCore: PartCore{
+			ID:          p.ID,
+			Name:        p.Name,
+			Quantity:    int(p.Quantity),
+			Description: p.Description,
+			Category:    p.Category,
+			Price:       p.Price,
+			Salesman:    p.Salesman,
+			Location:    p.Location,
+			Address:     p.Address,
+			Status:      p.Status,
+			Brand:       p.Brand,
+			Model:       p.Model,
+			SellerID:    p.SellerID,
+			VIN:         p.Vin,
+		},
+		PartSpecifications: PartSpecifications{
+			BodyBrand:         p.BodyBrand,
+			EngineBrand:       p.EngineBrand,
+			CarReleaseDate:    p.CarReleaseDate,
+			CarReleasePeriod:  p.CarReleasePeriod,
+			FrontRear:         p.FrontRear,
+			LeftRight:         p.LeftRight,
+			TopBottom:         p.TopBottom,
+			Number:            p.Number,
+			Manufacturer:      p.Manufacturer,
+			ManufacturerCode:  p.ManufacturerCode,
+			OEMCode:           p.OemCode,
+			Color:             p.Color,
+			Condition:        p.Condition,
+			SupplierCode:      p.SupplierCode,
+			Defect:            p.Defect,
+			Transmission:      p.Transmission,
+			TransmissionModel: p.TransmissionModel,
+			Drive:             p.Drive,
+			WearPercentage:    p.WearPercentage,
+		},
+		PartTireSpecifications: PartTireSpecifications{
+			Season:             p.Season,
+			Diameter:           p.Diameter,
+			Width:              p.Width,
+			Profile:            p.Profile,
+			TireQuantity:       p.TireQuantity,
+			Drilling:           p.Drilling,
+			Offset:             p.Offset,
+			CenterHoleDiameter: p.CenterHoleDiameter,
+			TireModel:          p.TireModel,
+		},
+	}
+	if p.ToDeleteAt.Valid {
+		t := p.ToDeleteAt.Time
+		res.ToDeleteAt = &t
+	}
+	if p.Photos != nil {
+		_ = json.Unmarshal(p.Photos, &res.Photos)
+	}
+	if len(res.Photos) > 0 {
+		res.Photo = res.Photos[0]
+	}
+	return res
+}
+
 // ─── CRUD ───────────────────────────────────────────────────────────────────
 
 func (r *partRepository) Create(ctx context.Context, part *Part) error {
@@ -156,54 +222,84 @@ func (r *partRepository) Create(ctx context.Context, part *Part) error {
 		photosJSON, _ = json.Marshal(StringArray{part.Photo})
 	}
 
-	var toDeleteAt *time.Time
+	var toDeleteAt pgtype.Timestamptz
 	if part.ToDeleteAt != nil {
-		toDeleteAt = part.ToDeleteAt
+		toDeleteAt = pgtype.Timestamptz{Time: *part.ToDeleteAt, Valid: true}
 	}
 
-	row := r.pool.QueryRow(ctx, `
-		INSERT INTO parts (
-			name, quantity, description, category, price, salesman, location, address, status,
-			brand, model, photos, seller_id, to_delete_at, vin,
-			body_brand, engine_brand, car_release_date, car_release_period, front_rear, left_right, top_bottom,
-			number, manufacturer, manufacturer_code, oem_code, color, condition,
-			supplier_code, defect, transmission, transmission_model, drive, wear_percentage,
-			season, diameter, width, profile, tire_quantity, drilling, "offset",
-			center_hole_diameter, tire_model, created_at, updated_at
-		) VALUES (
-			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
-			$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,
-			$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,NOW(),NOW()
-		) RETURNING id, created_at, updated_at`,
-		part.Name, part.Quantity, part.Description, part.Category, part.Price,
-		part.Salesman, part.Location, part.Address, part.Status, part.Brand, part.Model,
-		photosJSON, part.SellerID, toDeleteAt, part.VIN,
-		part.BodyBrand, part.EngineBrand, part.CarReleaseDate, part.CarReleasePeriod, part.FrontRear, part.LeftRight, part.TopBottom,
-		part.Number, part.Manufacturer, part.ManufacturerCode, part.OEMCode, part.Color, part.Condition,
-		part.SupplierCode, part.Defect, part.Transmission, part.TransmissionModel, part.Drive, part.WearPercentage,
-		part.Season, part.Diameter, part.Width, part.Profile, part.TireQuantity, part.Drilling, part.Offset,
-		part.CenterHoleDiameter, part.TireModel,
-	)
-
-	var createdAt, updatedAt time.Time
-	err := row.Scan(&part.ID, &createdAt, &updatedAt)
-	return err
+	created, err := r.queries.CreatePart(ctx, sqlc.CreatePartParams{
+		Name:               part.Name,
+		Quantity:           int32(part.Quantity),
+		Description:        part.Description,
+		Category:           part.Category,
+		Price:              part.Price,
+		Salesman:           part.Salesman,
+		Location:           part.Location,
+		Address:            part.Address,
+		Status:             part.Status,
+		Brand:              part.Brand,
+		Model:              part.Model,
+		Photos:             photosJSON,
+		SellerID:           part.SellerID,
+		ToDeleteAt:         toDeleteAt,
+		Vin:                part.VIN,
+		BodyBrand:          part.BodyBrand,
+		EngineBrand:        part.EngineBrand,
+		CarReleaseDate:     part.CarReleaseDate,
+		CarReleasePeriod:   part.CarReleasePeriod,
+		FrontRear:          part.FrontRear,
+		LeftRight:          part.LeftRight,
+		TopBottom:          part.TopBottom,
+		Number:             part.Number,
+		Manufacturer:       part.Manufacturer,
+		ManufacturerCode:   part.ManufacturerCode,
+		OemCode:            part.OEMCode,
+		Color:              part.Color,
+		Condition:          part.Condition,
+		SupplierCode:       part.SupplierCode,
+		Defect:             part.Defect,
+		Transmission:       part.Transmission,
+		TransmissionModel:  part.TransmissionModel,
+		Drive:              part.Drive,
+		WearPercentage:     part.WearPercentage,
+		Season:             part.Season,
+		Diameter:           part.Diameter,
+		Width:              part.Width,
+		Profile:            part.Profile,
+		TireQuantity:       part.TireQuantity,
+		Drilling:           part.Drilling,
+		Offset:             part.Offset,
+		CenterHoleDiameter: part.CenterHoleDiameter,
+		TireModel:          part.TireModel,
+	})
+	if err != nil {
+		return err
+	}
+	part.ID = created.ID
+	return nil
 }
 
 func (r *partRepository) FindByID(ctx context.Context, id int64) (*Part, error) {
-	sql := fmt.Sprintf("SELECT %s FROM parts WHERE id = $1 AND deleted_at IS NULL", partColumns)
-	row := r.pool.QueryRow(ctx, sql, id)
-	return scanPart(row)
+	p, err := r.queries.GetPartByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, pgx.ErrNoRows
+		}
+		return nil, err
+	}
+	return sqlcPartToDomain(p), nil
 }
 
 func (r *partRepository) FindAll(ctx context.Context) ([]Part, error) {
-	sql := fmt.Sprintf("SELECT %s FROM parts WHERE deleted_at IS NULL ORDER BY id", partColumns)
-	rows, err := r.pool.Query(ctx, sql)
+	parts, err := r.queries.GetAllParts(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	return scanParts(rows)
+	res := make([]Part, len(parts))
+	for i, p := range parts {
+		res[i] = *sqlcPartToDomain(p)
+	}
+	return res, nil
 }
 
 func (r *partRepository) Update(ctx context.Context, id int64, updates map[string]interface{}) error {
@@ -243,21 +339,6 @@ func (r *partRepository) CreateBatch(ctx context.Context, parts []Part) ([]Part,
 	}
 
 	batch := &pgx.Batch{}
-	const insertSQL = `
-		INSERT INTO parts (
-			name, quantity, description, category, price, salesman, location, address, status,
-			brand, model, photos, seller_id, to_delete_at, vin,
-			body_brand, engine_brand, car_release_date, car_release_period, front_rear, left_right, top_bottom,
-			number, manufacturer, manufacturer_code, oem_code, color, condition,
-			supplier_code, defect, transmission, transmission_model, drive, wear_percentage,
-			season, diameter, width, profile, tire_quantity, drilling, "offset",
-			center_hole_diameter, tire_model, created_at, updated_at
-		) VALUES (
-			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
-			$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,
-			$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,NOW(),NOW()
-		) RETURNING id, created_at, updated_at`
-
 	for i := range parts {
 		part := &parts[i]
 		photosJSON, _ := json.Marshal(part.Photos)
@@ -269,7 +350,7 @@ func (r *partRepository) CreateBatch(ctx context.Context, parts []Part) ([]Part,
 			toDeleteAt = part.ToDeleteAt
 		}
 
-		batch.Queue(insertSQL,
+		batch.Queue(sqlc.CreatePart,
 			part.Name, part.Quantity, part.Description, part.Category, part.Price,
 			part.Salesman, part.Location, part.Address, part.Status, part.Brand, part.Model,
 			photosJSON, part.SellerID, toDeleteAt, part.VIN,
@@ -286,7 +367,19 @@ func (r *partRepository) CreateBatch(ctx context.Context, parts []Part) ([]Part,
 
 	var createdAt, updatedAt time.Time
 	for i := range parts {
-		err := br.QueryRow().Scan(&parts[i].ID, &createdAt, &updatedAt)
+		err := br.QueryRow().Scan(
+			&parts[i].ID, &parts[i].Name, &parts[i].Quantity, &parts[i].Description, &parts[i].Category,
+			&parts[i].Price, &parts[i].Salesman, &parts[i].Location, &parts[i].Address, &parts[i].Status,
+			&parts[i].Brand, &parts[i].Model, new([]byte), &parts[i].SellerID, new(*time.Time), &parts[i].VIN,
+			&parts[i].BodyBrand, &parts[i].EngineBrand, &parts[i].CarReleaseDate, &parts[i].FrontRear,
+			&parts[i].LeftRight, &parts[i].TopBottom, &parts[i].Number, &parts[i].Manufacturer,
+			&parts[i].ManufacturerCode, &parts[i].OEMCode, &parts[i].Color, &parts[i].Condition,
+			&parts[i].SupplierCode, &parts[i].Defect, &parts[i].Transmission, &parts[i].TransmissionModel,
+			&parts[i].Drive, &parts[i].WearPercentage, &parts[i].Season, &parts[i].Diameter, &parts[i].Width,
+			&parts[i].Profile, &parts[i].TireQuantity, &parts[i].Drilling, &parts[i].Offset,
+			&parts[i].CenterHoleDiameter, &parts[i].TireModel, &createdAt, &updatedAt, new(*time.Time),
+			&parts[i].CarReleasePeriod,
+		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan created part %d in batch: %w", i, err)
 		}
@@ -303,16 +396,18 @@ func (r *partRepository) DecreaseQuantity(ctx context.Context, id int64, amount 
 		}
 		defer tx.Rollback(ctx)
 
-		tag, err := tx.Exec(ctx, `
-			INSERT INTO part_stock_operations (operation_id, part_id, operation_type, amount)
-			VALUES ($1, $2, 'decrease', $3)
-			ON CONFLICT (operation_id, part_id, operation_type) DO NOTHING
-		`, operationID, id, amount)
+		q := r.queries.WithTx(tx)
+		rowsAffected, err := q.RecordStockOperation(ctx, sqlc.RecordStockOperationParams{
+			OperationID:   operationID,
+			PartID:        id,
+			OperationType: "decrease",
+			Amount:        int32(amount),
+		})
 		if err != nil {
 			return fmt.Errorf("failed to record stock operation: %w", err)
 		}
 
-		if tag.RowsAffected() == 0 {
+		if rowsAffected == 0 {
 			logrus.WithFields(logrus.Fields{
 				"operation_id": operationID,
 				"part_id":      id,
@@ -320,7 +415,6 @@ func (r *partRepository) DecreaseQuantity(ctx context.Context, id int64, amount 
 			return nil
 		}
 
-		q := r.queries.WithTx(tx)
 		if err := q.DecreasePartQuantity(ctx, sqlc.DecreasePartQuantityParams{
 			ID:     id,
 			Amount: int32(amount),
@@ -344,16 +438,18 @@ func (r *partRepository) IncreaseQuantity(ctx context.Context, id int64, amount 
 		}
 		defer tx.Rollback(ctx)
 
-		tag, err := tx.Exec(ctx, `
-			INSERT INTO part_stock_operations (operation_id, part_id, operation_type, amount)
-			VALUES ($1, $2, 'increase', $3)
-			ON CONFLICT (operation_id, part_id, operation_type) DO NOTHING
-		`, operationID, id, amount)
+		q := r.queries.WithTx(tx)
+		rowsAffected, err := q.RecordStockOperation(ctx, sqlc.RecordStockOperationParams{
+			OperationID:   operationID,
+			PartID:        id,
+			OperationType: "increase",
+			Amount:        int32(amount),
+		})
 		if err != nil {
 			return fmt.Errorf("failed to record stock operation: %w", err)
 		}
 
-		if tag.RowsAffected() == 0 {
+		if rowsAffected == 0 {
 			logrus.WithFields(logrus.Fields{
 				"operation_id": operationID,
 				"part_id":      id,
@@ -361,7 +457,6 @@ func (r *partRepository) IncreaseQuantity(ctx context.Context, id int64, amount 
 			return nil
 		}
 
-		q := r.queries.WithTx(tx)
 		if err := q.IncreasePartQuantity(ctx, sqlc.IncreasePartQuantityParams{
 			ID:     id,
 			Amount: int32(amount),
@@ -378,8 +473,7 @@ func (r *partRepository) IncreaseQuantity(ctx context.Context, id int64, amount 
 }
 
 func (r *partRepository) Delete(ctx context.Context, id int64) error {
-	_, err := r.pool.Exec(ctx, "DELETE FROM parts WHERE id = $1", id)
-	return err
+	return r.queries.DeletePart(ctx, id)
 }
 
 // ─── FindWithFilters (Squirrel dynamic query) ───────────────────────────────
@@ -567,60 +661,43 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 // ─── Specific operations ────────────────────────────────────────────────────
 
 func (r *partRepository) MarkForDeletion(ctx context.Context, id int64, deleteAt time.Time) error {
-	_, err := r.pool.Exec(ctx, "UPDATE parts SET to_delete_at = $2, updated_at = NOW() WHERE id = $1", id, deleteAt)
-	return err
+	return r.queries.MarkForDeletion(ctx, sqlc.MarkForDeletionParams{
+		ID:         id,
+		ToDeleteAt: pgtype.Timestamptz{Time: deleteAt, Valid: true},
+	})
 }
 
 func (r *partRepository) DeleteExpiredParts(ctx context.Context, before time.Time) error {
-	_, err := r.pool.Exec(ctx, "DELETE FROM parts WHERE to_delete_at IS NOT NULL AND to_delete_at <= $1", before)
+	_, err := r.queries.DeleteExpiredParts(ctx, pgtype.Timestamptz{Time: before, Valid: true})
 	return err
 }
 
 func (r *partRepository) GetStatistics(ctx context.Context) (StatisticsResponse, error) {
 	var stats StatisticsResponse
 
-	// Totals
-	var totalParts int64
-	var totalQuantity int64
-	var totalValue float64
-	err := r.pool.QueryRow(ctx, `
-		SELECT COUNT(*)::bigint, COALESCE(SUM(quantity), 0)::bigint, COALESCE(SUM(price * quantity), 0)::float8
-		FROM parts WHERE to_delete_at IS NULL AND quantity >= 1 AND deleted_at IS NULL
-	`).Scan(&totalParts, &totalQuantity, &totalValue)
+	totals, err := r.queries.GetStatsTotals(ctx)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to get totals")
 		return stats, err
 	}
-	stats.TotalParts = int(totalParts)
-	stats.TotalQuantity = int(totalQuantity)
-	stats.TotalValue = totalValue
+	stats.TotalParts = int(totals.TotalParts)
+	stats.TotalQuantity = int(totals.TotalQuantity)
+	stats.TotalValue = totals.TotalValue
 
-	// Categories
-	rows, err := r.pool.Query(ctx, `
-		SELECT category AS name, COUNT(*)::bigint AS count
-		FROM parts WHERE to_delete_at IS NULL AND quantity >= 1 AND deleted_at IS NULL AND category != ''
-		GROUP BY category ORDER BY count DESC
-	`)
+	categories, err := r.queries.GetStatsCategories(ctx)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to get categories")
 		return stats, err
 	}
-	defer rows.Close()
 
-	var categories []CategoryCount
-	for rows.Next() {
-		var c CategoryCount
-		var count int64
-		if err := rows.Scan(&c.Name, &count); err != nil {
-			return stats, err
+	catList := make([]CategoryCount, len(categories))
+	for i, c := range categories {
+		catList[i] = CategoryCount{
+			Name:  c.Name,
+			Count: int(c.Count),
 		}
-		c.Count = int(count)
-		categories = append(categories, c)
 	}
-	if categories == nil {
-		categories = []CategoryCount{}
-	}
-	stats.Categories = categories
+	stats.Categories = catList
 
 	logrus.WithFields(logrus.Fields{
 		"total_parts":      stats.TotalParts,
@@ -637,8 +714,7 @@ func (r *partRepository) BulkDelete(ctx context.Context, ids []int64) error {
 		"count": len(ids),
 	}).Info("PartRepository.BulkDelete: Starting bulk delete")
 
-	_, err := r.pool.Exec(ctx, "DELETE FROM parts WHERE id = ANY($1)", ids)
-	if err != nil {
+	if err := r.queries.BulkDeleteByIDs(ctx, ids); err != nil {
 		logrus.WithError(err).Error("PartRepository.BulkDelete: Failed to execute delete query")
 		return err
 	}
@@ -831,52 +907,66 @@ func (r *partRepository) GetSupplierCodes(ctx context.Context) ([]string, error)
 // ─── Earnings ───────────────────────────────────────────────────────────────
 
 func (r *partRepository) GetTotalEarnings(ctx context.Context) (float64, error) {
-	row := r.pool.QueryRow(ctx, "SELECT total_amount FROM earnings ORDER BY id LIMIT 1")
-	var amount float64
-	err := row.Scan(&amount)
+	earning, err := r.queries.GetEarnings(ctx)
 	if err != nil {
-		if err == pgx.ErrNoRows {
-			_, err = r.pool.Exec(ctx, "INSERT INTO earnings (total_amount, updated_at) VALUES (0, NOW())")
-			return 0, err
+		if errors.Is(err, pgx.ErrNoRows) {
+			created, err := r.queries.CreateEarnings(ctx, 0)
+			if err != nil {
+				return 0, err
+			}
+			return created.TotalAmount, nil
 		}
 		return 0, err
 	}
-	return amount, nil
+	return earning.TotalAmount, nil
 }
 
 func (r *partRepository) UpdateTotalEarnings(ctx context.Context, amount float64) error {
-	tag, err := r.pool.Exec(ctx, "UPDATE earnings SET total_amount = $1, updated_at = NOW()", amount)
+	earning, err := r.queries.GetEarnings(ctx)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			_, err = r.queries.CreateEarnings(ctx, amount)
+			return err
+		}
 		return err
 	}
-	if tag.RowsAffected() == 0 {
-		_, err = r.pool.Exec(ctx, "INSERT INTO earnings (total_amount, updated_at) VALUES ($1, NOW())", amount)
-	}
-	return err
+	return r.queries.UpdateEarnings(ctx, sqlc.UpdateEarningsParams{
+		TotalAmount: amount,
+		ID:          earning.ID,
+	})
 }
 
 // ─── Additional methods (moved from direct db access) ───────────────────────
 
 func (r *partRepository) UpdatePartPhotos(ctx context.Context, id int64, photos StringArray) error {
 	photosJSON, _ := json.Marshal(photos)
-	_, err := r.pool.Exec(ctx, "UPDATE parts SET photos = $2, updated_at = NOW() WHERE id = $1", id, photosJSON)
-	return err
+	return r.queries.UpdatePartPhotos(ctx, sqlc.UpdatePartPhotosParams{
+		ID:     id,
+		Photos: photosJSON,
+	})
 }
 
 func (r *partRepository) GetPartsForXML(ctx context.Context) ([]Part, error) {
-	sql := fmt.Sprintf("SELECT %s FROM parts WHERE to_delete_at IS NULL AND quantity >= 0 AND deleted_at IS NULL ORDER BY id", partColumns)
-	rows, err := r.pool.Query(ctx, sql)
+	parts, err := r.queries.GetPartsForXML(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	return scanParts(rows)
+	res := make([]Part, len(parts))
+	for i, p := range parts {
+		res[i] = *sqlcPartToDomain(p)
+	}
+	return res, nil
 }
 
 func (r *partRepository) GetLastCreatedPart(ctx context.Context) (*Part, error) {
-	sql := fmt.Sprintf("SELECT %s FROM parts WHERE deleted_at IS NULL ORDER BY id DESC LIMIT 1", partColumns)
-	row := r.pool.QueryRow(ctx, sql)
-	return scanPart(row)
+	p, err := r.queries.GetLastCreatedPart(ctx)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, pgx.ErrNoRows
+		}
+		return nil, err
+	}
+	return sqlcPartToDomain(p), nil
 }
 
 // InventoryVersion возвращает отпечаток состояния склада для условных запросов.
@@ -886,22 +976,15 @@ func (r *partRepository) GetLastCreatedPart(ctx context.Context) (*Part, error) 
 // счётчик. Запрос ложится на частичный индекс idx_parts_updated_at_alive и
 // стоит на порядки дешевле, чем собрать сам ответ.
 func (r *partRepository) InventoryVersion(ctx context.Context) (string, error) {
-	var lastChange *time.Time
-	var alive int64
-
-	err := r.pool.QueryRow(ctx, `
-		SELECT MAX(updated_at), COUNT(*)
-		FROM parts
-		WHERE deleted_at IS NULL
-	`).Scan(&lastChange, &alive)
+	row, err := r.queries.GetInventoryVersion(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to read inventory version: %w", err)
 	}
 
-	if lastChange == nil {
-		return fmt.Sprintf("empty-%d", alive), nil
+	if !row.LastChange.Valid {
+		return fmt.Sprintf("empty-%d", row.Alive), nil
 	}
-	return fmt.Sprintf("%d-%d", lastChange.UTC().UnixNano(), alive), nil
+	return fmt.Sprintf("%d-%d", row.LastChange.Time.UTC().UnixNano(), row.Alive), nil
 }
 
 // RenameSeller приводит копию имени продавца в строках запчастей в соответствие
@@ -915,29 +998,14 @@ func (r *partRepository) RenameSeller(ctx context.Context, sellerID int64, name 
 		return nil, nil
 	}
 
-	rows, err := r.pool.Query(ctx, `
-		UPDATE parts
-		SET salesman = $2, updated_at = NOW()
-		WHERE seller_id = $1 AND deleted_at IS NULL AND salesman IS DISTINCT FROM $2
-		RETURNING id
-	`, sellerID, name)
+	ids, err := r.queries.RenameSellerInParts(ctx, sqlc.RenameSellerInPartsParams{
+		SellerID: sellerID,
+		Salesman: name,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to rename seller in parts: %w", err)
 	}
 
-	var ids []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		ids = append(ids, id)
-	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
 	if len(ids) == 0 {
 		return nil, nil
 	}

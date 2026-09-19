@@ -319,6 +319,24 @@ func (q *Queries) GetAllParts(ctx context.Context) ([]Part, error) {
 	return items, nil
 }
 
+const GetInventoryVersion = `-- name: GetInventoryVersion :one
+SELECT MAX(updated_at)::timestamptz AS last_change, COUNT(*)::bigint AS alive
+FROM parts
+WHERE deleted_at IS NULL
+`
+
+type GetInventoryVersionRow struct {
+	LastChange pgtype.Timestamptz `json:"last_change"`
+	Alive      int64              `json:"alive"`
+}
+
+func (q *Queries) GetInventoryVersion(ctx context.Context) (GetInventoryVersionRow, error) {
+	row := q.db.QueryRow(ctx, GetInventoryVersion)
+	var i GetInventoryVersionRow
+	err := row.Scan(&i.LastChange, &i.Alive)
+	return i, err
+}
+
 const GetLastCreatedPart = `-- name: GetLastCreatedPart :one
 SELECT id, name, quantity, description, category, price, salesman, location, address, status, brand, model, photos, seller_id, to_delete_at, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, created_at, updated_at, deleted_at, car_release_period FROM parts WHERE deleted_at IS NULL ORDER BY id DESC LIMIT 1
 `
@@ -618,6 +636,64 @@ type MarkForDeletionParams struct {
 func (q *Queries) MarkForDeletion(ctx context.Context, arg MarkForDeletionParams) error {
 	_, err := q.db.Exec(ctx, MarkForDeletion, arg.ID, arg.ToDeleteAt)
 	return err
+}
+
+const RecordStockOperation = `-- name: RecordStockOperation :execrows
+INSERT INTO part_stock_operations (operation_id, part_id, operation_type, amount)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (operation_id, part_id, operation_type) DO NOTHING
+`
+
+type RecordStockOperationParams struct {
+	OperationID   string `json:"operation_id"`
+	PartID        int64  `json:"part_id"`
+	OperationType string `json:"operation_type"`
+	Amount        int32  `json:"amount"`
+}
+
+func (q *Queries) RecordStockOperation(ctx context.Context, arg RecordStockOperationParams) (int64, error) {
+	result, err := q.db.Exec(ctx, RecordStockOperation,
+		arg.OperationID,
+		arg.PartID,
+		arg.OperationType,
+		arg.Amount,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const RenameSellerInParts = `-- name: RenameSellerInParts :many
+UPDATE parts
+SET salesman = $2, updated_at = NOW()
+WHERE seller_id = $1 AND deleted_at IS NULL AND salesman IS DISTINCT FROM $2
+RETURNING id
+`
+
+type RenameSellerInPartsParams struct {
+	SellerID int64  `json:"seller_id"`
+	Salesman string `json:"salesman"`
+}
+
+func (q *Queries) RenameSellerInParts(ctx context.Context, arg RenameSellerInPartsParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, RenameSellerInParts, arg.SellerID, arg.Salesman)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const SoftDeletePart = `-- name: SoftDeletePart :exec

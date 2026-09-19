@@ -84,3 +84,20 @@ WHERE id = sqlc.arg(id);
 UPDATE parts
 SET quantity = CASE WHEN quantity = -1 THEN sqlc.arg(amount)::integer ELSE quantity + sqlc.arg(amount)::integer END
 WHERE id = sqlc.arg(id);
+
+-- name: RecordStockOperation :execrows
+INSERT INTO part_stock_operations (operation_id, part_id, operation_type, amount)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (operation_id, part_id, operation_type) DO NOTHING;
+
+-- name: RenameSellerInParts :many
+UPDATE parts
+SET salesman = $2, updated_at = NOW()
+WHERE seller_id = $1 AND deleted_at IS NULL AND salesman IS DISTINCT FROM $2
+RETURNING id;
+
+-- name: GetInventoryVersion :one
+SELECT MAX(updated_at)::timestamptz AS last_change, COUNT(*)::bigint AS alive
+FROM parts
+WHERE deleted_at IS NULL;
+

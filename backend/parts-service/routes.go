@@ -1,8 +1,18 @@
 package main
 
 import (
+	"context"
+	"os"
+
 	"github.com/gin-gonic/gin"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/encoding/protojson"
+
+	partsv1 "avtoplaneta/gen/parts/v1"
 )
 
 // SetupRoutes настраивает маршруты для приложения с dependency injection
@@ -16,6 +26,9 @@ func SetupRoutes(r *gin.Engine, handler *Handler) {
 
 	// Add /metrics endpoint
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
+	// Монтируем grpc-gateway для /api/v1/* (совместимость с фронтендом)
+	setupGRPCGatewayRoutes(r)
 
 	// Основные маршруты сервиса запчастей
 	r.GET("/api/inventory", handler.GetInventoryHandler)
@@ -63,4 +76,36 @@ func uploadsCacheControl() gin.HandlerFunc {
 		c.Header("Cache-Control", "public, max-age=31536000, immutable")
 		c.Next()
 	}
+}
+
+func setupGRPCGatewayRoutes(r *gin.Engine) {
+	grpcPort := os.Getenv("GRPC_PORT")
+	if grpcPort == "" {
+		grpcPort = "9081"
+	}
+
+	gwmux := runtime.NewServeMux(
+		runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{
+			MarshalOptions: protojson.MarshalOptions{
+				UseProtoNames:   true,
+				EmitUnpopulated: false,
+			},
+			UnmarshalOptions: protojson.UnmarshalOptions{
+				DiscardUnknown: true,
+			},
+		}),
+	)
+
+	err := partsv1.RegisterPartsServiceHandlerFromEndpoint(
+		context.Background(),
+		gwmux,
+		"localhost:"+grpcPort,
+		[]grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())},
+	)
+	if err != nil {
+		logrus.WithError(err).Error("Failed to register parts service handler in grpc-gateway")
+		return
+	}
+
+	r.Any("/api/v1/*any", gin.WrapH(gwmux))
 }
