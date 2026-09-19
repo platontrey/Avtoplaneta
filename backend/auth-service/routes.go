@@ -27,6 +27,18 @@ func SetupRoutes(r *gin.Engine, handler *Handler) {
 	r.GET("/auth/csrf-token", handler.GetCSRFTokenHandler)
 	r.POST("/auth/refresh", handler.RefreshTokenHandler)
 
+	// Traefik ForwardAuth эндпоинты
+	r.GET("/auth/verify", authMiddleware, handler.VerifyAuthHandler)
+	r.GET("/auth/verify-admin", authMiddleware, requireRole("admin"), handler.VerifyAuthHandler)
+
+	// Список пользователей для мессенджера и операторов
+	r.GET("/api/users", authMiddleware, requireMinRole("operator"), handler.GetUsersHandler)
+	r.GET("/api/users/me", authMiddleware, handler.GetCurrentUserHandler)
+
+	// Автообновление мобильного приложения
+	r.GET("/api/app/version", handler.GetAppVersionHandler)
+	r.GET("/api/app/download", handler.DownloadAppHandler)
+
 	// Маршруты панели администратора
 	admin := r.Group("/admin")
 	admin.Use(authMiddleware)

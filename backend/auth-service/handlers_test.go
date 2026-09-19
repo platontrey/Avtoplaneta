@@ -454,6 +454,36 @@ func (suite *HandlersTestSuite) TestGoogleMobileAuthHandler_InvalidToken() {
 	assert.Equal(suite.T(), http.StatusUnauthorized, w.Code)
 }
 
+func (suite *HandlersTestSuite) TestVerifyAuthHandler_Success() {
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request, _ = http.NewRequest("GET", "/auth/verify", nil)
+	c.Set("user", User{
+		ID:    42,
+		Email: "verify@example.com",
+		Name:  "Verify User",
+		Role:  "operator",
+	})
+
+	suite.handler.VerifyAuthHandler(c)
+
+	assert.Equal(suite.T(), http.StatusOK, w.Code)
+	assert.Equal(suite.T(), "42", w.Header().Get("X-User-ID"))
+	assert.Equal(suite.T(), "verify@example.com", w.Header().Get("X-User-Email"))
+	assert.Equal(suite.T(), "Verify User", w.Header().Get("X-User-Name"))
+	assert.Equal(suite.T(), "operator", w.Header().Get("X-User-Role"))
+}
+
+func (suite *HandlersTestSuite) TestVerifyAuthHandler_Unauthorized() {
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request, _ = http.NewRequest("GET", "/auth/verify", nil)
+
+	suite.handler.VerifyAuthHandler(c)
+
+	assert.Equal(suite.T(), http.StatusUnauthorized, w.Code)
+}
+
 func TestHandlersTestSuite(t *testing.T) {
 	suite.Run(t, new(HandlersTestSuite))
 }

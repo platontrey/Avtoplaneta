@@ -26,3 +26,23 @@ http:
         encodings:
           - br
           - gzip
+
+    auth-forward:
+      forwardAuth:
+        address: "http://auth-service:8083/auth/verify"
+        trustForwardHeader: true
+        authResponseHeaders:
+          - "X-User-ID"
+          - "X-User-Email"
+          - "X-User-Name"
+          - "X-User-Role"
+
+    auth-forward-admin:
+      forwardAuth:
+        address: "http://auth-service:8083/auth/verify-admin"
+        trustForwardHeader: true
+        authResponseHeaders:
+          - "X-User-ID"
+          - "X-User-Email"
+          - "X-User-Name"
+          - "X-User-Role"

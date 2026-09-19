@@ -872,14 +872,21 @@ func sendDromMessage(c *gin.Context) {
 	c.JSON(http.StatusCreated, msg)
 }
 
-// User fetching from gateway
-func getCurrentUser(ctx context.Context, userID string, authHeader string) (*User, error) {
-	gatewayURL := os.Getenv("GATEWAY_URL")
-	if gatewayURL == "" {
-		gatewayURL = "http://gateway:8080"
+func getAuthServiceURL() string {
+	if url := os.Getenv("AUTH_SERVICE_URL"); url != "" {
+		return url
 	}
+	if url := os.Getenv("GATEWAY_URL"); url != "" {
+		return url
+	}
+	return "http://auth-service:8083"
+}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", gatewayURL+"/api/users/me", nil)
+// User fetching from auth service
+func getCurrentUser(ctx context.Context, userID string, authHeader string) (*User, error) {
+	authURL := getAuthServiceURL()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", authURL+"/api/users/me", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -895,7 +902,7 @@ func getCurrentUser(ctx context.Context, userID string, authHeader string) (*Use
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("gateway returned status: %d", resp.StatusCode)
+		return nil, fmt.Errorf("auth service returned status: %d", resp.StatusCode)
 	}
 
 	var user User
@@ -907,12 +914,9 @@ func getCurrentUser(ctx context.Context, userID string, authHeader string) (*Use
 }
 
 func getUsers(c *gin.Context) {
-	gatewayURL := os.Getenv("GATEWAY_URL")
-	if gatewayURL == "" {
-		gatewayURL = "http://gateway:8080"
-	}
+	authURL := getAuthServiceURL()
 
-	req, err := http.NewRequest("GET", gatewayURL+"/api/users", nil)
+	req, err := http.NewRequest("GET", authURL+"/api/users", nil)
 	if err != nil {
 		log.Printf("Messaging getUsers: Failed to create request: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request"})

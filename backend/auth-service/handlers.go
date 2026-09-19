@@ -680,3 +680,70 @@ func (h *Handler) getTotalPartsCount() (int, error) {
 	logrus.WithField("total_parts", stats.TotalParts).Info("Fetched total parts count from parts-service")
 	return stats.TotalParts, nil
 }
+
+// VerifyAuthHandler используется Traefik ForwardAuth для проверки аутентификации.
+// При успехе возвращает 200 OK и заголовки с данными пользователя.
+func (h *Handler) VerifyAuthHandler(c *gin.Context) {
+	val, exists := c.Get("user")
+	if !exists {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	user, ok := val.(User)
+	if !ok {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	c.Header("X-User-ID", strconv.FormatInt(user.ID, 10))
+	c.Header("X-User-Email", user.Email)
+	c.Header("X-User-Name", user.Name)
+	c.Header("X-User-Role", user.Role)
+	c.Status(http.StatusOK)
+}
+
+// GetAppVersionHandler возвращает конфигурацию версий для мобильного приложения
+func (h *Handler) GetAppVersionHandler(c *gin.Context) {
+	configPaths := []string{
+		"./config/app_version.json",
+		"backend/config/app_version.json",
+		"/app/config/app_version.json",
+		"../config/app_version.json",
+	}
+
+	for _, p := range configPaths {
+		if data, err := os.ReadFile(p); err == nil {
+			c.Data(http.StatusOK, "application/json; charset=utf-8", data)
+			return
+		}
+	}
+
+	c.JSON(http.StatusNotFound, gin.H{"error": "файл конфигурации версий не найден"})
+}
+
+// DownloadAppHandler отдает APK-файл мобильного приложения
+func (h *Handler) DownloadAppHandler(c *gin.Context) {
+	apkPaths := []string{
+		"./downloads/avtoplaneta-release.apk",
+		"./downloads/app-release.apk",
+		"backend/downloads/avtoplaneta-release.apk",
+		"backend/downloads/app-release.apk",
+		"/app/downloads/avtoplaneta-release.apk",
+		"/app/downloads/app-release.apk",
+		"../downloads/avtoplaneta-release.apk",
+		"../downloads/app-release.apk",
+	}
+
+	for _, p := range apkPaths {
+		if _, err := os.Stat(p); err == nil {
+			c.Header("Content-Disposition", "attachment; filename=\"avtoplaneta-release.apk\"")
+			c.Header("Content-Type", "application/vnd.android.package-archive")
+			c.File(p)
+			return
+		}
+	}
+
+	c.JSON(http.StatusNotFound, gin.H{"error": "файл обновления APK не найден на сервере"})
+}
+

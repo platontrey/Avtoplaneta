@@ -53,55 +53,8 @@ services:
       - "traefik.http.routers.frontend-lan.middlewares=compress-res@file"
       - "traefik.http.routers.frontend-lan.service=frontend"
     depends_on:
-      - gateway
-
-  gateway:
-    image: avtoplaneta-gateway:latest
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: avtoplaneta-gateway
-    cpuset: "20-39,60-79"
-    restart: unless-stopped
-    networks:
-      - avtoplaneta_network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.gateway.rule=(Host(`${PUBLIC_DOMAIN:-backend-server.ru}`) || Host(`www.${PUBLIC_DOMAIN:-backend-server.ru}`)) && (PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/admin`) || PathPrefix(`/orders`) || PathPrefix(`/uploads`) || PathPrefix(`/health`) || PathPrefix(`/ready`) || PathPrefix(`/metrics`) || PathPrefix(`/swagger`))"
-      - "traefik.http.routers.gateway.entrypoints=websecure"
-      - "traefik.http.routers.gateway.tls=true"
-      - "traefik.http.routers.gateway.middlewares=compress-res@file"
-      - "traefik.http.services.gateway.loadbalancer.server.port=8080"
-      - "traefik.http.routers.gateway-lan.rule=Host(`192.168.1.3`) && (PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/admin`) || PathPrefix(`/orders`) || PathPrefix(`/uploads`) || PathPrefix(`/health`) || PathPrefix(`/ready`) || PathPrefix(`/metrics`) || PathPrefix(`/swagger`))"
-      - "traefik.http.routers.gateway-lan.entrypoints=websecure"
-      - "traefik.http.routers.gateway-lan.tls=true"
-      - "traefik.http.routers.gateway-lan.middlewares=compress-res@file"
-      - "traefik.http.routers.gateway-lan.service=gateway"
-    environment:
-      - NODE_ENV=production
-      - DOMAIN=${PUBLIC_DOMAIN:-backend-server.ru}
-      - AUTH_SERVICE_URL=http://auth-service:8083
-      - PARTS_SERVICE_URL=http://parts-service:8081
-      - ORDERS_SERVICE_URL=http://orders-service:8082
-      - MESSAGING_SERVICE_URL=http://messaging-service:8084
-      - EXPORT_SERVICE_URL=http://export-service:8085
-      - AUTH_GRPC_ADDR=auth-service:9083
-      - PARTS_GRPC_ADDR=parts-service:9081
-      - SESSION_SECRET=${SESSION_SECRET}
-      - DATABASE_URL=${DATABASE_URL}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - FORWARDED_ALLOW_IPS=*
-      - GOMEMLIMIT=1024MiB
-      - GOGC=400
-      - GOMAXPROCS=8
-    depends_on:
       - auth-service
       - parts-service
-      - orders-service
-      - messaging-service
-      - export-service
-      - postgres
-      - redis
 
   auth-service:
     image: avtoplaneta-auth-service:latest
@@ -116,6 +69,18 @@ services:
     expose:
       - "8083"
       - "9083"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth.rule=(Host(`${PUBLIC_DOMAIN:-backend-server.ru}`) || Host(`www.${PUBLIC_DOMAIN:-backend-server.ru}`)) && (PathPrefix(`/auth`) || PathPrefix(`/admin`) || PathPrefix(`/api/users`) || PathPrefix(`/api/app`))"
+      - "traefik.http.routers.auth.entrypoints=websecure"
+      - "traefik.http.routers.auth.tls=true"
+      - "traefik.http.routers.auth.middlewares=compress-res@file"
+      - "traefik.http.services.auth.loadbalancer.server.port=8083"
+      - "traefik.http.routers.auth-lan.rule=Host(`192.168.1.3`) && (PathPrefix(`/auth`) || PathPrefix(`/admin`) || PathPrefix(`/api/users`) || PathPrefix(`/api/app`))"
+      - "traefik.http.routers.auth-lan.entrypoints=websecure"
+      - "traefik.http.routers.auth-lan.tls=true"
+      - "traefik.http.routers.auth-lan.middlewares=compress-res@file"
+      - "traefik.http.routers.auth-lan.service=auth"
     environment:
       - NODE_ENV=production
       - PORT=8083
@@ -151,6 +116,24 @@ services:
     expose:
       - "8081"
       - "9081"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.parts-public.rule=(Host(`${PUBLIC_DOMAIN:-backend-server.ru}`) || Host(`www.${PUBLIC_DOMAIN:-backend-server.ru}`)) && (PathPrefix(`/uploads`) || PathPrefix(`/api/inventory`) || PathPrefix(`/api/part-catalog`) || PathPrefix(`/api/vehicle-catalog`) || PathPrefix(`/api/statistics`))"
+      - "traefik.http.routers.parts-public.entrypoints=websecure"
+      - "traefik.http.routers.parts-public.tls=true"
+      - "traefik.http.routers.parts-public.middlewares=compress-res@file"
+      - "traefik.http.routers.parts-public.service=parts"
+      - "traefik.http.routers.parts-secure.rule=(Host(`${PUBLIC_DOMAIN:-backend-server.ru}`) || Host(`www.${PUBLIC_DOMAIN:-backend-server.ru}`)) && (PathPrefix(`/api/addpart`) || PathPrefix(`/api/updatepart`) || PathPrefix(`/api/deletepart`) || PathPrefix(`/api/uploadpartphoto`) || PathPrefix(`/api/deletepartphoto`) || PathPrefix(`/api/markpartfordeletion`) || PathPrefix(`/api/defect-reports`) || PathPrefix(`/api/admin`))"
+      - "traefik.http.routers.parts-secure.entrypoints=websecure"
+      - "traefik.http.routers.parts-secure.tls=true"
+      - "traefik.http.routers.parts-secure.middlewares=compress-res@file,auth-forward@file"
+      - "traefik.http.routers.parts-secure.service=parts"
+      - "traefik.http.services.parts.loadbalancer.server.port=8081"
+      - "traefik.http.routers.parts-lan.rule=Host(`192.168.1.3`) && (PathPrefix(`/uploads`) || PathPrefix(`/api/inventory`) || PathPrefix(`/api/part-catalog`) || PathPrefix(`/api/vehicle-catalog`) || PathPrefix(`/api/statistics`) || PathPrefix(`/api/addpart`) || PathPrefix(`/api/updatepart`) || PathPrefix(`/api/deletepart`) || PathPrefix(`/api/uploadpartphoto`) || PathPrefix(`/api/deletepartphoto`) || PathPrefix(`/api/markpartfordeletion`) || PathPrefix(`/api/defect-reports`) || PathPrefix(`/api/admin`))"
+      - "traefik.http.routers.parts-lan.entrypoints=websecure"
+      - "traefik.http.routers.parts-lan.tls=true"
+      - "traefik.http.routers.parts-lan.middlewares=compress-res@file"
+      - "traefik.http.routers.parts-lan.service=parts"
     environment:
       - NODE_ENV=production
       - PORT=8081
@@ -184,6 +167,18 @@ services:
     expose:
       - "8082"
       - "9082"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.orders.rule=(Host(`${PUBLIC_DOMAIN:-backend-server.ru}`) || Host(`www.${PUBLIC_DOMAIN:-backend-server.ru}`)) && (PathPrefix(`/orders`) || PathPrefix(`/admin/orders`) || PathPrefix(`/api/orders`))"
+      - "traefik.http.routers.orders.entrypoints=websecure"
+      - "traefik.http.routers.orders.tls=true"
+      - "traefik.http.routers.orders.middlewares=compress-res@file,auth-forward@file"
+      - "traefik.http.services.orders.loadbalancer.server.port=8082"
+      - "traefik.http.routers.orders-lan.rule=Host(`192.168.1.3`) && (PathPrefix(`/orders`) || PathPrefix(`/admin/orders`) || PathPrefix(`/api/orders`))"
+      - "traefik.http.routers.orders-lan.entrypoints=websecure"
+      - "traefik.http.routers.orders-lan.tls=true"
+      - "traefik.http.routers.orders-lan.middlewares=compress-res@file"
+      - "traefik.http.routers.orders-lan.service=orders"
     environment:
       - NODE_ENV=production
       - PORT=8082
@@ -215,6 +210,20 @@ services:
       - export-uploads:/app/uploads
     expose:
       - "8085"
+    labels:
+      - "traefik.enable=true"
+      # Публичный прайс-лист XML
+      - "traefik.http.routers.export-pricelist.rule=(Host(`${PUBLIC_DOMAIN:-backend-server.ru}`) || Host(`www.${PUBLIC_DOMAIN:-backend-server.ru}`)) && Path(`/uploads/pricelist.xml`)"
+      - "traefik.http.routers.export-pricelist.priority=100"
+      - "traefik.http.routers.export-pricelist.entrypoints=websecure"
+      - "traefik.http.routers.export-pricelist.tls=true"
+      - "traefik.http.routers.export-pricelist.service=export"
+      # Защищенные админские эндпоинты генерации
+      - "traefik.http.routers.export.rule=(Host(`${PUBLIC_DOMAIN:-backend-server.ru}`) || Host(`www.${PUBLIC_DOMAIN:-backend-server.ru}`)) && PathPrefix(`/api/export`)"
+      - "traefik.http.routers.export.entrypoints=websecure"
+      - "traefik.http.routers.export.tls=true"
+      - "traefik.http.routers.export.middlewares=compress-res@file,auth-forward-admin@file"
+      - "traefik.http.services.export.loadbalancer.server.port=8085"
     environment:
       - NODE_ENV=production
       - PORT=8085
@@ -245,13 +254,25 @@ services:
     expose:
       - "8084"
       - "9084"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.messaging.rule=(Host(`${PUBLIC_DOMAIN:-backend-server.ru}`) || Host(`www.${PUBLIC_DOMAIN:-backend-server.ru}`)) && PathPrefix(`/api/messaging`)"
+      - "traefik.http.routers.messaging.entrypoints=websecure"
+      - "traefik.http.routers.messaging.tls=true"
+      - "traefik.http.routers.messaging.middlewares=compress-res@file,auth-forward@file"
+      - "traefik.http.services.messaging.loadbalancer.server.port=8084"
+      - "traefik.http.routers.messaging-lan.rule=Host(`192.168.1.3`) && PathPrefix(`/api/messaging`)"
+      - "traefik.http.routers.messaging-lan.entrypoints=websecure"
+      - "traefik.http.routers.messaging-lan.tls=true"
+      - "traefik.http.routers.messaging-lan.middlewares=compress-res@file"
+      - "traefik.http.routers.messaging-lan.service=messaging"
     environment:
       - NODE_ENV=production
       - PORT=8084
       - GRPC_PORT=9084
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=redis:6379
-      - GATEWAY_URL=http://gateway:8080
+      - AUTH_SERVICE_URL=http://auth-service:8083
       - DROM_API_KEY=${DROM_API_KEY}
       - DROM_PACKET_ID=${DROM_PACKET_ID}
       - MESSAGING_SERVICE_URL=https://${PUBLIC_DOMAIN:-backend-server.ru}/api/messaging
