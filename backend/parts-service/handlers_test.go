@@ -478,3 +478,18 @@ func (m *MockInventoryService) RenameSeller(context.Context, int64, string) ([]P
 func (m *MockInventoryService) PartsForExport(context.Context) ([]Part, error) {
 	return nil, nil
 }
+
+func TestSetupRoutes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	handler := &Handler{inventoryService: new(MockInventoryService)}
+	assert.NotPanics(t, func() {
+		SetupRoutes(r, handler)
+	})
+
+	// Test health endpoint
+	req, _ := http.NewRequest("GET", "/health", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+}

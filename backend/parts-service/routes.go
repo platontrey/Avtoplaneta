@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -116,5 +118,11 @@ func setupGRPCGatewayRoutes(r *gin.Engine) {
 		return
 	}
 
-	r.Any("/api/v1/*any", gin.WrapH(gwmux))
+	r.NoRoute(func(c *gin.Context) {
+		if strings.HasPrefix(c.Request.URL.Path, "/api/v1/") {
+			gwmux.ServeHTTP(c.Writer, c.Request)
+			return
+		}
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+	})
 }
