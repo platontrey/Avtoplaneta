@@ -66,7 +66,7 @@ export const partsApi = {
     if (filters?.address) params.append('address', filters.address);
     if (filters?.salesman) params.append('salesman', filters.salesman);
     if (filters?.status) params.append('status', filters.status);
-    if (filters?.hasPhoto) params.append('hasPhoto', filters.hasPhoto);
+    if (filters?.hasPhoto && filters.hasPhoto !== 'all') params.append('hasPhoto', filters.hasPhoto);
     if (filters?.number) params.append('number', filters.number);
     if (filters?.oem_code) params.append('oem_code', filters.oem_code);
     if (filters?.vin) params.append('vin', filters.vin);

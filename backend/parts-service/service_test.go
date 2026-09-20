@@ -273,13 +273,37 @@ func (suite *ServiceTestSuite) TestBuildElasticsearchQuery_Category() {
 	assert.True(suite.T(), ok)
 	assert.GreaterOrEqual(suite.T(), len(filters), 2)
 
-	// Проверяем наличие фильтрации и по keyword, и по text
+	// Проверяем наличие фильтрации по категории (синонимы, term, text, ngram, wildcard)
 	categoryFilter := filters[1]
 	catBool, ok := categoryFilter["bool"].(map[string]interface{})
 	assert.True(suite.T(), ok)
 	shouldList, ok := catBool["should"].([]map[string]interface{})
 	assert.True(suite.T(), ok)
-	assert.Len(suite.T(), shouldList, 2)
+	// Должно быть как минимум 4 условия на каждый вариант ("Тормозная система" и "Тормоза" = 8)
+	assert.GreaterOrEqual(suite.T(), len(shouldList), 4)
+
+	// Тест обобщенной категории "Кузов" (должна разворачиваться в "Кузов внутри", "Кузов снаружи" и т.д.)
+	kuzovVariants := ExpandCategorySynonyms("Кузов")
+	assert.Contains(suite.T(), kuzovVariants, "Кузов")
+	assert.Contains(suite.T(), kuzovVariants, "Кузов внутри")
+	assert.Contains(suite.T(), kuzovVariants, "Кузов снаружи")
+
+	// Тест обобщенной категории "Подвеска"
+	podveskaVariants := ExpandCategorySynonyms("Подвеска")
+	assert.Contains(suite.T(), podveskaVariants, "Подвеска")
+	assert.Contains(suite.T(), podveskaVariants, "Подвеска передних колес")
+	assert.Contains(suite.T(), podveskaVariants, "Подвеска задних колес")
+	assert.Contains(suite.T(), podveskaVariants, "Подвеска ДВС/КПП")
+
+	// Тест синонимов "Электрика" <-> "Электрооснащение"
+	electroVariants := ExpandCategorySynonyms("Электрика")
+	assert.Contains(suite.T(), electroVariants, "Электрика")
+	assert.Contains(suite.T(), electroVariants, "Электрооснащение")
+
+	// Тест синонимов "Шины и диски" <-> "Диски и шины"
+	tiresVariants := ExpandCategorySynonyms("Шины и диски")
+	assert.Contains(suite.T(), tiresVariants, "Шины и диски")
+	assert.Contains(suite.T(), tiresVariants, "Диски и шины")
 }
 
 // TestBuildElasticsearchQuery_TransliterationAndQwerty - тест транслитерации и исправления раскладки
@@ -417,7 +441,7 @@ func (suite *ServiceTestSuite) TestBuildDatabaseFilters() {
 
 	filters := s.buildDatabaseFilters(params)
 	assert.Equal(suite.T(), "АКПП", filters["search"])
-	assert.Equal(suite.T(), "Трансмиссия", filters["category_ilike"])
+	assert.Contains(suite.T(), filters["category_ilike"], "Трансмиссия")
 	assert.Equal(suite.T(), "Honda", filters["brand_ilike"])
 	assert.Equal(suite.T(), "Civic", filters["model_ilike"])
 	assert.Equal(suite.T(), "Стеллаж 5", filters["location_ilike"])

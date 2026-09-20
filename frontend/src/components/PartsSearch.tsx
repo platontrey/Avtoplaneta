@@ -94,7 +94,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
     const [location, setLocation] = useState('');
     const [address, setAddress] = useState('');
     const [status, setStatus] = useState('');
-    const [hasPhoto, setHasPhoto] = useState('with');
+    const [hasPhoto, setHasPhoto] = useState('all');
     const [number, setNumber] = useState('');
     const [oemCode, setOemCode] = useState('');
     const [vin, setVin] = useState('');
@@ -193,9 +193,9 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
     ];
 
     const photoOptions: SelectOption[] = [
+      { value: "all", label: "Все" },
       { value: "with", label: "С фото" },
       { value: "without", label: "Без фото" },
-      { value: "all", label: "Все" },
     ];
 
     const transmissionOptions: SelectOption[] = [
@@ -244,7 +244,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                 address,
                 salesman,
                 status,
-                hasPhoto,
+                hasPhoto: hasPhoto === 'all' ? '' : hasPhoto,
                 number,
                 oem_code: oemCode,
                 vin,
@@ -462,7 +462,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         setLocation('');
         setAddress('');
         setStatus('');
-        setHasPhoto('with');
+        setHasPhoto('all');
         setNumber('');
         setOemCode('');
         setVin('');
@@ -527,7 +527,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         location,
         address,
         status,
-        hasPhoto && hasPhoto !== 'with' ? hasPhoto : '',
+        hasPhoto && hasPhoto !== 'all' ? hasPhoto : '',
         number,
         oemCode,
         vin,
@@ -583,7 +583,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
         minQuantity,
         maxQuantity,
         status,
-        hasPhoto && hasPhoto !== 'with' ? hasPhoto : '',
+        hasPhoto && hasPhoto !== 'all' ? hasPhoto : '',
     ].filter(Boolean).length, [category, brand, model, carReleaseDate, condition, minPrice, maxPrice, minQuantity, maxQuantity, status, hasPhoto]);
 
     const bodyEngineFiltersCount = useMemo(() => [
@@ -2040,7 +2040,7 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                                     )}
                                 </AnimatePresence>
                                 <AnimatePresence>
-                                    {hasPhoto && hasPhoto !== 'with' && (
+                                    {hasPhoto && hasPhoto !== 'all' && (
                                         <motion.div
                                             key="hasPhoto"
                                             initial={{ opacity: 0, scale: 0.8 }}
@@ -2052,11 +2052,11 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                                                 <Checkbox
                                                     checked={true}
                                                     onCheckedChange={(checked) => {
-                                                        if (!checked) setHasPhoto('with');
+                                                        if (!checked) setHasPhoto('all');
                                                     }}
                                                     className="h-3 w-3"
                                                 />
-                                                <span>Фото: {hasPhoto === 'without' ? 'Без фото' : 'Все'}</span>
+                                                <span>Фото: {hasPhoto === 'with' ? 'С фото' : 'Без фото'}</span>
                                             </Badge>
                                         </motion.div>
                                     )}

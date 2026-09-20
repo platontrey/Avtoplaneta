@@ -239,6 +239,11 @@ func (s *inventoryService) getInventoryFromElasticsearch(ctx context.Context, pa
 
 	// Преобразуем и фильтруем
 	if len(esParts) == 0 {
+		// Fallback to database to ensure we don't return 0 if DB actually has matching parts
+		dbParts, dbErr := s.getInventoryFromDatabase(ctx, params)
+		if dbErr == nil && len(dbParts) > 0 {
+			return dbParts, nil
+		}
 		return []Part{}, nil
 	}
 
@@ -377,6 +382,74 @@ func ExpandTopBottomSynonyms(val string) []string {
 	default:
 		return []string{val}
 	}
+}
+
+// ExpandCategorySynonyms разворачивает категорию в синонимы и подкатегории.
+// Это позволяет искать по обобщенным названиям ("Кузов", "Подвеска", "Тормоза", "Электрика", "Шины и диски")
+// и находить точные категории из каталога ("Кузов внутри", "Кузов снаружи", "Тормозная система", "Электрооснащение", "Диски и шины" и т.д.).
+func ExpandCategorySynonyms(val string) []string {
+	clean := strings.TrimSpace(val)
+	if clean == "" {
+		return nil
+	}
+
+	variantsMap := make(map[string]bool)
+	variantsMap[clean] = true
+	lower := strings.ToLower(clean)
+
+	switch {
+	case strings.Contains(lower, "кузов"):
+		variantsMap["Кузов"] = true
+		variantsMap["Кузов внутри"] = true
+		variantsMap["Кузов снаружи"] = true
+	case strings.Contains(lower, "подвеск"):
+		variantsMap["Подвеска"] = true
+		variantsMap["Подвеска передних колес"] = true
+		variantsMap["Подвеска задних колес"] = true
+		variantsMap["Подвеска ДВС/КПП"] = true
+	case strings.Contains(lower, "тормоз"):
+		variantsMap["Тормоза"] = true
+		variantsMap["Тормозная система"] = true
+	case strings.Contains(lower, "электр"):
+		variantsMap["Электрика"] = true
+		variantsMap["Электрооснащение"] = true
+	case strings.Contains(lower, "шин") || strings.Contains(lower, "диск"):
+		variantsMap["Шины и диски"] = true
+		variantsMap["Диски и шины"] = true
+	case strings.Contains(lower, "выхлоп") || strings.Contains(lower, "глушител"):
+		variantsMap["Выхлопная система"] = true
+		variantsMap["Система выхлопа (Глушитель)"] = true
+		variantsMap["Система выхлопа"] = true
+	case strings.Contains(lower, "рулев"):
+		variantsMap["Рулевое управление"] = true
+		variantsMap["Система рулевого управления"] = true
+	case strings.Contains(lower, "фильтр"):
+		variantsMap["Система фильтрации (Фильтры)"] = true
+		variantsMap["Система фильтрации"] = true
+		variantsMap["Фильтры"] = true
+	case strings.Contains(lower, "двигател") || strings.Contains(lower, "двс") || strings.Contains(lower, "мотор"):
+		variantsMap["Двигатель"] = true
+	case strings.Contains(lower, "трансмисс") || strings.Contains(lower, "кпп"):
+		variantsMap["Трансмиссия"] = true
+	case strings.Contains(lower, "стекл") || strings.Contains(lower, "стекло"):
+		variantsMap["Стекла"] = true
+	case strings.Contains(lower, "оптик") || strings.Contains(lower, "фар"):
+		variantsMap["Оптика"] = true
+	case strings.Contains(lower, "пневмо"):
+		variantsMap["Пневмосистема"] = true
+	case strings.Contains(lower, "кондицион"):
+		variantsMap["Система кондиционирования"] = true
+	case strings.Contains(lower, "охлажден") || strings.Contains(lower, "отоплен"):
+		variantsMap["Система охлаждения и отопления"] = true
+	case strings.Contains(lower, "сопутствующ"):
+		variantsMap["Сопутствующие товары"] = true
+	}
+
+	variants := make([]string, 0, len(variantsMap))
+	for v := range variantsMap {
+		variants = append(variants, v)
+	}
+	return variants
 }
 
 // GetPositionTermQueries проверяет, является ли терм маркером расположения/стороны,
@@ -684,20 +757,41 @@ func (s *inventoryService) buildElasticsearchQuery(params InventoryQueryParams) 
 	}
 
 	if params.Category != "" {
-		filter = append(filter, map[string]interface{}{
-			"bool": map[string]interface{}{
-				"should": []map[string]interface{}{
-					{
-						"term": map[string]interface{}{
-							"category": params.Category,
-						},
-					},
-					{
-						"match": map[string]interface{}{
-							"category.text": params.Category,
+		variants := ExpandCategorySynonyms(params.Category)
+		var catShould []map[string]interface{}
+		for _, v := range variants {
+			catShould = append(catShould,
+				map[string]interface{}{
+					"term": map[string]interface{}{
+						"category": map[string]interface{}{
+							"value":            v,
+							"case_insensitive": true,
 						},
 					},
 				},
+				map[string]interface{}{
+					"match": map[string]interface{}{
+						"category.text": v,
+					},
+				},
+				map[string]interface{}{
+					"match": map[string]interface{}{
+						"category.ngram": v,
+					},
+				},
+				map[string]interface{}{
+					"wildcard": map[string]interface{}{
+						"category": map[string]interface{}{
+							"value":            "*" + strings.ToLower(v) + "*",
+							"case_insensitive": true,
+						},
+					},
+				},
+			)
+		}
+		filter = append(filter, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should":               catShould,
 				"minimum_should_match": 1,
 			},
 		})
@@ -1233,7 +1327,7 @@ func (s *inventoryService) buildDatabaseFilters(params InventoryQueryParams) map
 		filters["search"] = params.Search
 	}
 	if params.Category != "" {
-		filters["category_ilike"] = params.Category
+		filters["category_ilike"] = ExpandCategorySynonyms(params.Category)
 	}
 	if params.Brand != "" {
 		filters["brand_ilike"] = params.Brand

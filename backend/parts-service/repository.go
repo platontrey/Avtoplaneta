@@ -492,7 +492,19 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 		case "quantity_gte":
 			builder = builder.Where(squirrel.GtOrEq{"quantity": value})
 		case "category_ilike":
-			builder = builder.Where("category ILIKE ?", "%"+value.(string)+"%")
+			if variants, ok := value.([]string); ok {
+				conds := make([]squirrel.Sqlizer, 0, len(variants))
+				for _, v := range variants {
+					if strings.TrimSpace(v) != "" {
+						conds = append(conds, squirrel.Expr("category ILIKE ?", "%"+v+"%"))
+					}
+				}
+				if len(conds) > 0 {
+					builder = builder.Where(squirrel.Or(conds))
+				}
+			} else if str, ok := value.(string); ok && strings.TrimSpace(str) != "" {
+				builder = builder.Where("category ILIKE ?", "%"+str+"%")
+			}
 		case "brand_ilike":
 			builder = builder.Where("brand ILIKE ?", "%"+value.(string)+"%")
 		case "model_ilike":
