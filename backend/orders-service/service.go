@@ -145,16 +145,17 @@ func (s *ordersService) CreateOrder(ctx context.Context, req CreateOrderRequest,
 				return fmt.Errorf("failed to create order item: %w", err)
 			}
 
-			opID := fmt.Sprintf("order-%d-item-%d", order.ID, item.PartID)
-			if err := s.partRepo.DecreaseQuantity(txCtx, item.PartID, item.Quantity, opID); err != nil {
-				logrus.WithError(err).WithField("part_id", item.PartID).Error("Failed to decrease part quantity")
-				return fmt.Errorf("failed to decrease part quantity for part %d: %w", item.PartID, err)
-			}
+			// Списание остатка запчасти при создании заказа отключено:
+			// opID := fmt.Sprintf("order-%d-item-%d", order.ID, item.PartID)
+			// if err := s.partRepo.DecreaseQuantity(txCtx, item.PartID, item.Quantity, opID); err != nil {
+			// 	logrus.WithError(err).WithField("part_id", item.PartID).Error("Failed to decrease part quantity")
+			// 	return fmt.Errorf("failed to decrease part quantity for part %d: %w", item.PartID, err)
+			// }
 
-			logrus.WithFields(logrus.Fields{
-				"part_id":  item.PartID,
-				"quantity": item.Quantity,
-			}).Info("Decreased part quantity for order")
+			// logrus.WithFields(logrus.Fields{
+			// 	"part_id":  item.PartID,
+			// 	"quantity": item.Quantity,
+			// }).Info("Decreased part quantity for order")
 		}
 
 		var errLoad error
@@ -284,17 +285,18 @@ func (s *ordersService) DeleteOrder(ctx context.Context, orderID int64) error {
 		}
 		logrus.WithField("order_id", orderID).WithField("items_count", len(orderWithItems.Items)).Info("Found order with items for deletion")
 
-		for _, item := range orderWithItems.Items {
-			opID := fmt.Sprintf("delete-order-%d-item-%d", orderID, item.PartID)
-			if err := s.partRepo.IncreaseQuantity(txCtx, item.PartID, item.Quantity, opID); err != nil {
-				logrus.WithError(err).WithField("part_id", item.PartID).Error("Failed to return part quantity to inventory")
-				return fmt.Errorf("failed to restore part quantity for part %d: %w", item.PartID, err)
-			}
-			logrus.WithFields(logrus.Fields{
-				"part_id":  item.PartID,
-				"quantity": item.Quantity,
-			}).Info("Returning part quantity to inventory")
-		}
+		// Возврат остатка запчасти при удалении заказа отключен (так как списание при заказе отключено):
+		// for _, item := range orderWithItems.Items {
+		// 	opID := fmt.Sprintf("delete-order-%d-item-%d", orderID, item.PartID)
+		// 	if err := s.partRepo.IncreaseQuantity(txCtx, item.PartID, item.Quantity, opID); err != nil {
+		// 		logrus.WithError(err).WithField("part_id", item.PartID).Error("Failed to return part quantity to inventory")
+		// 		return fmt.Errorf("failed to restore part quantity for part %d: %w", item.PartID, err)
+		// 	}
+		// 	logrus.WithFields(logrus.Fields{
+		// 		"part_id":  item.PartID,
+		// 		"quantity": item.Quantity,
+		// 	}).Info("Returning part quantity to inventory")
+		// }
 
 		logrus.WithField("order_id", orderID).Info("Deleting order items")
 		if err := s.orderRepo.DeleteItemsByOrderID(txCtx, orderID); err != nil {
@@ -357,11 +359,12 @@ func (s *ordersService) AddOrderItem(ctx context.Context, orderID int64, req Add
 			}
 		}
 
-		opID := fmt.Sprintf("add-item-order-%d-part-%d-%d", orderID, req.PartID, time.Now().Unix())
-		if err := s.partRepo.DecreaseQuantity(txCtx, req.PartID, req.Quantity, opID); err != nil {
-			logrus.WithError(err).WithField("part_id", req.PartID).Error("Failed to decrease part quantity")
-			return fmt.Errorf("failed to decrease part quantity for part %d: %w", req.PartID, err)
-		}
+		// Списание остатка запчасти при добавлении позиции в заказ отключено:
+		// opID := fmt.Sprintf("add-item-order-%d-part-%d-%d", orderID, req.PartID, time.Now().Unix())
+		// if err := s.partRepo.DecreaseQuantity(txCtx, req.PartID, req.Quantity, opID); err != nil {
+		// 	logrus.WithError(err).WithField("part_id", req.PartID).Error("Failed to decrease part quantity")
+		// 	return fmt.Errorf("failed to decrease part quantity for part %d: %w", req.PartID, err)
+		// }
 
 		return nil
 	})
