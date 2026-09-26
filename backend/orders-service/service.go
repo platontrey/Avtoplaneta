@@ -114,8 +114,8 @@ func (s *ordersService) CreateOrder(ctx context.Context, req CreateOrderRequest,
 		Part:        req.Part,
 		PartID:      req.PartID,
 		BuyerNumber: req.BuyerNumber,
-		Status:      "red",
-		StatusText:  "Нужен транспорт",
+		Status:      "Принят в обработку",
+		StatusText:  "Принят в обработку",
 		CreatedAt:   time.Now(),
 	}
 
@@ -181,6 +181,17 @@ func (s *ordersService) CreateOrder(ctx context.Context, req CreateOrderRequest,
 // UpdateOrderStatus обновляет статус заказа
 func (s *ordersService) UpdateOrderStatus(ctx context.Context, orderID int64, status string) error {
 	validStatuses := map[string]bool{
+		"Ожидает забора ТК":          true,
+		"Требуется заказ ТК":         true,
+		"К отправке в ТК":            true,
+		"Ожидает трек-номер":         true,
+		"Требует уточнения":          true,
+		"Принят в обработку":         true,
+		"На фотофиксации":            true,
+		"Перемещение между складами": true,
+		"Ожидает предоплаты":         true,
+		"Проверен":                   true,
+		// Старые статусы для обратной совместимости
 		"red":    true,
 		"brown":  true,
 		"yellow": true,

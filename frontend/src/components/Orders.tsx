@@ -12,8 +12,25 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Skeleton } from './ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { Plus } from 'lucide-react';
+const ORDER_STATUSES = [
+    { value: 'Ожидает забора ТК', label: 'Ожидает забора ТК', variant: 'secondary' as const, emoji: '🚚' },
+    { value: 'Требуется заказ ТК', label: 'Требуется заказ ТК', variant: 'destructive' as const, emoji: '📦' },
+    { value: 'К отправке в ТК', label: 'К отправке в ТК', variant: 'secondary' as const, emoji: '📤' },
+    { value: 'Ожидает трек-номер', label: 'Ожидает трек-номер', variant: 'secondary' as const, emoji: '🔢' },
+    { value: 'Требует уточнения', label: 'Требует уточнения', variant: 'destructive' as const, emoji: '❓' },
+    { value: 'Принят в обработку', label: 'Принят в обработку', variant: 'secondary' as const, emoji: '⏳' },
+    { value: 'На фотофиксации', label: 'На фотофиксации', variant: 'secondary' as const, emoji: '📷' },
+    { value: 'Перемещение между складами', label: 'Перемещение между складами', variant: 'secondary' as const, emoji: '🔄' },
+    { value: 'Ожидает предоплаты', label: 'Ожидает предоплаты', variant: 'secondary' as const, emoji: '💳' },
+    { value: 'Проверен', label: 'Проверен', variant: 'default' as const, emoji: '✅' },
+] as const;
+
 // Helper function for Russian order status localization
 const getOrderStatusInfo = (status: string, statusText?: string) => {
+    const matched = ORDER_STATUSES.find((s) => s.value === status || s.value === statusText);
+    if (matched) {
+        return matched;
+    }
     switch (status) {
         case 'red':
             return { label: 'Нужен транспорт', variant: 'destructive' as const, emoji: '🔴' };
@@ -217,13 +234,14 @@ const Orders = () => {
                                     disabled={updateStatusMutation.isPending}
                                 >
                                     <SelectTrigger className="w-full">
-                                        <SelectValue />
+                                        <SelectValue placeholder={getOrderStatusInfo(order.status, order.status_text).label} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="red">🔴 Нужен транспорт</SelectItem>
-                                        <SelectItem value="brown">🟤 Ожидание ответа</SelectItem>
-                                        <SelectItem value="yellow">🟡 Нужна доставка</SelectItem>
-                                        <SelectItem value="green">🟢 Доставлено</SelectItem>
+                                        {ORDER_STATUSES.map((s) => (
+                                            <SelectItem key={s.value} value={s.value}>
+                                                {s.emoji} {s.label}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                                 <div className="flex gap-2">
@@ -347,14 +365,15 @@ const Orders = () => {
                                                     }}
                                                     disabled={updateStatusMutation.isPending}
                                                 >
-                                                    <SelectTrigger className="w-48">
-                                                        <SelectValue />
+                                                    <SelectTrigger className="w-60">
+                                                        <SelectValue placeholder={getOrderStatusInfo(order.status, order.status_text).label} />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                        <SelectItem value="red">🔴 Нужен транспорт</SelectItem>
-                                                        <SelectItem value="brown">🟤 Ожидание ответа</SelectItem>
-                                                        <SelectItem value="yellow">🟡 Нужна доставка</SelectItem>
-                                                        <SelectItem value="green">🟢 Доставлено</SelectItem>
+                                                        {ORDER_STATUSES.map((s) => (
+                                                            <SelectItem key={s.value} value={s.value}>
+                                                                {s.emoji} {s.label}
+                                                            </SelectItem>
+                                                        ))}
                                                     </SelectContent>
                                                 </Select>
                                             </div>

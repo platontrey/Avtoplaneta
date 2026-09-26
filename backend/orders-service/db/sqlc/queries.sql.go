@@ -353,7 +353,8 @@ func (q *Queries) UpdateOrderItem(ctx context.Context, arg UpdateOrderItemParams
 
 const UpdateOrderStatus = `-- name: UpdateOrderStatus :exec
 UPDATE orders
-SET status = $2
+SET status = $2,
+    status_text = $2
 WHERE id = $1
 `
 

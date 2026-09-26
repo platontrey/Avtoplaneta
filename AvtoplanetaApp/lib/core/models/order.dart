@@ -36,7 +36,7 @@ class Order {
     location: json['location'] as String? ?? '',
     buyerNumber: json['buyer_number'] as String? ?? '',
     orderNumber: json['order_number'] as String? ?? '',
-    status: json['status'] as String? ?? 'red',
+    status: json['status'] as String? ?? 'Принят в обработку',
     statusText: json['status_text'] as String? ?? '',
     sellerName: (json['seller'] ?? json['seller_name']) as String? ?? '',
     timeAgo: json['time_ago'] as String? ?? '',
@@ -55,6 +55,16 @@ class Order {
 
   // Цвет статуса для UI
   static const statusColors = {
+    'Ожидает забора ТК': 0xFFFB8C00,
+    'Требуется заказ ТК': 0xFFE53935,
+    'К отправке в ТК': 0xFF1E88E5,
+    'Ожидает трек-номер': 0xFF8E24AA,
+    'Требует уточнения': 0xFFD81B60,
+    'Принят в обработку': 0xFF039BE5,
+    'На фотофиксации': 0xFF00ACC1,
+    'Перемещение между складами': 0xFF5E35B1,
+    'Ожидает предоплаты': 0xFFFDD835,
+    'Проверен': 0xFF43A047,
     'red': 0xFFE53935,
     'brown': 0xFF795548,
     'yellow': 0xFFFDD835,
@@ -73,7 +83,7 @@ class Order {
     if (localizedStatus != null) {
       return localizedStatus;
     }
-    return statusText.isNotEmpty ? statusText : status;
+    return status.isNotEmpty ? status : statusText;
   }
 }
 

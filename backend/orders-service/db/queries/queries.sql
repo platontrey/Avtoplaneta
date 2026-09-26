@@ -31,7 +31,8 @@ WHERE order_id = $1 AND part_id = $2;
 
 -- name: UpdateOrderStatus :exec
 UPDATE orders
-SET status = $2
+SET status = $2,
+    status_text = $2
 WHERE id = $1;
 
 -- name: UpdateOrderItem :exec

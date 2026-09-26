@@ -335,10 +335,16 @@ class _StatusButtons extends ConsumerWidget {
   const _StatusButtons({required this.orderId, required this.onChanged});
 
   static const statuses = [
-    ('red', 'Нужен транспорт', Color(0xFFE53935)),
-    ('brown', 'Ожидание ответа', Color(0xFF795548)),
-    ('yellow', 'Нужна доставка', Color(0xFFFDD835)),
-    ('green', 'Доставлено', Color(0xFF43A047)),
+    ('Ожидает забора ТК', 'Ожидает забора ТК', Color(0xFFFB8C00)),
+    ('Требуется заказ ТК', 'Требуется заказ ТК', Color(0xFFE53935)),
+    ('К отправке в ТК', 'К отправке в ТК', Color(0xFF1E88E5)),
+    ('Ожидает трек-номер', 'Ожидает трек-номер', Color(0xFF8E24AA)),
+    ('Требует уточнения', 'Требует уточнения', Color(0xFFD81B60)),
+    ('Принят в обработку', 'Принят в обработку', Color(0xFF039BE5)),
+    ('На фотофиксации', 'На фотофиксации', Color(0xFF00ACC1)),
+    ('Перемещение между складами', 'Перемещение между складами', Color(0xFF5E35B1)),
+    ('Ожидает предоплаты', 'Ожидает предоплаты', Color(0xFFFDD835)),
+    ('Проверен', 'Проверен', Color(0xFF43A047)),
   ];
 
   @override
