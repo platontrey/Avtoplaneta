@@ -23,7 +23,7 @@ class _RouterRefreshNotifier extends ChangeNotifier {
 final routerProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = _RouterRefreshNotifier();
   ref.onDispose(refreshNotifier.dispose);
-  ref.listen<AsyncValue<User?>>(authProvider, (_, __) {
+  ref.listen<AsyncValue<User?>>(authProvider, (_, _) {
     refreshNotifier.notify();
   });
 
