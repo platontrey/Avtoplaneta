@@ -54,6 +54,10 @@ jobs:
 
           cd /opt/avtoplaneta
 
+          mkdir -p /opt/avtoplaneta/traefik
+          touch /opt/avtoplaneta/traefik/acme.json
+          chmod 600 /opt/avtoplaneta/traefik/acme.json
+
           # КРИТИЧНО: Сервер имеет аппаратную проблему (MCE PCIe error) при 100% нагрузке на все 80 потоков.
           # КРИТИЧНО: Используем docker build с жестким ограничением ядер для предотвращения MCE PCIe
           docker build --cpuset-cpus="0-15" -t avtoplaneta-auth-service:latest ./backend -f ./backend/auth-service/Dockerfile

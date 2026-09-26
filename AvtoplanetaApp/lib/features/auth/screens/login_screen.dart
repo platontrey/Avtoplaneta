@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,7 +39,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             _passCtrl.text,
           );
     } catch (e) {
-      setState(() => _error = 'Неверный email или пароль');
+      if (!mounted) return;
+      String message = 'Неверный email или пароль';
+      if (e is DioException) {
+        final status = e.response?.statusCode;
+        if (status == null || status >= 500) {
+          message = 'Ошибка подключения к серверу (проверьте сеть или SSL)';
+        }
+      }
+      setState(() => _error = message);
     } finally {
       if (mounted) setState(() => _loading = false);
     }

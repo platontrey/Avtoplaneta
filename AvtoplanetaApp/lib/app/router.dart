@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/models/user.dart';
 import '../features/auth/providers/auth_provider.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/inventory/screens/inventory_screen.dart';
@@ -14,12 +16,22 @@ import '../features/admin/screens/admin_screen.dart';
 import '../features/admin/screens/app_logs_screen.dart';
 import '../shared/widgets/main_scaffold.dart';
 
+class _RouterRefreshNotifier extends ChangeNotifier {
+  void notify() => notifyListeners();
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
+  final refreshNotifier = _RouterRefreshNotifier();
+  ref.onDispose(refreshNotifier.dispose);
+  ref.listen<AsyncValue<User?>>(authProvider, (_, __) {
+    refreshNotifier.notify();
+  });
 
   return GoRouter(
     initialLocation: '/inventory',
+    refreshListenable: refreshNotifier,
     redirect: (context, state) {
+      final authState = ref.read(authProvider);
       final isLoggedIn = authState.valueOrNull != null;
       final isLoading = authState.isLoading;
       final isLoginPage = state.matchedLocation == '/login';
