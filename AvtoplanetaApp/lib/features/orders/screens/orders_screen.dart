@@ -118,39 +118,57 @@ class _OrderCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: statusColor.withValues(alpha: 0.25),
+                InkWell(
+                  onTap: canChangeStatus
+                      ? () => _StatusPickerSheet.show(
+                            context,
+                            order: order,
+                            onChanged: onStatusChanged,
+                          )
+                      : null,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
                     ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          color: statusColor,
-                          shape: BoxShape.circle,
-                        ),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: statusColor.withValues(alpha: 0.25),
                       ),
-                      const SizedBox(width: 7),
-                      Text(
-                        order.displayStatusText,
-                        style: TextStyle(
-                          color: statusColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: statusColor,
+                            shape: BoxShape.circle,
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 7),
+                        Text(
+                          order.displayStatusText,
+                          style: TextStyle(
+                            color: statusColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        if (canChangeStatus) ...[
+                          const SizedBox(width: 4),
+                          Icon(
+                            LucideIcons.chevron_down,
+                            size: 13,
+                            color: statusColor,
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
                 const Spacer(),
@@ -209,8 +227,11 @@ class _OrderCard extends StatelessWidget {
               ),
             ],
             if (canChangeStatus) ...[
-              const SizedBox(height: 8),
-              _StatusButtons(orderId: order.id, onChanged: onStatusChanged),
+              const SizedBox(height: 12),
+              _StatusSelectorButton(
+                order: order,
+                onChanged: onStatusChanged,
+              ),
               const SizedBox(height: 8),
               _OrderActions(orderId: order.id, onChanged: onStatusChanged),
             ],
@@ -329,10 +350,81 @@ class _OrderActions extends StatelessWidget {
   }
 }
 
-class _StatusButtons extends ConsumerWidget {
-  final int orderId;
+class _StatusSelectorButton extends StatelessWidget {
+  final Order order;
   final VoidCallback onChanged;
-  const _StatusButtons({required this.orderId, required this.onChanged});
+
+  const _StatusSelectorButton({
+    required this.order,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = Color(order.statusColor);
+
+    return InkWell(
+      onTap: () => _StatusPickerSheet.show(
+        context,
+        order: order,
+        onChanged: onChanged,
+      ),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppTheme.panelColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: statusColor.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 9,
+              height: 9,
+              decoration: BoxDecoration(
+                color: statusColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                order.displayStatusText,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Сменить статус',
+              style: TextStyle(
+                color: AppTheme.mutedColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(
+              LucideIcons.chevron_down,
+              size: 16,
+              color: AppTheme.mutedColor,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusPickerSheet extends StatelessWidget {
+  final Order order;
+
+  const _StatusPickerSheet({required this.order});
 
   static const statuses = [
     ('Ожидает забора ТК', 'Ожидает забора ТК', Color(0xFFFB8C00)),
@@ -347,50 +439,147 @@ class _StatusButtons extends ConsumerWidget {
     ('Проверен', 'Проверен', Color(0xFF43A047)),
   ];
 
+  static Future<void> show(
+    BuildContext context, {
+    required Order order,
+    required VoidCallback onChanged,
+  }) async {
+    final selected = await showModalBottomSheet<(String, String, Color)>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _StatusPickerSheet(order: order),
+    );
+
+    if (selected == null || !context.mounted) {
+      return;
+    }
+
+    try {
+      await apiClient.dio.put(
+        '/admin/orders/${order.id}/status',
+        data: {'status': selected.$1, 'status_text': selected.$2},
+      );
+      if (!context.mounted) {
+        return;
+      }
+      onChanged();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Статус заказа #${order.id}: ${selected.$2}'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Не удалось изменить статус: $error'),
+        ),
+      );
+    }
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: statuses.map((s) {
-          return Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: OutlinedButton(
-              onPressed: () async {
-                try {
-                  await apiClient.dio.put(
-                    '/admin/orders/$orderId/status',
-                    data: {'status': s.$1, 'status_text': s.$2},
-                  );
-                  if (!context.mounted) {
-                    return;
-                  }
-                  onChanged();
-                } catch (error) {
-                  if (!context.mounted) {
-                    return;
-                  }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Не удалось изменить статус: $error'),
+  Widget build(BuildContext context) {
+    final currentStatus = order.displayStatusText;
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Статус заказа #${order.id}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${order.totalQuantity} × ${order.partName}',
+              style: const TextStyle(
+                color: AppTheme.mutedColor,
+                fontSize: 13,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: statuses.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 6),
+                itemBuilder: (sheetContext, index) {
+                  final s = statuses[index];
+                  final isSelected =
+                      order.status == s.$1 || currentStatus == s.$2;
+                  final color = s.$3;
+
+                  return InkWell(
+                    onTap: () => Navigator.pop(sheetContext, s),
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? color.withValues(alpha: 0.14)
+                            : AppTheme.panelColor,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSelected
+                              ? color.withValues(alpha: 0.5)
+                              : AppTheme.borderColor,
+                          width: isSelected ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              s.$2,
+                              style: TextStyle(
+                                color: isSelected ? color : Colors.white,
+                                fontSize: 14,
+                                fontWeight: isSelected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          if (isSelected)
+                            Icon(
+                              LucideIcons.check,
+                              size: 18,
+                              color: color,
+                            ),
+                        ],
+                      ),
                     ),
                   );
-                }
-              },
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: s.$3, width: 1),
-                foregroundColor: s.$3,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                },
               ),
-              child: Text(s.$2, style: const TextStyle(fontSize: 11)),
             ),
-          );
-        }).toList(),
+          ],
+        ),
       ),
     );
   }
