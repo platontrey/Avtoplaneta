@@ -53,6 +53,18 @@ class Order {
   int get totalQuantity =>
       items.isEmpty ? 1 : items.fold(0, (total, item) => total + item.quantity);
 
+  int? get effectivePartId {
+    if (partId != null && partId! > 0) {
+      return partId;
+    }
+    for (final item in items) {
+      if (item.partId > 0) {
+        return item.partId;
+      }
+    }
+    return null;
+  }
+
   // Цвет статуса для UI
   static const statusColors = {
     'Ожидает забора ТК': 0xFFFB8C00,
@@ -90,12 +102,14 @@ class Order {
 class OrderItem {
   final int id;
   final int partId;
+  final String partName;
   final int quantity;
   final double price;
 
   const OrderItem({
     required this.id,
     required this.partId,
+    this.partName = '',
     required this.quantity,
     required this.price,
   });
@@ -103,6 +117,7 @@ class OrderItem {
   factory OrderItem.fromJson(Map<String, dynamic> json) => OrderItem(
     id: (json['id'] as num?)?.toInt() ?? 0,
     partId: (json['part_id'] as num?)?.toInt() ?? 0,
+    partName: (json['part_name'] ?? '').toString(),
     quantity: (json['quantity'] as num?)?.toInt() ?? 0,
     price: (json['price'] as num?)?.toDouble() ?? 0,
   );

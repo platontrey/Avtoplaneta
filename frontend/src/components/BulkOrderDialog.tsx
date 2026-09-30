@@ -54,6 +54,7 @@ export default function BulkOrderDialog({ isOpen, onClose, selectedParts, onSucc
         customer_id: orderData.customer_id,
         order_number: '',
         part: selectedParts.map(p => p.name).join(', '),
+        part_id: selectedParts[0]?.id,
         buyer_number: orderData.buyer_number,
         items
       });

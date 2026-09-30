@@ -73,17 +73,59 @@ func (s *ordersService) GetOrders(ctx context.Context) ([]Order, error) {
 	}
 
 	now := time.Now()
+	partCache := make(map[int64]*Part)
+	lookupPart := func(partID int64) (*Part, error) {
+		if cached, ok := partCache[partID]; ok {
+			if cached == nil {
+				return nil, fmt.Errorf("part %d not found", partID)
+			}
+			return cached, nil
+		}
+		part, err := s.partRepo.FindByID(ctx, partID)
+		if err != nil {
+			partCache[partID] = nil
+			return nil, err
+		}
+		partCache[partID] = part
+		return part, nil
+	}
+
 	for i := range orders {
 		orders[i].CreatedAtFormatted = orders[i].CreatedAt.Format("2006-01-02 15:04:05")
 		orders[i].TimeAgo = formatTimeAgo(now.Sub(orders[i].CreatedAt))
 
+		if orders[i].PartID == 0 && len(orders[i].Items) > 0 {
+			orders[i].PartID = orders[i].Items[0].PartID
+		}
+
 		if len(orders[i].Items) > 0 {
-			part, err := s.partRepo.FindByID(ctx, orders[i].Items[0].PartID)
-			if err != nil {
-				logrus.WithError(err).WithField("part_id", orders[i].Items[0].PartID).Warn("Failed to get part location")
-				orders[i].Location = "Неизвестно"
-			} else {
+			for j := range orders[i].Items {
+				itemPartID := orders[i].Items[j].PartID
+				part, err := lookupPart(itemPartID)
+				if err != nil {
+					if j == 0 {
+						logrus.WithError(err).WithField("part_id", itemPartID).Warn("Failed to get part location")
+						orders[i].Location = "Неизвестно"
+					}
+					if len(orders[i].Items) == 1 && orders[i].Part != "" {
+						orders[i].Items[j].PartName = orders[i].Part
+					}
+				} else {
+					if j == 0 {
+						orders[i].Location = part.Location
+					}
+					if part.Name != "" {
+						orders[i].Items[j].PartName = part.Name
+					} else if len(orders[i].Items) == 1 && orders[i].Part != "" {
+						orders[i].Items[j].PartName = orders[i].Part
+					}
+				}
+			}
+		} else if orders[i].PartID > 0 {
+			if part, err := lookupPart(orders[i].PartID); err == nil {
 				orders[i].Location = part.Location
+			} else {
+				orders[i].Location = "Неизвестно"
 			}
 		} else {
 			orders[i].Location = "Нет деталей"
@@ -107,12 +149,17 @@ func (s *ordersService) CreateOrder(ctx context.Context, req CreateOrderRequest,
 		return nil, ValidationError{Field: "items", Message: "at least one part must be selected"}
 	}
 
+	primaryPartID := req.PartID
+	if primaryPartID == 0 && len(req.Items) > 0 {
+		primaryPartID = req.Items[0].PartID
+	}
+
 	order := &Order{
 		CustomerID:  req.CustomerID,
 		SellerID:    userID,
 		Seller:      userName,
 		Part:        req.Part,
-		PartID:      req.PartID,
+		PartID:      primaryPartID,
 		BuyerNumber: req.BuyerNumber,
 		Status:      "Принят в обработку",
 		StatusText:  "Принят в обработку",
@@ -120,22 +167,31 @@ func (s *ordersService) CreateOrder(ctx context.Context, req CreateOrderRequest,
 	}
 
 	var completeOrder *Order
+	partNamesByID := make(map[int64]string, len(req.Items))
+	var primaryLocation string
 	err := RunInTransaction(ctx, s.orderRepo.GetPool(), func(txCtx context.Context) error {
 		if err := s.orderRepo.Create(txCtx, order); err != nil {
 			logrus.WithError(err).Error("Failed to create order in database")
 			return fmt.Errorf("failed to create order: %w", err)
 		}
 
-		for _, item := range req.Items {
+		for idx, item := range req.Items {
 			part, err := s.partRepo.FindByID(txCtx, item.PartID)
 			if err != nil {
 				logrus.WithError(err).WithField("part_id", item.PartID).Error("Failed to get part for order item")
 				return fmt.Errorf("failed to get part information for part %d: %w", item.PartID, err)
 			}
+			if idx == 0 {
+				primaryLocation = part.Location
+			}
+			if part.Name != "" {
+				partNamesByID[item.PartID] = part.Name
+			}
 
 			orderItem := &OrderItem{
 				OrderID:  order.ID,
 				PartID:   item.PartID,
+				PartName: part.Name,
 				Quantity: item.Quantity,
 				Price:    part.Price,
 			}
@@ -170,6 +226,15 @@ func (s *ordersService) CreateOrder(ctx context.Context, req CreateOrderRequest,
 	now := time.Now()
 	completeOrder.CreatedAtFormatted = completeOrder.CreatedAt.Format("2006-01-02 15:04:05")
 	completeOrder.TimeAgo = formatTimeAgo(now.Sub(completeOrder.CreatedAt))
+	completeOrder.Location = primaryLocation
+	if completeOrder.PartID == 0 && len(completeOrder.Items) > 0 {
+		completeOrder.PartID = completeOrder.Items[0].PartID
+	}
+	for i := range completeOrder.Items {
+		if name, ok := partNamesByID[completeOrder.Items[i].PartID]; ok {
+			completeOrder.Items[i].PartName = name
+		}
+	}
 
 	if err := s.cache.InvalidateOrders(); err != nil {
 		logrus.WithError(err).Warn("Failed to invalidate orders cache after creating order")

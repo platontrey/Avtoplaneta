@@ -28,6 +28,7 @@ type OrderItem struct {
 	ID       int64   `json:"id"`
 	OrderID  int64   `json:"order_id"`
 	PartID   int64   `json:"part_id"`
+	PartName string  `json:"part_name,omitempty"`
 	Quantity int     `json:"quantity"`
 	Price    float64 `json:"price"` // Цена на момент создания заказа
 }
@@ -35,6 +36,7 @@ type OrderItem struct {
 // Part представляет запчасть в системе (упрощенная версия для orders-service)
 type Part struct {
 	ID       int64   `json:"id"`
+	Name     string  `json:"name,omitempty"`
 	Quantity int     `json:"quantity"`
 	Price    float64 `json:"price"`
 	Location string  `json:"location,omitempty"`

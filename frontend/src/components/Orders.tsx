@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useOrders } from '../hooks/useOrders';
 import { updateOrderStatus, deleteOrder, completeOrder } from '../features/orders/api/ordersApi';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -11,7 +11,53 @@ import { Badge } from './ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Skeleton } from './ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
-import { Plus } from 'lucide-react';
+import { ExternalLink, Plus } from 'lucide-react';
+
+const renderOrderParts = (order: Order) => {
+    if (order.items && order.items.length > 0) {
+        return (
+            <div className="space-y-1">
+                {order.items.map((item) => {
+                    const targetPartId = item.part_id || order.part_id;
+                    const label = item.part_name || (order.items.length === 1 ? order.part : '') || (targetPartId ? `Запчасть #${targetPartId}` : 'Нет деталей');
+                    const content = `${item.quantity}x ${label}`;
+                    return (
+                        <div key={item.id || `${order.id}-${item.part_id}`} className="text-sm">
+                            {targetPartId && targetPartId > 0 ? (
+                                <Link
+                                    to={`/inventory?partId=${targetPartId}`}
+                                    className="text-primary hover:underline inline-flex items-center gap-1 font-medium transition-colors"
+                                    title={`Перейти к запчасти #${targetPartId} в инвентаре`}
+                                >
+                                    <span>{content}</span>
+                                    <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-75" />
+                                </Link>
+                            ) : (
+                                <span>{content}</span>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    }
+
+    const fallbackLabel = order.part || 'Нет деталей';
+    if (order.part_id && order.part_id > 0) {
+        return (
+            <Link
+                to={`/inventory?partId=${order.part_id}`}
+                className="text-sm text-primary hover:underline inline-flex items-center gap-1 font-medium transition-colors"
+                title={`Перейти к запчасти #${order.part_id} в инвентаре`}
+            >
+                <span>{fallbackLabel}</span>
+                <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-75" />
+            </Link>
+        );
+    }
+
+    return <div className="text-sm">{fallbackLabel}</div>;
+};
 const ORDER_STATUSES = [
     { value: 'Ожидает забора ТК', label: 'Ожидает забора ТК', variant: 'secondary' as const, emoji: '🚚' },
     { value: 'Требуется заказ ТК', label: 'Требуется заказ ТК', variant: 'destructive' as const, emoji: '📦' },
@@ -219,9 +265,7 @@ const Orders = () => {
                                     <div className="font-medium">{order.seller}</div>
                                     <div className="text-muted-foreground">Запчасть</div>
                                     <div className="font-medium">
-                                        {order.items && order.items.length > 0
-                                            ? order.items.map(item => `${item.quantity}x ${order.part}`).join(', ')
-                                            : order.part || 'Нет деталей'}
+                                        {renderOrderParts(order)}
                                     </div>
                                     <div className="text-muted-foreground">Местоположение</div>
                                     <div className="font-medium">{order.location || 'Неизвестно'}</div>
@@ -334,19 +378,7 @@ const Orders = () => {
                                         <TableCell className="font-medium">{order.id}</TableCell>
                                         <TableCell>{order.seller}</TableCell>
                                         <TableCell>
-                                            <div className="space-y-1">
-                                                {order.items && order.items.length > 0 ? (
-                                                    order.items.map((item) => (
-                                                        <div key={item.id} className="text-sm">
-                                                            {item.quantity}x {order.part}
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <div className="text-sm">
-                                                        {order.part || 'Нет деталей'}
-                                                    </div>
-                                                )}
-                                            </div>
+                                            {renderOrderParts(order)}
                                         </TableCell>
                                         <TableCell>{order.location || 'Неизвестно'}</TableCell>
                                         <TableCell>{order.buyer_number}</TableCell>

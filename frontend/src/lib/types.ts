@@ -73,7 +73,9 @@ export interface OrderItem {
   id: number;
   order_id: number;
   part_id: number;
+  part_name?: string;
   quantity: number;
+  price?: number;
 }
 
 export interface Order {
@@ -82,6 +84,7 @@ export interface Order {
   seller_id: number;
   seller: string;
   part: string;
+  part_id?: number;
   location?: string;
   buyer_number: string;
   order_number: string;

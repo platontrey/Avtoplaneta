@@ -69,7 +69,7 @@ export const completeOrder = async (orderId: number) => {
   return response.json();
 };
 
-export const createOrder = async (orderData: { customer_id: number; order_number: string; part: string; buyer_number: string; items: { part_id: number; quantity: number }[] }) => {
+export const createOrder = async (orderData: { customer_id: number; order_number: string; part: string; part_id?: number; buyer_number: string; items: { part_id: number; quantity: number }[] }) => {
   console.log('ordersApi.createOrder: Creating order with data:', orderData);
 
   // Create the order directly - the backend will handle quantity updates

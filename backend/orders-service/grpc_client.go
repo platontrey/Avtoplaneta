@@ -55,6 +55,7 @@ func (c *partsGRPCClient) GetPartByID(ctx context.Context, id int64) (*Part, err
 
 	return &Part{
 		ID:       int64(resp.Id),
+		Name:     resp.Name,
 		Quantity: int(resp.Quantity),
 		Price:    resp.Price,
 		Location: resp.Location,

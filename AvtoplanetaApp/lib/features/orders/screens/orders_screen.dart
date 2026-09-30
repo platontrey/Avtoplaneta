@@ -193,14 +193,26 @@ class _OrderCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 14),
-            Text(
-              '${order.totalQuantity} × ${order.partName}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
+            if (order.items.length > 1)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final item in order.items)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: _PartLinkRow(
+                        label:
+                            '${item.quantity} × ${item.partName.isNotEmpty ? item.partName : (order.partName.isNotEmpty ? order.partName : 'Запчасть #${item.partId}')}',
+                        partId: item.partId > 0 ? item.partId : order.effectivePartId,
+                      ),
+                    ),
+                ],
+              )
+            else
+              _PartLinkRow(
+                label: '${order.totalQuantity} × ${order.partName}',
+                partId: order.effectivePartId,
               ),
-            ),
             const SizedBox(height: 10),
             Wrap(
               spacing: 12,
@@ -252,6 +264,53 @@ class _OrderCard extends StatelessWidget {
       ),
     ],
   );
+}
+
+class _PartLinkRow extends StatelessWidget {
+  final String label;
+  final int? partId;
+
+  const _PartLinkRow({required this.label, this.partId});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasLink = partId != null && partId! > 0;
+    if (!hasLink) {
+      return Text(
+        label,
+        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+      );
+    }
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(6),
+      onTap: () => context.push('/inventory/part/$partId'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Icon(
+              LucideIcons.external_link,
+              size: 14,
+              color: AppTheme.primaryColor,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _OrderActions extends StatelessWidget {

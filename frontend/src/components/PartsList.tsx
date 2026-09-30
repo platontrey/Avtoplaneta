@@ -21,9 +21,10 @@ interface PartsListProps {
     onLoadMore?: () => void;
     hasMore?: boolean;
     isInfiniteScroll?: boolean;
+    defaultOpenPartId?: number | null;
 }
 
-function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScroll = false }: PartsListProps) {
+function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScroll = false, defaultOpenPartId = null }: PartsListProps) {
     const loadMoreRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -31,6 +32,13 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
     const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
     const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
     const [isBulkOrderOpen, setIsBulkOrderOpen] = useState(false);
+    const [openAccordionValue, setOpenAccordionValue] = useState<string>(
+        defaultOpenPartId ? `part-${defaultOpenPartId}` : ''
+    );
+
+    useEffect(() => {
+        setOpenAccordionValue(defaultOpenPartId ? `part-${defaultOpenPartId}` : '');
+    }, [defaultOpenPartId]);
 
     // Swipe gestures for mobile navigation
     const { bindSwipeEvents } = useSwipeGesture({
@@ -218,7 +226,13 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
             )}
 
             {/* Список запчастей */}
-            <Accordion type="single" collapsible className="w-full">
+            <Accordion
+                type="single"
+                collapsible
+                value={openAccordionValue}
+                onValueChange={setOpenAccordionValue}
+                className="w-full"
+            >
                 {parts.map((part) => (
                     <PartBlock
                         key={part.id}

@@ -106,6 +106,7 @@ export const useOrderDialog = (partName: string) => {
       customer_id: parseInt(orderForm.customer_id),
       order_number: orderForm.order_number,
       part: orderForm.part,
+      part_id: partId,
       buyer_number: orderForm.buyer_number,
       items: [{ part_id: partId, quantity: orderForm.quantity }],
     });

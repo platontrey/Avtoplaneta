@@ -123,6 +123,20 @@ export const partsApi = {
     return Array.isArray(data) ? data : (data.parts || []);
   },
 
+  // Get single part by ID
+  getById: async (id: number): Promise<Part> => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/parts/item/${id}`, {
+      credentials: 'include',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch part: ${response.status}`);
+    }
+
+    return response.json();
+  },
+
   // Add new part
   create: async (partData: Omit<Part, 'id'>): Promise<Part> => {
     console.log('partsApi.create: Attempting to create part');

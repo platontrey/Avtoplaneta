@@ -178,6 +178,19 @@ export function useParts(filters?: PartFilters) {
 }
 
 /**
+ * Хук для получения конкретной запчасти по ID
+ */
+export function usePart(id?: number | null) {
+  return useQuery({
+    queryKey: partsKeys.detail(id || 0),
+    queryFn: () => partsApi.getById(id as number),
+    enabled: typeof id === 'number' && id > 0,
+    retry: false,
+    staleTime: 1000 * 60 * 2,
+  });
+}
+
+/**
  * Хук для бесконечной прокрутки запчастей
  * @param filters - Объект с фильтрами для поиска запчастей
  * @returns Объект с данными, функциями для загрузки следующей страницы
