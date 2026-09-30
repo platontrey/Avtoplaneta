@@ -60,6 +60,7 @@ export default defineConfig({
         clientsClaim: true,
         cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        navigateFallbackDenylist: [/^\/api\//, /^\/auth\//, /^\/admin\//, /^\/uploads\//],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\./i,

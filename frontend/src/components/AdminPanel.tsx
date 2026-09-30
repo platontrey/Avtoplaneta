@@ -108,6 +108,7 @@ export default function AdminPanel() {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [supplierCodes, setSupplierCodes] = useState<string[]>([]);
+  const [supplierBatches, setSupplierBatches] = useState<{ code: string; label: string; zero_count?: number }[]>([]);
   const [selectedSupplierCode, setSelectedSupplierCode] = useState<string>('');
   const [showImageEditorTest, setShowImageEditorTest] = useState(false);
   const [testImageSrc, setTestImageSrc] = useState<string>('');
@@ -157,7 +158,13 @@ export default function AdminPanel() {
       }
 
       const data = await response.json();
-      setSupplierCodes(data.codes || []);
+      const codes: string[] = data.supplier_codes || data.codes || [];
+      setSupplierCodes(codes);
+      if (Array.isArray(data.batches) && data.batches.length > 0) {
+        setSupplierBatches(data.batches);
+      } else {
+        setSupplierBatches(codes.map((code: string) => ({ code, label: code })));
+      }
     } catch (err) {
       console.error('Failed to fetch supplier codes:', err);
     }
@@ -232,11 +239,12 @@ export default function AdminPanel() {
     }
   };
 
-  const fetchActivityLogs = async () => {
+  const fetchActivityLogs = async (overrideFilters?: ActivityFilters) => {
+    const activeFilters = overrideFilters ?? activityFilters;
     try {
       setActivityLoading(true);
-      console.log('Fetching activity logs with filters:', activityFilters);
-      const logs = await getUserActivityLogs(activityFilters);
+      console.log('Fetching activity logs with filters:', activeFilters);
+      const logs = await getUserActivityLogs(activeFilters);
       console.log('Fetched activity logs:', logs);
       setActivityLogs(logs);
     } catch (err) {
@@ -257,7 +265,7 @@ export default function AdminPanel() {
     if (usefulOnly) filters.useful_only = true;
 
     setActivityFilters(filters);
-    fetchActivityLogs();
+    await fetchActivityLogs(filters);
 
     // Log user activity - applying filters
     await logUserActivity({
@@ -276,8 +284,9 @@ export default function AdminPanel() {
     setEndDate('');
     // Сбрасываем к фильтру по умолчанию — только полезные данные.
     setUsefulOnly(true);
-    setActivityFilters({ useful_only: true });
-    fetchActivityLogs();
+    const defaultFilters: ActivityFilters = { useful_only: true };
+    setActivityFilters(defaultFilters);
+    void fetchActivityLogs(defaultFilters);
   };
 
   const handleAddUser = async (e: React.FormEvent) => {
@@ -1051,44 +1060,56 @@ export default function AdminPanel() {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Package className="w-5 h-5 mr-2" />
-            Управление запчастями
+            Управление запчастями ({supplierBatches.length})
           </CardTitle>
           <CardDescription>
-            Массовые операции с запчастями
+            Массовые операции с запчастями и дефектными ведомостями
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="p-4 border rounded-lg bg-yellow-50 border-yellow-200">
-              <h4 className="font-medium text-yellow-800 mb-2">Удаление шаблонных запчастей</h4>
-              <p className="text-sm text-yellow-700 mb-4">
-                Эта операция удалит все запчасти с количеством 0 для выбранного кода поставки.
-                Используйте, когда уверены, что все необходимые запчасти из дефектной ведомости заполнены.
+            <div className="p-4 border rounded-lg bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-900">
+              <h4 className="font-medium text-yellow-800 dark:text-yellow-300 mb-2">Удаление шаблонных запчастей (quantity = 0)</h4>
+              <p className="text-sm text-yellow-700 dark:text-yellow-400 mb-4">
+                Эта операция удалит все незаполненные запчасти с количеством 0 для выбранной дефектной ведомости (кода поставки).
+                Используйте, когда уверены, что все необходимые запчасти из дефектной ведомости уже оприходованы.
               </p>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="supplier-code-select">Выберите код поставки</Label>
+                  <Label htmlFor="supplier-code-select">
+                    Выберите дефектную ведомость / код поставки ({supplierBatches.length} доступно)
+                  </Label>
                   <Select value={selectedSupplierCode} onValueChange={setSelectedSupplierCode}>
                     <SelectTrigger id="supplier-code-select">
-                      <SelectValue placeholder="Выберите код поставки" />
+                      <SelectValue placeholder={supplierBatches.length > 0 ? "Выберите дефектную ведомость" : "Нет ведомостей с нулевыми запчастями"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {supplierCodes.map((code) => (
-                        <SelectItem key={code} value={code}>
-                          {code}
+                      {supplierBatches.map((batch) => (
+                        <SelectItem key={batch.code} value={batch.code}>
+                          {batch.label || batch.code}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <Button
-                  variant="destructive"
-                  onClick={handleDeleteZeroQuantityParts}
-                  disabled={loading || !selectedSupplierCode}
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  {loading ? 'Удаление...' : 'Удалить запчасти с quantity = 0'}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="destructive"
+                    onClick={handleDeleteZeroQuantityParts}
+                    disabled={loading || !selectedSupplierCode}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    {loading ? 'Удаление...' : 'Удалить запчасти с quantity = 0'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={fetchSupplierCodes}
+                    disabled={loading}
+                  >
+                    Обновить список
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

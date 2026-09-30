@@ -362,8 +362,13 @@ func (r *partRepository) CreateBatch(ctx context.Context, parts []Part) ([]Part,
 		)
 	}
 
-	br := r.pool.SendBatch(ctx, batch)
-	defer br.Close()
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction for batch create: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	br := tx.SendBatch(ctx, batch)
 
 	var createdAt, updatedAt time.Time
 	for i := range parts {
@@ -381,8 +386,17 @@ func (r *partRepository) CreateBatch(ctx context.Context, parts []Part) ([]Part,
 			&parts[i].CarReleasePeriod,
 		)
 		if err != nil {
+			_ = br.Close()
 			return nil, fmt.Errorf("failed to scan created part %d in batch: %w", i, err)
 		}
+	}
+
+	if err := br.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close batch in transaction: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("failed to commit batch create transaction: %w", err)
 	}
 
 	return parts, nil
@@ -889,25 +903,131 @@ func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]in
 
 // ─── Supplier operations ────────────────────────────────────────────────────
 
+func (r *partRepository) DeleteZeroQuantityPartsWithIDs(ctx context.Context, supplierCode string) ([]int64, error) {
+	supplierCode = strings.TrimSpace(supplierCode)
+	logrus.WithField("supplier_code", supplierCode).Info("Repository: DeleteZeroQuantityPartsWithIDs")
+
+	var (
+		rows pgx.Rows
+		err  error
+	)
+
+	if strings.HasPrefix(supplierCode, "car:") {
+		raw := strings.TrimPrefix(supplierCode, "car:")
+		parts := strings.SplitN(raw, "|", 4)
+		for len(parts) < 4 {
+			parts = append(parts, "")
+		}
+		rows, err = r.pool.Query(ctx, `
+			DELETE FROM parts
+			WHERE (supplier_code IS NULL OR BTRIM(supplier_code) = '')
+			  AND COALESCE(BTRIM(brand), '') = $1
+			  AND COALESCE(BTRIM(model), '') = $2
+			  AND COALESCE(BTRIM(car_release_date), '') = $3
+			  AND COALESCE(BTRIM(vin), '') = $4
+			  AND quantity = 0 AND to_delete_at IS NULL AND deleted_at IS NULL
+			RETURNING id
+		`, parts[0], parts[1], parts[2], parts[3])
+	} else {
+		rows, err = r.pool.Query(ctx, `
+			DELETE FROM parts
+			WHERE BTRIM(supplier_code) = BTRIM($1)
+			  AND quantity = 0 AND to_delete_at IS NULL AND deleted_at IS NULL
+			RETURNING id
+		`, supplierCode)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var deletedIDs []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		deletedIDs = append(deletedIDs, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	logrus.WithField("deleted", len(deletedIDs)).Info("Repository: Successfully deleted zero-quantity parts")
+	return deletedIDs, nil
+}
+
 func (r *partRepository) DeleteZeroQuantityPartsBySupplier(ctx context.Context, supplierCode string) (int64, error) {
-	logrus.WithField("supplier_code", supplierCode).Info("Repository: DeleteZeroQuantityPartsBySupplier")
-
-	count, err := r.queries.CountZeroQuantityBySupplier(ctx, supplierCode)
+	ids, err := r.DeleteZeroQuantityPartsWithIDs(ctx, supplierCode)
 	if err != nil {
 		return 0, err
 	}
-	logrus.WithField("count", count).Info("Repository: Found parts to delete")
+	return int64(len(ids)), nil
+}
 
-	deleted, err := r.queries.DeleteZeroQuantityBySupplier(ctx, supplierCode)
+func (r *partRepository) GetSupplierBatches(ctx context.Context) ([]SupplierBatchInfo, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT
+			CASE
+				WHEN supplier_code IS NOT NULL AND BTRIM(supplier_code) != '' THEN BTRIM(supplier_code)
+				ELSE 'car:' || COALESCE(BTRIM(brand), '') || '|' || COALESCE(BTRIM(model), '') || '|' || COALESCE(BTRIM(car_release_date), '') || '|' || COALESCE(BTRIM(vin), '')
+			END AS batch_code,
+			COALESCE(MAX(NULLIF(BTRIM(brand), '')), '') AS brand,
+			COALESCE(MAX(NULLIF(BTRIM(model), '')), '') AS model,
+			COALESCE(MAX(NULLIF(BTRIM(car_release_date), '')), '') AS car_release_date,
+			COALESCE(MAX(NULLIF(BTRIM(vin), '')), '') AS vin,
+			COUNT(*)::bigint AS zero_count,
+			MAX(created_at) AS last_created_at
+		FROM parts
+		WHERE quantity = 0 AND to_delete_at IS NULL AND deleted_at IS NULL
+		GROUP BY batch_code
+		ORDER BY last_created_at DESC NULLS LAST, batch_code DESC
+	`)
 	if err != nil {
-		return 0, err
+		return nil, err
+	}
+	defer rows.Close()
+
+	var batches []SupplierBatchInfo
+	for rows.Next() {
+		var b SupplierBatchInfo
+		var lastCreatedAt *time.Time
+		if err := rows.Scan(&b.Code, &b.Brand, &b.Model, &b.Year, &b.VIN, &b.ZeroCount, &lastCreatedAt); err != nil {
+			return nil, err
+		}
+
+		carTitle := strings.TrimSpace(strings.Join([]string{b.Brand, b.Model, b.Year}, " "))
+		if carTitle == "" {
+			carTitle = "Без марки/модели"
+		}
+		if b.VIN != "" {
+			carTitle += fmt.Sprintf(" (VIN: %s)", b.VIN)
+		}
+		if strings.HasPrefix(b.Code, "car:") {
+			b.Label = fmt.Sprintf("%s — %d шт. с 0 [без кода поставки]", carTitle, b.ZeroCount)
+		} else {
+			b.Label = fmt.Sprintf("%s — %d шт. с 0 [код: %s]", carTitle, b.ZeroCount, b.Code)
+		}
+		batches = append(batches, b)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
-	logrus.WithField("deleted", deleted).Info("Repository: Successfully deleted parts")
-	return deleted, nil
+	return batches, nil
 }
 
 func (r *partRepository) GetSupplierCodes(ctx context.Context) ([]string, error) {
+	batches, err := r.GetSupplierBatches(ctx)
+	if err == nil {
+		codes := make([]string, 0, len(batches))
+		for _, b := range batches {
+			codes = append(codes, b.Code)
+		}
+		logrus.WithField("count", len(codes)).Info("Repository: GetSupplierCodes from batches")
+		return codes, nil
+	}
+
 	codes, err := r.queries.GetSupplierCodes(ctx)
 	if err != nil {
 		return nil, err

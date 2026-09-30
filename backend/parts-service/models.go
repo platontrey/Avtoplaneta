@@ -264,3 +264,15 @@ type Earnings struct {
 	TotalAmount float64   `json:"total_amount"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
+
+// SupplierBatchInfo описывает поставку / дефектную ведомость с запчастями quantity = 0
+type SupplierBatchInfo struct {
+	Code      string `json:"code"`
+	Brand     string `json:"brand,omitempty"`
+	Model     string `json:"model,omitempty"`
+	Year      string `json:"year,omitempty"`
+	VIN       string `json:"vin,omitempty"`
+	ZeroCount int64  `json:"zero_count"`
+	Label     string `json:"label"`
+}
+

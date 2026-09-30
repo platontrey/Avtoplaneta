@@ -926,6 +926,41 @@ func DeletePartFromIndex(partID int64) error {
 	return nil
 }
 
+// BulkDeletePartsFromIndex пакетно удаляет запчасти по ID из индекса Elasticsearch и обновляет индекс.
+func BulkDeletePartsFromIndex(ctx context.Context, ids []int64) error {
+	if esClient == nil || len(ids) == 0 {
+		return nil
+	}
+
+	const batchSize = 2000
+	total := len(ids)
+
+	for i := 0; i < total; i += batchSize {
+		end := i + batchSize
+		if end > total {
+			end = total
+		}
+
+		var buf bytes.Buffer
+		for _, id := range ids[i:end] {
+			buf.WriteString(fmt.Sprintf(`{"delete":{"_index":"parts","_id":"%d"}}`+"\n", id))
+		}
+
+		req := esapi.BulkRequest{
+			Index: "parts",
+			Body:  &buf,
+		}
+
+		res, err := req.Do(ctx, esClient)
+		if err != nil {
+			return fmt.Errorf("ошибка отправки bulk-delete запроса (%d-%d): %w", i+1, end, err)
+		}
+		_ = res.Body.Close()
+	}
+
+	return RefreshPartsIndex(ctx)
+}
+
 // SearchParts performs a search query against the parts index
 func SearchParts(query map[string]interface{}, from, size int) ([]ElasticsearchPart, int64, error) {
 	searchBody := map[string]interface{}{

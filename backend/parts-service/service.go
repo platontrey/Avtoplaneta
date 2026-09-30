@@ -1773,14 +1773,57 @@ func (s *inventoryService) BulkUpdateParts(ctx context.Context, updates []map[st
 func (s *inventoryService) DeleteZeroQuantityPartsBySupplier(ctx context.Context, supplierCode string) (int64, error) {
 	fmt.Printf("Service: DeleteZeroQuantityPartsBySupplier called with supplier_code='%s'\n", supplierCode)
 
-	deletedCount, err := s.repo.DeleteZeroQuantityPartsBySupplier(ctx, supplierCode)
+	var (
+		deletedCount int64
+		deletedIDs   []int64
+		err          error
+	)
+
+	if idDeleter, ok := s.repo.(interface {
+		DeleteZeroQuantityPartsWithIDs(ctx context.Context, supplierCode string) ([]int64, error)
+	}); ok {
+		deletedIDs, err = idDeleter.DeleteZeroQuantityPartsWithIDs(ctx, supplierCode)
+		deletedCount = int64(len(deletedIDs))
+	} else {
+		deletedCount, err = s.repo.DeleteZeroQuantityPartsBySupplier(ctx, supplierCode)
+	}
 	if err != nil {
 		fmt.Printf("Service: DeleteZeroQuantityPartsBySupplier failed for supplier_code='%s': %v\n", supplierCode, err)
 		return 0, err
 	}
 
+	if len(deletedIDs) > 0 {
+		if esErr := BulkDeletePartsFromIndex(ctx, deletedIDs); esErr != nil {
+			logrus.WithError(esErr).Warn("Failed to bulk delete zero-quantity parts from Elasticsearch")
+		}
+	}
+
+	if s.redis != nil {
+		s.redis.Del(ctx, inventoryCacheKey)
+		s.redis.Del(ctx, inventoryCacheKeyWithoutPhotos)
+		s.invalidateStatisticsCache(ctx)
+	}
+
 	fmt.Printf("Service: DeleteZeroQuantityPartsBySupplier completed successfully for supplier_code='%s', deleted %d parts\n", supplierCode, deletedCount)
 	return deletedCount, nil
+}
+
+// GetSupplierBatches получает расширенную информацию о поставках / ведомостях с нулевым количеством
+func (s *inventoryService) GetSupplierBatches(ctx context.Context) ([]SupplierBatchInfo, error) {
+	if batchProvider, ok := s.repo.(interface {
+		GetSupplierBatches(ctx context.Context) ([]SupplierBatchInfo, error)
+	}); ok {
+		return batchProvider.GetSupplierBatches(ctx)
+	}
+	codes, err := s.repo.GetSupplierCodes(ctx)
+	if err != nil {
+		return nil, err
+	}
+	batches := make([]SupplierBatchInfo, 0, len(codes))
+	for _, code := range codes {
+		batches = append(batches, SupplierBatchInfo{Code: code, Label: code})
+	}
+	return batches, nil
 }
 
 // GetSupplierCodes получает коды поставщиков

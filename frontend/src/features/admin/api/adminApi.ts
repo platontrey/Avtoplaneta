@@ -15,7 +15,8 @@ export const getUserActivityLogs = async (params?: {
   // Скрывает навигационный шум, оставляя только полезные действия (мутации + вход/выход).
   useful_only?: boolean;
 }): Promise<UserActivityLog[]> => {
-  const url = new URL(`${ADMIN_API_URL}/admin/user-activity-logs`);
+  const baseUrl = ADMIN_API_URL || window.location.origin;
+  const url = new URL(`${baseUrl}/admin/user-activity-logs`, window.location.origin);
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {

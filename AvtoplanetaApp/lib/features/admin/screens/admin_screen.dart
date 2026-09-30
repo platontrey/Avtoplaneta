@@ -7,13 +7,52 @@ import '../../../app/theme.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/user.dart';
 import '../../../core/services/update_service.dart';
+import '../../inventory/providers/inventory_provider.dart';
 import '../../updater/widgets/update_dialog.dart';
+
+class SupplierBatch {
+  final String code;
+  final String label;
+  final int zeroCount;
+
+  const SupplierBatch({
+    required this.code,
+    required this.label,
+    this.zeroCount = 0,
+  });
+
+  factory SupplierBatch.fromJson(Map<String, dynamic> json) {
+    final code = (json['code'] ?? '').toString();
+    final label = (json['label'] ?? code).toString();
+    final zeroCount = (json['zero_count'] as num?)?.toInt() ?? 0;
+    return SupplierBatch(code: code, label: label, zeroCount: zeroCount);
+  }
+}
 
 final usersListProvider = FutureProvider<List<User>>((ref) async {
   final response = await apiClient.dio.get('/admin/users');
   final data = response.data as Map<String, dynamic>;
   final list = data['users'] as List<dynamic>? ?? [];
   return list.map((e) => User.fromJson(e as Map<String, dynamic>)).toList();
+});
+
+final supplierBatchesProvider = FutureProvider<List<SupplierBatch>>((ref) async {
+  final response = await apiClient.dio.get('/api/v1/admin/supplier-codes');
+  final data = response.data as Map<String, dynamic>? ?? {};
+  final rawBatches = data['batches'];
+  if (rawBatches is List && rawBatches.isNotEmpty) {
+    return rawBatches
+        .whereType<Map>()
+        .map((e) => SupplierBatch.fromJson(Map<String, dynamic>.from(e)))
+        .where((b) => b.code.isNotEmpty)
+        .toList();
+  }
+  final rawCodes = (data['supplier_codes'] ?? data['codes']) as List<dynamic>? ?? [];
+  return rawCodes
+      .map((e) => e.toString())
+      .where((c) => c.isNotEmpty)
+      .map((c) => SupplierBatch(code: c, label: c))
+      .toList();
 });
 
 class AdminScreen extends ConsumerWidget {
@@ -81,109 +120,113 @@ class AdminScreen extends ConsumerWidget {
           ),
           title: const Text('Администрирование'),
           actions: [
-          IconButton(
-            icon: const Icon(LucideIcons.receipt),
-            tooltip: 'Журнал ошибок',
-            onPressed: () => context.go('/admin/logs'),
-          ),
-          IconButton(
-            icon: const Icon(LucideIcons.arrow_down_to_line),
-            tooltip: 'Проверить обновления',
-            onPressed: () => _checkAppUpdates(context, ref),
-          ),
-          IconButton(
-            icon: const Icon(LucideIcons.refresh_cw),
-            tooltip: 'Обновить список',
-            onPressed: () => ref.invalidate(usersListProvider),
-          ),
-        ],
-      ),
-      body: usersAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(LucideIcons.circle_alert, size: 64, color: Colors.orange.shade400),
-                const SizedBox(height: 16),
-                const Text(
-                  'Не удалось загрузить пользователей',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _formatError(e),
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    FilledButton.icon(
-                      onPressed: () => ref.invalidate(usersListProvider),
-                      icon: const Icon(LucideIcons.refresh_cw),
-                      label: const Text('Повторить'),
-                    ),
-                    const SizedBox(width: 12),
-                    OutlinedButton.icon(
-                      onPressed: () => context.go('/admin/logs'),
-                      icon: const Icon(LucideIcons.receipt),
-                      label: const Text('Журнал ошибок'),
-                    ),
-                  ],
-                ),
-              ],
+            IconButton(
+              icon: const Icon(LucideIcons.receipt),
+              tooltip: 'Журнал ошибок',
+              onPressed: () => context.go('/admin/logs'),
             ),
-          ),
-        ),
-        data: (users) => ListView(
-          padding: const EdgeInsets.all(8),
-          children: [
-            Card(
-              margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-              color: AppTheme.surfaceColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: const BorderSide(color: Colors.white10),
-              ),
-              child: ListTile(
-                leading: const Icon(LucideIcons.receipt, color: AppTheme.primaryColor),
-                title: const Text('Журнал ошибок приложения', style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Логи сетевых сбоев, крашей и экспорт отчета', style: TextStyle(fontSize: 12)),
-                trailing: const Icon(LucideIcons.chevron_right, color: Colors.white54),
-                onTap: () => context.go('/admin/logs'),
-              ),
+            IconButton(
+              icon: const Icon(LucideIcons.arrow_down_to_line),
+              tooltip: 'Проверить обновления',
+              onPressed: () => _checkAppUpdates(context, ref),
             ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Text(
-                'Пользователи (${users.length})',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(color: Colors.white70),
-              ),
-            ),
-            ...users.map(
-              (u) => _UserTile(
-                user: u,
-                onDeleted: () => ref.invalidate(usersListProvider),
-              ),
+            IconButton(
+              icon: const Icon(LucideIcons.refresh_cw),
+              tooltip: 'Обновить список',
+              onPressed: () {
+                ref.invalidate(usersListProvider);
+                ref.invalidate(supplierBatchesProvider);
+              },
             ),
           ],
         ),
+        body: usersAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(LucideIcons.circle_alert, size: 64, color: Colors.orange.shade400),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Не удалось загрузить пользователей',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _formatError(e),
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      FilledButton.icon(
+                        onPressed: () => ref.invalidate(usersListProvider),
+                        icon: const Icon(LucideIcons.refresh_cw),
+                        label: const Text('Повторить'),
+                      ),
+                      const SizedBox(width: 12),
+                      OutlinedButton.icon(
+                        onPressed: () => context.go('/admin/logs'),
+                        icon: const Icon(LucideIcons.receipt),
+                        label: const Text('Журнал ошибок'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          data: (users) => ListView(
+            padding: const EdgeInsets.all(8),
+            children: [
+              Card(
+                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                color: AppTheme.surfaceColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: Colors.white10),
+                ),
+                child: ListTile(
+                  leading: const Icon(LucideIcons.receipt, color: AppTheme.primaryColor),
+                  title: const Text('Журнал ошибок приложения', style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Логи сетевых сбоев, крашей и экспорт отчета', style: TextStyle(fontSize: 12)),
+                  trailing: const Icon(LucideIcons.chevron_right, color: Colors.white54),
+                  onTap: () => context.go('/admin/logs'),
+                ),
+              ),
+              const _PartsManagementCard(),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Text(
+                  'Пользователи (${users.length})',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(color: Colors.white70),
+                ),
+              ),
+              ...users.map(
+                (u) => _UserTile(
+                  user: u,
+                  onDeleted: () => ref.invalidate(usersListProvider),
+                ),
+              ),
+            ],
+          ),
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () => _showCreateUser(context, ref),
+          child: const Icon(LucideIcons.user_plus),
+        ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showCreateUser(context, ref),
-        child: const Icon(LucideIcons.user_plus),
-      ),
-    ),
-  );
-}
+    );
+  }
 
   String _formatError(dynamic e) {
     if (e is DioException) {
@@ -204,6 +247,208 @@ class AdminScreen extends ConsumerWidget {
       context: context,
       builder: (_) =>
           _CreateUserDialog(onCreated: () => ref.invalidate(usersListProvider)),
+    );
+  }
+}
+
+class _PartsManagementCard extends ConsumerStatefulWidget {
+  const _PartsManagementCard();
+
+  @override
+  ConsumerState<_PartsManagementCard> createState() => _PartsManagementCardState();
+}
+
+class _PartsManagementCardState extends ConsumerState<_PartsManagementCard> {
+  String? _selectedCode;
+  bool _deleting = false;
+
+  Future<void> _confirmAndDelete(List<SupplierBatch> batches) async {
+    final code = _selectedCode;
+    if (code == null || code.isEmpty) return;
+
+    final batch = batches.where((b) => b.code == code).firstOrNull;
+    final label = batch?.label ?? code;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Удалить шаблонные запчасти?'),
+        content: Text(
+          'Все запчасти с количеством 0 для ведомости «$label» будут безвозвратно удалены.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Удалить'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deleting = true);
+    try {
+      final response = await apiClient.dio.post(
+        '/api/v1/admin/parts/zero-quantity',
+        data: {'supplier_code': code},
+      );
+      final data = response.data as Map<String, dynamic>? ?? {};
+      final deletedCount = data['deleted_count'] ?? 0;
+
+      if (!mounted) return;
+      setState(() => _selectedCode = null);
+      ref.invalidate(supplierBatchesProvider);
+      ref.invalidate(inventoryProvider);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Удалено $deletedCount запчастей с количеством 0'),
+          backgroundColor: Colors.green.shade800,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ошибка удаления: $e'),
+          backgroundColor: Colors.red.shade800,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _deleting = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final batchesAsync = ref.watch(supplierBatchesProvider);
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      color: AppTheme.surfaceColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.amber.withValues(alpha: 0.3)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(LucideIcons.package, color: Colors.amber.shade400, size: 20),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Управление запчастями',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(LucideIcons.refresh_cw, size: 18),
+                  tooltip: 'Обновить ведомости',
+                  onPressed: _deleting
+                      ? null
+                      : () => ref.invalidate(supplierBatchesProvider),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Удаление незаполненных шаблонных запчастей (quantity = 0) выбранной дефектной ведомости.',
+              style: TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            batchesAsync.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              ),
+              error: (err, _) => Text(
+                'Не удалось загрузить список ведомостей: $err',
+                style: TextStyle(color: Colors.red.shade300, fontSize: 12),
+              ),
+              data: (batches) {
+                final validSelected = batches.any((b) => b.code == _selectedCode)
+                    ? _selectedCode
+                    : null;
+
+                if (batches.isEmpty) {
+                  return const Text(
+                    'Нет дефектных ведомостей с нулевыми запчастями',
+                    style: TextStyle(color: Colors.white54, fontSize: 13),
+                  );
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      initialValue: validSelected,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: 'Дефектная ведомость (${batches.length})',
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                      ),
+                      items: batches
+                          .map(
+                            (b) => DropdownMenuItem<String>(
+                              value: b.code,
+                              child: Text(
+                                b.label,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: _deleting
+                          ? null
+                          : (val) => setState(() => _selectedCode = val),
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.red.shade700,
+                      ),
+                      onPressed: (_deleting || validSelected == null)
+                          ? null
+                          : () => _confirmAndDelete(batches),
+                      icon: _deleting
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(LucideIcons.trash_2, size: 18),
+                      label: Text(
+                        _deleting
+                            ? 'Удаление...'
+                            : 'Удалить запчасти с quantity = 0',
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

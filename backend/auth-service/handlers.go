@@ -503,11 +503,16 @@ func (h *Handler) GetUserActivityLogsHandler(c *gin.Context) {
 	if startDateStr := c.Query("start_date"); startDateStr != "" {
 		if startDate, err := time.Parse(time.RFC3339, startDateStr); err == nil {
 			filters.StartDate = &startDate
+		} else if startDate, err := time.Parse("2006-01-02", startDateStr); err == nil {
+			filters.StartDate = &startDate
 		}
 	}
 	if endDateStr := c.Query("end_date"); endDateStr != "" {
 		if endDate, err := time.Parse(time.RFC3339, endDateStr); err == nil {
 			filters.EndDate = &endDate
+		} else if endDate, err := time.Parse("2006-01-02", endDateStr); err == nil {
+			endOfDay := endDate.Add(24*time.Hour - time.Nanosecond)
+			filters.EndDate = &endOfDay
 		}
 	}
 	if limitStr := c.Query("limit"); limitStr != "" {

@@ -435,7 +435,22 @@ func (h *Handler) BulkUpdatePartsHandler(c *gin.Context) {
 
 // DeleteZeroQuantityPartsBySupplierHandler удаляет запчасти с нулевым количеством по поставщику
 func (h *Handler) DeleteZeroQuantityPartsBySupplierHandler(c *gin.Context) {
-	supplierCode := c.Param("supplier_code")
+	supplierCode := strings.TrimSpace(c.Param("supplier_code"))
+	if supplierCode == "" {
+		supplierCode = strings.TrimSpace(c.Query("supplier_code"))
+	}
+	if supplierCode == "" {
+		var body struct {
+			SupplierCode string `json:"supplier_code"`
+		}
+		if err := c.ShouldBindJSON(&body); err == nil {
+			supplierCode = strings.TrimSpace(body.SupplierCode)
+		}
+	}
+	if supplierCode == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Не указан код поставки"})
+		return
+	}
 
 	fmt.Printf("DeleteZeroQuantityPartsBySupplierHandler: supplier_code='%s'\n", supplierCode)
 
@@ -462,8 +477,8 @@ func (h *Handler) DeleteZeroQuantityPartsBySupplierHandler(c *gin.Context) {
 func (h *Handler) GetSupplierCodesHandler(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	if version, err := h.inventoryService.InventoryVersion(ctx); err == nil {
-		if httpcache.ServeVersioned(c.Writer, c.Request, version, 5*time.Minute) {
+	if version, err := h.inventoryService.InventoryVersion(ctx); err == nil && version != "" {
+		if httpcache.ServeVersioned(c.Writer, c.Request, "v2-"+version, 0) {
 			return
 		}
 	}
@@ -473,8 +488,31 @@ func (h *Handler) GetSupplierCodesHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось получить коды поставщиков"})
 		return
 	}
+	if codes == nil {
+		codes = []string{}
+	}
 
-	c.JSON(http.StatusOK, gin.H{"supplier_codes": codes})
+	var batches []SupplierBatchInfo
+	if batchProvider, ok := h.inventoryService.(interface {
+		GetSupplierBatches(ctx context.Context) ([]SupplierBatchInfo, error)
+	}); ok {
+		batches, _ = batchProvider.GetSupplierBatches(ctx)
+	}
+	if len(batches) == 0 && len(codes) > 0 {
+		batches = make([]SupplierBatchInfo, 0, len(codes))
+		for _, code := range codes {
+			batches = append(batches, SupplierBatchInfo{Code: code, Label: code})
+		}
+	}
+	if batches == nil {
+		batches = []SupplierBatchInfo{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"supplier_codes": codes,
+		"codes":          codes,
+		"batches":        batches,
+	})
 }
 
 // UpdateEarningsHandler обновляет общий заработок

@@ -291,7 +291,11 @@ func (catalog *PartCatalog) ApplyBindingsToParts(parts []DefectReportPart, repor
 		"body_color":         strings.TrimSpace(report.BodyColor),
 	}
 
+	supplierCode := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	for i := range parts {
+		if strings.TrimSpace(parts[i].SupplierCode) == "" {
+			parts[i].SupplierCode = supplierCode
+		}
 		for _, binding := range catalog.ReportBindings {
 			if !bindingApplies(binding, parts[i].Category) {
 				continue
