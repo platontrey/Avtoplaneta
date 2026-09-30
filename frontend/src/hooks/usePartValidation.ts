@@ -39,16 +39,6 @@ export const sanitizeCustomerId = (value: string): string => {
 export const validateOrderForm = (form: OrderForm): { isValid: boolean; errors: string[] } => {
   const errors: string[] = [];
 
-  if (!form.customer_id.trim()) {
-    errors.push('ID клиента обязателен');
-  } else if (!/^\d+$/.test(form.customer_id)) {
-    errors.push('ID клиента должен содержать только цифры');
-  }
-
-  if (!form.order_number.trim()) {
-    errors.push('Номер заказа обязателен');
-  }
-
   if (!form.buyer_number.trim()) {
     errors.push('Номер покупателя обязателен');
   }
