@@ -107,7 +107,6 @@ export default function AdminPanel() {
   const [selectedResourceType, setSelectedResourceType] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
-  const [supplierCodes, setSupplierCodes] = useState<string[]>([]);
   const [supplierBatches, setSupplierBatches] = useState<{ code: string; label: string; zero_count?: number }[]>([]);
   const [selectedSupplierCode, setSelectedSupplierCode] = useState<string>('');
   const [showImageEditorTest, setShowImageEditorTest] = useState(false);
@@ -159,7 +158,6 @@ export default function AdminPanel() {
 
       const data = await response.json();
       const codes: string[] = data.supplier_codes || data.codes || [];
-      setSupplierCodes(codes);
       if (Array.isArray(data.batches) && data.batches.length > 0) {
         setSupplierBatches(data.batches);
       } else {
