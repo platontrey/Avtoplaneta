@@ -48,10 +48,21 @@ func (h *Handler) logUserActivity(ctx context.Context, c *gin.Context, action, r
 	}
 }
 
-// GetOrdersHandler обрабатывает запрос на получение заказов
+// GetOrdersHandler обрабатывает запрос на получение заказов (активных или завершённых по ?state=completed)
 func (h *Handler) GetOrdersHandler(c *gin.Context) {
 	ctx := c.Request.Context()
-	orders, err := h.ordersService.GetOrders(ctx)
+	state := c.Query("state")
+
+	var (
+		orders []Order
+		err    error
+	)
+	if state == "completed" {
+		orders, err = h.ordersService.GetCompletedOrders(ctx)
+	} else {
+		orders, err = h.ordersService.GetOrders(ctx)
+	}
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch orders"})
 		return
@@ -60,7 +71,18 @@ func (h *Handler) GetOrdersHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, orders)
 }
 
-// CreateOrderHandler создает новый заказ
+// GetCompletedOrdersHandler обрабатывает запрос на получение истории завершённых заказов
+func (h *Handler) GetCompletedOrdersHandler(c *gin.Context) {
+	ctx := c.Request.Context()
+	orders, err := h.ordersService.GetCompletedOrders(ctx)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch completed orders"})
+		return
+	}
+	c.JSON(http.StatusOK, orders)
+}
+
+// CreateOrderHandler создает новый заказ (или проводит быструю продажу)
 func (h *Handler) CreateOrderHandler(c *gin.Context) {
 	ctx := c.Request.Context()
 	var req CreateOrderRequest
@@ -93,8 +115,11 @@ func (h *Handler) CreateOrderHandler(c *gin.Context) {
 		return
 	}
 
-	// Логируем создание заказа
-	h.logUserActivity(ctx, c, "create_order", "order", fmt.Sprintf("Created order for buyer: %s", req.BuyerNumber), &order.ID)
+	actionName := "create_order"
+	if req.QuickSale {
+		actionName = "quick_sale_order"
+	}
+	h.logUserActivity(ctx, c, actionName, "order", fmt.Sprintf("Created order for buyer: %s", order.BuyerNumber), &order.ID)
 
 	c.JSON(http.StatusCreated, order)
 }
@@ -129,6 +154,36 @@ func (h *Handler) UpdateOrderStatusHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Order status updated"})
 }
 
+// UpdateOrderDetailsHandler обновляет детали заказа (оплата, склад, доставка, ТК, трек-номер, заметки, скидка)
+func (h *Handler) UpdateOrderDetailsHandler(c *gin.Context) {
+	ctx := c.Request.Context()
+	orderID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
+		return
+	}
+
+	var req UpdateOrderDetailsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data"})
+		return
+	}
+
+	updated, err := h.ordersService.UpdateOrderDetails(ctx, orderID, req)
+	if err != nil {
+		if IsNotFoundError(err) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		} else if IsValidationError(err) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update order"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, updated)
+}
+
 // CompleteOrderHandler завершает заказ
 func (h *Handler) CompleteOrderHandler(c *gin.Context) {
 	ctx := c.Request.Context()
@@ -148,7 +203,6 @@ func (h *Handler) CompleteOrderHandler(c *gin.Context) {
 		return
 	}
 
-	// Логируем завершение заказа
 	h.logUserActivity(ctx, c, "complete_order", "order", fmt.Sprintf("Completed order ID: %d", orderID), &orderID)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Order completed"})
@@ -173,7 +227,6 @@ func (h *Handler) DeleteOrderHandler(c *gin.Context) {
 		return
 	}
 
-	// Логируем удаление заказа
 	h.logUserActivity(ctx, c, "delete_order", "order", fmt.Sprintf("Deleted order ID: %d", orderID), &orderID)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Order deleted"})
@@ -205,6 +258,68 @@ func (h *Handler) AddOrderItemHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Item added to order"})
+}
+
+// UpdateOrderItemHandler обновляет количество или цену позиции в заказе
+func (h *Handler) UpdateOrderItemHandler(c *gin.Context) {
+	ctx := c.Request.Context()
+	orderID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
+		return
+	}
+	itemID, err := strconv.ParseInt(c.Param("itemId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID"})
+		return
+	}
+
+	var req UpdateOrderItemRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data"})
+		return
+	}
+
+	if err := h.ordersService.UpdateOrderItem(ctx, orderID, itemID, req); err != nil {
+		if IsNotFoundError(err) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		} else if IsValidationError(err) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update order item"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Order item updated"})
+}
+
+// DeleteOrderItemHandler удаляет позицию из заказа
+func (h *Handler) DeleteOrderItemHandler(c *gin.Context) {
+	ctx := c.Request.Context()
+	orderID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
+		return
+	}
+	itemID, err := strconv.ParseInt(c.Param("itemId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID"})
+		return
+	}
+
+	if err := h.ordersService.DeleteOrderItem(ctx, orderID, itemID); err != nil {
+		if IsNotFoundError(err) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		} else if IsValidationError(err) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete order item"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Order item deleted"})
 }
 
 // GetMonthlySalesHandler получает продажи по месяцам

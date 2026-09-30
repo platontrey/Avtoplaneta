@@ -3,6 +3,7 @@
 */
 
 import React, { useState, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Trash2, Edit, ShoppingCart, Plus, X, Crop, Copy, Check } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -39,6 +40,7 @@ interface PartBlockProps {
     isLoading?: boolean;
     isSelectionMode?: boolean;
     isSelected?: boolean;
+    activeOrderId?: number;
     onLongPress?: () => void;
     onSelect?: (isSelected: boolean) => void;
 }
@@ -48,6 +50,7 @@ function PartBlock({
                        isLoading = false,
                        isSelectionMode = false,
                        isSelected = false,
+                       activeOrderId,
                        onLongPress,
                        onSelect
                    }: PartBlockProps) {
@@ -462,6 +465,16 @@ function PartBlock({
                                 )}
                                 <span className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium">Кол: {part.quantity ?? 0}</span>
                                 <span className="text-sm bg-primary text-primary-foreground dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30 border border-primary/20 px-3 py-1 rounded-md font-semibold">Цена: {part.price && Number(part.price) > 0 ? `₽${part.price}` : 'отсутствует'}</span>
+                                {activeOrderId && (
+                                    <Link
+                                        to="/orders"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="text-xs sm:text-sm bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded-md font-semibold hover:bg-amber-500/25 transition-colors"
+                                        title={`Эта деталь находится в активном заказе #${activeOrderId}`}
+                                    >
+                                        📦 В заказе #{activeOrderId}
+                                    </Link>
+                                )}
                             </div>
                         </div>
                     </div>

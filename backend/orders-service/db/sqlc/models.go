@@ -9,26 +9,38 @@ import (
 )
 
 type Order struct {
-	ID          int64              `json:"id"`
-	CustomerID  int64              `json:"customer_id"`
-	SellerID    int64              `json:"seller_id"`
-	Seller      string             `json:"seller"`
-	Part        string             `json:"part"`
-	PartID      int64              `json:"part_id"`
-	Location    string             `json:"location"`
-	BuyerNumber string             `json:"buyer_number"`
-	Status      string             `json:"status"`
-	StatusText  string             `json:"status_text"`
-	AutoDeleted bool               `json:"auto_deleted"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	ID               int64              `json:"id"`
+	CustomerID       int64              `json:"customer_id"`
+	SellerID         int64              `json:"seller_id"`
+	Seller           string             `json:"seller"`
+	Part             string             `json:"part"`
+	PartID           int64              `json:"part_id"`
+	Location         string             `json:"location"`
+	BuyerNumber      string             `json:"buyer_number"`
+	Status           string             `json:"status"`
+	StatusText       string             `json:"status_text"`
+	AutoDeleted      bool               `json:"auto_deleted"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	OrderNumber      string             `json:"order_number"`
+	Source           string             `json:"source"`
+	PaymentStatus    string             `json:"payment_status"`
+	WarehouseStatus  string             `json:"warehouse_status"`
+	DeliveryMethod   string             `json:"delivery_method"`
+	TransportCompany string             `json:"transport_company"`
+	TrackingNumber   string             `json:"tracking_number"`
+	Notes            string             `json:"notes"`
+	Discount         float64            `json:"discount"`
+	CompletedAt      pgtype.Timestamptz `json:"completed_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
 }
 
 type OrderItem struct {
-	ID       int64   `json:"id"`
-	OrderID  int64   `json:"order_id"`
-	PartID   int64   `json:"part_id"`
-	Quantity int32   `json:"quantity"`
-	Price    float64 `json:"price"`
+	ID               int64   `json:"id"`
+	OrderID          int64   `json:"order_id"`
+	PartID           int64   `json:"part_id"`
+	Quantity         int32   `json:"quantity"`
+	Price            float64 `json:"price"`
+	PartNameSnapshot string  `json:"part_name_snapshot"`
 }
 
 type SalesHistory struct {

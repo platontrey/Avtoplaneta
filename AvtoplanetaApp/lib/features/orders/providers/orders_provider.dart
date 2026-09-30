@@ -18,3 +18,20 @@ final ordersProvider = FutureProvider<OrdersResponse>((ref) async {
   }
   return const OrdersResponse(orders: [], total: 0);
 });
+
+final completedOrdersProvider = FutureProvider<OrdersResponse>((ref) async {
+  final response = await apiClient.dio.get('/orders', queryParameters: {'state': 'completed'});
+  final data = response.data;
+  if (data is List) {
+    final orders = data
+        .whereType<Map>()
+        .map((order) => Order.fromJson(Map<String, dynamic>.from(order)))
+        .toList();
+    return OrdersResponse(orders: orders, total: orders.length);
+  }
+  if (data is Map) {
+    return OrdersResponse.fromJson(Map<String, dynamic>.from(data));
+  }
+  return const OrdersResponse(orders: [], total: 0);
+});
+

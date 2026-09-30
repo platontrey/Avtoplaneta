@@ -101,6 +101,13 @@ func (c *RedisEventConsumer) processMessage(ctx context.Context, msg redis.XMess
 	switch eventType {
 	case "seller_renamed":
 		return c.handleSellerRenamed(ctx, msg)
+	case "part_index_requested", "part_delete_requested":
+		if c.cache != nil {
+			if err := c.cache.InvalidateOrders(); err != nil {
+				logrus.WithError(err).Warn("Failed to invalidate orders cache after part update")
+			}
+		}
+		return nil
 	default:
 		// Игнорируем события других типов (order_completed, etc.)
 		return nil

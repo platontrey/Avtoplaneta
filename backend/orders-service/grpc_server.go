@@ -43,10 +43,7 @@ func (s *ordersGRPCServer) CreateOrder(ctx context.Context, req *ordersv1.Create
 	}
 
 	for _, item := range req.Items {
-		createReq.Items = append(createReq.Items, struct {
-			PartID   int64 `json:"part_id"`
-			Quantity int   `json:"quantity"`
-		}{
+		createReq.Items = append(createReq.Items, CreateOrderItemInput{
 			PartID:   int64(item.PartId),
 			Quantity: int(item.Quantity),
 		})

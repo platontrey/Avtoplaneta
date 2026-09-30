@@ -30,6 +30,7 @@ Future<bool> showPartsOrderSheet(
   );
   if (created == true) {
     ref.invalidate(ordersProvider);
+    ref.invalidate(completedOrdersProvider);
     ref.invalidate(inventoryProvider);
     for (final part in parts) {
       ref.invalidate(partProvider(part.id));
@@ -49,10 +50,16 @@ class _PartOrderSheet extends ConsumerStatefulWidget {
 
 class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
   final _formKey = GlobalKey<FormState>();
-  final _customerIdController = TextEditingController();
   final _buyerNumberController = TextEditingController();
+  final _orderNumberController = TextEditingController();
+  final _transportCompanyController = TextEditingController();
+  final _notesController = TextEditingController();
   final Map<int, TextEditingController> _quantityControllers = {};
-  bool _addToExisting = false;
+  final Map<int, TextEditingController> _priceControllers = {};
+  String _mode = 'order'; // 'order', 'quick', 'existing'
+  String _source = 'drom';
+  String _paymentStatus = 'unpaid';
+  String _deliveryMethod = 'tk';
   bool _submitting = false;
   int? _selectedOrderId;
 
@@ -61,14 +68,22 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
     super.initState();
     for (final part in widget.parts) {
       _quantityControllers[part.id] = TextEditingController(text: '1');
+      _priceControllers[part.id] = TextEditingController(
+        text: part.price > 0 ? part.price.toStringAsFixed(0) : '',
+      );
     }
   }
 
   @override
   void dispose() {
-    _customerIdController.dispose();
     _buyerNumberController.dispose();
+    _orderNumberController.dispose();
+    _transportCompanyController.dispose();
+    _notesController.dispose();
     for (final controller in _quantityControllers.values) {
+      controller.dispose();
+    }
+    for (final controller in _priceControllers.values) {
       controller.dispose();
     }
     super.dispose();
@@ -78,7 +93,7 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
     if (!_formKey.currentState!.validate() || _submitting) {
       return;
     }
-    if (_addToExisting && _selectedOrderId == null) {
+    if (_mode == 'existing' && _selectedOrderId == null) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Выберите заказ')));
@@ -90,12 +105,13 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
           (part) => {
             'part_id': part.id,
             'quantity': int.parse(_quantityControllers[part.id]!.text),
+            'price': double.tryParse(_priceControllers[part.id]!.text) ?? part.price,
           },
         )
         .toList();
     setState(() => _submitting = true);
     try {
-      if (_addToExisting) {
+      if (_mode == 'existing') {
         for (final item in items) {
           await apiClient.dio.post(
             '/orders/$_selectedOrderId/items',
@@ -103,14 +119,27 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
           );
         }
       } else {
+        final isQuick = _mode == 'quick';
+        final buyer = _buyerNumberController.text.trim();
         await apiClient.dio.post(
           '/orders',
           data: {
-            'customer_id': int.parse(_customerIdController.text),
-            'order_number': '',
+            'customer_id': 0,
+            'order_number': _orderNumberController.text.trim(),
             'part': widget.parts.map((part) => part.name).join(', '),
             'part_id': widget.parts.first.id,
-            'buyer_number': _buyerNumberController.text.trim(),
+            'buyer_number': buyer.isNotEmpty
+                ? buyer
+                : (isQuick ? 'Продажа на месте' : 'Без контакта'),
+            'source': isQuick ? 'pickup' : _source,
+            'payment_status': isQuick ? 'paid' : _paymentStatus,
+            'warehouse_status': isQuick ? 'ready' : 'inspecting',
+            'delivery_method': isQuick ? 'pickup' : _deliveryMethod,
+            'transport_company': isQuick
+                ? ''
+                : _transportCompanyController.text.trim(),
+            'notes': _notesController.text.trim(),
+            'quick_sale': isQuick,
             'items': items,
           },
         );
@@ -167,19 +196,23 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
                   '${widget.parts.first.name} · ${widget.parts.first.quantity} шт. в наличии',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
-              const SizedBox(height: 18),
-              SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment(value: false, label: Text('Новый заказ')),
-                  ButtonSegment(value: true, label: Text('В существующий')),
-                ],
-                selected: {_addToExisting},
-                onSelectionChanged: (selection) {
-                  setState(() => _addToExisting = selection.first);
-                },
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'order', label: Text('В заказ')),
+                    ButtonSegment(value: 'quick', label: Text('На месте')),
+                    ButtonSegment(value: 'existing', label: Text('К заказу')),
+                  ],
+                  selected: {_mode},
+                  onSelectionChanged: (selection) {
+                    setState(() => _mode = selection.first);
+                  },
+                ),
               ),
               const SizedBox(height: 16),
-              if (_addToExisting)
+              if (_mode == 'existing')
                 ordersAsync.when(
                   loading: () => const Center(
                     child: Padding(
@@ -220,53 +253,150 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
                 )
               else ...[
                 TextFormField(
-                  controller: _customerIdController,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(labelText: 'ID клиента *'),
+                  controller: _buyerNumberController,
+                  decoration: InputDecoration(
+                    labelText: _mode == 'quick'
+                        ? 'Контакт покупателя (необязательно)'
+                        : 'Контакт покупателя *',
+                  ),
                   validator: (value) {
-                    final id = int.tryParse(value ?? '');
-                    return id == null || id <= 0 ? 'Укажите ID клиента' : null;
+                    if (_mode == 'quick') return null;
+                    return value == null || value.trim().isEmpty
+                        ? 'Укажите контакт покупателя'
+                        : null;
                   },
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
-                  controller: _buyerNumberController,
-                  decoration: const InputDecoration(
-                    labelText: 'Номер покупателя *',
+                if (_mode == 'order') ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _source,
+                          decoration: const InputDecoration(
+                            labelText: 'Площадка',
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'drom', child: Text('Дром')),
+                            DropdownMenuItem(value: 'avito', child: Text('Авито')),
+                            DropdownMenuItem(value: 'messenger', child: Text('Мессенджер')),
+                            DropdownMenuItem(value: 'pickup', child: Text('Самовывоз')),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) setState(() => _source = v);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _orderNumberController,
+                          decoration: const InputDecoration(
+                            labelText: '№ сделки',
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Укажите номер покупателя'
-                      : null,
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _paymentStatus,
+                          decoration: const InputDecoration(
+                            labelText: 'Оплата',
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'unpaid', child: Text('Не оплачен')),
+                            DropdownMenuItem(value: 'prepaid', child: Text('Предоплата')),
+                            DropdownMenuItem(value: 'paid', child: Text('Оплачен')),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) setState(() => _paymentStatus = v);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _deliveryMethod,
+                          decoration: const InputDecoration(
+                            labelText: 'Доставка',
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'tk', child: Text('ТК')),
+                            DropdownMenuItem(value: 'pickup', child: Text('Самовывоз')),
+                            DropdownMenuItem(value: 'city', child: Text('По городу')),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) setState(() => _deliveryMethod = v);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_deliveryMethod == 'tk') ...[
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _transportCompanyController,
+                      decoration: const InputDecoration(
+                        labelText: 'Транспортная компания (СДЭК, Энергия...)',
+                      ),
+                    ),
+                  ],
+                ],
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _notesController,
+                  decoration: const InputDecoration(
+                    labelText: 'Примечание (торг, упаковка...)',
+                  ),
                 ),
               ],
               const SizedBox(height: 12),
               ...widget.parts.map(
                 (part) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: TextFormField(
-                    controller: _quantityControllers[part.id],
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: InputDecoration(
-                      labelText: widget.parts.length == 1
-                          ? 'Количество *'
-                          : '${part.name} (${part.quantity} шт.)',
-                    ),
-                    validator: (value) {
-                      final quantity = int.tryParse(value ?? '');
-                      if (quantity == null || quantity <= 0) {
-                        return 'Укажите количество';
-                      }
-                      if (quantity > part.quantity) {
-                        return 'Доступно только ${part.quantity} шт.';
-                      }
-                      return null;
-                    },
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _quantityControllers[part.id],
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          decoration: InputDecoration(
+                            labelText: widget.parts.length == 1
+                                ? 'Кол-во *'
+                                : '${part.name} (${part.quantity} шт.)',
+                          ),
+                          validator: (value) {
+                            final quantity = int.tryParse(value ?? '');
+                            if (quantity == null || quantity <= 0) {
+                              return 'Укажите кол-во';
+                            }
+                            if (part.quantity > 0 && quantity > part.quantity) {
+                              return 'Макс. ${part.quantity} шт.';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _priceControllers[part.id],
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Цена за шт. (₽)',
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
@@ -280,9 +410,17 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
                             color: Colors.white,
                           ),
                         )
-                      : const Icon(LucideIcons.shopping_cart),
+                      : Icon(
+                          _mode == 'quick'
+                              ? LucideIcons.zap
+                              : LucideIcons.shopping_cart,
+                        ),
                   label: Text(
-                    _addToExisting ? 'Добавить в заказ' : 'Создать заказ',
+                    _mode == 'existing'
+                        ? 'Добавить в заказ'
+                        : _mode == 'quick'
+                        ? 'Продать и списать'
+                        : 'Создать заказ',
                   ),
                 ),
               ),
@@ -293,3 +431,4 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
     );
   }
 }
+

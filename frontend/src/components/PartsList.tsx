@@ -1,8 +1,8 @@
 /*
-* Copyright (c) 2025 Avtoplaneta. All rights reserved.
-*/
+ * Copyright (c) 2025 Avtoplaneta. All rights reserved.
+ */
 
-import {useCallback, useEffect, useRef, useState} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Accordion } from "@/components/ui/accordion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import BulkEditDialog from './BulkEditDialog';
 import BulkDeleteDialog from './BulkDeleteDialog';
 import BulkOrderDialog from './BulkOrderDialog';
 import { useSwipeGesture } from '@/hooks/useSwipeGesture';
+import { useOrders } from '@/hooks/useOrders';
 import type { Part } from '@/lib/types';
 
 interface PartsListProps {
@@ -29,6 +30,7 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
     const containerRef = useRef<HTMLDivElement>(null);
     const [isSelectionMode, setIsSelectionMode] = useState(false);
     const [selectedParts, setSelectedParts] = useState<Set<number>>(new Set());
+    const [selectedPartsCatalog, setSelectedPartsCatalog] = useState<Map<number, Part>>(new Map());
     const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
     const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
     const [isBulkOrderOpen, setIsBulkOrderOpen] = useState(false);
@@ -36,34 +38,61 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
         defaultOpenPartId ? `part-${defaultOpenPartId}` : ''
     );
 
+    const { data: activeOrders } = useOrders();
+
+    // Карта part_id -> order.id для индикации деталей, находящихся в активных заказах
+    const partToOrderMap = useMemo(() => {
+        const map = new Map<number, number>();
+        if (!activeOrders) return map;
+        for (const order of activeOrders) {
+            if (order.part_id && order.part_id > 0) {
+                map.set(order.part_id, order.id);
+            }
+            if (order.items) {
+                for (const item of order.items) {
+                    if (item.part_id && item.part_id > 0) {
+                        map.set(item.part_id, order.id);
+                    }
+                }
+            }
+        }
+        return map;
+    }, [activeOrders]);
+
     useEffect(() => {
         setOpenAccordionValue(defaultOpenPartId ? `part-${defaultOpenPartId}` : '');
     }, [defaultOpenPartId]);
 
-    // Swipe gestures for mobile navigation
+    useEffect(() => {
+        setSelectedPartsCatalog((prev) => {
+            const next = new Map(prev);
+            for (const p of parts) {
+                if (selectedParts.has(p.id)) {
+                    next.set(p.id, p);
+                }
+            }
+            return next;
+        });
+    }, [parts, selectedParts]);
+
     const { bindSwipeEvents } = useSwipeGesture({
         onSwipeLeft: () => {
             if (onLoadMore && hasMore && !isLoading) {
                 onLoadMore();
             }
         },
-        onSwipeRight: () => {
-            // Could implement going back to previous page if needed
-            console.log('Swipe right - could go to previous page');
-        },
+        onSwipeRight: () => {},
         threshold: 75,
         preventDefault: false
     });
 
-    // Обработчик долгого нажатия для активации режима выбора
     const handleLongPress = useCallback((partId: number) => {
         setIsSelectionMode(true);
         setSelectedParts(new Set([partId]));
     }, []);
 
-    // Обработчик выбора/снятия выбора запчасти
     const handlePartSelect = (partId: number, isSelected: boolean) => {
-        setSelectedParts(prev => {
+        setSelectedParts((prev) => {
             const newSet = new Set(prev);
             if (isSelected) {
                 newSet.add(partId);
@@ -74,30 +103,26 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
         });
     };
 
-    // Выход из режима выбора
     const exitSelectionMode = () => {
         setIsSelectionMode(false);
         setSelectedParts(new Set());
+        setSelectedPartsCatalog(new Map());
     };
 
-    // Выбрать все
     const selectAll = () => {
-        setSelectedParts(new Set(parts.map(p => p.id)));
+        setSelectedParts(new Set(parts.map((p) => p.id)));
     };
 
-    // Снять выбор со всех
     const deselectAll = () => {
         setSelectedParts(new Set());
     };
 
-    // Обработчик прокрутки для бесконечной загрузки (более надежный метод чем IntersectionObserver)
     useEffect(() => {
         if (!isInfiniteScroll || !onLoadMore) return;
 
         const handleScroll = () => {
             if (isLoading || !hasMore) return;
 
-            // Проверяем, достигли ли мы низа страницы (с запасом 500px)
             const scrolledToBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 500;
             if (scrolledToBottom) {
                 onLoadMore();
@@ -105,17 +130,14 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
         };
 
         window.addEventListener('scroll', handleScroll);
-        // Вызываем сразу на случай, если контент короткий
         handleScroll();
 
         return () => window.removeEventListener('scroll', handleScroll);
     }, [isInfiniteScroll, onLoadMore, hasMore, isLoading]);
 
-    // Bind swipe events to container
     useEffect(() => {
         return bindSwipeEvents(containerRef.current);
     }, [bindSwipeEvents]);
-
 
     if (error) {
         return (
@@ -161,16 +183,20 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
         );
     }
 
+    const selectedPartObjects = Array.from(selectedParts)
+        .map((id) => selectedPartsCatalog.get(id) || parts.find((p) => p.id === id))
+        .filter((p): p is Part => Boolean(p));
+
     return (
         <div ref={containerRef} className="space-y-4">
             {/* Панель действий для режима выбора */}
             {isSelectionMode && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 mb-4">
+                <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg p-3 sm:p-4 mb-4 sticky top-2 z-20 shadow-sm">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-              <span className="font-medium text-blue-900 text-sm sm:text-base">
-                Выбрано: {selectedParts.size} из {parts.length}
-              </span>
+                            <span className="font-medium text-blue-900 dark:text-blue-200 text-sm sm:text-base">
+                                В корзине выбора: {selectedParts.size} запч.
+                            </span>
                             <div className="flex gap-2">
                                 <Button
                                     variant="outline"
@@ -178,7 +204,7 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
                                     onClick={selectedParts.size === parts.length ? deselectAll : selectAll}
                                     className="text-xs sm:text-sm"
                                 >
-                                    {selectedParts.size === parts.length ? 'Снять все' : 'Выбрать все'}
+                                    {selectedParts.size === parts.length ? 'Снять все' : 'Выбрать все на странице'}
                                 </Button>
                             </div>
                         </div>
@@ -186,7 +212,7 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
                             variant="ghost"
                             size="sm"
                             onClick={exitSelectionMode}
-                            className="text-blue-600 hover:text-blue-800 self-start sm:self-auto"
+                            className="text-blue-600 dark:text-blue-300 hover:text-blue-800 self-start sm:self-auto"
                         >
                             <X className="h-4 w-4 mr-1" />
                             Отмена
@@ -200,7 +226,7 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
                                 onClick={() => setIsBulkOrderOpen(true)}
                             >
                                 <Check className="h-4 w-4 mr-1" />
-                                Заказать выбранные ({selectedParts.size})
+                                Оформить заказ ({selectedParts.size})
                             </Button>
                             <Button
                                 size="sm"
@@ -240,6 +266,7 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
                         isLoading={false}
                         isSelectionMode={isSelectionMode}
                         isSelected={selectedParts.has(part.id)}
+                        activeOrderId={partToOrderMap.get(part.id)}
                         onLongPress={() => handleLongPress(part.id)}
                         onSelect={(isSelected) => handlePartSelect(part.id, isSelected)}
                     />
@@ -260,7 +287,7 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
                 </div>
             )}
 
-            {/* Кнопка ручной загрузки (только если не бесконечная прокрутка) */}
+            {/* Кнопка ручной загрузки */}
             {!isInfiniteScroll && onLoadMore && hasMore && (
                 <div className="flex justify-center py-4">
                     <Button
@@ -305,7 +332,7 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
             <BulkOrderDialog
                 isOpen={isBulkOrderOpen}
                 onClose={() => setIsBulkOrderOpen(false)}
-                selectedParts={parts.filter(part => selectedParts.has(part.id))}
+                selectedParts={selectedPartObjects}
                 onSuccess={() => {
                     setIsBulkOrderOpen(false);
                     exitSelectionMode();

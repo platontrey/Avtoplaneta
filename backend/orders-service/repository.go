@@ -41,11 +41,14 @@ type OrderRepository interface {
 	FindWithItemsByID(ctx context.Context, id int64) (*Order, error)
 	FindAll(ctx context.Context) ([]Order, error)
 	FindActive(ctx context.Context) ([]Order, error)
+	FindCompleted(ctx context.Context) ([]Order, error)
 	FindWithItems(ctx context.Context) ([]Order, error)
 	FindOrderItem(ctx context.Context, orderID, partID int64) (*OrderItem, error)
 	Update(ctx context.Context, id int64, updates map[string]interface{}) error
 	UpdateStatus(ctx context.Context, id int64, status string) error
+	CompleteRecord(ctx context.Context, id int64) error
 	UpdateItem(ctx context.Context, item *OrderItem) error
+	DeleteItem(ctx context.Context, orderID, itemID int64) error
 	Delete(ctx context.Context, id int64) error
 	DeleteItemsByOrderID(ctx context.Context, orderID int64) error
 	MarkExpiredAsAutoDeleted(ctx context.Context, before time.Time) error
@@ -99,51 +102,114 @@ func toTime(t pgtype.Timestamptz) time.Time {
 	return t.Time
 }
 
+func toTimePtr(t pgtype.Timestamptz) *time.Time {
+	if !t.Valid || t.Time.IsZero() {
+		return nil
+	}
+	tm := t.Time
+	return &tm
+}
+
 func toTimestamptz(t time.Time) pgtype.Timestamptz {
 	return pgtype.Timestamptz{Time: t, Valid: !t.IsZero()}
 }
 
+func toTimestamptzPtr(t *time.Time) pgtype.Timestamptz {
+	if t == nil || t.IsZero() {
+		return pgtype.Timestamptz{Valid: false}
+	}
+	return pgtype.Timestamptz{Time: *t, Valid: true}
+}
+
 func sqlcOrderToDomain(o sqlc.Order) Order {
+	completedAt := toTimePtr(o.CompletedAt)
+	completedAtFormatted := ""
+	if completedAt != nil {
+		completedAtFormatted = completedAt.Format("2006-01-02 15:04:05")
+	}
+
 	return Order{
-		ID:          o.ID,
-		CustomerID:  o.CustomerID,
-		SellerID:    o.SellerID,
-		Seller:      o.Seller,
-		Part:        o.Part,
-		PartID:      o.PartID,
-		Location:    o.Location,
-		BuyerNumber: o.BuyerNumber,
-		Status:      o.Status,
-		StatusText:  o.StatusText,
-		AutoDeleted: o.AutoDeleted,
-		CreatedAt:   toTime(o.CreatedAt),
-		Items:       []OrderItem{},
+		ID:                   o.ID,
+		CustomerID:           o.CustomerID,
+		OrderNumber:          o.OrderNumber,
+		Source:               o.Source,
+		SellerID:             o.SellerID,
+		Seller:               o.Seller,
+		Part:                 o.Part,
+		PartID:               o.PartID,
+		Location:             o.Location,
+		BuyerNumber:          o.BuyerNumber,
+		Status:               o.Status,
+		StatusText:           o.StatusText,
+		PaymentStatus:        o.PaymentStatus,
+		WarehouseStatus:      o.WarehouseStatus,
+		DeliveryMethod:       o.DeliveryMethod,
+		TransportCompany:     o.TransportCompany,
+		TrackingNumber:       o.TrackingNumber,
+		Notes:                o.Notes,
+		Discount:             o.Discount,
+		AutoDeleted:          o.AutoDeleted,
+		CreatedAt:            toTime(o.CreatedAt),
+		CompletedAt:          completedAt,
+		CompletedAtFormatted: completedAtFormatted,
+		UpdatedAt:            toTime(o.UpdatedAt),
+		Items:                []OrderItem{},
 	}
 }
 
 func sqlcOrderItemToDomain(oi sqlc.OrderItem) OrderItem {
 	return OrderItem{
-		ID:       oi.ID,
-		OrderID:  oi.OrderID,
-		PartID:   oi.PartID,
-		Quantity: int(oi.Quantity),
-		Price:    oi.Price,
+		ID:               oi.ID,
+		OrderID:          oi.OrderID,
+		PartID:           oi.PartID,
+		PartName:         oi.PartNameSnapshot,
+		PartNameSnapshot: oi.PartNameSnapshot,
+		Quantity:         int(oi.Quantity),
+		Price:            oi.Price,
 	}
 }
 
 func (r *orderRepository) Create(ctx context.Context, order *Order) error {
+	now := time.Now()
+	if order.CreatedAt.IsZero() {
+		order.CreatedAt = now
+	}
+	if order.UpdatedAt.IsZero() {
+		order.UpdatedAt = now
+	}
+	if order.PaymentStatus == "" {
+		order.PaymentStatus = "unpaid"
+	}
+	if order.WarehouseStatus == "" {
+		order.WarehouseStatus = "inspecting"
+	}
+	if order.DeliveryMethod == "" {
+		order.DeliveryMethod = "pickup"
+	}
+
 	params := sqlc.CreateOrderParams{
-		CustomerID:  order.CustomerID,
-		SellerID:    order.SellerID,
-		Seller:      order.Seller,
-		Part:        order.Part,
-		PartID:      order.PartID,
-		Location:    order.Location,
-		BuyerNumber: order.BuyerNumber,
-		Status:      order.Status,
-		StatusText:  order.StatusText,
-		AutoDeleted: order.AutoDeleted,
-		CreatedAt:   toTimestamptz(order.CreatedAt),
+		CustomerID:       order.CustomerID,
+		SellerID:         order.SellerID,
+		Seller:           order.Seller,
+		Part:             order.Part,
+		PartID:           order.PartID,
+		Location:         order.Location,
+		BuyerNumber:      order.BuyerNumber,
+		Status:           order.Status,
+		StatusText:       order.StatusText,
+		AutoDeleted:      order.AutoDeleted,
+		CreatedAt:        toTimestamptz(order.CreatedAt),
+		OrderNumber:      order.OrderNumber,
+		Source:           order.Source,
+		PaymentStatus:    order.PaymentStatus,
+		WarehouseStatus:  order.WarehouseStatus,
+		DeliveryMethod:   order.DeliveryMethod,
+		TransportCompany: order.TransportCompany,
+		TrackingNumber:   order.TrackingNumber,
+		Notes:            order.Notes,
+		Discount:         order.Discount,
+		CompletedAt:      toTimestamptzPtr(order.CompletedAt),
+		UpdatedAt:        toTimestamptz(order.UpdatedAt),
 	}
 
 	o, err := r.getQueries(ctx).CreateOrder(ctx, params)
@@ -201,12 +267,7 @@ func (r *orderRepository) FindAll(ctx context.Context) ([]Order, error) {
 	return orders, nil
 }
 
-func (r *orderRepository) FindWithItems(ctx context.Context) ([]Order, error) {
-	rows, err := r.getQueries(ctx).FindAllOrders(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find orders with items: %w", err)
-	}
-
+func (r *orderRepository) attachItems(ctx context.Context, rows []sqlc.Order) ([]Order, error) {
 	if len(rows) == 0 {
 		return []Order{}, nil
 	}
@@ -239,8 +300,24 @@ func (r *orderRepository) FindWithItems(ctx context.Context) ([]Order, error) {
 	return orders, nil
 }
 
+func (r *orderRepository) FindWithItems(ctx context.Context) ([]Order, error) {
+	rows, err := r.getQueries(ctx).FindAllOrders(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find orders with items: %w", err)
+	}
+	return r.attachItems(ctx, rows)
+}
+
 func (r *orderRepository) FindActive(ctx context.Context) ([]Order, error) {
 	return r.FindWithItems(ctx)
+}
+
+func (r *orderRepository) FindCompleted(ctx context.Context) ([]Order, error) {
+	rows, err := r.getQueries(ctx).FindCompletedOrders(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find completed orders: %w", err)
+	}
+	return r.attachItems(ctx, rows)
 }
 
 func (r *orderRepository) Update(ctx context.Context, id int64, updates map[string]interface{}) error {
@@ -256,6 +333,7 @@ func (r *orderRepository) Update(ctx context.Context, id int64, updates map[stri
 			builder = builder.Set(k, v)
 		}
 	}
+	builder = builder.Set("updated_at", toTimestamptz(time.Now()))
 
 	query, args, err := builder.PlaceholderFormat(squirrel.Dollar).ToSql()
 	if err != nil {
@@ -265,6 +343,13 @@ func (r *orderRepository) Update(ctx context.Context, id int64, updates map[stri
 	_, err = r.getExec(ctx).Exec(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("failed to update order %d: %w", id, err)
+	}
+	return nil
+}
+
+func (r *orderRepository) CompleteRecord(ctx context.Context, id int64) error {
+	if err := r.getQueries(ctx).CompleteOrderRecord(ctx, id); err != nil {
+		return fmt.Errorf("failed to complete order record %d: %w", id, err)
 	}
 	return nil
 }
@@ -286,11 +371,16 @@ func (r *orderRepository) MarkExpiredAsAutoDeleted(ctx context.Context, before t
 }
 
 func (r *orderRepository) CreateItem(ctx context.Context, item *OrderItem) error {
+	snapshot := item.PartNameSnapshot
+	if snapshot == "" {
+		snapshot = item.PartName
+	}
 	params := sqlc.CreateOrderItemParams{
-		OrderID:  item.OrderID,
-		PartID:   item.PartID,
-		Quantity: int32(item.Quantity),
-		Price:    item.Price,
+		OrderID:          item.OrderID,
+		PartID:           item.PartID,
+		Quantity:         int32(item.Quantity),
+		Price:            item.Price,
+		PartNameSnapshot: snapshot,
 	}
 
 	oi, err := r.getQueries(ctx).CreateOrderItem(ctx, params)
@@ -339,6 +429,17 @@ func (r *orderRepository) UpdateItem(ctx context.Context, item *OrderItem) error
 	err := r.getQueries(ctx).UpdateOrderItem(ctx, params)
 	if err != nil {
 		return fmt.Errorf("failed to update order item: %w", err)
+	}
+	return nil
+}
+
+func (r *orderRepository) DeleteItem(ctx context.Context, orderID, itemID int64) error {
+	err := r.getQueries(ctx).DeleteOrderItem(ctx, sqlc.DeleteOrderItemParams{
+		ID:      itemID,
+		OrderID: orderID,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete order item %d: %w", itemID, err)
 	}
 	return nil
 }
@@ -410,10 +511,6 @@ func (r *partRepositoryForOrders) FindByID(ctx context.Context, id int64) (*Part
 }
 
 func (r *partRepositoryForOrders) UpdateQuantity(ctx context.Context, id int64, newQuantity int) error {
-	// Not atomic, but this method seems unused for actual order placements.
-	// Often it's better to rely on Decrease/Increase.
-	// For now, if we need UpdateQuantity, we don't have it exposed via gRPC natively as "SetQuantity".
-	// But let's check if it's used. If it is, we need to implement it.
 	return fmt.Errorf("UpdateQuantity is not supported via gRPC yet")
 }
 

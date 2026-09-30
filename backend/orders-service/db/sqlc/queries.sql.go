@@ -11,24 +11,62 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const CompleteOrderRecord = `-- name: CompleteOrderRecord :exec
+UPDATE orders
+SET status = 'green',
+    status_text = 'Завершён',
+    payment_status = 'paid',
+    warehouse_status = 'ready',
+    auto_deleted = TRUE,
+    completed_at = NOW(),
+    updated_at = NOW()
+WHERE id = $1
+`
+
+func (q *Queries) CompleteOrderRecord(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, CompleteOrderRecord, id)
+	return err
+}
+
 const CreateOrder = `-- name: CreateOrder :one
-INSERT INTO orders (customer_id, seller_id, seller, part, part_id, location, buyer_number, status, status_text, auto_deleted, created_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-RETURNING id, customer_id, seller_id, seller, part, part_id, location, buyer_number, status, status_text, auto_deleted, created_at
+INSERT INTO orders (
+    customer_id, seller_id, seller, part, part_id, location, buyer_number,
+    status, status_text, auto_deleted, created_at,
+    order_number, source, payment_status, warehouse_status, delivery_method,
+    transport_company, tracking_number, notes, discount, completed_at, updated_at
+)
+VALUES (
+    $1, $2, $3, $4, $5, $6, $7,
+    $8, $9, $10, $11,
+    $12, $13, $14, $15, $16,
+    $17, $18, $19, $20, $21, $22
+)
+RETURNING id, customer_id, seller_id, seller, part, part_id, location, buyer_number, status, status_text, auto_deleted, created_at, order_number, source, payment_status, warehouse_status, delivery_method, transport_company, tracking_number, notes, discount, completed_at, updated_at
 `
 
 type CreateOrderParams struct {
-	CustomerID  int64              `json:"customer_id"`
-	SellerID    int64              `json:"seller_id"`
-	Seller      string             `json:"seller"`
-	Part        string             `json:"part"`
-	PartID      int64              `json:"part_id"`
-	Location    string             `json:"location"`
-	BuyerNumber string             `json:"buyer_number"`
-	Status      string             `json:"status"`
-	StatusText  string             `json:"status_text"`
-	AutoDeleted bool               `json:"auto_deleted"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	CustomerID       int64              `json:"customer_id"`
+	SellerID         int64              `json:"seller_id"`
+	Seller           string             `json:"seller"`
+	Part             string             `json:"part"`
+	PartID           int64              `json:"part_id"`
+	Location         string             `json:"location"`
+	BuyerNumber      string             `json:"buyer_number"`
+	Status           string             `json:"status"`
+	StatusText       string             `json:"status_text"`
+	AutoDeleted      bool               `json:"auto_deleted"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	OrderNumber      string             `json:"order_number"`
+	Source           string             `json:"source"`
+	PaymentStatus    string             `json:"payment_status"`
+	WarehouseStatus  string             `json:"warehouse_status"`
+	DeliveryMethod   string             `json:"delivery_method"`
+	TransportCompany string             `json:"transport_company"`
+	TrackingNumber   string             `json:"tracking_number"`
+	Notes            string             `json:"notes"`
+	Discount         float64            `json:"discount"`
+	CompletedAt      pgtype.Timestamptz `json:"completed_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order, error) {
@@ -44,6 +82,17 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		arg.StatusText,
 		arg.AutoDeleted,
 		arg.CreatedAt,
+		arg.OrderNumber,
+		arg.Source,
+		arg.PaymentStatus,
+		arg.WarehouseStatus,
+		arg.DeliveryMethod,
+		arg.TransportCompany,
+		arg.TrackingNumber,
+		arg.Notes,
+		arg.Discount,
+		arg.CompletedAt,
+		arg.UpdatedAt,
 	)
 	var i Order
 	err := row.Scan(
@@ -59,21 +108,33 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		&i.StatusText,
 		&i.AutoDeleted,
 		&i.CreatedAt,
+		&i.OrderNumber,
+		&i.Source,
+		&i.PaymentStatus,
+		&i.WarehouseStatus,
+		&i.DeliveryMethod,
+		&i.TransportCompany,
+		&i.TrackingNumber,
+		&i.Notes,
+		&i.Discount,
+		&i.CompletedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const CreateOrderItem = `-- name: CreateOrderItem :one
-INSERT INTO order_items (order_id, part_id, quantity, price)
-VALUES ($1, $2, $3, $4)
-RETURNING id, order_id, part_id, quantity, price
+INSERT INTO order_items (order_id, part_id, quantity, price, part_name_snapshot)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, order_id, part_id, quantity, price, part_name_snapshot
 `
 
 type CreateOrderItemParams struct {
-	OrderID  int64   `json:"order_id"`
-	PartID   int64   `json:"part_id"`
-	Quantity int32   `json:"quantity"`
-	Price    float64 `json:"price"`
+	OrderID          int64   `json:"order_id"`
+	PartID           int64   `json:"part_id"`
+	Quantity         int32   `json:"quantity"`
+	Price            float64 `json:"price"`
+	PartNameSnapshot string  `json:"part_name_snapshot"`
 }
 
 func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) (OrderItem, error) {
@@ -82,6 +143,7 @@ func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams
 		arg.PartID,
 		arg.Quantity,
 		arg.Price,
+		arg.PartNameSnapshot,
 	)
 	var i OrderItem
 	err := row.Scan(
@@ -90,6 +152,7 @@ func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams
 		&i.PartID,
 		&i.Quantity,
 		&i.Price,
+		&i.PartNameSnapshot,
 	)
 	return i, err
 }
@@ -128,6 +191,21 @@ func (q *Queries) DeleteOrder(ctx context.Context, id int64) error {
 	return err
 }
 
+const DeleteOrderItem = `-- name: DeleteOrderItem :exec
+DELETE FROM order_items
+WHERE id = $1 AND order_id = $2
+`
+
+type DeleteOrderItemParams struct {
+	ID      int64 `json:"id"`
+	OrderID int64 `json:"order_id"`
+}
+
+func (q *Queries) DeleteOrderItem(ctx context.Context, arg DeleteOrderItemParams) error {
+	_, err := q.db.Exec(ctx, DeleteOrderItem, arg.ID, arg.OrderID)
+	return err
+}
+
 const DeleteOrderItemsByOrderID = `-- name: DeleteOrderItemsByOrderID :exec
 DELETE FROM order_items
 WHERE order_id = $1
@@ -139,7 +217,7 @@ func (q *Queries) DeleteOrderItemsByOrderID(ctx context.Context, orderID int64) 
 }
 
 const FindAllOrders = `-- name: FindAllOrders :many
-SELECT id, customer_id, seller_id, seller, part, part_id, location, buyer_number, status, status_text, auto_deleted, created_at FROM orders
+SELECT id, customer_id, seller_id, seller, part, part_id, location, buyer_number, status, status_text, auto_deleted, created_at, order_number, source, payment_status, warehouse_status, delivery_method, transport_company, tracking_number, notes, discount, completed_at, updated_at FROM orders
 WHERE auto_deleted = FALSE
 ORDER BY created_at DESC
 `
@@ -166,6 +244,68 @@ func (q *Queries) FindAllOrders(ctx context.Context) ([]Order, error) {
 			&i.StatusText,
 			&i.AutoDeleted,
 			&i.CreatedAt,
+			&i.OrderNumber,
+			&i.Source,
+			&i.PaymentStatus,
+			&i.WarehouseStatus,
+			&i.DeliveryMethod,
+			&i.TransportCompany,
+			&i.TrackingNumber,
+			&i.Notes,
+			&i.Discount,
+			&i.CompletedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const FindCompletedOrders = `-- name: FindCompletedOrders :many
+SELECT id, customer_id, seller_id, seller, part, part_id, location, buyer_number, status, status_text, auto_deleted, created_at, order_number, source, payment_status, warehouse_status, delivery_method, transport_company, tracking_number, notes, discount, completed_at, updated_at FROM orders
+WHERE auto_deleted = TRUE
+ORDER BY COALESCE(completed_at, created_at) DESC
+LIMIT 200
+`
+
+func (q *Queries) FindCompletedOrders(ctx context.Context) ([]Order, error) {
+	rows, err := q.db.Query(ctx, FindCompletedOrders)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Order{}
+	for rows.Next() {
+		var i Order
+		if err := rows.Scan(
+			&i.ID,
+			&i.CustomerID,
+			&i.SellerID,
+			&i.Seller,
+			&i.Part,
+			&i.PartID,
+			&i.Location,
+			&i.BuyerNumber,
+			&i.Status,
+			&i.StatusText,
+			&i.AutoDeleted,
+			&i.CreatedAt,
+			&i.OrderNumber,
+			&i.Source,
+			&i.PaymentStatus,
+			&i.WarehouseStatus,
+			&i.DeliveryMethod,
+			&i.TransportCompany,
+			&i.TrackingNumber,
+			&i.Notes,
+			&i.Discount,
+			&i.CompletedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -178,7 +318,7 @@ func (q *Queries) FindAllOrders(ctx context.Context) ([]Order, error) {
 }
 
 const FindOrderItem = `-- name: FindOrderItem :one
-SELECT id, order_id, part_id, quantity, price FROM order_items
+SELECT id, order_id, part_id, quantity, price, part_name_snapshot FROM order_items
 WHERE order_id = $1 AND part_id = $2
 `
 
@@ -196,17 +336,22 @@ func (q *Queries) FindOrderItem(ctx context.Context, arg FindOrderItemParams) (O
 		&i.PartID,
 		&i.Quantity,
 		&i.Price,
+		&i.PartNameSnapshot,
 	)
 	return i, err
 }
 
 const GetMonthlySales = `-- name: GetMonthlySales :many
-SELECT TO_CHAR(orders.created_at, 'YYYY-MM')::text as month,
-       COALESCE(SUM(order_items.price * order_items.quantity), 0)::double precision as sales
-FROM order_items
-JOIN orders ON order_items.order_id = orders.id
-WHERE orders.status = 'green' AND orders.auto_deleted = TRUE
-GROUP BY TO_CHAR(orders.created_at, 'YYYY-MM')
+SELECT month, COALESCE(SUM(order_total), 0)::double precision AS sales
+FROM (
+    SELECT TO_CHAR(COALESCE(orders.completed_at, orders.created_at), 'YYYY-MM')::text AS month,
+           GREATEST(COALESCE(SUM(order_items.price * order_items.quantity), 0) - orders.discount, 0)::double precision AS order_total
+    FROM orders
+    JOIN order_items ON order_items.order_id = orders.id
+    WHERE orders.status = 'green' AND orders.auto_deleted = TRUE
+    GROUP BY orders.id, orders.completed_at, orders.created_at, orders.discount
+) AS completed_orders
+GROUP BY month
 ORDER BY month DESC
 `
 
@@ -236,7 +381,7 @@ func (q *Queries) GetMonthlySales(ctx context.Context) ([]GetMonthlySalesRow, er
 }
 
 const GetOrderByID = `-- name: GetOrderByID :one
-SELECT id, customer_id, seller_id, seller, part, part_id, location, buyer_number, status, status_text, auto_deleted, created_at FROM orders
+SELECT id, customer_id, seller_id, seller, part, part_id, location, buyer_number, status, status_text, auto_deleted, created_at, order_number, source, payment_status, warehouse_status, delivery_method, transport_company, tracking_number, notes, discount, completed_at, updated_at FROM orders
 WHERE id = $1
 `
 
@@ -256,13 +401,25 @@ func (q *Queries) GetOrderByID(ctx context.Context, id int64) (Order, error) {
 		&i.StatusText,
 		&i.AutoDeleted,
 		&i.CreatedAt,
+		&i.OrderNumber,
+		&i.Source,
+		&i.PaymentStatus,
+		&i.WarehouseStatus,
+		&i.DeliveryMethod,
+		&i.TransportCompany,
+		&i.TrackingNumber,
+		&i.Notes,
+		&i.Discount,
+		&i.CompletedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const GetOrderItemsByOrderID = `-- name: GetOrderItemsByOrderID :many
-SELECT id, order_id, part_id, quantity, price FROM order_items
+SELECT id, order_id, part_id, quantity, price, part_name_snapshot FROM order_items
 WHERE order_id = $1
+ORDER BY id ASC
 `
 
 func (q *Queries) GetOrderItemsByOrderID(ctx context.Context, orderID int64) ([]OrderItem, error) {
@@ -280,6 +437,7 @@ func (q *Queries) GetOrderItemsByOrderID(ctx context.Context, orderID int64) ([]
 			&i.PartID,
 			&i.Quantity,
 			&i.Price,
+			&i.PartNameSnapshot,
 		); err != nil {
 			return nil, err
 		}
@@ -292,8 +450,9 @@ func (q *Queries) GetOrderItemsByOrderID(ctx context.Context, orderID int64) ([]
 }
 
 const GetOrderItemsByOrderIDs = `-- name: GetOrderItemsByOrderIDs :many
-SELECT id, order_id, part_id, quantity, price FROM order_items
+SELECT id, order_id, part_id, quantity, price, part_name_snapshot FROM order_items
 WHERE order_id = ANY($1::bigint[])
+ORDER BY id ASC
 `
 
 func (q *Queries) GetOrderItemsByOrderIDs(ctx context.Context, dollar_1 []int64) ([]OrderItem, error) {
@@ -311,6 +470,7 @@ func (q *Queries) GetOrderItemsByOrderIDs(ctx context.Context, dollar_1 []int64)
 			&i.PartID,
 			&i.Quantity,
 			&i.Price,
+			&i.PartNameSnapshot,
 		); err != nil {
 			return nil, err
 		}
@@ -354,7 +514,8 @@ func (q *Queries) UpdateOrderItem(ctx context.Context, arg UpdateOrderItemParams
 const UpdateOrderStatus = `-- name: UpdateOrderStatus :exec
 UPDATE orders
 SET status = $2,
-    status_text = $2
+    status_text = $2,
+    updated_at = NOW()
 WHERE id = $1
 `
 

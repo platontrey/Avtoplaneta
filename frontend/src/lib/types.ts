@@ -74,6 +74,8 @@ export interface OrderItem {
   order_id: number;
   part_id: number;
   part_name?: string;
+  part_name_snapshot?: string;
+  location?: string;
   quantity: number;
   price?: number;
 }
@@ -88,11 +90,23 @@ export interface Order {
   location?: string;
   buyer_number: string;
   order_number: string;
+  source?: string;
   status: string;
   status_text: string;
+  payment_status?: string;
+  warehouse_status?: string;
+  delivery_method?: string;
+  transport_company?: string;
+  tracking_number?: string;
+  notes?: string;
+  discount?: number;
+  total_amount?: number;
+  auto_deleted?: boolean;
   created_at: string;
   created_at_formatted?: string;
   time_ago?: string;
+  completed_at?: string;
+  completed_at_formatted?: string;
   items: OrderItem[];
 }
 
@@ -161,5 +175,3 @@ export type UserActivityResourceType =
     | 'user'
     | 'photo'
     | 'system';
-
-

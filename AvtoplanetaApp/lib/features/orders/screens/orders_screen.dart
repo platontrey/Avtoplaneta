@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,17 +11,52 @@ import '../../auth/providers/auth_provider.dart';
 import '../../inventory/providers/inventory_provider.dart';
 import '../providers/orders_provider.dart';
 
-class OrdersScreen extends ConsumerWidget {
+class OrdersScreen extends ConsumerStatefulWidget {
   const OrdersScreen({super.key});
 
-  Future<void> _refresh(WidgetRef ref) async {
+  @override
+  ConsumerState<OrdersScreen> createState() => _OrdersScreenState();
+}
+
+class _OrdersScreenState extends ConsumerState<OrdersScreen> {
+  String _tab = 'active'; // 'active' or 'completed'
+  String _searchQuery = '';
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
     ref.invalidate(ordersProvider);
-    await ref.read(ordersProvider.future);
+    ref.invalidate(completedOrdersProvider);
+    if (_tab == 'active') {
+      await ref.read(ordersProvider.future);
+    } else {
+      await ref.read(completedOrdersProvider.future);
+    }
+  }
+
+  List<Order> _filterOrders(List<Order> orders) {
+    final q = _searchQuery.trim().toLowerCase();
+    if (q.isEmpty) return orders;
+    return orders.where((o) {
+      return o.id.toString().contains(q) ||
+          o.partName.toLowerCase().contains(q) ||
+          o.buyerNumber.toLowerCase().contains(q) ||
+          o.orderNumber.toLowerCase().contains(q) ||
+          o.trackingNumber.toLowerCase().contains(q) ||
+          o.sellerName.toLowerCase().contains(q);
+    }).toList();
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final ordersAsync = ref.watch(ordersProvider);
+  Widget build(BuildContext context) {
+    final ordersAsync = _tab == 'active'
+        ? ref.watch(ordersProvider)
+        : ref.watch(completedOrdersProvider);
     final user = ref.watch(authProvider).valueOrNull;
 
     return Scaffold(
@@ -30,66 +66,128 @@ class OrdersScreen extends ConsumerWidget {
           IconButton(
             tooltip: 'Обновить',
             icon: const Icon(LucideIcons.refresh_cw),
-            onPressed: () => _refresh(ref),
+            onPressed: _refresh,
           ),
         ],
       ),
-      body: ordersAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => AppEmptyState(
-          icon: LucideIcons.cloud_off,
-          title: 'Не удалось загрузить заказы',
-          message: 'Проверьте соединение и повторите попытку.',
-          actionLabel: 'Повторить',
-          onAction: () => ref.invalidate(ordersProvider),
-        ),
-        data: (data) => RefreshIndicator(
-          onRefresh: () => _refresh(ref),
-          child: ListView.separated(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
-            itemCount: data.orders.length + (data.orders.isEmpty ? 3 : 2),
-            separatorBuilder: (_, i) => SizedBox(height: i == 0 ? 14 : 10),
-            itemBuilder: (_, i) {
-              if (i == 0) {
-                return Card(
-                  child: ListTile(
-                    leading: const CircleAvatar(
-                      child: Icon(LucideIcons.shopping_cart),
-                    ),
-                    title: const Text('Создать новый заказ'),
-                    subtitle: const Text(
-                      'Выберите запчасть в инвентаре и оформите заказ',
-                    ),
-                    trailing: const Icon(LucideIcons.chevron_right),
-                    onTap: () => context.go('/inventory'),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+            child: Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(
+                        value: 'active',
+                        icon: Icon(LucideIcons.shopping_bag, size: 16),
+                        label: Text('В работе'),
+                      ),
+                      ButtonSegment(
+                        value: 'completed',
+                        icon: Icon(LucideIcons.archive, size: 16),
+                        label: Text('История'),
+                      ),
+                    ],
+                    selected: {_tab},
+                    onSelectionChanged: (selection) {
+                      setState(() => _tab = selection.first);
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _searchController,
+                  onChanged: (v) => setState(() => _searchQuery = v),
+                  decoration: InputDecoration(
+                    hintText: 'Поиск по запчасти, клиенту, треку, №...',
+                    prefixIcon: const Icon(LucideIcons.search, size: 18),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(LucideIcons.x, size: 16),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                          )
+                        : null,
+                    isDense: true,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ordersAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => AppEmptyState(
+                icon: LucideIcons.cloud_off,
+                title: 'Не удалось загрузить заказы',
+                message: 'Проверьте соединение и повторите попытку.',
+                actionLabel: 'Повторить',
+                onAction: _refresh,
+              ),
+              data: (data) {
+                final filtered = _filterOrders(data.orders);
+                return RefreshIndicator(
+                  onRefresh: _refresh,
+                  child: ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                    itemCount: filtered.length + (filtered.isEmpty ? 3 : 2),
+                    separatorBuilder: (_, i) => SizedBox(height: i == 0 ? 14 : 10),
+                    itemBuilder: (_, i) {
+                      if (i == 0) {
+                        return Card(
+                          child: ListTile(
+                            leading: const CircleAvatar(
+                              child: Icon(LucideIcons.shopping_cart),
+                            ),
+                            title: const Text('Создать новый заказ'),
+                            subtitle: const Text(
+                              'Выберите запчасть в инвентаре и оформите заказ',
+                            ),
+                            trailing: const Icon(LucideIcons.chevron_right),
+                            onTap: () => context.go('/inventory'),
+                          ),
+                        );
+                      }
+                      if (i == 1) {
+                        return AppSectionHeader(
+                          title: _tab == 'active' ? 'В работе' : 'Завершённые продажи',
+                          caption: '${filtered.length} заказов',
+                        );
+                      }
+                      if (filtered.isEmpty) {
+                        return AppEmptyState(
+                          icon: LucideIcons.receipt,
+                          title: _tab == 'active'
+                              ? 'Активных заказов нет'
+                              : 'История заказов пуста',
+                          message: _tab == 'active'
+                              ? 'Выберите запчасть и создайте заказ.'
+                              : 'Завершённые продажи появятся здесь.',
+                        );
+                      }
+                      return _OrderCard(
+                        order: filtered[i - 2],
+                        isCompleted: _tab == 'completed',
+                        canChangeStatus: user?.isOperator == true,
+                        onStatusChanged: () {
+                          ref.invalidate(ordersProvider);
+                          ref.invalidate(completedOrdersProvider);
+                          ref.invalidate(inventoryProvider);
+                        },
+                      );
+                    },
                   ),
                 );
-              }
-              if (i == 1) {
-                return AppSectionHeader(
-                  title: 'Активность',
-                  caption: '${data.total} заказов',
-                );
-              }
-              if (data.orders.isEmpty) {
-                return const AppEmptyState(
-                  icon: LucideIcons.receipt,
-                  title: 'Заказов пока нет',
-                  message: 'Выберите запчасть и создайте первый заказ.',
-                );
-              }
-              return _OrderCard(
-                order: data.orders[i - 2],
-                canChangeStatus: user?.isOperator == true,
-                onStatusChanged: () {
-                  ref.invalidate(ordersProvider);
-                  ref.invalidate(inventoryProvider);
-                },
-              );
-            },
+              },
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -97,18 +195,48 @@ class OrdersScreen extends ConsumerWidget {
 
 class _OrderCard extends StatelessWidget {
   final Order order;
+  final bool isCompleted;
   final bool canChangeStatus;
   final VoidCallback onStatusChanged;
 
   const _OrderCard({
     required this.order,
+    required this.isCompleted,
     required this.canChangeStatus,
     required this.onStatusChanged,
   });
 
+  static const _sourceLabels = {
+    'drom': 'Дром',
+    'avito': 'Авито',
+    'messenger': 'Мессенджер',
+    'pickup': 'На месте',
+  };
+
+  static const _paymentLabels = {
+    'unpaid': ('Не оплачен', Color(0xFFE53935)),
+    'prepaid': ('Предоплата', Color(0xFFFB8C00)),
+    'paid': ('Оплачен', Color(0xFF43A047)),
+  };
+
+  static const _warehouseLabels = {
+    'inspecting': ('На проверке', Color(0xFF00ACC1)),
+    'transfer': ('Перемещение', Color(0xFF5E35B1)),
+    'ready': ('Собран', Color(0xFF43A047)),
+  };
+
+  static const _deliveryLabels = {
+    'tk': ('ТК', Color(0xFF1E88E5)),
+    'pickup': ('Самовывоз', Color(0xFF8E24AA)),
+    'city': ('По городу', Color(0xFF039BE5)),
+  };
+
   @override
   Widget build(BuildContext context) {
     final statusColor = Color(order.statusColor);
+    final payInfo = _paymentLabels[order.paymentStatus] ?? ('Не оплачен', const Color(0xFFE53935));
+    final whInfo = _warehouseLabels[order.warehouseStatus] ?? ('На проверке', const Color(0xFF00ACC1));
+    final delInfo = _deliveryLabels[order.deliveryMethod] ?? ('ТК', const Color(0xFF1E88E5));
 
     return Card(
       child: Padding(
@@ -118,56 +246,54 @@ class _OrderCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                InkWell(
-                  onTap: canChangeStatus
-                      ? () => _StatusPickerSheet.show(
-                            context,
-                            order: order,
-                            onChanged: onStatusChanged,
-                          )
-                      : null,
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: statusColor.withValues(alpha: 0.25),
                     ),
-                    decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: statusColor.withValues(alpha: 0.25),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          color: statusColor,
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 7,
-                          height: 7,
-                          decoration: BoxDecoration(
-                            color: statusColor,
-                            shape: BoxShape.circle,
-                          ),
+                      const SizedBox(width: 7),
+                      Text(
+                        isCompleted ? 'Выдан / Завершён' : order.displayStatusText,
+                        style: TextStyle(
+                          color: statusColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
                         ),
-                        const SizedBox(width: 7),
-                        Text(
-                          order.displayStatusText,
-                          style: TextStyle(
-                            color: statusColor,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        if (canChangeStatus) ...[
-                          const SizedBox(width: 4),
-                          Icon(
-                            LucideIcons.chevron_down,
-                            size: 13,
-                            color: statusColor,
-                          ),
-                        ],
-                      ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceColor,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _sourceLabels[order.source] ?? order.source,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: AppTheme.mutedColor,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -180,11 +306,13 @@ class _OrderCard extends StatelessWidget {
                     fontSize: 12,
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Text(
-                  order.timeAgo.isNotEmpty
-                      ? order.timeAgo
-                      : order.createdAtFormatted,
+                  isCompleted && order.completedAtFormatted.isNotEmpty
+                      ? order.completedAtFormatted
+                      : (order.timeAgo.isNotEmpty
+                            ? order.timeAgo
+                            : order.createdAtFormatted),
                   style: const TextStyle(
                     color: AppTheme.mutedColor,
                     fontSize: 11,
@@ -192,7 +320,7 @@ class _OrderCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             if (order.items.length > 1)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -202,8 +330,8 @@ class _OrderCard extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: 4),
                       child: _PartLinkRow(
                         label:
-                            '${item.quantity} × ${item.partName.isNotEmpty ? item.partName : (order.partName.isNotEmpty ? order.partName : 'Запчасть #${item.partId}')}',
-                        partId: item.partId > 0 ? item.partId : order.effectivePartId,
+                            '${item.quantity} × ${item.partName.isNotEmpty ? item.partName : (order.partName.isNotEmpty ? order.partName : 'Запчасть #${item.partId}')}${item.price > 0 ? ' (${item.price.toStringAsFixed(0)} ₽)' : ''}',
+                        partId: !isCompleted && item.partId > 0 ? item.partId : null,
                       ),
                     ),
                 ],
@@ -211,8 +339,34 @@ class _OrderCard extends StatelessWidget {
             else
               _PartLinkRow(
                 label: '${order.totalQuantity} × ${order.partName}',
-                partId: order.effectivePartId,
+                partId: !isCompleted ? order.effectivePartId : null,
               ),
+            if (order.totalAmount > 0) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Итого: ${order.totalAmount.toStringAsFixed(0)} ₽${order.discount > 0 ? ' (скидка ${order.discount.toStringAsFixed(0)} ₽)' : ''}',
+                style: const TextStyle(
+                  color: Color(0xFF43A047),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _chip(payInfo.$1, payInfo.$2),
+                _chip(whInfo.$1, whInfo.$2),
+                _chip(
+                  order.transportCompany.isNotEmpty
+                      ? '${delInfo.$1}: ${order.transportCompany}'
+                      : delInfo.$1,
+                  delInfo.$2,
+                ),
+              ],
+            ),
             const SizedBox(height: 10),
             Wrap(
               spacing: 12,
@@ -222,27 +376,45 @@ class _OrderCard extends StatelessWidget {
                   _info(LucideIcons.map_pin, order.location),
                 if (order.sellerName.isNotEmpty)
                   _info(LucideIcons.user, order.sellerName),
+                if (order.orderNumber.isNotEmpty)
+                  _info(LucideIcons.hash, 'Сделка ${order.orderNumber}'),
+                if (order.buyerNumber.isNotEmpty)
+                  _info(LucideIcons.phone, order.buyerNumber),
+                if (order.trackingNumber.isNotEmpty)
+                  _info(LucideIcons.truck, 'Трек: ${order.trackingNumber}'),
               ],
             ),
-            if (order.orderNumber.isNotEmpty ||
-                order.buyerNumber.isNotEmpty) ...[
+            if (order.notes.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Wrap(
-                spacing: 12,
-                runSpacing: 8,
-                children: [
-                  if (order.orderNumber.isNotEmpty)
-                    _info(LucideIcons.hash, '# ${order.orderNumber}'),
-                  if (order.buyerNumber.isNotEmpty)
-                    _info(LucideIcons.phone, order.buyerNumber),
-                ],
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceColor,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '💬 ${order.notes}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.mutedColor,
+                  ),
+                ),
               ),
             ],
-            if (canChangeStatus) ...[
+            if (!isCompleted && canChangeStatus) ...[
               const SizedBox(height: 12),
-              _StatusSelectorButton(
-                order: order,
-                onChanged: onStatusChanged,
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _EditOrderSheet.show(
+                    context,
+                    order: order,
+                    onChanged: onStatusChanged,
+                  ),
+                  icon: const Icon(LucideIcons.pencil, size: 15),
+                  label: const Text('Статусы, трек и цена'),
+                ),
               ),
               const SizedBox(height: 8),
               _OrderActions(orderId: order.id, onChanged: onStatusChanged),
@@ -252,6 +424,23 @@ class _OrderCard extends StatelessWidget {
       ),
     );
   }
+
+  Widget _chip(String label, Color color) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.14),
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: color.withValues(alpha: 0.35)),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        color: color,
+      ),
+    ),
+  );
 
   Widget _info(IconData icon, String text) => Row(
     mainAxisSize: MainAxisSize.min,
@@ -380,12 +569,12 @@ class _OrderActions extends StatelessWidget {
               context,
               title: 'Подтверждение завершения продажи',
               description:
-                  'Завершить продажу по заказу $orderId? Заказ будет учтён в статистике продаж.',
-              actionLabel: 'Завершить',
+                  'Завершить продажу по заказу #$orderId? Запчасти будут списаны со склада и учтены в статистике продаж.',
+              actionLabel: 'Выдать / Завершить',
               path: '/admin/orders/$orderId/complete',
               method: 'PUT',
             ),
-            child: const Text('Завершить'),
+            child: const Text('Выдать / Завершить'),
           ),
         ),
         const SizedBox(width: 8),
@@ -393,15 +582,15 @@ class _OrderActions extends StatelessWidget {
           child: OutlinedButton(
             onPressed: () => _confirmAction(
               context,
-              title: 'Подтверждение удаления',
+              title: 'Отмена заказа',
               description:
-                  'Удалить заказ $orderId? Количество запчастей будет восстановлено.',
-              actionLabel: 'Удалить',
+                  'Отменить заказ #$orderId? Запчасти останутся в наличии на складе.',
+              actionLabel: 'Отменить заказ',
               path: '/admin/orders/$orderId',
               method: 'DELETE',
             ),
             style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Удалить'),
+            child: const Text('Отменить'),
           ),
         ),
       ],
@@ -409,232 +598,351 @@ class _OrderActions extends StatelessWidget {
   }
 }
 
-class _StatusSelectorButton extends StatelessWidget {
+class _EditOrderSheet extends StatefulWidget {
   final Order order;
   final VoidCallback onChanged;
 
-  const _StatusSelectorButton({
-    required this.order,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final statusColor = Color(order.statusColor);
-
-    return InkWell(
-      onTap: () => _StatusPickerSheet.show(
-        context,
-        order: order,
-        onChanged: onChanged,
-      ),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppTheme.surfaceColor,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: statusColor.withValues(alpha: 0.35)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 9,
-              height: 9,
-              decoration: BoxDecoration(
-                color: statusColor,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                order.displayStatusText,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Text(
-              'Сменить статус',
-              style: TextStyle(
-                color: AppTheme.mutedColor,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(width: 4),
-            const Icon(
-              LucideIcons.chevron_down,
-              size: 16,
-              color: AppTheme.mutedColor,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusPickerSheet extends StatelessWidget {
-  final Order order;
-
-  const _StatusPickerSheet({required this.order});
-
-  static const statuses = [
-    ('Ожидает забора ТК', 'Ожидает забора ТК', Color(0xFFFB8C00)),
-    ('Требуется заказ ТК', 'Требуется заказ ТК', Color(0xFFE53935)),
-    ('К отправке в ТК', 'К отправке в ТК', Color(0xFF1E88E5)),
-    ('Ожидает трек-номер', 'Ожидает трек-номер', Color(0xFF8E24AA)),
-    ('Требует уточнения', 'Требует уточнения', Color(0xFFD81B60)),
-    ('Принят в обработку', 'Принят в обработку', Color(0xFF039BE5)),
-    ('На фотофиксации', 'На фотофиксации', Color(0xFF00ACC1)),
-    ('Перемещение между складами', 'Перемещение между складами', Color(0xFF5E35B1)),
-    ('Ожидает предоплаты', 'Ожидает предоплаты', Color(0xFFFDD835)),
-    ('Проверен', 'Проверен', Color(0xFF43A047)),
-  ];
+  const _EditOrderSheet({required this.order, required this.onChanged});
 
   static Future<void> show(
     BuildContext context, {
     required Order order,
     required VoidCallback onChanged,
   }) async {
-    final selected = await showModalBottomSheet<(String, String, Color)>(
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _StatusPickerSheet(order: order),
+      useSafeArea: true,
+      builder: (_) => _EditOrderSheet(order: order, onChanged: onChanged),
     );
+  }
 
-    if (selected == null || !context.mounted) {
-      return;
-    }
+  @override
+  State<_EditOrderSheet> createState() => _EditOrderSheetState();
+}
 
-    try {
-      await apiClient.dio.put(
-        '/admin/orders/${order.id}/status',
-        data: {'status': selected.$1, 'status_text': selected.$2},
+class _EditOrderSheetState extends State<_EditOrderSheet> {
+  late String _paymentStatus;
+  late String _warehouseStatus;
+  late String _deliveryMethod;
+  late String _source;
+  late final TextEditingController _buyerController;
+  late final TextEditingController _orderNumberController;
+  late final TextEditingController _tkController;
+  late final TextEditingController _trackingController;
+  late final TextEditingController _notesController;
+  late final TextEditingController _discountController;
+  final Map<int, TextEditingController> _qtyControllers = {};
+  final Map<int, TextEditingController> _priceControllers = {};
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final o = widget.order;
+    _paymentStatus = o.paymentStatus;
+    _warehouseStatus = o.warehouseStatus;
+    _deliveryMethod = o.deliveryMethod;
+    _source = o.source;
+    _buyerController = TextEditingController(text: o.buyerNumber);
+    _orderNumberController = TextEditingController(text: o.orderNumber);
+    _tkController = TextEditingController(text: o.transportCompany);
+    _trackingController = TextEditingController(text: o.trackingNumber);
+    _notesController = TextEditingController(text: o.notes);
+    _discountController = TextEditingController(
+      text: o.discount > 0 ? o.discount.toStringAsFixed(0) : '0',
+    );
+    for (final item in o.items) {
+      _qtyControllers[item.id] = TextEditingController(
+        text: item.quantity.toString(),
       );
-      if (!context.mounted) {
-        return;
-      }
-      onChanged();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Статус заказа #${order.id}: ${selected.$2}'),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    } catch (error) {
-      if (!context.mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Не удалось изменить статус: $error'),
-        ),
+      _priceControllers[item.id] = TextEditingController(
+        text: item.price.toStringAsFixed(0),
       );
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    final currentStatus = order.displayStatusText;
+  void dispose() {
+    _buyerController.dispose();
+    _orderNumberController.dispose();
+    _tkController.dispose();
+    _trackingController.dispose();
+    _notesController.dispose();
+    _discountController.dispose();
+    for (final c in _qtyControllers.values) {
+      c.dispose();
+    }
+    for (final c in _priceControllers.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+  Future<void> _save() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await apiClient.dio.patch(
+        '/orders/${widget.order.id}',
+        data: {
+          'payment_status': _paymentStatus,
+          'warehouse_status': _warehouseStatus,
+          'delivery_method': _deliveryMethod,
+          'source': _source,
+          'buyer_number': _buyerController.text.trim(),
+          'order_number': _orderNumberController.text.trim(),
+          'transport_company': _tkController.text.trim(),
+          'tracking_number': _trackingController.text.trim(),
+          'notes': _notesController.text.trim(),
+          'discount': double.tryParse(_discountController.text) ?? 0,
+        },
+      );
+
+      for (final item in widget.order.items) {
+        final newQty = int.tryParse(_qtyControllers[item.id]?.text ?? '') ?? item.quantity;
+        final newPrice = double.tryParse(_priceControllers[item.id]?.text ?? '') ?? item.price;
+        if (newQty != item.quantity || newPrice != item.price) {
+          await apiClient.dio.patch(
+            '/orders/${widget.order.id}/items/${item.id}',
+            data: {'quantity': newQty, 'price': newPrice},
+          );
+        }
+      }
+
+      if (!mounted) return;
+      widget.onChanged();
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Заказ #${widget.order.id} обновлён')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка обновления заказа: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 12, 20, bottomInset + 20),
+      child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Статус заказа #${order.id}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${order.totalQuantity} × ${order.partName}',
-              style: const TextStyle(
-                color: AppTheme.mutedColor,
-                fontSize: 13,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Заказ #${widget.order.id}',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(LucideIcons.x),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
-            Flexible(
-              child: ListView.separated(
-                shrinkWrap: true,
-                itemCount: statuses.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 6),
-                itemBuilder: (sheetContext, index) {
-                  final s = statuses[index];
-                  final isSelected =
-                      order.status == s.$1 || currentStatus == s.$2;
-                  final color = s.$3;
-
-                  return InkWell(
-                    onTap: () => Navigator.pop(sheetContext, s),
-                    borderRadius: BorderRadius.circular(14),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? color.withValues(alpha: 0.14)
-                            : AppTheme.cardColor,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isSelected
-                              ? color.withValues(alpha: 0.5)
-                              : AppTheme.borderColor,
-                          width: isSelected ? 1.5 : 1,
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _paymentStatus,
+                    decoration: const InputDecoration(labelText: 'Оплата'),
+                    items: const [
+                      DropdownMenuItem(value: 'unpaid', child: Text('Не оплачен')),
+                      DropdownMenuItem(value: 'prepaid', child: Text('Предоплата')),
+                      DropdownMenuItem(value: 'paid', child: Text('Оплачен')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setState(() => _paymentStatus = v);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _warehouseStatus,
+                    decoration: const InputDecoration(labelText: 'Склад'),
+                    items: const [
+                      DropdownMenuItem(value: 'inspecting', child: Text('Проверка')),
+                      DropdownMenuItem(value: 'transfer', child: Text('Перемещение')),
+                      DropdownMenuItem(value: 'ready', child: Text('Собран')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setState(() => _warehouseStatus = v);
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _deliveryMethod,
+                    decoration: const InputDecoration(labelText: 'Доставка'),
+                    items: const [
+                      DropdownMenuItem(value: 'tk', child: Text('ТК')),
+                      DropdownMenuItem(value: 'pickup', child: Text('Самовывоз')),
+                      DropdownMenuItem(value: 'city', child: Text('По городу')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setState(() => _deliveryMethod = v);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _source,
+                    decoration: const InputDecoration(labelText: 'Площадка'),
+                    items: const [
+                      DropdownMenuItem(value: 'drom', child: Text('Дром')),
+                      DropdownMenuItem(value: 'avito', child: Text('Авито')),
+                      DropdownMenuItem(value: 'messenger', child: Text('Мессенджер')),
+                      DropdownMenuItem(value: 'pickup', child: Text('На месте')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setState(() => _source = v);
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _buyerController,
+                    decoration: const InputDecoration(labelText: 'Контакт клиента'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    controller: _orderNumberController,
+                    decoration: const InputDecoration(labelText: '№ сделки'),
+                  ),
+                ),
+              ],
+            ),
+            if (_deliveryMethod == 'tk') ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _tkController,
+                      decoration: const InputDecoration(labelText: 'ТК (СДЭК, Энергия...)'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _trackingController,
+                      decoration: const InputDecoration(labelText: 'Трек-номер'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: TextFormField(
+                    controller: _notesController,
+                    decoration: const InputDecoration(labelText: 'Примечание'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    controller: _discountController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Скидка (₽)'),
+                  ),
+                ),
+              ],
+            ),
+            if (widget.order.items.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Позиции заказа',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              ),
+              const SizedBox(height: 8),
+              for (final item in widget.order.items)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: Text(
+                          item.partName.isNotEmpty
+                              ? item.partName
+                              : 'Запчасть #${item.partId}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 13),
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: color,
-                              shape: BoxShape.circle,
-                            ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _qtyControllers[item.id],
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          decoration: const InputDecoration(
+                            labelText: 'Кол-во',
+                            isDense: true,
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              s.$2,
-                              style: TextStyle(
-                                color: isSelected ? color : Colors.white,
-                                fontSize: 14,
-                                fontWeight: isSelected
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          if (isSelected)
-                            Icon(
-                              LucideIcons.check,
-                              size: 18,
-                              color: color,
-                            ),
-                        ],
+                        ),
                       ),
-                    ),
-                  );
-                },
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _priceControllers[item.id],
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Цена ₽',
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _saving ? null : _save,
+                icon: _saving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(LucideIcons.check),
+                label: const Text('Сохранить изменения'),
               ),
             ),
           ],

@@ -1,30 +1,73 @@
-
 import { getAuthHeaders } from '@/lib/csrf';
 import type { Order } from '@/lib/types';
 import { logUserActivity } from '../../admin/api/adminApi';
 
-// Orders service работает на отдельном порту
 const ORDERS_API_URL = import.meta.env.VITE_API_BASE_URL || '';
 
+export interface CreateOrderPayload {
+  customer_id?: number;
+  order_number?: string;
+  source?: string;
+  part: string;
+  part_id?: number;
+  buyer_number: string;
+  payment_status?: string;
+  warehouse_status?: string;
+  delivery_method?: string;
+  transport_company?: string;
+  tracking_number?: string;
+  notes?: string;
+  discount?: number;
+  quick_sale?: boolean;
+  items: {
+    part_id: number;
+    quantity: number;
+    price?: number;
+  }[];
+}
+
+export interface UpdateOrderDetailsPayload {
+  buyer_number?: string;
+  order_number?: string;
+  source?: string;
+  status?: string;
+  payment_status?: string;
+  warehouse_status?: string;
+  delivery_method?: string;
+  transport_company?: string;
+  tracking_number?: string;
+  notes?: string;
+  discount?: number;
+}
+
 export const getOrders = async (): Promise<Order[]> => {
-  console.log('ordersApi.getOrders: Fetching from', `${ORDERS_API_URL}/api/v1/orders`);
   const response = await fetch(`${ORDERS_API_URL}/api/v1/orders`, {
     credentials: 'include',
     headers: getAuthHeaders(),
   });
 
-  console.log('ordersApi.getOrders: Response status', response.status);
   if (!response.ok) {
     throw new Error(`Failed to fetch orders: ${response.status}`);
   }
 
-  const data = await response.json();
-  console.log('ordersApi.getOrders: Received data', data);
-  return data;
+  return response.json();
+};
+
+export const getCompletedOrders = async (): Promise<Order[]> => {
+  const response = await fetch(`${ORDERS_API_URL}/api/v1/orders?state=completed`, {
+    credentials: 'include',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch completed orders: ${response.status}`);
+  }
+
+  return response.json();
 };
 
 export const updateOrderStatus = async (orderId: number, status: string) => {
-  const response = await fetch(`${ORDERS_API_URL}/api/v1/admin/orders/${orderId}/status`, {
+  const response = await fetch(`${ORDERS_API_URL}/api/v1/orders/${orderId}/status`, {
     method: 'PUT',
     headers: getAuthHeaders(),
     credentials: 'include',
@@ -39,8 +82,59 @@ export const updateOrderStatus = async (orderId: number, status: string) => {
   return response.json();
 };
 
+export const updateOrderDetails = async (orderId: number, payload: UpdateOrderDetailsPayload): Promise<Order> => {
+  const response = await fetch(`${ORDERS_API_URL}/api/v1/orders/${orderId}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to update order details: ${errorText}`);
+  }
+
+  return response.json();
+};
+
+export const updateOrderItem = async (
+  orderId: number,
+  itemId: number,
+  payload: { quantity?: number; price?: number }
+) => {
+  const response = await fetch(`${ORDERS_API_URL}/api/v1/orders/${orderId}/items/${itemId}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to update order item: ${errorText}`);
+  }
+
+  return response.json();
+};
+
+export const deleteOrderItem = async (orderId: number, itemId: number) => {
+  const response = await fetch(`${ORDERS_API_URL}/api/v1/orders/${orderId}/items/${itemId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to delete order item: ${errorText}`);
+  }
+
+  return response.json();
+};
+
 export const deleteOrder = async (orderId: number) => {
-  const response = await fetch(`${ORDERS_API_URL}/api/v1/admin/orders/${orderId}`, {
+  const response = await fetch(`${ORDERS_API_URL}/api/v1/orders/${orderId}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
     credentials: 'include',
@@ -55,7 +149,7 @@ export const deleteOrder = async (orderId: number) => {
 };
 
 export const completeOrder = async (orderId: number) => {
-  const response = await fetch(`${ORDERS_API_URL}/api/v1/admin/orders/${orderId}/complete`, {
+  const response = await fetch(`${ORDERS_API_URL}/api/v1/orders/${orderId}/complete`, {
     method: 'PUT',
     headers: getAuthHeaders(),
     credentials: 'include',
@@ -69,32 +163,29 @@ export const completeOrder = async (orderId: number) => {
   return response.json();
 };
 
-export const createOrder = async (orderData: { customer_id: number; order_number: string; part: string; part_id?: number; buyer_number: string; items: { part_id: number; quantity: number }[] }) => {
-  console.log('ordersApi.createOrder: Creating order with data:', orderData);
-
-  // Create the order directly - the backend will handle quantity updates
+export const createOrder = async (orderData: CreateOrderPayload): Promise<Order> => {
   const response = await fetch(`${ORDERS_API_URL}/api/v1/orders`, {
     method: 'POST',
     headers: getAuthHeaders(),
     credentials: 'include',
-    body: JSON.stringify(orderData),
+    body: JSON.stringify({
+      customer_id: orderData.customer_id || 0,
+      ...orderData,
+    }),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('ordersApi.createOrder: Failed to create order:', errorText);
     throw new Error(`Failed to create order: ${errorText}`);
   }
 
   const result = await response.json();
-  console.log('ordersApi.createOrder: Order created successfully:', result);
 
-  // Логируем создание заказа
   logUserActivity({
     action: 'create_order',
     resource_type: 'order',
     resource_id: result.id,
-    details: `Создан заказ ${result.id} для клиента ID: ${result.customer_id}`,
+    details: `${orderData.quick_sale ? 'Быстрая продажа' : 'Создан заказ'} #${result.id} (${result.buyer_number})`,
   }).catch(console.warn);
 
   return result;

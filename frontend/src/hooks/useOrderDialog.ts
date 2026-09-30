@@ -1,8 +1,8 @@
 /*
-* Copyright (c) 2025 Avtoplaneta. All rights reserved.
-*/
+ * Copyright (c) 2025 Avtoplaneta. All rights reserved.
+ */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { createOrder, getOrders } from '../features/orders/api/ordersApi';
 import { getAuthHeaders } from '@/lib/csrf';
@@ -10,41 +10,63 @@ import { ORDERS_API_URL } from '@/lib/api';
 import type { Order } from '@/lib/types';
 
 export interface OrderForm {
-  customer_id: string;
   order_number: string;
+  source: string;
   part: string;
   buyer_number: string;
   quantity: number;
+  price: number;
+  payment_status: string;
+  warehouse_status: string;
+  delivery_method: string;
+  transport_company: string;
+  notes: string;
 }
 
-export type OrderChoice = 'new' | 'existing' | null;
+export type OrderChoice = 'quick' | 'new' | 'existing' | null;
 
-export const useOrderDialog = (partName: string) => {
+export const useOrderDialog = (partName: string, defaultPrice: number = 0) => {
   const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
-  const [orderChoice, setOrderChoice] = useState<OrderChoice>(null);
+  const [orderChoice, setOrderChoice] = useState<OrderChoice>('new');
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [orderForm, setOrderForm] = useState<OrderForm>({
-    customer_id: '',
     order_number: '',
+    source: 'drom',
     part: partName,
     buyer_number: '',
-    quantity: 1
+    quantity: 1,
+    price: defaultPrice,
+    payment_status: 'unpaid',
+    warehouse_status: 'inspecting',
+    delivery_method: 'tk',
+    transport_company: '',
+    notes: '',
   });
+
+  useEffect(() => {
+    setOrderForm((prev) => ({
+      ...prev,
+      part: partName,
+      price: defaultPrice,
+    }));
+  }, [partName, defaultPrice]);
 
   const queryClient = useQueryClient();
 
-  // Query for existing orders
   const { data: existingOrders } = useQuery<Order[]>({
     queryKey: ['orders'],
     queryFn: getOrders,
-    enabled: isOrderDialogOpen, // Always fetch orders when dialog is open
+    enabled: isOrderDialogOpen,
   });
 
   const createOrderMutation = useMutation({
     mutationFn: createOrder,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['orders', 'completed'] });
       void queryClient.invalidateQueries({ queryKey: ['parts'] });
+      void queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      void queryClient.invalidateQueries({ queryKey: ['statistics'] });
       closeDialog();
     },
     onError: (error) => {
@@ -53,12 +75,22 @@ export const useOrderDialog = (partName: string) => {
   });
 
   const addToExistingOrderMutation = useMutation({
-    mutationFn: async ({ orderId, partId, quantity }: { orderId: number; partId: number; quantity: number }) => {
+    mutationFn: async ({
+      orderId,
+      partId,
+      quantity,
+      price,
+    }: {
+      orderId: number;
+      partId: number;
+      quantity: number;
+      price?: number;
+    }) => {
       const response = await fetch(`${ORDERS_API_URL}/orders/${orderId}/items`, {
         method: 'POST',
         headers: getAuthHeaders(),
         credentials: 'include',
-        body: JSON.stringify({ part_id: partId, quantity }),
+        body: JSON.stringify({ part_id: partId, quantity, price }),
       });
 
       if (!response.ok) {
@@ -82,63 +114,123 @@ export const useOrderDialog = (partName: string) => {
 
   const closeDialog = () => {
     setIsOrderDialogOpen(false);
-    setOrderChoice(null);
+    setOrderChoice('new');
     setSelectedOrderId(null);
     setOrderForm({
-      customer_id: '',
       order_number: '',
+      source: 'drom',
       part: partName,
       buyer_number: '',
-      quantity: 1
+      quantity: 1,
+      price: defaultPrice,
+      payment_status: 'unpaid',
+      warehouse_status: 'inspecting',
+      delivery_method: 'tk',
+      transport_company: '',
+      notes: '',
     });
   };
 
   const selectChoice = (choice: OrderChoice) => setOrderChoice(choice);
 
   const updateForm = (field: keyof OrderForm, value: string | number) => {
-    setOrderForm(prev => ({ ...prev, [field]: value }));
+    setOrderForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const submitNewOrder = (partId: number) => {
-    if (!orderForm.customer_id || !orderForm.buyer_number) return;
+  const submitNewOrder = (partId: number, onDone?: () => void) => {
+    if (!orderForm.buyer_number.trim()) return;
 
-    createOrderMutation.mutate({
-      customer_id: parseInt(orderForm.customer_id),
-      order_number: orderForm.order_number,
-      part: orderForm.part,
-      part_id: partId,
-      buyer_number: orderForm.buyer_number,
-      items: [{ part_id: partId, quantity: orderForm.quantity }],
-    });
+    createOrderMutation.mutate(
+      {
+        customer_id: 0,
+        order_number: orderForm.order_number.trim(),
+        source: orderForm.source,
+        part: orderForm.part,
+        part_id: partId,
+        buyer_number: orderForm.buyer_number.trim(),
+        payment_status: orderForm.payment_status,
+        warehouse_status: orderForm.warehouse_status,
+        delivery_method: orderForm.delivery_method,
+        transport_company: orderForm.transport_company.trim(),
+        notes: orderForm.notes.trim(),
+        quick_sale: false,
+        items: [
+          {
+            part_id: partId,
+            quantity: Math.max(1, Number(orderForm.quantity) || 1),
+            price: Number(orderForm.price) >= 0 ? Number(orderForm.price) : defaultPrice,
+          },
+        ],
+      },
+      {
+        onSuccess: () => {
+          onDone?.();
+        },
+      }
+    );
   };
 
-  const submitAddToExisting = (partId: number) => {
+  const submitQuickSale = (partId: number, onDone?: () => void) => {
+    createOrderMutation.mutate(
+      {
+        customer_id: 0,
+        order_number: orderForm.order_number.trim(),
+        source: 'pickup',
+        part: orderForm.part,
+        part_id: partId,
+        buyer_number: orderForm.buyer_number.trim() || 'Самовывоз',
+        payment_status: 'paid',
+        warehouse_status: 'ready',
+        delivery_method: 'pickup',
+        notes: orderForm.notes.trim(),
+        quick_sale: true,
+        items: [
+          {
+            part_id: partId,
+            quantity: Math.max(1, Number(orderForm.quantity) || 1),
+            price: Number(orderForm.price) >= 0 ? Number(orderForm.price) : defaultPrice,
+          },
+        ],
+      },
+      {
+        onSuccess: () => {
+          onDone?.();
+        },
+      }
+    );
+  };
+
+  const submitAddToExisting = (partId: number, onDone?: () => void) => {
     if (!selectedOrderId) return;
-    addToExistingOrderMutation.mutate({
-      orderId: selectedOrderId,
-      partId,
-      quantity: orderForm.quantity,
-    });
+    addToExistingOrderMutation.mutate(
+      {
+        orderId: selectedOrderId,
+        partId,
+        quantity: Math.max(1, Number(orderForm.quantity) || 1),
+        price: Number(orderForm.price) >= 0 ? Number(orderForm.price) : defaultPrice,
+      },
+      {
+        onSuccess: () => {
+          onDone?.();
+        },
+      }
+    );
   };
 
   return {
-    // State
     isOrderDialogOpen,
     orderChoice,
     selectedOrderId,
     orderForm,
     existingOrders,
-
-    // Mutations
     createOrderMutation,
     addToExistingOrderMutation,
-
-    // Actions
     openDialog,
     closeDialog,
     selectChoice,
     updateForm,
     submitNewOrder,
+    submitQuickSale,
     submitAddToExisting,
     setSelectedOrderId,
   };
