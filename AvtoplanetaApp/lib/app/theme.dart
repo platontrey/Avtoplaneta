@@ -5,6 +5,7 @@ class AppTheme {
   static const secondaryColor = Color(0xFF38BDF8);
   static const bgColor = Color(0xFF080D18);
   static const surfaceColor = Color(0xFF101827);
+  static const panelColor = Color(0xFF101827);
   static const cardColor = Color(0xFF151F31);
   static const elevatedColor = Color(0xFF1B2940);
   static const borderColor = Color(0xFF27354B);

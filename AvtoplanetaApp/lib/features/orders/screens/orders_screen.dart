@@ -373,7 +373,7 @@ class _StatusSelectorButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: AppTheme.panelColor,
+          color: AppTheme.surfaceColor,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: statusColor.withValues(alpha: 0.35)),
         ),
@@ -533,7 +533,7 @@ class _StatusPickerSheet extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: isSelected
                             ? color.withValues(alpha: 0.14)
-                            : AppTheme.panelColor,
+                            : AppTheme.cardColor,
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
                           color: isSelected
