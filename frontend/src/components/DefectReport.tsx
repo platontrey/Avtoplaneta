@@ -219,6 +219,7 @@ export default function DefectReport() {
   }, [previewParts, previewSearch]);
 
   const onSubmit = async (data: DefectReportFormData) => {
+    if (loading) return;
     if (!partCatalog) {
       alert("Каталог запчастей ещё не загружен. Повторите попытку.");
       return;
@@ -226,7 +227,9 @@ export default function DefectReport() {
     setLoading(true);
 
     try {
-      const result = await createDefectReport(buildDefectReportPayload(data, partCatalog.version));
+      const payload = buildDefectReportPayload(data, partCatalog.version);
+      const idempotencyKey = `${payload.brand}|${payload.model}|${payload.year}|${payload.vin || ""}|${payload.engine_brand || ""}|${payload.body_brand || ""}`;
+      const result = await createDefectReport(payload, idempotencyKey);
       alert(result.message || "Дефектная ведомость успешно создана!");
 
       // Перейти к инвентарю

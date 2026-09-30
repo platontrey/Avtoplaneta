@@ -54,10 +54,14 @@ export const previewDefectReport = async (
   return response.json() as Promise<DefectReportPreviewResponse>;
 };
 
-export const createDefectReport = async (payload: DefectReportPayload) => {
+export const createDefectReport = async (payload: DefectReportPayload, idempotencyKey?: string) => {
+  const headers: Record<string, string> = { ...getAuthHeaders() };
+  if (idempotencyKey) {
+    headers["Idempotency-Key"] = idempotencyKey;
+  }
   const response = await fetch(`${API_BASE_URL}/api/v1/defect-reports`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers,
     credentials: "include",
     body: JSON.stringify(payload),
   });

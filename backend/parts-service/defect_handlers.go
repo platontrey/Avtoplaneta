@@ -55,6 +55,14 @@ func (h *Handler) CreateDefectReportHandler(c *gin.Context) {
 		defectReportData.SellerID = 1
 	}
 
+	if defectReportData.IdempotencyKey == "" {
+		if key := c.GetHeader("Idempotency-Key"); key != "" {
+			defectReportData.IdempotencyKey = key
+		} else if key := c.GetHeader("X-Idempotency-Key"); key != "" {
+			defectReportData.IdempotencyKey = key
+		}
+	}
+
 	// TODO(legacy): заменить true на false вместе со снятием allowLegacyClientParts.
 	createdParts, err := h.defectReports.Create(c.Request.Context(), &defectReportData, true)
 	if err != nil {

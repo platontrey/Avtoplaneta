@@ -2,9 +2,14 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
 var (
@@ -14,7 +19,15 @@ var (
 
 const (
 	defectReportEventVersion = 1
+	defectIdempotencyTTL     = 2 * time.Minute
 )
+
+type defectIdempotencyEntry struct {
+	createdAt time.Time
+	parts     []Part
+	err       error
+	done      chan struct{}
+}
 
 // defectReportUnavailable отличает временную недоступность инфраструктуры
 // (каталог не загружен, сервис не сконфигурирован) от других ошибок.
@@ -27,10 +40,40 @@ func defectReportUnavailable(err error) bool {
 type DefectReportWorkflow struct {
 	catalog *PartCatalog
 	service InventoryService
+	mu      sync.Mutex
+	recent  map[string]*defectIdempotencyEntry
 }
 
 func NewDefectReportWorkflow(catalog *PartCatalog, service InventoryService) *DefectReportWorkflow {
-	return &DefectReportWorkflow{catalog: catalog, service: service}
+	return &DefectReportWorkflow{
+		catalog: catalog,
+		service: service,
+		recent:  make(map[string]*defectIdempotencyEntry),
+	}
+}
+
+func defectReportDedupKey(report *DefectReportRequest) string {
+	if key := strings.TrimSpace(report.IdempotencyKey); key != "" {
+		sum := sha256.Sum256([]byte(fmt.Sprintf("key:%d:%s", report.SellerID, key)))
+		return hex.EncodeToString(sum[:])
+	}
+	raw := strings.Join([]string{
+		strconv.FormatInt(report.SellerID, 10),
+		strings.ToLower(strings.TrimSpace(report.Brand)),
+		strings.ToLower(strings.TrimSpace(report.Model)),
+		strconv.Itoa(report.Year),
+		strings.ToLower(strings.TrimSpace(report.CarReleasePeriod)),
+		strings.ToUpper(strings.TrimSpace(report.VIN)),
+		strings.ToLower(strings.TrimSpace(report.EngineBrand)),
+		strings.ToLower(strings.TrimSpace(report.BodyBrand)),
+		strings.ToLower(strings.TrimSpace(report.InteriorColor)),
+		strings.ToLower(strings.TrimSpace(report.BodyColor)),
+		strings.ToLower(strings.TrimSpace(report.Transmission)),
+		strings.ToLower(strings.TrimSpace(report.TransmissionModel)),
+		strings.ToLower(strings.TrimSpace(report.Drive)),
+	}, "|")
+	sum := sha256.Sum256([]byte("payload:" + raw))
+	return hex.EncodeToString(sum[:])
 }
 
 // prepare разворачивает набор запчастей по каталогу.
@@ -177,17 +220,63 @@ func ConvertDefectReportToParts(report *DefectReportRequest) []Part {
 	return parts
 }
 
-// Create синхронно и транзакционно создает все запчасти из ведомости за один батч
+// Create синхронно, транзакционно и идемпотентно создает все запчасти из ведомости за один батч
 func (w *DefectReportWorkflow) Create(ctx context.Context, report *DefectReportRequest, allowLegacyClientParts bool) ([]Part, error) {
 	if w == nil || w.service == nil {
 		return nil, errDefectServiceUnavailable
 	}
+
+	dedupKey := defectReportDedupKey(report)
+	now := time.Now()
+
+	w.mu.Lock()
+	if w.recent == nil {
+		w.recent = make(map[string]*defectIdempotencyEntry)
+	}
+	for k, v := range w.recent {
+		select {
+		case <-v.done:
+			if now.Sub(v.createdAt) > defectIdempotencyTTL {
+				delete(w.recent, k)
+			}
+		default:
+		}
+	}
+	if existing, ok := w.recent[dedupKey]; ok {
+		w.mu.Unlock()
+		select {
+		case <-existing.done:
+			return existing.parts, existing.err
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	entry := &defectIdempotencyEntry{
+		createdAt: now,
+		done:      make(chan struct{}),
+	}
+	w.recent[dedupKey] = entry
+	w.mu.Unlock()
+
+	defer func() {
+		if entry.err != nil {
+			w.mu.Lock()
+			delete(w.recent, dedupKey)
+			w.mu.Unlock()
+		}
+		close(entry.done)
+	}()
+
 	if err := w.prepare(report, allowLegacyClientParts); err != nil {
+		entry.err = err
 		return nil, err
 	}
 
 	parts := ConvertDefectReportToParts(report)
-	return w.service.AddPartsBatch(ctx, parts)
+	created, err := w.service.AddPartsBatch(ctx, parts)
+	entry.parts = created
+	entry.err = err
+	return created, err
 }
 
 // Enqueue оставлен для обратной совместимости, выполняет прямое батч-создание
