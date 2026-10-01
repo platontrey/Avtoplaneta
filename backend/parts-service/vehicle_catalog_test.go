@@ -62,6 +62,42 @@ func TestVehicleCatalogModelsOfIgnoresCase(t *testing.T) {
 	require.Empty(t, missing.ModelsOf("Toyota"))
 }
 
+func TestVehicleCatalogBodiesAndEnginesOf(t *testing.T) {
+	catalog := &VehicleCatalog{Version: "1", Brands: []VehicleBrand{
+		{
+			Name:    "Toyota",
+			Bodies:  []string{"ACV40", "NZE121"},
+			Engines: []string{"1NZ-FE", "2AZ-FE"},
+			Models: []VehicleModel{
+				{
+					Name:    "Corolla",
+					Bodies:  []string{"NZE121"},
+					Engines: []string{"1NZ-FE"},
+				},
+				{
+					Name: "EmptyModel",
+				},
+			},
+		},
+	}}
+
+	// Проверка тел модели
+	require.Equal(t, []string{"NZE121"}, catalog.BodiesOf("toyota", "corolla"))
+	require.Equal(t, []string{"1NZ-FE"}, catalog.EnginesOf("toyota", "corolla"))
+
+	// Модель без своих данных откатывается на марку
+	require.Equal(t, []string{"ACV40", "NZE121"}, catalog.BodiesOf("toyota", "EmptyModel"))
+	require.Equal(t, []string{"1NZ-FE", "2AZ-FE"}, catalog.EnginesOf("toyota", "EmptyModel"))
+
+	// Поиск без модели возвращает данные марки
+	require.Equal(t, []string{"ACV40", "NZE121"}, catalog.BodiesOf("toyota", ""))
+	require.Equal(t, []string{"1NZ-FE", "2AZ-FE"}, catalog.EnginesOf("toyota", ""))
+
+	// Несуществующая марка
+	require.Nil(t, catalog.BodiesOf("unknown", "corolla"))
+	require.Nil(t, catalog.EnginesOf("unknown", "corolla"))
+}
+
 // Справочник кэшируется клиентами по версии, поэтому ETag и 304 — часть контракта.
 func TestVehicleCatalogHTTPRevalidation(t *testing.T) {
 	gin.SetMode(gin.TestMode)

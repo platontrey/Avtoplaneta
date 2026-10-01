@@ -47,7 +47,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
   String? _selectedInteriorColor;
   String? _selectedBodyColor;
 
-  // Марки и модели приходят из серверного справочника (/api/vehicle-catalog),
+  // Марки, модели, кузова и двигатели приходят из серверного справочника (/api/vehicle-catalog),
   // общего с веб-клиентом. Раньше здесь лежал свой короткий список из семи марок.
   VehicleCatalog? _vehicleCatalog;
   final _brandCtrl = TextEditingController();
@@ -55,6 +55,10 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
   List<String> get _brandOptions => _vehicleCatalog?.brandNames ?? const [];
   List<String> get _modelOptions =>
       _vehicleCatalog?.modelsOf(_brandCtrl.text) ?? const [];
+  List<String> get _bodyOptions =>
+      _vehicleCatalog?.bodiesOf(_brandCtrl.text, _modelCtrl.text) ?? const [];
+  List<String> get _engineOptions =>
+      _vehicleCatalog?.enginesOf(_brandCtrl.text, _modelCtrl.text) ?? const [];
 
   final List<String> _availableColors = [
     "Черный",
@@ -319,16 +323,24 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
               options: _modelOptions,
               required: true,
               hint: _brandCtrl.text.trim().isEmpty ? 'Сначала выберите бренд' : null,
+              onSelected: (_) {
+                setState(() {});
+                _schedulePreview();
+              },
             ),
-            _buildTextField(
-              _bodyBrandCtrl,
-              'Марка кузова',
-              hint: 'Например: E90',
+            VehiclePickerField(
+              controller: _bodyBrandCtrl,
+              label: 'Марка кузова',
+              options: _bodyOptions,
+              hint: _brandCtrl.text.trim().isEmpty ? 'Сначала выберите бренд' : 'Например: E90',
+              onSelected: (_) => _schedulePreview(),
             ),
-            _buildTextField(
-              _engineBrandCtrl,
-              'Марка двигателя',
-              hint: 'Например: Toyota 1NZ-FE',
+            VehiclePickerField(
+              controller: _engineBrandCtrl,
+              label: 'Марка двигателя',
+              options: _engineOptions,
+              hint: _brandCtrl.text.trim().isEmpty ? 'Сначала выберите бренд' : 'Например: Toyota 1NZ-FE',
+              onSelected: (_) => _schedulePreview(),
             ),
             _buildTextField(
               _yearCtrl,

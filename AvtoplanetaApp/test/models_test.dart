@@ -4,6 +4,7 @@ import 'package:avtoplaneta_app/core/models/order.dart';
 import 'package:avtoplaneta_app/core/models/statistics.dart';
 import 'package:avtoplaneta_app/core/models/user.dart';
 import 'package:avtoplaneta_app/features/inventory/data/part_catalog.dart';
+import 'package:avtoplaneta_app/features/inventory/data/vehicle_catalog.dart';
 import 'package:avtoplaneta_app/features/inventory/providers/inventory_provider.dart';
 
 void main() {
@@ -299,6 +300,49 @@ void main() {
       expect(params['search'], 'АКПП ACV30');
       expect(params['category'], 'Трансмиссия');
       expect(params['brand'], 'Toyota');
+    });
+  });
+
+  group('VehicleCatalog tests', () {
+    final catalog = VehicleCatalog.fromJson({
+      'version': 'test-1',
+      'brands': [
+        {
+          'name': 'Toyota',
+          'bodies': ['ACV40', 'NZE121'],
+          'engines': ['1NZ-FE', '2AZ-FE'],
+          'models': [
+            {
+              'name': 'Corolla',
+              'bodies': ['NZE121'],
+              'engines': ['1NZ-FE'],
+            },
+            {
+              'name': 'EmptyModel',
+            },
+          ],
+        },
+      ],
+    });
+
+    test('modelsOf returns models for brand case-insensitively', () {
+      expect(catalog.modelsOf('Toyota'), ['Corolla', 'EmptyModel']);
+      expect(catalog.modelsOf('toyota'), ['Corolla', 'EmptyModel']);
+      expect(catalog.modelsOf('Audi'), isEmpty);
+    });
+
+    test('bodiesOf returns model bodies or falls back to brand bodies', () {
+      expect(catalog.bodiesOf('toyota', 'corolla'), ['NZE121']);
+      expect(catalog.bodiesOf('toyota', 'EmptyModel'), ['ACV40', 'NZE121']);
+      expect(catalog.bodiesOf('toyota'), ['ACV40', 'NZE121']);
+      expect(catalog.bodiesOf('Audi'), isEmpty);
+    });
+
+    test('enginesOf returns model engines or falls back to brand engines', () {
+      expect(catalog.enginesOf('toyota', 'corolla'), ['1NZ-FE']);
+      expect(catalog.enginesOf('toyota', 'EmptyModel'), ['1NZ-FE', '2AZ-FE']);
+      expect(catalog.enginesOf('toyota'), ['1NZ-FE', '2AZ-FE']);
+      expect(catalog.enginesOf('Audi'), isEmpty);
     });
   });
 }

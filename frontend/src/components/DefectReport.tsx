@@ -145,7 +145,8 @@ export default function DefectReport() {
 
   // Тот же серверный справочник, что и в мобильном приложении.
   const selectedBrand = brand;
-  const { brandOptions, modelOptions } = useVehicleOptions(selectedBrand);
+  const selectedModel = model;
+  const { brandOptions, modelOptions, bodyOptions, engineOptions } = useVehicleOptions(selectedBrand, selectedModel);
 
   const reportPayload = useMemo<DefectReportPayload>(
     () =>
@@ -337,12 +338,42 @@ export default function DefectReport() {
 
               <div>
                 <Label htmlFor="body-brand">Марка кузова</Label>
-                <Input id="body-brand" {...register("body_brand")} type="text" placeholder="Например: E90" className="h-10" autoComplete="off" />
+                <Controller
+                  control={control}
+                  name="body_brand"
+                  render={({ field }) => (
+                    <SearchableSelect
+                      value={field.value || ""}
+                      onValueChange={field.onChange}
+                      options={bodyOptions}
+                      placeholder={selectedBrand ? "Выберите или введите марку кузова" : "Сначала выберите бренд"}
+                      searchPlaceholder="Поиск кузова или ввод нового..."
+                      emptyMessage="Кузов не найден — можно ввести свой"
+                      allowCustom={true}
+                      className="h-10 w-full"
+                    />
+                  )}
+                />
               </div>
 
               <div>
                 <Label htmlFor="engine-brand">Марка двигателя</Label>
-                <Input id="engine-brand" {...register("engine_brand")} type="text" placeholder="Например: Toyota 1NZ-FE" className="h-10" autoComplete="off" />
+                <Controller
+                  control={control}
+                  name="engine_brand"
+                  render={({ field }) => (
+                    <SearchableSelect
+                      value={field.value || ""}
+                      onValueChange={field.onChange}
+                      options={engineOptions}
+                      placeholder={selectedBrand ? "Выберите или введите марку двигателя" : "Сначала выберите бренд"}
+                      searchPlaceholder="Поиск двигателя или ввод нового..."
+                      emptyMessage="Двигатель не найден — можно ввести свой"
+                      allowCustom={true}
+                      className="h-10 w-full"
+                    />
+                  )}
+                />
               </div>
             </div>
 

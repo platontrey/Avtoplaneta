@@ -35,8 +35,11 @@ interface EditPartDialogProps {
 export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, onDeletePhoto, originalFile }: EditPartDialogProps) {
     console.log('EditPartDialog render, part.photo:', part.photo, 'photoPreview:', partEdit.photoUpload.photoPreview);
     const { data: partCatalog } = usePartCatalog();
-    // Марки и модели — из общего серверного справочника, а не из списка в коде.
-    const { brandOptions, modelOptions } = useVehicleOptions(partEdit.editForm.brand);
+    // Марки, модели, кузова и двигатели — из общего серверного справочника, а не из списка в коде.
+    const { brandOptions, modelOptions, bodyOptions, engineOptions } = useVehicleOptions(
+        partEdit.editForm.brand,
+        partEdit.editForm.model
+    );
 
     const visibleFields = partCatalog?.attributes.map((attribute) => attribute.code) ?? [];
     const shows = (field: string) => visibleFields.length === 0 || visibleFields.includes(field);
@@ -389,15 +392,29 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
                             <div className="grid gap-3 sm:gap-4 py-4">
 
                                 <FormRow label="Марка кузова" htmlFor="body_brand">
-                                    <Input id="body_brand" value={partEdit.editForm.body_brand || ''} onChange={(e) => partEdit.updateFormField('body_brand', e.target.value)} />
+                                    <SearchableSelect
+                                        value={partEdit.editForm.body_brand || ''}
+                                        onValueChange={(value) => partEdit.updateFormField('body_brand', value)}
+                                        options={bodyOptions}
+                                        placeholder={partEdit.editForm.brand ? "Выберите или введите марку кузова" : "Сначала выберите бренд"}
+                                        searchPlaceholder="Поиск кузова или ввод нового..."
+                                        emptyMessage="Кузов не найден — можно ввести свой"
+                                        allowCustom={true}
+                                        className="h-10"
+                                    />
                                 </FormRow>
 
                                 {shows('engine_brand') && (
                                     <FormRow label="Марка двигателя" htmlFor="engine_brand">
-                                        <Input
-                                            id="engine_brand"
+                                        <SearchableSelect
                                             value={partEdit.editForm.engine_brand || ''}
-                                            onChange={(e) => partEdit.updateFormField('engine_brand', e.target.value)}
+                                            onValueChange={(value) => partEdit.updateFormField('engine_brand', value)}
+                                            options={engineOptions}
+                                            placeholder={partEdit.editForm.brand ? "Выберите или введите марку двигателя" : "Сначала выберите бренд"}
+                                            searchPlaceholder="Поиск двигателя или ввод нового..."
+                                            emptyMessage="Двигатель не найден — можно ввести свой"
+                                            allowCustom={true}
+                                            className="h-10"
                                         />
                                     </FormRow>
                                 )}

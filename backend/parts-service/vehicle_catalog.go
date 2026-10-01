@@ -14,14 +14,18 @@ var embeddedVehicleCatalog []byte
 // VehicleModel — модель в рамках марки. Slug хранится, чтобы парсер мог
 // сопоставлять записи между запусками, а клиенты — строить ссылки.
 type VehicleModel struct {
-	Name string `json:"name"`
-	Slug string `json:"slug,omitempty"`
+	Name    string   `json:"name"`
+	Slug    string   `json:"slug,omitempty"`
+	Bodies  []string `json:"bodies,omitempty"`
+	Engines []string `json:"engines,omitempty"`
 }
 
 type VehicleBrand struct {
-	Name   string         `json:"name"`
-	Slug   string         `json:"slug,omitempty"`
-	Models []VehicleModel `json:"models"`
+	Name    string         `json:"name"`
+	Slug    string         `json:"slug,omitempty"`
+	Bodies  []string       `json:"bodies,omitempty"`
+	Engines []string       `json:"engines,omitempty"`
+	Models  []VehicleModel `json:"models"`
 }
 
 // VehicleCatalog — справочник марок и моделей автомобилей.
@@ -113,6 +117,58 @@ func (c *VehicleCatalog) ModelsOf(brand string) []VehicleModel {
 	for _, item := range c.Brands {
 		if vehicleSortKey(item.Name) == needle {
 			return item.Models
+		}
+	}
+	return nil
+}
+
+// BodiesOf возвращает марки кузова для марки и модели.
+// Если указана модель, сначала проверяются кузова модели, затем с откатом на марку.
+func (c *VehicleCatalog) BodiesOf(brand, model string) []string {
+	if c == nil {
+		return nil
+	}
+	brandNeedle := vehicleSortKey(brand)
+	modelNeedle := vehicleSortKey(model)
+	for _, b := range c.Brands {
+		if vehicleSortKey(b.Name) == brandNeedle {
+			if modelNeedle != "" {
+				for _, m := range b.Models {
+					if vehicleSortKey(m.Name) == modelNeedle {
+						if len(m.Bodies) > 0 {
+							return m.Bodies
+						}
+						break
+					}
+				}
+			}
+			return b.Bodies
+		}
+	}
+	return nil
+}
+
+// EnginesOf возвращает марки двигателя для марки и модели.
+// Если указана модель, сначала проверяются двигатели модели, затем с откатом на марку.
+func (c *VehicleCatalog) EnginesOf(brand, model string) []string {
+	if c == nil {
+		return nil
+	}
+	brandNeedle := vehicleSortKey(brand)
+	modelNeedle := vehicleSortKey(model)
+	for _, b := range c.Brands {
+		if vehicleSortKey(b.Name) == brandNeedle {
+			if modelNeedle != "" {
+				for _, m := range b.Models {
+					if vehicleSortKey(m.Name) == modelNeedle {
+						if len(m.Engines) > 0 {
+							return m.Engines
+						}
+						break
+					}
+				}
+			}
+			return b.Engines
 		}
 	}
 	return nil

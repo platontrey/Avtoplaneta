@@ -45,6 +45,12 @@ func TestModelSlugStaysInsideItsBrand(t *testing.T) {
 	if _, ok := modelSlug("/catalog/toyota/camry/1990/", "toyota"); ok {
 		t.Fatal("modelSlug принял ссылку глубже модели")
 	}
+	if _, ok := modelSlug("/catalog/toyota/engine/", "toyota"); ok {
+		t.Fatal("modelSlug принял служебный раздел engine как модель")
+	}
+	if _, ok := modelSlug("/catalog/toyota/frame/", "toyota"); ok {
+		t.Fatal("modelSlug принял служебный раздел frame как модель")
+	}
 }
 
 // Версия завязана на содержимое: пустой прогон не должен менять ETag у клиентов.

@@ -89,8 +89,8 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
     const [category, setCategory] = useState('');
     const [brand, setBrand] = useState('');
     const [model, setModel] = useState('');
-    // Марки и модели фильтров — из того же серверного справочника, что и формы.
-    const { brandOptions, modelOptions } = useVehicleOptions(brand);
+    // Марки, модели, кузова и двигатели фильтров — из того же серверного справочника, что и формы.
+    const { brandOptions, modelOptions, bodyOptions, engineOptions } = useVehicleOptions(brand, model);
     const [location, setLocation] = useState('');
     const [address, setAddress] = useState('');
     const [status, setStatus] = useState('');
@@ -1137,26 +1137,30 @@ function PartsSearch({ onFiltersChange, onDisplayLimitChange, currentDisplayLimi
                                                     {/* Марка кузова */}
                                                     <div>
                                                         <Label htmlFor="body-brand-filter">Марка кузова</Label>
-                                                        <Input
-                                                            id="body-brand-filter"
-                                                            type="text"
+                                                        <SearchableSelect
                                                             value={bodyBrand}
-                                                            onChange={(e) => setBodyBrand(e.target.value)}
-                                                            placeholder="ACV40, E90, W212..."
-                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                            onValueChange={setBodyBrand}
+                                                            options={bodyOptions}
+                                                            placeholder={brand ? "Выберите кузов" : "ACV40, E90, W212..."}
+                                                            searchPlaceholder="Поиск кузова..."
+                                                            emptyMessage="Кузов не найден — можно ввести свой"
+                                                            allowCustom={true}
+                                                            className="mt-1.5 h-10"
                                                         />
                                                     </div>
 
                                                     {/* Марка двигателя */}
                                                     <div>
                                                         <Label htmlFor="engine-brand-filter">Марка двигателя</Label>
-                                                        <Input
-                                                            id="engine-brand-filter"
-                                                            type="text"
+                                                        <SearchableSelect
                                                             value={engineBrand}
-                                                            onChange={(e) => setEngineBrand(e.target.value)}
-                                                            placeholder="2AZ-FE, N46, 1JZ..."
-                                                            className="mt-1.5 bg-transparent border border-gray-300"
+                                                            onValueChange={setEngineBrand}
+                                                            options={engineOptions}
+                                                            placeholder={brand ? "Выберите двигатель" : "2AZ-FE, N46, 1JZ..."}
+                                                            searchPlaceholder="Поиск двигателя..."
+                                                            emptyMessage="Двигатель не найден — можно ввести свой"
+                                                            allowCustom={true}
+                                                            className="mt-1.5 h-10"
                                                         />
                                                     </div>
 

@@ -93,10 +93,14 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
   VehicleCatalog? _vehicleCatalog;
   String? _catalogError;
 
-  // Марки и модели берём из общего с вебом серверного справочника.
+  // Марки, модели, кузова и двигатели берём из общего с вебом серверного справочника.
   List<String> get _brandOptions => _vehicleCatalog?.brandNames ?? const [];
   List<String> get _modelOptions =>
       _vehicleCatalog?.modelsOf(_brandCtrl.text) ?? const [];
+  List<String> get _bodyOptions =>
+      _vehicleCatalog?.bodiesOf(_brandCtrl.text, _modelCtrl.text) ?? const [];
+  List<String> get _engineOptions =>
+      _vehicleCatalog?.enginesOf(_brandCtrl.text, _modelCtrl.text) ?? const [];
 
   List<String> get _categories =>
       _partCatalog?.partFormCategories.map((item) => item.name).toList() ??
@@ -577,10 +581,21 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
               label: 'Модель',
               options: _modelOptions,
               hint: _brandCtrl.text.trim().isEmpty ? 'Сначала выберите бренд' : null,
+              onSelected: (_) => setState(() {}),
             ),
-            _field(_bodyBrandCtrl, 'Марка кузова'),
+            VehiclePickerField(
+              controller: _bodyBrandCtrl,
+              label: 'Марка кузова',
+              options: _bodyOptions,
+              hint: _brandCtrl.text.trim().isEmpty ? 'Сначала выберите бренд' : null,
+            ),
             if (_shows('engine_brand'))
-              _field(_engineBrandCtrl, 'Марка двигателя'),
+              VehiclePickerField(
+                controller: _engineBrandCtrl,
+                label: 'Марка двигателя',
+                options: _engineOptions,
+                hint: _brandCtrl.text.trim().isEmpty ? 'Сначала выберите бренд' : null,
+              ),
             if (_shows('car_release_date'))
               _field(_carReleaseDateCtrl, 'Год выпуска'),
             if (_shows('front_rear')) _field(_frontRearCtrl, 'Перед / зад'),

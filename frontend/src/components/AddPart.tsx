@@ -152,9 +152,10 @@ export default function AddPart() {
     });
 
     const brand = watch("brand");
-    // Марки и модели приходят из общего серверного справочника: тот же источник,
-    // что и у мобильного приложения.
-    const { brandOptions, modelOptions } = useVehicleOptions(brand);
+    const model = watch("model");
+    // Марки, модели, кузова и двигатели приходят из общего серверного справочника:
+    // тот же источник, что и у мобильного приложения.
+    const { brandOptions, modelOptions, bodyOptions, engineOptions } = useVehicleOptions(brand, model);
     const category = watch("category");
     const sellerId = watch("seller_id");
 
@@ -752,18 +753,35 @@ export default function AddPart() {
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                                    <div><Label htmlFor="body_brand" className="mb-1">Марка кузова</Label><Input id="body_brand" {...register("body_brand")} type="text" className="h-10" autoComplete="off" /></div>
+                                    <div>
+                                        <Label htmlFor="body_brand" className="mb-1">Марка кузова</Label>
+                                        <SearchableSelect
+                                            value={watch("body_brand") || ""}
+                                            onValueChange={(value) => setValue("body_brand", value, { shouldValidate: true })}
+                                            options={bodyOptions}
+                                            placeholder={brand ? "Выберите или введите марку кузова" : "Сначала выберите бренд"}
+                                            searchPlaceholder="Поиск кузова или ввод нового..."
+                                            emptyMessage="Кузов не найден — можно ввести свой"
+                                            allowCustom={true}
+                                            className="h-10"
+                                        />
+                                        <input type="hidden" {...register("body_brand")} autoComplete="off" />
+                                    </div>
 
                                     {visibleFields.includes("engine_brand") && (
                                         <div>
                                             <Label htmlFor="engine_brand" className="mb-1">Марка двигателя</Label>
-                                            <Input
-                                                id="engine_brand"
-                                                {...register("engine_brand")}
-                                                type="text"
+                                            <SearchableSelect
+                                                value={watch("engine_brand") || ""}
+                                                onValueChange={(value) => setValue("engine_brand", value, { shouldValidate: true })}
+                                                options={engineOptions}
+                                                placeholder={brand ? "Выберите или введите марку двигателя" : "Сначала выберите бренд"}
+                                                searchPlaceholder="Поиск двигателя или ввод нового..."
+                                                emptyMessage="Двигатель не найден — можно ввести свой"
+                                                allowCustom={true}
                                                 className="h-10"
-                                                autoComplete="off"
                                             />
+                                            <input type="hidden" {...register("engine_brand")} autoComplete="off" />
                                         </div>
                                     )}
 

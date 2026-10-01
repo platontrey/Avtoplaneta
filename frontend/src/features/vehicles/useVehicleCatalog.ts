@@ -7,16 +7,20 @@ import { API_BASE_URL } from '@/lib/api'
 export interface VehicleModel {
   name: string
   slug?: string
+  bodies?: string[]
+  engines?: string[]
 }
 
 export interface VehicleBrand {
   name: string
   slug?: string
+  bodies?: string[]
+  engines?: string[]
   models: VehicleModel[]
 }
 
-// Справочник марок и моделей приходит с сервера (GET /api/vehicle-catalog) и
-// является общим для веба и мобильного приложения. Списка марок в коде клиента
+// Справочник марок, моделей, кузовов и двигателей приходит с сервера (GET /api/vehicle-catalog)
+// и является общим для веба и мобильного приложения. Списка марок в коде клиента
 // быть не должно: он живёт в backend/parts-service/vehicles/vehicles.json и
 // обновляется командой vehicle-catalog-sync.
 export interface VehicleCatalog {
@@ -47,32 +51,54 @@ export const useVehicleCatalog = () =>
 const toOptions = (values: { name: string }[]): SelectOption[] =>
   values.map((value) => ({ value: value.name, label: value.name }))
 
+const toOptionsFromStrings = (values?: string[]): SelectOption[] =>
+  (values ?? []).map((value) => ({ value, label: value }))
+
 /**
- * Связанные списки «марка → модель».
+ * Связанные списки «марка → модель → марка кузова / марка двигателя».
  *
- * `brand` — уже выбранная марка; модели фильтруются по ней без учёта регистра,
- * потому что в ранее заведённых запчастях марка лежит свободным текстом.
- * Если марки нет в справочнике или у неё ещё нет моделей, `modelOptions` пуст —
- * поле модели в этом случае должно остаться обычным вводом, чтобы редкие
- * машины по-прежнему можно было завести.
+ * `brand` — уже выбранная марка.
+ * `model` — выбранная модель (опционально).
+ * Модели фильтруются по марке без учёта регистра.
+ * Кузова и двигатели берутся из модели (если указана и есть свои данные),
+ * либо из марки как общий список бренда.
  */
-export const useVehicleOptions = (brand?: string) => {
+export const useVehicleOptions = (brand?: string, model?: string) => {
   const { data, isLoading, error } = useVehicleCatalog()
 
   return useMemo(() => {
     const brands = data?.brands ?? []
-    const needle = brand?.trim().toLowerCase() ?? ''
-    const selected = needle
-      ? brands.find((item) => item.name.trim().toLowerCase() === needle)
+    const brandNeedle = brand?.trim().toLowerCase() ?? ''
+    const selectedBrand = brandNeedle
+      ? brands.find((item) => item.name.trim().toLowerCase() === brandNeedle)
       : undefined
+
+    const models = selectedBrand?.models ?? []
+    const modelNeedle = model?.trim().toLowerCase() ?? ''
+    const selectedModel = modelNeedle
+      ? models.find((item) => item.name.trim().toLowerCase() === modelNeedle)
+      : undefined
+
+    const bodies =
+      selectedModel?.bodies && selectedModel.bodies.length > 0
+        ? selectedModel.bodies
+        : (selectedBrand?.bodies ?? [])
+
+    const engines =
+      selectedModel?.engines && selectedModel.engines.length > 0
+        ? selectedModel.engines
+        : (selectedBrand?.engines ?? [])
 
     return {
       isLoading,
       error,
       version: data?.version,
       brandOptions: toOptions(brands),
-      modelOptions: toOptions(selected?.models ?? []),
-      knownBrand: Boolean(selected),
+      modelOptions: toOptions(models),
+      bodyOptions: toOptionsFromStrings(bodies),
+      engineOptions: toOptionsFromStrings(engines),
+      knownBrand: Boolean(selectedBrand),
+      knownModel: Boolean(selectedModel),
     }
-  }, [data, brand, isLoading, error])
+  }, [data, brand, model, isLoading, error])
 }
