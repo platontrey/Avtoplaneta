@@ -477,28 +477,25 @@ func (h *Handler) DeleteZeroQuantityPartsBySupplierHandler(c *gin.Context) {
 // GetSupplierCodesHandler получает коды поставщиков
 func (h *Handler) GetSupplierCodesHandler(c *gin.Context) {
 	ctx := c.Request.Context()
-
-	if version, err := h.inventoryService.InventoryVersion(ctx); err == nil && version != "" {
-		if httpcache.ServeVersioned(c.Writer, c.Request, "v2-"+version, 0) {
-			return
-		}
-	}
-
-	codes, err := h.inventoryService.GetSupplierCodes(ctx)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось получить коды поставщиков"})
-		return
-	}
-	if codes == nil {
-		codes = []string{}
-	}
+	c.Header("Cache-Control", "no-store, no-cache, must-revalidate")
 
 	var batches []SupplierBatchInfo
 	if batchProvider, ok := h.inventoryService.(interface {
 		GetSupplierBatches(ctx context.Context) ([]SupplierBatchInfo, error)
 	}); ok {
-		batches, _ = batchProvider.GetSupplierBatches(ctx)
+		var err error
+		batches, err = batchProvider.GetSupplierBatches(ctx)
+		if err != nil {
+			logrus.WithError(err).Error("Handler: GetSupplierBatches failed")
+		}
 	}
+
+	codes, err := h.inventoryService.GetSupplierCodes(ctx)
+	if err != nil {
+		logrus.WithError(err).Error("Handler: GetSupplierCodes failed")
+		codes = []string{}
+	}
+
 	if len(batches) == 0 && len(codes) > 0 {
 		batches = make([]SupplierBatchInfo, 0, len(codes))
 		for _, code := range codes {
@@ -507,6 +504,9 @@ func (h *Handler) GetSupplierCodesHandler(c *gin.Context) {
 	}
 	if batches == nil {
 		batches = []SupplierBatchInfo{}
+	}
+	if codes == nil {
+		codes = []string{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{

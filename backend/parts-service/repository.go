@@ -968,22 +968,31 @@ func (r *partRepository) DeleteZeroQuantityPartsBySupplier(ctx context.Context, 
 func (r *partRepository) GetSupplierBatches(ctx context.Context) ([]SupplierBatchInfo, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT
-			CASE
-				WHEN supplier_code IS NOT NULL AND BTRIM(supplier_code) != '' THEN BTRIM(supplier_code)
-				ELSE 'car:' || COALESCE(BTRIM(brand), '') || '|' || COALESCE(BTRIM(model), '') || '|' || COALESCE(BTRIM(car_release_date), '') || '|' || COALESCE(BTRIM(vin), '')
-			END AS batch_code,
-			COALESCE(MAX(NULLIF(BTRIM(brand), '')), '') AS brand,
-			COALESCE(MAX(NULLIF(BTRIM(model), '')), '') AS model,
-			COALESCE(MAX(NULLIF(BTRIM(car_release_date), '')), '') AS car_release_date,
-			COALESCE(MAX(NULLIF(BTRIM(vin), '')), '') AS vin,
-			COUNT(*)::bigint AS zero_count,
-			MAX(created_at) AS last_created_at
-		FROM parts
-		WHERE quantity = 0 AND to_delete_at IS NULL AND deleted_at IS NULL
-		GROUP BY batch_code
-		ORDER BY last_created_at DESC NULLS LAST, batch_code DESC
+			sub.batch_code,
+			COALESCE(MAX(NULLIF(BTRIM(sub.brand), '')), '') AS brand_name,
+			COALESCE(MAX(NULLIF(BTRIM(sub.model), '')), '') AS model_name,
+			COALESCE(MAX(NULLIF(BTRIM(sub.car_release_date), '')), '') AS release_date,
+			COALESCE(MAX(NULLIF(BTRIM(sub.vin), '')), '') AS car_vin,
+			COUNT(*)::bigint AS zero_count
+		FROM (
+			SELECT
+				CASE
+					WHEN supplier_code IS NOT NULL AND BTRIM(supplier_code) != '' THEN BTRIM(supplier_code)
+					ELSE 'car:' || COALESCE(BTRIM(brand), '') || '|' || COALESCE(BTRIM(model), '') || '|' || COALESCE(BTRIM(car_release_date), '') || '|' || COALESCE(BTRIM(vin), '')
+				END AS batch_code,
+				brand,
+				model,
+				car_release_date,
+				vin,
+				created_at
+			FROM parts
+			WHERE quantity = 0 AND to_delete_at IS NULL AND deleted_at IS NULL
+		) sub
+		GROUP BY sub.batch_code
+		ORDER BY MAX(sub.created_at) DESC NULLS LAST, sub.batch_code DESC
 	`)
 	if err != nil {
+		logrus.WithError(err).Error("Repository: GetSupplierBatches query failed")
 		return nil, err
 	}
 	defer rows.Close()
@@ -991,8 +1000,8 @@ func (r *partRepository) GetSupplierBatches(ctx context.Context) ([]SupplierBatc
 	var batches []SupplierBatchInfo
 	for rows.Next() {
 		var b SupplierBatchInfo
-		var lastCreatedAt *time.Time
-		if err := rows.Scan(&b.Code, &b.Brand, &b.Model, &b.Year, &b.VIN, &b.ZeroCount, &lastCreatedAt); err != nil {
+		if err := rows.Scan(&b.Code, &b.Brand, &b.Model, &b.Year, &b.VIN, &b.ZeroCount); err != nil {
+			logrus.WithError(err).Error("Repository: failed to scan SupplierBatchInfo")
 			return nil, err
 		}
 
@@ -1011,9 +1020,11 @@ func (r *partRepository) GetSupplierBatches(ctx context.Context) ([]SupplierBatc
 		batches = append(batches, b)
 	}
 	if err := rows.Err(); err != nil {
+		logrus.WithError(err).Error("Repository: rows error in GetSupplierBatches")
 		return nil, err
 	}
 
+	logrus.WithField("count", len(batches)).Info("Repository: GetSupplierBatches loaded batches")
 	return batches, nil
 }
 
@@ -1028,8 +1039,10 @@ func (r *partRepository) GetSupplierCodes(ctx context.Context) ([]string, error)
 		return codes, nil
 	}
 
+	logrus.WithError(err).Warn("Repository: GetSupplierBatches failed, falling back to GetSupplierCodes query")
 	codes, err := r.queries.GetSupplierCodes(ctx)
 	if err != nil {
+		logrus.WithError(err).Error("Repository: GetSupplierCodes query failed")
 		return nil, err
 	}
 	logrus.WithField("count", len(codes)).Info("Repository: GetSupplierCodes")
