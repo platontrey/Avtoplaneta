@@ -189,7 +189,13 @@ func TestSearchIntegration_CategoryFilter(t *testing.T) {
 		catFilter := filters[1]["bool"].(map[string]interface{})
 		shoulds := catFilter["should"].([]map[string]interface{})
 		termClause := shoulds[0]["term"].(map[string]interface{})
-		return termClause["category"] == "Тормозная система"
+		if val, ok := termClause["category"].(string); ok {
+			return val == "Тормозная система"
+		}
+		if obj, ok := termClause["category"].(map[string]interface{}); ok {
+			return obj["value"] == "Тормозная система"
+		}
+		return false
 	}), 0, 50).Return([]ElasticsearchPart{
 		{ID: part.ID, Name: part.Name},
 	}, int64(1), nil)

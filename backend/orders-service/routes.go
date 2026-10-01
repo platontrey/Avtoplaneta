@@ -86,6 +86,20 @@ func SetupRoutes(r *gin.Engine, handler *Handler) {
 	r.DELETE("/orders/:id/items/:itemId", handler.DeleteOrderItemHandler)
 	r.GET("/monthly-sales", handler.GetMonthlySalesHandler)
 
+	// Клиенты (Legacy)
+	r.GET("/orders/customers", handler.ListCustomersHandler)
+	r.POST("/orders/customers", handler.CreateCustomerHandler)
+	r.GET("/orders/customers/:id", handler.GetCustomerHandler)
+	r.PATCH("/orders/customers/:id", handler.UpdateCustomerHandler)
+	r.PUT("/orders/customers/:id", handler.UpdateCustomerHandler)
+	r.DELETE("/orders/customers/:id", handler.DeleteCustomerHandler)
+	r.GET("/customers", handler.ListCustomersHandler)
+	r.POST("/customers", handler.CreateCustomerHandler)
+	r.GET("/customers/:id", handler.GetCustomerHandler)
+	r.PATCH("/customers/:id", handler.UpdateCustomerHandler)
+	r.PUT("/customers/:id", handler.UpdateCustomerHandler)
+	r.DELETE("/customers/:id", handler.DeleteCustomerHandler)
+
 	// Основные v1 маршруты
 	v1 := r.Group("/api/v1")
 	{
@@ -115,6 +129,21 @@ func SetupRoutes(r *gin.Engine, handler *Handler) {
 		v1.PATCH("/orders/:id/items/:itemId", handler.UpdateOrderItemHandler)
 		v1.DELETE("/orders/:id/items/:itemId", handler.DeleteOrderItemHandler)
 		v1.GET("/orders/monthly-sales", handler.GetMonthlySalesHandler)
+
+		// Клиенты (v1)
+		v1.GET("/orders/customers", handler.ListCustomersHandler)
+		v1.POST("/orders/customers", handler.CreateCustomerHandler)
+		v1.GET("/orders/customers/:id", handler.GetCustomerHandler)
+		v1.PATCH("/orders/customers/:id", handler.UpdateCustomerHandler)
+		v1.PUT("/orders/customers/:id", handler.UpdateCustomerHandler)
+		v1.DELETE("/orders/customers/:id", handler.DeleteCustomerHandler)
+
+		v1.GET("/customers", handler.ListCustomersHandler)
+		v1.POST("/customers", handler.CreateCustomerHandler)
+		v1.GET("/customers/:id", handler.GetCustomerHandler)
+		v1.PATCH("/customers/:id", handler.UpdateCustomerHandler)
+		v1.PUT("/customers/:id", handler.UpdateCustomerHandler)
+		v1.DELETE("/customers/:id", handler.DeleteCustomerHandler)
 	}
 }
 

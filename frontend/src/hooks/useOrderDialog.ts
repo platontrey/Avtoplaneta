@@ -10,12 +10,14 @@ import { ORDERS_API_URL } from '@/lib/api';
 import type { Order } from '@/lib/types';
 
 export interface OrderForm {
+  customer_id?: number;
   order_number: string;
   source: string;
   part: string;
   buyer_number: string;
   quantity: number;
   price: number;
+  discount?: number;
   payment_status: string;
   warehouse_status: string;
   delivery_method: string;
@@ -142,7 +144,7 @@ export const useOrderDialog = (partName: string, defaultPrice: number = 0) => {
 
     createOrderMutation.mutate(
       {
-        customer_id: 0,
+        customer_id: orderForm.customer_id || 0,
         order_number: orderForm.order_number.trim(),
         source: orderForm.source,
         part: orderForm.part,
@@ -153,6 +155,7 @@ export const useOrderDialog = (partName: string, defaultPrice: number = 0) => {
         delivery_method: orderForm.delivery_method,
         transport_company: orderForm.transport_company.trim(),
         notes: orderForm.notes.trim(),
+        discount: Number(orderForm.discount) || 0,
         quick_sale: false,
         items: [
           {

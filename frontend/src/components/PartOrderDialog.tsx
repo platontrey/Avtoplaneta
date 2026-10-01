@@ -2,6 +2,7 @@
  * Copyright (c) 2025 Avtoplaneta. All rights reserved.
  */
 
+import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,8 @@ import { useOrderDialog } from "@/hooks/useOrderDialog";
 import type { OrderChoice } from "@/hooks/useOrderDialog";
 import { sanitizeText, sanitizeNumber, INPUT_LIMITS } from "@/hooks/usePartValidation";
 import type { Part } from "@/features/parts/types";
-import type { Order } from "@/lib/types";
+import type { Order, CustomerWithStats } from "@/lib/types";
+import { CustomerSelectInput } from "@/features/customers/components/CustomerSelectInput";
 
 interface PartOrderDialogProps {
   part: Part;
@@ -42,6 +44,30 @@ function PartOrderDialog({ part, isOpen, onOpenChange }: PartOrderDialogProps) {
   const activeOrdersWithPart = (existingOrders || []).filter((o) =>
     o.part_id === part.id || (o.items && o.items.some((it) => it.part_id === part.id))
   );
+
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithStats | null>(null);
+
+  const handleSelectCustomer = (customer: CustomerWithStats | null) => {
+    setSelectedCustomer(customer);
+    if (customer) {
+      updateForm('customer_id', customer.id);
+      if (customer.phone) {
+        updateForm('buyer_number', customer.phone);
+      } else if (customer.name) {
+        updateForm('buyer_number', customer.name);
+      }
+      if (customer.preferred_tk && !orderForm.transport_company) {
+        updateForm('transport_company', customer.preferred_tk);
+      }
+      if (customer.discount_percent > 0) {
+        const itemPrice = Number(orderForm.price) || catalogPrice;
+        const disc = Math.round((itemPrice * customer.discount_percent) / 100);
+        updateForm('discount', disc);
+      }
+    } else {
+      updateForm('customer_id', 0);
+    }
+  };
 
   const handleFormUpdate = (field: string, value: string) => {
     let sanitizedValue: string | number = value;
@@ -261,12 +287,13 @@ function PartOrderDialog({ part, isOpen, onOpenChange }: PartOrderDialogProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="buyer_number">Покупатель (телефон / имя) *</Label>
-                <Input
-                  id="buyer_number"
+                <CustomerSelectInput
                   value={orderForm.buyer_number}
-                  onChange={(e) => handleFormUpdate('buyer_number', e.target.value)}
+                  onChange={(v) => handleFormUpdate('buyer_number', v)}
+                  onSelectCustomer={handleSelectCustomer}
+                  selectedCustomer={selectedCustomer}
                   placeholder="+7 999 ... или имя клиента"
-                  maxLength={INPUT_LIMITS.TEXT_MAX_LENGTH}
+                  required
                 />
               </div>
               <div className="space-y-1.5">

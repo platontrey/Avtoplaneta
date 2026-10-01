@@ -1,5 +1,6 @@
 class Order {
   final int id;
+  final int? customerId;
   final String partName;
   final int? partId;
   final String location;
@@ -26,6 +27,7 @@ class Order {
 
   const Order({
     required this.id,
+    this.customerId,
     required this.partName,
     this.partId,
     this.location = '',
@@ -53,6 +55,7 @@ class Order {
 
   factory Order.fromJson(Map<String, dynamic> json) => Order(
     id: (json['id'] as num?)?.toInt() ?? 0,
+    customerId: (json['customer_id'] as num?)?.toInt(),
     partName: (json['part'] ?? json['part_name'] ?? '').toString(),
     partId: (json['part_id'] as num?)?.toInt(),
     location: json['location'] as String? ?? '',

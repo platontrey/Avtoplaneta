@@ -175,3 +175,52 @@ export type UserActivityResourceType =
     | 'user'
     | 'photo'
     | 'system';
+
+export type CustomerCategory = 'regular' | 'vip' | 'wholesale' | 'blacklist';
+
+export interface Customer {
+  id: number;
+  name: string;
+  phone: string;
+  city: string;
+  preferred_tk: string;
+  passport_or_inn: string;
+  category: CustomerCategory;
+  discount_percent: number;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerWithStats extends Customer {
+  total_orders: number;
+  total_spent: number;
+  last_order_at?: string;
+}
+
+export interface CustomerDetails extends CustomerWithStats {
+  orders: Order[];
+}
+
+export interface CreateCustomerInput {
+  name: string;
+  phone: string;
+  city?: string;
+  preferred_tk?: string;
+  passport_or_inn?: string;
+  category?: CustomerCategory;
+  discount_percent?: number;
+  notes?: string;
+}
+
+export interface UpdateCustomerInput {
+  name?: string;
+  phone?: string;
+  city?: string;
+  preferred_tk?: string;
+  passport_or_inn?: string;
+  category?: CustomerCategory;
+  discount_percent?: number;
+  notes?: string;
+}
+

@@ -23,6 +23,13 @@ type OrdersService interface {
 	UpdateOrderItem(ctx context.Context, orderID, itemID int64, req UpdateOrderItemRequest) error
 	DeleteOrderItem(ctx context.Context, orderID, itemID int64) error
 	GetMonthlySales(ctx context.Context) ([]MonthlySales, error)
+
+	// Customer operations
+	ListCustomers(ctx context.Context, category, search string, limit, offset int32) ([]CustomerWithStats, error)
+	GetCustomer(ctx context.Context, id int64) (*CustomerDetails, error)
+	CreateCustomer(ctx context.Context, req CreateCustomerRequest) (*Customer, error)
+	UpdateCustomer(ctx context.Context, id int64, req UpdateCustomerRequest) (*Customer, error)
+	DeleteCustomer(ctx context.Context, id int64) error
 }
 
 // CreateOrderItemInput входные данные позиции заказа
@@ -342,9 +349,30 @@ func (s *ordersService) CreateOrder(ctx context.Context, req CreateOrderRequest,
 		initialStatus = "Ожидает предоплаты"
 	}
 
+	customerID := req.CustomerID
+	if customerID <= 0 && buyerNumber != "" && buyerNumber != "Самовывоз" && buyerNumber != "Продажа на месте" && buyerNumber != "Без контакта" {
+		existingCustomer, err := s.orderRepo.GetCustomerByPhone(ctx, buyerNumber)
+		if err == nil && existingCustomer != nil {
+			customerID = existingCustomer.ID
+		} else {
+			newCust := &Customer{
+				Name:            buyerNumber,
+				Phone:           buyerNumber,
+				City:            "",
+				PreferredTk:     strings.TrimSpace(req.TransportCompany),
+				Category:        "regular",
+				DiscountPercent: 0,
+				Notes:           "Создан автоматически из заказа",
+			}
+			if err := s.orderRepo.CreateCustomer(ctx, newCust); err == nil {
+				customerID = newCust.ID
+			}
+		}
+	}
+
 	now := time.Now()
 	order := &Order{
-		CustomerID:       req.CustomerID,
+		CustomerID:       customerID,
 		OrderNumber:      strings.TrimSpace(req.OrderNumber),
 		Source:           source,
 		SellerID:         userID,
@@ -804,3 +832,125 @@ func formatTimeAgo(duration time.Duration) string {
 func (s *ordersService) GetMonthlySales(ctx context.Context) ([]MonthlySales, error) {
 	return s.orderRepo.GetMonthlySales(ctx)
 }
+
+// ListCustomers возвращает список клиентов с фильтрацией и поиском
+func (s *ordersService) ListCustomers(ctx context.Context, category, search string, limit, offset int32) ([]CustomerWithStats, error) {
+	return s.orderRepo.ListCustomersWithStats(ctx, strings.TrimSpace(category), strings.TrimSpace(search), limit, offset)
+}
+
+// GetCustomer возвращает карточку клиента и историю его заказов
+func (s *ordersService) GetCustomer(ctx context.Context, id int64) (*CustomerDetails, error) {
+	customer, err := s.orderRepo.GetCustomerByID(ctx, id)
+	if err != nil {
+		return nil, NotFoundError{Resource: "customer", ID: id}
+	}
+
+	orders, err := s.orderRepo.GetOrdersByCustomerID(ctx, id)
+	if err != nil {
+		logrus.WithError(err).WithField("customer_id", id).Warn("Failed to get orders for customer")
+		orders = []Order{}
+	}
+
+	var totalOrders int64
+	var totalSpent float64
+	var lastOrderAt *time.Time
+
+	s.enrichOrders(ctx, orders, false)
+
+	for i := range orders {
+		totalOrders++
+		if orders[i].AutoDeleted || orders[i].Status == "green" {
+			totalSpent += orders[i].TotalAmount
+		}
+		if lastOrderAt == nil || orders[i].CreatedAt.After(*lastOrderAt) {
+			t := orders[i].CreatedAt
+			lastOrderAt = &t
+		}
+	}
+
+	return &CustomerDetails{
+		CustomerWithStats: CustomerWithStats{
+			Customer:    *customer,
+			TotalOrders: totalOrders,
+			TotalSpent:  totalSpent,
+			LastOrderAt: lastOrderAt,
+		},
+		Orders: orders,
+	}, nil
+}
+
+// CreateCustomer создаёт нового клиента вручную
+func (s *ordersService) CreateCustomer(ctx context.Context, req CreateCustomerRequest) (*Customer, error) {
+	phone := strings.TrimSpace(req.Phone)
+	name := strings.TrimSpace(req.Name)
+	if phone == "" && name == "" {
+		return nil, ValidationError{Field: "phone", Message: "укажите телефон или имя клиента"}
+	}
+	if name == "" {
+		name = phone
+	}
+
+	category := strings.TrimSpace(req.Category)
+	if category == "" {
+		category = "regular"
+	}
+
+	customer := &Customer{
+		Name:            name,
+		Phone:           phone,
+		City:            strings.TrimSpace(req.City),
+		PreferredTk:     strings.TrimSpace(req.PreferredTk),
+		PassportOrInn:   strings.TrimSpace(req.PassportOrInn),
+		Category:        category,
+		DiscountPercent: math.Max(req.DiscountPercent, 0),
+		Notes:           strings.TrimSpace(req.Notes),
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}
+
+	if err := s.orderRepo.CreateCustomer(ctx, customer); err != nil {
+		return nil, fmt.Errorf("не удалось создать клиента: %w", err)
+	}
+
+	return customer, nil
+}
+
+// UpdateCustomer обновляет данные клиента
+func (s *ordersService) UpdateCustomer(ctx context.Context, id int64, req UpdateCustomerRequest) (*Customer, error) {
+	customer, err := s.orderRepo.GetCustomerByID(ctx, id)
+	if err != nil {
+		return nil, NotFoundError{Resource: "customer", ID: id}
+	}
+
+	if req.Name != "" {
+		customer.Name = strings.TrimSpace(req.Name)
+	}
+	if req.Phone != "" {
+		customer.Phone = strings.TrimSpace(req.Phone)
+	}
+	customer.City = strings.TrimSpace(req.City)
+	customer.PreferredTk = strings.TrimSpace(req.PreferredTk)
+	customer.PassportOrInn = strings.TrimSpace(req.PassportOrInn)
+	if req.Category != "" {
+		customer.Category = strings.TrimSpace(req.Category)
+	}
+	customer.DiscountPercent = math.Max(req.DiscountPercent, 0)
+	customer.Notes = strings.TrimSpace(req.Notes)
+	customer.UpdatedAt = time.Now()
+
+	if err := s.orderRepo.UpdateCustomer(ctx, customer); err != nil {
+		return nil, fmt.Errorf("не удалось обновить клиента: %w", err)
+	}
+
+	return customer, nil
+}
+
+// DeleteCustomer удаляет клиента
+func (s *ordersService) DeleteCustomer(ctx context.Context, id int64) error {
+	_, err := s.orderRepo.GetCustomerByID(ctx, id)
+	if err != nil {
+		return NotFoundError{Resource: "customer", ID: id}
+	}
+	return s.orderRepo.DeleteCustomer(ctx, id)
+}
+

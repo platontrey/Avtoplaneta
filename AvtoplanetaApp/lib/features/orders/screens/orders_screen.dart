@@ -5,11 +5,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/api/api_client.dart';
+import '../../../core/models/customer.dart';
 import '../../../core/models/order.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../shared/widgets/app_states.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../inventory/providers/inventory_provider.dart';
+import '../providers/customers_provider.dart';
 import '../providers/orders_provider.dart';
+import '../widgets/customer_detail_sheet.dart';
+import '../widgets/customer_form_sheet.dart';
 
 class OrdersScreen extends ConsumerStatefulWidget {
   const OrdersScreen({super.key});
@@ -19,7 +24,8 @@ class OrdersScreen extends ConsumerStatefulWidget {
 }
 
 class _OrdersScreenState extends ConsumerState<OrdersScreen> {
-  String _tab = 'active'; // 'active' or 'completed'
+  String _tab = 'active'; // 'active', 'completed', or 'customers'
+  String _customerCategory = ''; // '', 'regular', 'vip', 'wholesale', 'blacklist'
   String _searchQuery = '';
   final _searchController = TextEditingController();
 
@@ -32,10 +38,13 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
   Future<void> _refresh() async {
     ref.invalidate(ordersProvider);
     ref.invalidate(completedOrdersProvider);
+    ref.invalidate(customersProvider);
     if (_tab == 'active') {
       await ref.read(ordersProvider.future);
-    } else {
+    } else if (_tab == 'completed') {
       await ref.read(completedOrdersProvider.future);
+    } else {
+      await ref.read(customersProvider.future);
     }
   }
 
@@ -50,6 +59,35 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
           o.trackingNumber.toLowerCase().contains(q) ||
           o.sellerName.toLowerCase().contains(q);
     }).toList();
+  }
+
+  List<Customer> _filterCustomers(List<Customer> customers) {
+    var result = customers;
+    if (_customerCategory.isNotEmpty) {
+      result = result.where((c) => c.category == _customerCategory).toList();
+    }
+    final q = _searchQuery.trim().toLowerCase();
+    if (q.isNotEmpty) {
+      result = result.where((c) {
+        return c.name.toLowerCase().contains(q) ||
+            c.phone.toLowerCase().contains(q) ||
+            c.city.toLowerCase().contains(q) ||
+            c.preferredTk.toLowerCase().contains(q) ||
+            c.notes.toLowerCase().contains(q);
+      }).toList();
+    }
+    return result;
+  }
+
+  Widget _categoryFilterChip(String key, String label) {
+    final isSelected = _customerCategory == key;
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) {
+        setState(() => _customerCategory = key);
+      },
+    );
   }
 
   @override
@@ -70,6 +108,13 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
           ),
         ],
       ),
+      floatingActionButton: _tab == 'customers'
+          ? FloatingActionButton.extended(
+              onPressed: () => CustomerFormSheet.show(context),
+              icon: const Icon(LucideIcons.user_plus),
+              label: const Text('Новый клиент'),
+            )
+          : null,
       body: Column(
         children: [
           Padding(
@@ -90,6 +135,11 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                         icon: Icon(LucideIcons.archive, size: 16),
                         label: Text('История'),
                       ),
+                      ButtonSegment(
+                        value: 'customers',
+                        icon: Icon(LucideIcons.users, size: 16),
+                        label: Text('Клиенты'),
+                      ),
                     ],
                     selected: {_tab},
                     onSelectionChanged: (selection) {
@@ -102,7 +152,9 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                   controller: _searchController,
                   onChanged: (v) => setState(() => _searchQuery = v),
                   decoration: InputDecoration(
-                    hintText: 'Поиск по запчасти, клиенту, треку, №...',
+                    hintText: _tab == 'customers'
+                        ? 'Поиск клиентов: имя, телефон, город, ТК...'
+                        : 'Поиск по запчасти, клиенту, треку, №...',
                     prefixIcon: const Icon(LucideIcons.search, size: 18),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
@@ -116,78 +168,314 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                     isDense: true,
                   ),
                 ),
+                if (_tab == 'customers') ...[
+                  const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _categoryFilterChip('', 'Все'),
+                        const SizedBox(width: 6),
+                        _categoryFilterChip('regular', 'Обычные'),
+                        const SizedBox(width: 6),
+                        _categoryFilterChip('vip', '⭐ СТО / VIP'),
+                        const SizedBox(width: 6),
+                        _categoryFilterChip('wholesale', '🏢 Оптовики'),
+                        const SizedBox(width: 6),
+                        _categoryFilterChip('blacklist', '⚠️ ЧС'),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
           Expanded(
-            child: ordersAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => AppEmptyState(
-                icon: LucideIcons.cloud_off,
-                title: 'Не удалось загрузить заказы',
-                message: 'Проверьте соединение и повторите попытку.',
-                actionLabel: 'Повторить',
-                onAction: _refresh,
-              ),
-              data: (data) {
-                final filtered = _filterOrders(data.orders);
-                return RefreshIndicator(
-                  onRefresh: _refresh,
-                  child: ListView.separated(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-                    itemCount: filtered.length + (filtered.isEmpty ? 3 : 2),
-                    separatorBuilder: (_, i) => SizedBox(height: i == 0 ? 14 : 10),
-                    itemBuilder: (_, i) {
-                      if (i == 0) {
-                        return Card(
-                          child: ListTile(
-                            leading: const CircleAvatar(
-                              child: Icon(LucideIcons.shopping_cart),
-                            ),
-                            title: const Text('Создать новый заказ'),
-                            subtitle: const Text(
-                              'Выберите запчасть в инвентаре и оформите заказ',
-                            ),
-                            trailing: const Icon(LucideIcons.chevron_right),
-                            onTap: () => context.go('/inventory'),
-                          ),
-                        );
-                      }
-                      if (i == 1) {
-                        return AppSectionHeader(
-                          title: _tab == 'active' ? 'В работе' : 'Завершённые продажи',
-                          caption: '${filtered.length} заказов',
-                        );
-                      }
-                      if (filtered.isEmpty) {
-                        return AppEmptyState(
-                          icon: LucideIcons.receipt,
-                          title: _tab == 'active'
-                              ? 'Активных заказов нет'
-                              : 'История заказов пуста',
-                          message: _tab == 'active'
-                              ? 'Выберите запчасть и создайте заказ.'
-                              : 'Завершённые продажи появятся здесь.',
-                        );
-                      }
-                      return _OrderCard(
-                        order: filtered[i - 2],
-                        isCompleted: _tab == 'completed',
-                        canChangeStatus: user?.isOperator == true,
-                        onStatusChanged: () {
-                          ref.invalidate(ordersProvider);
-                          ref.invalidate(completedOrdersProvider);
-                          ref.invalidate(inventoryProvider);
-                        },
+            child: _tab == 'customers'
+                ? _buildCustomersView(context, ref)
+                : ordersAsync.when(
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => AppEmptyState(
+                      icon: LucideIcons.cloud_off,
+                      title: 'Не удалось загрузить заказы',
+                      message: 'Проверьте соединение и повторите попытку.',
+                      actionLabel: 'Повторить',
+                      onAction: _refresh,
+                    ),
+                    data: (data) {
+                      final filtered = _filterOrders(data.orders);
+                      return RefreshIndicator(
+                        onRefresh: _refresh,
+                        child: ListView.separated(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                          itemCount: filtered.length + (filtered.isEmpty ? 3 : 2),
+                          separatorBuilder: (_, i) => SizedBox(height: i == 0 ? 14 : 10),
+                          itemBuilder: (_, i) {
+                            if (i == 0) {
+                              return Card(
+                                child: ListTile(
+                                  leading: const CircleAvatar(
+                                    child: Icon(LucideIcons.shopping_cart),
+                                  ),
+                                  title: const Text('Создать новый заказ'),
+                                  subtitle: const Text(
+                                    'Выберите запчасть в инвентаре и оформите заказ',
+                                  ),
+                                  trailing: const Icon(LucideIcons.chevron_right),
+                                  onTap: () => context.go('/inventory'),
+                                ),
+                              );
+                            }
+                            if (i == 1) {
+                              return AppSectionHeader(
+                                title: _tab == 'active' ? 'В работе' : 'Завершённые продажи',
+                                caption: '${filtered.length} заказов',
+                              );
+                            }
+                            if (filtered.isEmpty) {
+                              return AppEmptyState(
+                                icon: LucideIcons.receipt,
+                                title: _tab == 'active'
+                                    ? 'Активных заказов нет'
+                                    : 'История заказов пуста',
+                                message: _tab == 'active'
+                                    ? 'Выберите запчасть и создайте заказ.'
+                                    : 'Завершённые продажи появятся здесь.',
+                              );
+                            }
+                            return _OrderCard(
+                              order: filtered[i - 2],
+                              isCompleted: _tab == 'completed',
+                              canChangeStatus: user?.isOperator == true,
+                              onStatusChanged: () {
+                                ref.invalidate(ordersProvider);
+                                ref.invalidate(completedOrdersProvider);
+                                ref.invalidate(inventoryProvider);
+                              },
+                            );
+                          },
+                        ),
                       );
                     },
                   ),
-                );
-              },
-            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCustomersView(BuildContext context, WidgetRef ref) {
+    final customersAsync = ref.watch(customersProvider);
+
+    return customersAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => AppEmptyState(
+        icon: LucideIcons.cloud_off,
+        title: 'Не удалось загрузить клиентов',
+        message: 'Проверьте соединение и повторите попытку.',
+        actionLabel: 'Повторить',
+        onAction: _refresh,
+      ),
+      data: (customers) {
+        final filtered = _filterCustomers(customers);
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          child: ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+            itemCount: filtered.isEmpty ? 1 : filtered.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
+            itemBuilder: (context, index) {
+              if (filtered.isEmpty) {
+                return AppEmptyState(
+                  icon: LucideIcons.users,
+                  title: 'Клиенты не найдены',
+                  message: _searchQuery.isNotEmpty || _customerCategory.isNotEmpty
+                      ? 'Попробуйте изменить параметры поиска или фильтра.'
+                      : 'В базе пока нет клиентов. Создайте первого!',
+                  actionLabel: 'Добавить клиента',
+                  onAction: () => CustomerFormSheet.show(context),
+                );
+              }
+              final customer = filtered[index];
+              return _CustomerCard(
+                customer: customer,
+                onTap: () => CustomerDetailSheet.show(context, customer.id),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CustomerCard extends StatelessWidget {
+  final Customer customer;
+  final VoidCallback onTap;
+
+  const _CustomerCard({required this.customer, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: customer.isBlacklist
+              ? Colors.red.withAlpha(120)
+              : Theme.of(context).colorScheme.outlineVariant.withAlpha(80),
+          width: customer.isBlacklist ? 1.5 : 1.0,
+        ),
+      ),
+      color: customer.isBlacklist ? Colors.red.withAlpha(15) : null,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(14.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    backgroundColor: customer.categoryColor.withAlpha(30),
+                    child: Icon(customer.categoryIcon, color: customer.categoryColor, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          customer.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          customer.phone,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: customer.categoryColor.withAlpha(25),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: customer.categoryColor.withAlpha(80)),
+                    ),
+                    child: Text(
+                      customer.categoryLabel,
+                      style: TextStyle(
+                        color: customer.categoryColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (customer.isBlacklist && customer.notes.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withAlpha(30),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(LucideIcons.triangle_alert, size: 14, color: Colors.red),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          customer.notes,
+                          style: const TextStyle(color: Colors.red, fontSize: 12),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const Divider(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        if (customer.city.isNotEmpty) ...[
+                          const Icon(LucideIcons.map_pin, size: 14, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              customer.city,
+                              style: const TextStyle(fontSize: 13, color: Colors.grey),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        if (customer.preferredTk.isNotEmpty) ...[
+                          const Icon(LucideIcons.truck, size: 14, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              customer.preferredTk,
+                              style: const TextStyle(fontSize: 13, color: Colors.grey),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      if (customer.discountPercent > 0) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withAlpha(30),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '-${customer.discountPercent.toStringAsFixed(0)}%',
+                            style: const TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(
+                        '${customer.totalOrders} зак. · ${formatPrice(customer.totalSpent)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -8,6 +8,20 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Customer struct {
+	ID              int64              `json:"id"`
+	Name            string             `json:"name"`
+	Phone           string             `json:"phone"`
+	City            string             `json:"city"`
+	PreferredTk     string             `json:"preferred_tk"`
+	PassportOrInn   string             `json:"passport_or_inn"`
+	Category        string             `json:"category"`
+	DiscountPercent float64            `json:"discount_percent"`
+	Notes           string             `json:"notes"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Order struct {
 	ID               int64              `json:"id"`
 	CustomerID       int64              `json:"customer_id"`

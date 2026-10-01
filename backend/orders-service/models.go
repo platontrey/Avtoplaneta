@@ -71,3 +71,57 @@ type MonthlySales struct {
 	Month string  `json:"month"`
 	Sales float64 `json:"sales"`
 }
+
+// Customer представляет клиента в системе
+type Customer struct {
+	ID              int64     `json:"id"`
+	Name            string    `json:"name"`
+	Phone           string    `json:"phone"`
+	City            string    `json:"city"`
+	PreferredTk     string    `json:"preferred_tk"`
+	PassportOrInn   string    `json:"passport_or_inn"`
+	Category        string    `json:"category"` // regular, vip, wholesale, blacklist
+	DiscountPercent float64   `json:"discount_percent"`
+	Notes           string    `json:"notes"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+// CustomerWithStats представляет клиента с агрегированной статистикой заказов
+type CustomerWithStats struct {
+	Customer
+	TotalOrders int64      `json:"total_orders"`
+	TotalSpent  float64    `json:"total_spent"`
+	LastOrderAt *time.Time `json:"last_order_at,omitempty"`
+}
+
+// CustomerDetails представляет карточку клиента с историей его заказов
+type CustomerDetails struct {
+	CustomerWithStats
+	Orders []Order `json:"orders"`
+}
+
+// CreateCustomerRequest запрос на создание клиента
+type CreateCustomerRequest struct {
+	Name            string  `json:"name"`
+	Phone           string  `json:"phone"`
+	City            string  `json:"city"`
+	PreferredTk     string  `json:"preferred_tk"`
+	PassportOrInn   string  `json:"passport_or_inn"`
+	Category        string  `json:"category"`
+	DiscountPercent float64 `json:"discount_percent"`
+	Notes           string  `json:"notes"`
+}
+
+// UpdateCustomerRequest запрос на обновление клиента
+type UpdateCustomerRequest struct {
+	Name            string  `json:"name"`
+	Phone           string  `json:"phone"`
+	City            string  `json:"city"`
+	PreferredTk     string  `json:"preferred_tk"`
+	PassportOrInn   string  `json:"passport_or_inn"`
+	Category        string  `json:"category"`
+	DiscountPercent float64 `json:"discount_percent"`
+	Notes           string  `json:"notes"`
+}
+

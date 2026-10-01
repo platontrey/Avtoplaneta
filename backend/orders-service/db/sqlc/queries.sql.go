@@ -28,6 +28,58 @@ func (q *Queries) CompleteOrderRecord(ctx context.Context, id int64) error {
 	return err
 }
 
+const CreateCustomer = `-- name: CreateCustomer :one
+INSERT INTO customers (
+    name, phone, city, preferred_tk, passport_or_inn,
+    category, discount_percent, notes, created_at, updated_at
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING id, name, phone, city, preferred_tk, passport_or_inn, category, discount_percent, notes, created_at, updated_at
+`
+
+type CreateCustomerParams struct {
+	Name            string             `json:"name"`
+	Phone           string             `json:"phone"`
+	City            string             `json:"city"`
+	PreferredTk     string             `json:"preferred_tk"`
+	PassportOrInn   string             `json:"passport_or_inn"`
+	Category        string             `json:"category"`
+	DiscountPercent float64            `json:"discount_percent"`
+	Notes           string             `json:"notes"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) CreateCustomer(ctx context.Context, arg CreateCustomerParams) (Customer, error) {
+	row := q.db.QueryRow(ctx, CreateCustomer,
+		arg.Name,
+		arg.Phone,
+		arg.City,
+		arg.PreferredTk,
+		arg.PassportOrInn,
+		arg.Category,
+		arg.DiscountPercent,
+		arg.Notes,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	var i Customer
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Phone,
+		&i.City,
+		&i.PreferredTk,
+		&i.PassportOrInn,
+		&i.Category,
+		&i.DiscountPercent,
+		&i.Notes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const CreateOrder = `-- name: CreateOrder :one
 INSERT INTO orders (
     customer_id, seller_id, seller, part, part_id, location, buyer_number,
@@ -179,6 +231,16 @@ func (q *Queries) CreateSalesHistory(ctx context.Context, arg CreateSalesHistory
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const DeleteCustomer = `-- name: DeleteCustomer :exec
+DELETE FROM customers
+WHERE id = $1
+`
+
+func (q *Queries) DeleteCustomer(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, DeleteCustomer, id)
+	return err
 }
 
 const DeleteOrder = `-- name: DeleteOrder :exec
@@ -341,6 +403,55 @@ func (q *Queries) FindOrderItem(ctx context.Context, arg FindOrderItemParams) (O
 	return i, err
 }
 
+const GetCustomerByID = `-- name: GetCustomerByID :one
+SELECT id, name, phone, city, preferred_tk, passport_or_inn, category, discount_percent, notes, created_at, updated_at FROM customers
+WHERE id = $1
+`
+
+func (q *Queries) GetCustomerByID(ctx context.Context, id int64) (Customer, error) {
+	row := q.db.QueryRow(ctx, GetCustomerByID, id)
+	var i Customer
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Phone,
+		&i.City,
+		&i.PreferredTk,
+		&i.PassportOrInn,
+		&i.Category,
+		&i.DiscountPercent,
+		&i.Notes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const GetCustomerByPhone = `-- name: GetCustomerByPhone :one
+SELECT id, name, phone, city, preferred_tk, passport_or_inn, category, discount_percent, notes, created_at, updated_at FROM customers
+WHERE phone = $1
+LIMIT 1
+`
+
+func (q *Queries) GetCustomerByPhone(ctx context.Context, phone string) (Customer, error) {
+	row := q.db.QueryRow(ctx, GetCustomerByPhone, phone)
+	var i Customer
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Phone,
+		&i.City,
+		&i.PreferredTk,
+		&i.PassportOrInn,
+		&i.Category,
+		&i.DiscountPercent,
+		&i.Notes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const GetMonthlySales = `-- name: GetMonthlySales :many
 SELECT month, COALESCE(SUM(order_total), 0)::double precision AS sales
 FROM (
@@ -482,6 +593,144 @@ func (q *Queries) GetOrderItemsByOrderIDs(ctx context.Context, dollar_1 []int64)
 	return items, nil
 }
 
+const GetOrdersByCustomerID = `-- name: GetOrdersByCustomerID :many
+SELECT id, customer_id, seller_id, seller, part, part_id, location, buyer_number, status, status_text, auto_deleted, created_at, order_number, source, payment_status, warehouse_status, delivery_method, transport_company, tracking_number, notes, discount, completed_at, updated_at FROM orders
+WHERE customer_id = $1
+ORDER BY created_at DESC
+`
+
+func (q *Queries) GetOrdersByCustomerID(ctx context.Context, customerID int64) ([]Order, error) {
+	rows, err := q.db.Query(ctx, GetOrdersByCustomerID, customerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Order{}
+	for rows.Next() {
+		var i Order
+		if err := rows.Scan(
+			&i.ID,
+			&i.CustomerID,
+			&i.SellerID,
+			&i.Seller,
+			&i.Part,
+			&i.PartID,
+			&i.Location,
+			&i.BuyerNumber,
+			&i.Status,
+			&i.StatusText,
+			&i.AutoDeleted,
+			&i.CreatedAt,
+			&i.OrderNumber,
+			&i.Source,
+			&i.PaymentStatus,
+			&i.WarehouseStatus,
+			&i.DeliveryMethod,
+			&i.TransportCompany,
+			&i.TrackingNumber,
+			&i.Notes,
+			&i.Discount,
+			&i.CompletedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const ListCustomersWithStats = `-- name: ListCustomersWithStats :many
+SELECT c.id, c.name, c.phone, c.city, c.preferred_tk, c.passport_or_inn,
+       c.category, c.discount_percent, c.notes, c.created_at, c.updated_at,
+       COUNT(o.id)::bigint AS total_orders,
+       COALESCE(SUM(CASE WHEN o.auto_deleted = TRUE OR o.status = 'green' THEN order_totals.total ELSE 0 END), 0)::double precision AS total_spent,
+       MAX(o.created_at)::timestamptz AS last_order_at
+FROM customers c
+LEFT JOIN orders o ON o.customer_id = c.id
+LEFT JOIN (
+    SELECT order_id, SUM(price * quantity) AS total
+    FROM order_items
+    GROUP BY order_id
+) order_totals ON order_totals.order_id = o.id
+WHERE ($1::text = '' OR c.category = $1::text)
+  AND ($2::text = '' OR 
+       c.name ILIKE '%' || $2::text || '%' OR 
+       c.phone ILIKE '%' || $2::text || '%' OR 
+       c.city ILIKE '%' || $2::text || '%' OR 
+       c.preferred_tk ILIKE '%' || $2::text || '%')
+GROUP BY c.id
+ORDER BY c.updated_at DESC
+LIMIT $4::int OFFSET $3::int
+`
+
+type ListCustomersWithStatsParams struct {
+	Category  string `json:"category"`
+	Search    string `json:"search"`
+	OffsetVal int32  `json:"offset_val"`
+	LimitVal  int32  `json:"limit_val"`
+}
+
+type ListCustomersWithStatsRow struct {
+	ID              int64              `json:"id"`
+	Name            string             `json:"name"`
+	Phone           string             `json:"phone"`
+	City            string             `json:"city"`
+	PreferredTk     string             `json:"preferred_tk"`
+	PassportOrInn   string             `json:"passport_or_inn"`
+	Category        string             `json:"category"`
+	DiscountPercent float64            `json:"discount_percent"`
+	Notes           string             `json:"notes"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	TotalOrders     int64              `json:"total_orders"`
+	TotalSpent      float64            `json:"total_spent"`
+	LastOrderAt     pgtype.Timestamptz `json:"last_order_at"`
+}
+
+func (q *Queries) ListCustomersWithStats(ctx context.Context, arg ListCustomersWithStatsParams) ([]ListCustomersWithStatsRow, error) {
+	rows, err := q.db.Query(ctx, ListCustomersWithStats,
+		arg.Category,
+		arg.Search,
+		arg.OffsetVal,
+		arg.LimitVal,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCustomersWithStatsRow{}
+	for rows.Next() {
+		var i ListCustomersWithStatsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Phone,
+			&i.City,
+			&i.PreferredTk,
+			&i.PassportOrInn,
+			&i.Category,
+			&i.DiscountPercent,
+			&i.Notes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.TotalOrders,
+			&i.TotalSpent,
+			&i.LastOrderAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const MarkExpiredAsAutoDeleted = `-- name: MarkExpiredAsAutoDeleted :exec
 UPDATE orders
 SET auto_deleted = TRUE
@@ -491,6 +740,62 @@ WHERE created_at <= $1 AND auto_deleted = FALSE
 func (q *Queries) MarkExpiredAsAutoDeleted(ctx context.Context, createdAt pgtype.Timestamptz) error {
 	_, err := q.db.Exec(ctx, MarkExpiredAsAutoDeleted, createdAt)
 	return err
+}
+
+const UpdateCustomer = `-- name: UpdateCustomer :one
+UPDATE customers
+SET name = $2,
+    phone = $3,
+    city = $4,
+    preferred_tk = $5,
+    passport_or_inn = $6,
+    category = $7,
+    discount_percent = $8,
+    notes = $9,
+    updated_at = NOW()
+WHERE id = $1
+RETURNING id, name, phone, city, preferred_tk, passport_or_inn, category, discount_percent, notes, created_at, updated_at
+`
+
+type UpdateCustomerParams struct {
+	ID              int64   `json:"id"`
+	Name            string  `json:"name"`
+	Phone           string  `json:"phone"`
+	City            string  `json:"city"`
+	PreferredTk     string  `json:"preferred_tk"`
+	PassportOrInn   string  `json:"passport_or_inn"`
+	Category        string  `json:"category"`
+	DiscountPercent float64 `json:"discount_percent"`
+	Notes           string  `json:"notes"`
+}
+
+func (q *Queries) UpdateCustomer(ctx context.Context, arg UpdateCustomerParams) (Customer, error) {
+	row := q.db.QueryRow(ctx, UpdateCustomer,
+		arg.ID,
+		arg.Name,
+		arg.Phone,
+		arg.City,
+		arg.PreferredTk,
+		arg.PassportOrInn,
+		arg.Category,
+		arg.DiscountPercent,
+		arg.Notes,
+	)
+	var i Customer
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Phone,
+		&i.City,
+		&i.PreferredTk,
+		&i.PassportOrInn,
+		&i.Category,
+		&i.DiscountPercent,
+		&i.Notes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const UpdateOrderItem = `-- name: UpdateOrderItem :exec

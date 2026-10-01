@@ -66,3 +66,9 @@ class CarReleasePeriodFormatter extends TextInputFormatter {
     );
   }
 }
+
+/// Форматирует цену для отображения в рублях
+String formatPrice(double price) {
+  return '${price.toStringAsFixed(0)} ₽';
+}
+

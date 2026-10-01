@@ -47,7 +47,9 @@ import {
   MessageSquare,
   History,
   ClipboardList,
+  Users,
 } from 'lucide-react';
+import { CustomersTab } from '../features/customers/components/CustomersTab';
 
 const SOURCE_LABELS: Record<string, string> = {
   drom: 'Дром',
@@ -141,7 +143,7 @@ const Orders = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'customers'>('active');
   const [searchQuery, setSearchQuery] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [warehouseFilter, setWarehouseFilter] = useState<string>('all');
@@ -338,9 +340,13 @@ const Orders = () => {
       {/* Шапка и переключение вкладок */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Управление заказами</h1>
+          <h1 className="text-2xl font-bold">
+            {activeTab === 'customers' ? 'База клиентов' : 'Управление заказами'}
+          </h1>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            Найдено: {filteredOrders.length} · Сумма: ₽{totalListSum.toLocaleString('ru-RU')}
+            {activeTab === 'customers'
+              ? 'Единая база покупателей, история заказов, реквизиты для ТК и категории'
+              : `Найдено: ${filteredOrders.length} · Сумма: ₽${totalListSum.toLocaleString('ru-RU')}`}
           </p>
         </div>
 
@@ -364,6 +370,15 @@ const Orders = () => {
               <History className="h-4 w-4" />
               <span>История продаж</span>
             </Button>
+            <Button
+              variant={activeTab === 'customers' ? 'default' : 'ghost'}
+              size="sm"
+              className="gap-1.5 text-xs sm:text-sm"
+              onClick={() => setActiveTab('customers')}
+            >
+              <Users className="h-4 w-4" />
+              <span>База клиентов</span>
+            </Button>
           </div>
 
           <Button size="sm" onClick={() => navigate('/inventory')} className="gap-1.5">
@@ -373,8 +388,10 @@ const Orders = () => {
         </div>
       </div>
 
-      {/* Панель поиска и фильтров */}
-      <Card>
+      {activeTab === 'customers' ? (
+        <CustomersTab />
+      ) : (
+        <Card>
         <CardHeader className="p-3 sm:p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
             <div className="relative">
@@ -836,6 +853,7 @@ const Orders = () => {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Диалог редактирования заказа */}
       <Dialog open={Boolean(editingOrder)} onOpenChange={(open) => !open && setEditingOrder(null)}>

@@ -56,7 +56,17 @@ type OrderRepository interface {
 	CreateSalesHistory(ctx context.Context, history *SalesHistory) error
 	UpdateSellerName(ctx context.Context, sellerID int64, name string) error
 	GetPool() *pgxpool.Pool
+
+	// Customer methods
+	CreateCustomer(ctx context.Context, customer *Customer) error
+	GetCustomerByID(ctx context.Context, id int64) (*Customer, error)
+	GetCustomerByPhone(ctx context.Context, phone string) (*Customer, error)
+	ListCustomersWithStats(ctx context.Context, category, search string, limit, offset int32) ([]CustomerWithStats, error)
+	UpdateCustomer(ctx context.Context, customer *Customer) error
+	DeleteCustomer(ctx context.Context, id int64) error
+	GetOrdersByCustomerID(ctx context.Context, customerID int64) ([]Order, error)
 }
+
 
 // PartRepositoryForOrders определяет интерфейс для работы с запчастями (для orders-service)
 type PartRepositoryForOrders interface {
@@ -166,6 +176,43 @@ func sqlcOrderItemToDomain(oi sqlc.OrderItem) OrderItem {
 		PartNameSnapshot: oi.PartNameSnapshot,
 		Quantity:         int(oi.Quantity),
 		Price:            oi.Price,
+	}
+}
+
+func sqlcCustomerToDomain(c sqlc.Customer) Customer {
+	return Customer{
+		ID:              c.ID,
+		Name:            c.Name,
+		Phone:           c.Phone,
+		City:            c.City,
+		PreferredTk:     c.PreferredTk,
+		PassportOrInn:   c.PassportOrInn,
+		Category:        c.Category,
+		DiscountPercent: c.DiscountPercent,
+		Notes:           c.Notes,
+		CreatedAt:       toTime(c.CreatedAt),
+		UpdatedAt:       toTime(c.UpdatedAt),
+	}
+}
+
+func sqlcCustomerRowToDomain(r sqlc.ListCustomersWithStatsRow) CustomerWithStats {
+	return CustomerWithStats{
+		Customer: Customer{
+			ID:              r.ID,
+			Name:            r.Name,
+			Phone:           r.Phone,
+			City:            r.City,
+			PreferredTk:     r.PreferredTk,
+			PassportOrInn:   r.PassportOrInn,
+			Category:        r.Category,
+			DiscountPercent: r.DiscountPercent,
+			Notes:           r.Notes,
+			CreatedAt:       toTime(r.CreatedAt),
+			UpdatedAt:       toTime(r.UpdatedAt),
+		},
+		TotalOrders: r.TotalOrders,
+		TotalSpent:  r.TotalSpent,
+		LastOrderAt: toTimePtr(r.LastOrderAt),
 	}
 }
 
@@ -485,6 +532,115 @@ func (r *orderRepository) UpdateSellerName(ctx context.Context, sellerID int64, 
 		SellerID: sellerID,
 		Seller:   name,
 	})
+}
+
+func (r *orderRepository) CreateCustomer(ctx context.Context, customer *Customer) error {
+	now := time.Now()
+	if customer.CreatedAt.IsZero() {
+		customer.CreatedAt = now
+	}
+	customer.UpdatedAt = now
+
+	params := sqlc.CreateCustomerParams{
+		Name:            customer.Name,
+		Phone:           customer.Phone,
+		City:            customer.City,
+		PreferredTk:     customer.PreferredTk,
+		PassportOrInn:   customer.PassportOrInn,
+		Category:        customer.Category,
+		DiscountPercent: customer.DiscountPercent,
+		Notes:           customer.Notes,
+		CreatedAt:       toTimestamptz(customer.CreatedAt),
+		UpdatedAt:       toTimestamptz(customer.UpdatedAt),
+	}
+
+	c, err := r.getQueries(ctx).CreateCustomer(ctx, params)
+	if err != nil {
+		return fmt.Errorf("failed to create customer: %w", err)
+	}
+
+	customer.ID = c.ID
+	return nil
+}
+
+func (r *orderRepository) GetCustomerByID(ctx context.Context, id int64) (*Customer, error) {
+	c, err := r.getQueries(ctx).GetCustomerByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	domain := sqlcCustomerToDomain(c)
+	return &domain, nil
+}
+
+func (r *orderRepository) GetCustomerByPhone(ctx context.Context, phone string) (*Customer, error) {
+	c, err := r.getQueries(ctx).GetCustomerByPhone(ctx, phone)
+	if err != nil {
+		return nil, err
+	}
+	domain := sqlcCustomerToDomain(c)
+	return &domain, nil
+}
+
+func (r *orderRepository) ListCustomersWithStats(ctx context.Context, category, search string, limit, offset int32) ([]CustomerWithStats, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	params := sqlc.ListCustomersWithStatsParams{
+		Category:  category,
+		Search:    search,
+		LimitVal:  limit,
+		OffsetVal: offset,
+	}
+
+	rows, err := r.getQueries(ctx).ListCustomersWithStats(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list customers: %w", err)
+	}
+
+	customers := make([]CustomerWithStats, len(rows))
+	for i, row := range rows {
+		customers[i] = sqlcCustomerRowToDomain(row)
+	}
+	return customers, nil
+}
+
+func (r *orderRepository) UpdateCustomer(ctx context.Context, customer *Customer) error {
+	params := sqlc.UpdateCustomerParams{
+		ID:              customer.ID,
+		Name:            customer.Name,
+		Phone:           customer.Phone,
+		City:            customer.City,
+		PreferredTk:     customer.PreferredTk,
+		PassportOrInn:   customer.PassportOrInn,
+		Category:        customer.Category,
+		DiscountPercent: customer.DiscountPercent,
+		Notes:           customer.Notes,
+	}
+
+	c, err := r.getQueries(ctx).UpdateCustomer(ctx, params)
+	if err != nil {
+		return fmt.Errorf("failed to update customer: %w", err)
+	}
+
+	*customer = sqlcCustomerToDomain(c)
+	return nil
+}
+
+func (r *orderRepository) DeleteCustomer(ctx context.Context, id int64) error {
+	return r.getQueries(ctx).DeleteCustomer(ctx, id)
+}
+
+func (r *orderRepository) GetOrdersByCustomerID(ctx context.Context, customerID int64) ([]Order, error) {
+	orders, err := r.getQueries(ctx).GetOrdersByCustomerID(ctx, customerID)
+	if err != nil {
+		return nil, err
+	}
+
+	domainOrders := make([]Order, len(orders))
+	for i, o := range orders {
+		domainOrders[i] = sqlcOrderToDomain(o)
+	}
+	return domainOrders, nil
 }
 
 func (r *orderRepository) GetPool() *pgxpool.Pool {

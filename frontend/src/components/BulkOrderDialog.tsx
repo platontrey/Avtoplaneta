@@ -13,6 +13,8 @@ import { createOrder } from '@/features/orders/api/ordersApi';
 import { sanitizeText, sanitizeNumber, INPUT_LIMITS } from "@/hooks/usePartValidation";
 import { Zap } from "lucide-react";
 import type { Part } from '@/features/parts/types';
+import type { CustomerWithStats } from '@/lib/types';
+import { CustomerSelectInput } from '@/features/customers/components/CustomerSelectInput';
 
 interface BulkOrderDialogProps {
   isOpen: boolean;
@@ -34,8 +36,27 @@ export default function BulkOrderDialog({ isOpen, onClose, selectedParts, onSucc
   const [quickSale, setQuickSale] = useState(false);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
   const [prices, setPrices] = useState<Record<number, number>>({});
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithStats | null>(null);
 
   const queryClient = useQueryClient();
+
+  const handleSelectCustomer = (customer: CustomerWithStats | null) => {
+    setSelectedCustomer(customer);
+    if (customer) {
+      if (customer.phone) {
+        setBuyerNumber(customer.phone);
+      } else if (customer.name) {
+        setBuyerNumber(customer.name);
+      }
+      if (customer.preferred_tk && !transportCompany) {
+        setTransportCompany(customer.preferred_tk);
+      }
+      if (customer.discount_percent > 0) {
+        const disc = Math.round((subtotal * customer.discount_percent) / 100);
+        setDiscount(disc);
+      }
+    }
+  };
 
   useEffect(() => {
     if (isOpen && selectedParts.length > 0) {
@@ -59,7 +80,7 @@ export default function BulkOrderDialog({ isOpen, onClose, selectedParts, onSucc
       }));
 
       return createOrder({
-        customer_id: 0,
+        customer_id: selectedCustomer?.id || 0,
         order_number: orderNumber.trim(),
         source: quickSale ? 'pickup' : source,
         part: selectedParts.map((p) => p.name).join(', '),
@@ -101,6 +122,7 @@ export default function BulkOrderDialog({ isOpen, onClose, selectedParts, onSucc
     setNotes('');
     setDiscount(0);
     setQuickSale(false);
+    setSelectedCustomer(null);
     setQuantities({});
     setPrices({});
     onClose();
@@ -152,12 +174,13 @@ export default function BulkOrderDialog({ isOpen, onClose, selectedParts, onSucc
               <Label htmlFor="bulk_buyer">
                 Покупатель (телефон / имя) {quickSale ? '(необязательно)' : '*'}
               </Label>
-              <Input
-                id="bulk_buyer"
+              <CustomerSelectInput
                 value={buyerNumber}
-                onChange={(e) => setBuyerNumber(sanitizeText(e.target.value))}
+                onChange={setBuyerNumber}
+                onSelectCustomer={handleSelectCustomer}
+                selectedCustomer={selectedCustomer}
                 placeholder={quickSale ? 'Самовывоз' : '+7 999 ... или имя клиента'}
-                maxLength={INPUT_LIMITS.TEXT_MAX_LENGTH}
+                required={!quickSale}
               />
             </div>
             <div className="space-y-1.5">
