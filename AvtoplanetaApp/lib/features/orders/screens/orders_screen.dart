@@ -859,7 +859,7 @@ class _OrderActions extends StatelessWidget {
               description:
                   'Завершить продажу по заказу #$orderId? Запчасти будут списаны со склада и учтены в статистике продаж.',
               actionLabel: 'Выдать / Завершить',
-              path: '/admin/orders/$orderId/complete',
+              path: '/orders/$orderId/complete',
               method: 'PUT',
             ),
             child: const Text('Выдать / Завершить'),
@@ -874,7 +874,7 @@ class _OrderActions extends StatelessWidget {
               description:
                   'Отменить заказ #$orderId? Запчасти останутся в наличии на складе.',
               actionLabel: 'Отменить заказ',
-              path: '/admin/orders/$orderId',
+              path: '/orders/$orderId',
               method: 'DELETE',
             ),
             style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
