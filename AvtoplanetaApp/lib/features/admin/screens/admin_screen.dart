@@ -1089,31 +1089,11 @@ class _PartsManagementCardState extends ConsumerState<_PartsManagementCard> {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    DropdownButtonFormField<String>(
-                      initialValue: validSelected,
-                      isExpanded: true,
-                      decoration: InputDecoration(
-                        labelText: 'Дефектная ведомость (${batches.length} доступно)',
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
-                      ),
-                      items: batches
-                          .map(
-                            (b) => DropdownMenuItem<String>(
-                              value: b.code,
-                              child: Text(
-                                b.label,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 13),
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: _deleting
-                          ? null
-                          : (val) => setState(() => _selectedCode = val),
+                    _BatchSearchPicker(
+                      batches: batches,
+                      selectedCode: validSelected,
+                      enabled: !_deleting,
+                      onSelected: (code) => setState(() => _selectedCode = code),
                     ),
                     const SizedBox(height: 16),
                     FilledButton.icon(
@@ -1143,6 +1123,216 @@ class _PartsManagementCardState extends ConsumerState<_PartsManagementCard> {
                   ],
                 );
               },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BatchSearchPicker extends StatelessWidget {
+  final List<SupplierBatch> batches;
+  final String? selectedCode;
+  final ValueChanged<String?> onSelected;
+  final bool enabled;
+
+  const _BatchSearchPicker({
+    required this.batches,
+    required this.selectedCode,
+    required this.onSelected,
+    this.enabled = true,
+  });
+
+  Future<void> _openSearchSheet(BuildContext context) async {
+    if (!enabled || batches.isEmpty) return;
+
+    final chosen = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.surfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _BatchOptionsSheet(
+        batches: batches,
+        selectedCode: selectedCode,
+      ),
+    );
+
+    if (chosen != null) {
+      onSelected(chosen.isEmpty ? null : chosen);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final current = batches.where((b) => b.code == selectedCode).firstOrNull;
+
+    return InkWell(
+      onTap: enabled ? () => _openSearchSheet(context) : null,
+      borderRadius: BorderRadius.circular(8),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: 'Дефектная ведомость (${batches.length} доступно)',
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (selectedCode != null && enabled)
+                IconButton(
+                  icon: const Icon(LucideIcons.x, size: 18),
+                  tooltip: 'Очистить выбор',
+                  onPressed: () => onSelected(null),
+                ),
+              const Padding(
+                padding: EdgeInsets.only(right: 12),
+                child: Icon(LucideIcons.chevron_down, size: 18),
+              ),
+            ],
+          ),
+        ),
+        child: Text(
+          current?.label ?? 'Выберите дефектную ведомость...',
+          style: TextStyle(
+            color: current != null ? Colors.white : Colors.white54,
+            fontSize: 13,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+  }
+}
+
+class _BatchOptionsSheet extends StatefulWidget {
+  final List<SupplierBatch> batches;
+  final String? selectedCode;
+
+  const _BatchOptionsSheet({
+    required this.batches,
+    required this.selectedCode,
+  });
+
+  @override
+  State<_BatchOptionsSheet> createState() => _BatchOptionsSheetState();
+}
+
+class _BatchOptionsSheetState extends State<_BatchOptionsSheet> {
+  final _searchCtrl = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  List<SupplierBatch> get _filtered {
+    final q = _query.trim().toLowerCase();
+    if (q.isEmpty) return widget.batches;
+    return widget.batches.where((b) {
+      return b.label.toLowerCase().contains(q) || b.code.toLowerCase().contains(q);
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered = _filtered;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.75,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  const Icon(LucideIcons.package, size: 20, color: AppTheme.primaryColor),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Выбор дефектной ведомости (${widget.batches.length})',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(LucideIcons.x, size: 20),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: TextField(
+                controller: _searchCtrl,
+                autofocus: true,
+                style: const TextStyle(fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'Поиск по марке, модели, VIN или коду...',
+                  prefixIcon: const Icon(LucideIcons.search, size: 18),
+                  suffixIcon: _query.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(LucideIcons.x, size: 16),
+                          onPressed: () {
+                            _searchCtrl.clear();
+                            setState(() => _query = '');
+                          },
+                        )
+                      : null,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                onChanged: (val) => setState(() => _query = val),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: filtered.isEmpty
+                  ? Center(
+                      child: Text(
+                        _query.isEmpty ? 'Нет ведомостей' : 'Ничего не найдено по запросу «$_query»',
+                        style: const TextStyle(color: Colors.white54, fontSize: 13),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: filtered.length,
+                      itemBuilder: (ctx, idx) {
+                        final b = filtered[idx];
+                        final isSelected = b.code == widget.selectedCode;
+                        return ListTile(
+                          leading: CircleAvatar(
+                            radius: 18,
+                            backgroundColor: isSelected
+                                ? AppTheme.primaryColor.withValues(alpha: 0.2)
+                                : Colors.white.withValues(alpha: 0.05),
+                            child: Icon(
+                              LucideIcons.package,
+                              size: 16,
+                              color: isSelected ? AppTheme.primaryColor : Colors.white70,
+                            ),
+                          ),
+                          title: Text(
+                            b.label,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              color: isSelected ? AppTheme.primaryColor : Colors.white,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Код: ${b.code}',
+                            style: const TextStyle(fontSize: 11, color: Colors.white54),
+                          ),
+                          trailing: isSelected
+                              ? const Icon(LucideIcons.check, color: AppTheme.primaryColor, size: 18)
+                              : null,
+                          onTap: () => Navigator.pop(context, b.code),
+                        );
+                      },
+                    ),
             ),
           ],
         ),

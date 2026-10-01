@@ -16,6 +16,7 @@ import ImageEditor from "./ImageEditor";
 import { getAuthHeaders } from "@/lib/csrf";
 import { useAuth } from "@/hooks/useAuth";
 import { getUserActivityLogs, logUserActivity } from "@/features/admin/api/adminApi";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import type { UserActivityLog, UserActivityAction } from "@/lib/types";
 
 type UserActivityResourceType =
@@ -1074,21 +1075,22 @@ export default function AdminPanel() {
               </p>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="supplier-code-select">
+                  <Label htmlFor="supplier-code-select" className="mb-2 block">
                     Выберите дефектную ведомость / код поставки ({supplierBatches.length} доступно)
                   </Label>
-                  <Select value={selectedSupplierCode} onValueChange={setSelectedSupplierCode}>
-                    <SelectTrigger id="supplier-code-select">
-                      <SelectValue placeholder={supplierBatches.length > 0 ? "Выберите дефектную ведомость" : "Нет ведомостей с нулевыми запчастями"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {supplierBatches.map((batch) => (
-                        <SelectItem key={batch.code} value={batch.code}>
-                          {batch.label || batch.code}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    value={selectedSupplierCode}
+                    onValueChange={setSelectedSupplierCode}
+                    options={supplierBatches.map((batch) => ({
+                      value: batch.code,
+                      label: batch.label || batch.code,
+                    }))}
+                    placeholder={supplierBatches.length > 0 ? "Выберите дефектную ведомость..." : "Нет ведомостей с нулевыми запчастями"}
+                    searchPlaceholder="Поиск по марке, модели или коду..."
+                    emptyMessage="Ведомость не найдена"
+                    disabled={supplierBatches.length === 0 || loading}
+                    className="w-full"
+                  />
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
