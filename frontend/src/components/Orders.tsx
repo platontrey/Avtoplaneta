@@ -147,7 +147,7 @@ const Orders = () => {
   const [warehouseFilter, setWarehouseFilter] = useState<string>('all');
   const [locationFilter, setLocationFilter] = useState<string>('all');
 
-  const { data: activeOrders, isLoading: activeLoading, error: activeError } = useOrders();
+  const { data: activeOrders, isLoading: activeLoading, error: activeError, refetch: refetchActive } = useOrders();
   const { data: completedOrders, isLoading: completedLoading } = useCompletedOrders(activeTab === 'completed');
 
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
@@ -316,7 +316,21 @@ const Orders = () => {
   }
 
   if (activeError) {
-    return <div className="container mx-auto p-4 text-destructive">Ошибка загрузки заказов</div>;
+    return (
+      <div className="container mx-auto p-4 space-y-4">
+        <div className="p-4 bg-destructive/10 text-destructive border border-destructive/20 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <p className="font-semibold text-base">Ошибка загрузки заказов</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {activeError instanceof Error ? activeError.message : 'Не удалось получить список заказов с сервера'}
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => refetchActive()}>
+            Повторить попытку
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
