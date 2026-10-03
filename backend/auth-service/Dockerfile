@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM golang:1.26-alpine AS builder
 
 RUN apk add --no-cache git ca-certificates tzdata
@@ -7,10 +8,14 @@ WORKDIR /app
 COPY gen ../gen
 COPY pkg ../pkg
 COPY auth-service/go.mod auth-service/go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+
 COPY auth-service/ .
 
-RUN GOMAXPROCS=16 CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /auth-service .
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    GOMAXPROCS=16 CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /auth-service .
 
 FROM alpine:3.19
 
