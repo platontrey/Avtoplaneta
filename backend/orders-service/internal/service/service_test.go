@@ -418,4 +418,117 @@ func TestCustomerOperations(t *testing.T) {
 		err := svc.DeleteCustomer(ctx, 15)
 		require.NoError(t, err)
 	})
+
+	t.Run("CreateCustomer_DuplicatePhoneConflict", func(t *testing.T) {
+		existing := &domain.Customer{ID: 20, Name: "Существующий", Phone: "+79991112233"}
+		mockOrderRepo.On("GetCustomerByPhone", ctx, "+79991112233").Return(existing, nil)
+
+		req := domain.CreateCustomerRequest{
+			Name:  "Новый клон",
+			Phone: "+79991112233",
+		}
+
+		_, err := svc.CreateCustomer(ctx, req)
+		require.Error(t, err)
+		assert.True(t, domain.IsConflictError(err))
+	})
+}
+
+func TestParseBuyerInfo(t *testing.T) {
+	tests := []struct {
+		input     string
+		wantPhone string
+		wantName  string
+	}{
+		{
+			input:     "+79528094032",
+			wantPhone: "+79528094032",
+			wantName:  "+79528094032",
+		},
+		{
+			input:     "89528094032",
+			wantPhone: "+79528094032",
+			wantName:  "+79528094032",
+		},
+		{
+			input:     "Получатель Кадиров Мадамин Анвархонович 9635102022",
+			wantPhone: "+79635102022",
+			wantName:  "Кадиров Мадамин Анвархонович",
+		},
+		{
+			input:     "Иванов 89139956718",
+			wantPhone: "+79139956718",
+			wantName:  "Иванов",
+		},
+		{
+			input:     "1",
+			wantPhone: "",
+			wantName:  "",
+		},
+		{
+			input:     "Самовывоз",
+			wantPhone: "",
+			wantName:  "",
+		},
+		{
+			input:     "Продажа на месте",
+			wantPhone: "",
+			wantName:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		phone, name := parseBuyerInfo(tt.input)
+		assert.Equal(t, tt.wantPhone, phone, "phone mismatch for %s", tt.input)
+		assert.Equal(t, tt.wantName, name, "name mismatch for %s", tt.input)
+	}
+}
+
+func TestCreateOrder_Deduplication(t *testing.T) {
+	mockOrderRepo := new(MockOrderRepository)
+	mockPartRepo := new(MockPartRepositoryForOrders)
+	mockCache := new(MockCacheService)
+	mockPublisher := new(MockEventPublisher)
+
+	svc := NewOrdersService(mockOrderRepo, mockPartRepo, mockCache, mockPublisher)
+	ctx := context.Background()
+
+	part := &domain.Part{
+		ID:       50,
+		Name:     "Деталь",
+		Price:    5000,
+		Quantity: 5,
+	}
+
+	existingCustomer := &domain.Customer{
+		ID:    77,
+		Name:  "Кадиров Мадамин Анвархонович",
+		Phone: "+79635102022",
+	}
+
+	mockPartRepo.On("FindByID", ctx, int64(50)).Return(part, nil)
+	// При поиске покупателя "Получатель Кадиров..." номер нормализуется в +79635102022
+	mockOrderRepo.On("GetCustomerByPhone", ctx, "+79635102022").Return(existingCustomer, nil)
+	mockOrderRepo.On("Create", ctx, mock.MatchedBy(func(o *domain.Order) bool {
+		return o.CustomerID == 77
+	})).Return(nil)
+	mockOrderRepo.On("CreateItem", ctx, mock.AnythingOfType("*domain.OrderItem")).Return(nil)
+	mockOrderRepo.On("FindWithItemsByID", mock.Anything, int64(100)).Return(&domain.Order{
+		ID:         100,
+		CustomerID: 77,
+		Items:      []domain.OrderItem{{PartID: 50, Quantity: 1, Price: 5000}},
+	}, nil)
+	mockCache.On("InvalidateOrders").Return(nil)
+
+	req := domain.CreateOrderRequest{
+		PartID:      50,
+		BuyerNumber: "Получатель Кадиров Мадамин Анвархонович 9635102022",
+		Items:       []domain.CreateOrderItemInput{{PartID: 50, Quantity: 1}},
+	}
+
+	order, err := svc.CreateOrder(ctx, req, 1, "Менеджер")
+	require.NoError(t, err)
+	assert.Equal(t, int64(77), order.CustomerID)
+	// Проверяем, что CreateCustomer НЕ вызывался повторно, так как клиент уже существует
+	mockOrderRepo.AssertNotCalled(t, "CreateCustomer", mock.Anything, mock.Anything)
 }

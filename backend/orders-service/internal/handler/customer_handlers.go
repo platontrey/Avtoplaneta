@@ -77,7 +77,9 @@ func (h *Handler) CreateCustomerHandler(c *gin.Context) {
 
 	customer, err := h.ordersService.CreateCustomer(ctx, req)
 	if err != nil {
-		if domain.IsValidationError(err) {
+		if domain.IsConflictError(err) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		} else if domain.IsValidationError(err) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create customer"})

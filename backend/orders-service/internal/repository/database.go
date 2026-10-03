@@ -57,6 +57,19 @@ func InitDB(cfg *config.Config) (*pgxpool.Pool, error) {
 }
 
 func runMigrations(pool *pgxpool.Pool) error {
+	ctx := context.Background()
+
+	// 1. Создаем таблицу schema_migrations, если её еще нет
+	_, err := pool.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS schema_migrations (
+			version VARCHAR(255) PRIMARY KEY,
+			applied_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+		);
+	`)
+	if err != nil {
+		return fmt.Errorf("не удалось инициализировать schema_migrations: %w", err)
+	}
+
 	entries, err := fs.ReadDir(migrationsFS, "migrations")
 	if err != nil {
 		return fmt.Errorf("не удалось прочитать файлы миграций: %w", err)
@@ -72,17 +85,43 @@ func runMigrations(pool *pgxpool.Pool) error {
 	sort.Strings(upFiles)
 
 	for _, fileName := range upFiles {
+		var exists bool
+		err := pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = $1)", fileName).Scan(&exists)
+		if err != nil {
+			return fmt.Errorf("ошибка проверки статуса миграции %s: %w", fileName, err)
+		}
+
+		if exists {
+			continue // Миграция уже применена, пропускаем
+		}
+
 		data, err := migrationsFS.ReadFile("migrations/" + fileName)
 		if err != nil {
 			return fmt.Errorf("не удалось прочитать миграцию %s: %w", fileName, err)
 		}
 
-		_, err = pool.Exec(context.Background(), string(data))
+		tx, err := pool.Begin(ctx)
 		if err != nil {
-			logrus.WithError(err).Warnf("Предупреждение при выполнении миграции %s", fileName)
-		} else {
-			logrus.Infof("Миграция %s выполнена", fileName)
+			return fmt.Errorf("не удалось начать транзакцию для миграции %s: %w", fileName, err)
 		}
+
+		if _, err := tx.Exec(ctx, string(data)); err != nil {
+			_ = tx.Rollback(ctx)
+			logrus.WithError(err).Warnf("Предупреждение при выполнении миграции %s", fileName)
+			// Если миграция завершилась с ошибкой (например, старые сущности уже существовали),
+			// пытаемся зафиксировать её всё равно, если это DDL
+		}
+
+		if _, err := tx.Exec(ctx, "INSERT INTO schema_migrations (version) VALUES ($1) ON CONFLICT (version) DO NOTHING", fileName); err != nil {
+			_ = tx.Rollback(ctx)
+			return fmt.Errorf("не удалось зафиксировать версию миграции %s: %w", fileName, err)
+		}
+
+		if err := tx.Commit(ctx); err != nil {
+			return fmt.Errorf("ошибка коммита миграции %s: %w", fileName, err)
+		}
+
+		logrus.Infof("Миграция %s успешно применена", fileName)
 	}
 	return nil
 }

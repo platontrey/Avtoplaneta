@@ -193,6 +193,122 @@ func (s *ordersService) GetCompletedOrders(ctx context.Context) ([]domain.Order,
 	return orders, nil
 }
 
+// parseBuyerInfo извлекает нормализованный телефон и имя покупателя из строки buyer_number
+func parseBuyerInfo(raw string) (phone string, name string) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || raw == "Самовывоз" || raw == "Продажа на месте" || raw == "Без контакта" {
+		return "", ""
+	}
+
+	// Извлекаем все цифры
+	var digits strings.Builder
+	for _, r := range raw {
+		if r >= '0' && r <= '9' {
+			digits.WriteRune(r)
+		}
+	}
+	digitStr := digits.String()
+
+	// Если цифр меньше 7, это не телефон (например, короткое число "1" или артикул)
+	if len(digitStr) < 7 {
+		return "", ""
+	}
+
+	// Нормализация российского/международного номера
+	if len(digitStr) == 10 {
+		phone = "+7" + digitStr
+	} else if len(digitStr) == 11 && (digitStr[0] == '7' || digitStr[0] == '8') {
+		phone = "+7" + digitStr[1:]
+	} else if len(digitStr) >= 11 {
+		phone = "+" + digitStr
+	} else {
+		phone = digitStr
+	}
+
+	// Извлекаем имя: убираем префиксы "Получатель", "ФИО:" и сам телефон из имени
+	namePart := raw
+	lower := strings.ToLower(namePart)
+	if strings.HasPrefix(lower, "получатель") {
+		namePart = strings.TrimSpace(namePart[len("получатель"):])
+	}
+	if strings.HasPrefix(strings.ToLower(namePart), "фио") {
+		namePart = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(namePart, "ФИО"), ":"))
+	}
+
+	words := strings.Fields(namePart)
+	var nameWords []string
+	for _, w := range words {
+		cleanWord := strings.Trim(w, "+()- ")
+		isNumeric := true
+		for _, ch := range cleanWord {
+			if ch < '0' || ch > '9' {
+				isNumeric = false
+				break
+			}
+		}
+		if !isNumeric || len(cleanWord) < 6 {
+			nameWords = append(nameWords, w)
+		}
+	}
+
+	name = strings.Join(nameWords, " ")
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = phone
+	}
+
+	return phone, name
+}
+
+func (s *ordersService) resolveCustomerForOrder(ctx context.Context, req domain.CreateOrderRequest, buyerNumber string) int64 {
+	customerID := req.CustomerID
+	if customerID > 0 {
+		return customerID
+	}
+
+	phone, name := parseBuyerInfo(buyerNumber)
+	if phone == "" {
+		return 0
+	}
+
+	// 1. Ищем существующего клиента по нормализованному номеру
+	existingCustomer, err := s.orderRepo.GetCustomerByPhone(ctx, phone)
+	if err != nil && phone != buyerNumber {
+		existingCustomer, err = s.orderRepo.GetCustomerByPhone(ctx, buyerNumber)
+	}
+
+	if err == nil && existingCustomer != nil {
+		// Обогащаем имя, если у клиента был только номер
+		if (existingCustomer.Name == "" || existingCustomer.Name == existingCustomer.Phone) && name != phone {
+			existingCustomer.Name = name
+			_ = s.orderRepo.UpdateCustomer(ctx, existingCustomer)
+		}
+		return existingCustomer.ID
+	}
+
+	// 2. Создаем нового клиента с защитой от гонки (race conditions)
+	newCust := &domain.Customer{
+		Name:            name,
+		Phone:           phone,
+		City:            "",
+		PreferredTk:     strings.TrimSpace(req.TransportCompany),
+		Category:        "regular",
+		DiscountPercent: 0,
+		Notes:           "Создан автоматически из заказа",
+	}
+
+	if err := s.orderRepo.CreateCustomer(ctx, newCust); err == nil {
+		return newCust.ID
+	}
+
+	// Если произошел конфликт уникальности из-за параллельного запроса
+	if conflictCust, errConf := s.orderRepo.GetCustomerByPhone(ctx, phone); errConf == nil && conflictCust != nil {
+		return conflictCust.ID
+	}
+
+	return 0
+}
+
 // CreateOrder создает новый заказ
 func (s *ordersService) CreateOrder(ctx context.Context, req domain.CreateOrderRequest, userID int64, userName string) (*domain.Order, error) {
 	if len(req.Items) == 0 {
@@ -300,26 +416,7 @@ func (s *ordersService) CreateOrder(ctx context.Context, req domain.CreateOrderR
 		initialStatus = "Ожидает предоплаты"
 	}
 
-	customerID := req.CustomerID
-	if customerID <= 0 && buyerNumber != "" && buyerNumber != "Самовывоз" && buyerNumber != "Продажа на месте" && buyerNumber != "Без контакта" {
-		existingCustomer, err := s.orderRepo.GetCustomerByPhone(ctx, buyerNumber)
-		if err == nil && existingCustomer != nil {
-			customerID = existingCustomer.ID
-		} else {
-			newCust := &domain.Customer{
-				Name:            buyerNumber,
-				Phone:           buyerNumber,
-				City:            "",
-				PreferredTk:     strings.TrimSpace(req.TransportCompany),
-				Category:        "regular",
-				DiscountPercent: 0,
-				Notes:           "Создан автоматически из заказа",
-			}
-			if err := s.orderRepo.CreateCustomer(ctx, newCust); err == nil {
-				customerID = newCust.ID
-			}
-		}
-	}
+	customerID := s.resolveCustomerForOrder(ctx, req, buyerNumber)
 
 	now := time.Now()
 	order := &domain.Order{
@@ -845,6 +942,24 @@ func (s *ordersService) CreateCustomer(ctx context.Context, req domain.CreateCus
 	if phone == "" && name == "" {
 		return nil, domain.ValidationError{Field: "phone", Message: "укажите телефон или имя клиента"}
 	}
+
+	if phone != "" {
+		if normPhone, normName := parseBuyerInfo(phone); normPhone != "" {
+			phone = normPhone
+			if name == "" && normName != "" && normName != normPhone {
+				name = normName
+			}
+		}
+
+		existing, err := s.orderRepo.GetCustomerByPhone(ctx, phone)
+		if err == nil && existing != nil {
+			return nil, domain.ConflictError{
+				Resource: "customer",
+				Message:  fmt.Sprintf("клиент с номером %s уже существует (ID %d: %s)", phone, existing.ID, existing.Name),
+			}
+		}
+	}
+
 	if name == "" {
 		name = phone
 	}

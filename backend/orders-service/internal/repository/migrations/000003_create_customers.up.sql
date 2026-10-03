@@ -31,6 +31,9 @@ WHERE buyer_number IS NOT NULL
   AND TRIM(buyer_number) != ''
   AND TRIM(buyer_number) != 'Продажа на месте'
   AND TRIM(buyer_number) != 'Без контакта'
+  AND NOT EXISTS (
+      SELECT 1 FROM customers c WHERE c.phone = TRIM(buyer_number)
+  )
 ORDER BY TRIM(buyer_number), created_at ASC;
 
 -- Link existing orders to newly created customers
