@@ -3,6 +3,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { Accordion } from "@/components/ui/accordion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,14 @@ interface PartsListProps {
 function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScroll = false, defaultOpenPartId = null }: PartsListProps) {
     const loadMoreRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const listRef = useRef<HTMLDivElement>(null);
+
+    const virtualizer = useWindowVirtualizer({
+        count: parts.length,
+        estimateSize: () => 140,
+        overscan: 5,
+        scrollMargin: listRef.current?.offsetTop ?? 0,
+    });
     const [isSelectionMode, setIsSelectionMode] = useState(false);
     const [selectedParts, setSelectedParts] = useState<Set<number>>(new Set());
     const [selectedPartsCatalog, setSelectedPartsCatalog] = useState<Map<number, Part>>(new Map());
@@ -257,27 +266,49 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
                 </div>
             )}
 
-            {/* Список запчастей */}
-            <Accordion
-                type="single"
-                collapsible
-                value={openAccordionValue}
-                onValueChange={setOpenAccordionValue}
-                className="w-full"
-            >
-                {parts.map((part) => (
-                    <PartBlock
-                        key={part.id}
-                        part={part}
-                        isLoading={false}
-                        isSelectionMode={isSelectionMode}
-                        isSelected={selectedParts.has(part.id)}
-                        activeOrderId={partToOrderMap.get(part.id)}
-                        onLongPress={() => handleLongPress(part.id)}
-                        onSelect={(isSelected) => handlePartSelect(part.id, isSelected)}
-                    />
-                ))}
-            </Accordion>
+            {/* Список запчастей с виртуализацией */}
+            <div ref={listRef} className="w-full">
+                <Accordion
+                    type="single"
+                    collapsible
+                    value={openAccordionValue}
+                    onValueChange={setOpenAccordionValue}
+                    className="w-full relative"
+                    style={{
+                        height: `${virtualizer.getTotalSize()}px`,
+                    }}
+                >
+                    {virtualizer.getVirtualItems().map((virtualRow) => {
+                        const part = parts[virtualRow.index];
+                        if (!part) return null;
+                        return (
+                            <div
+                                key={part.id}
+                                ref={virtualizer.measureElement}
+                                data-index={virtualRow.index}
+                                className="w-full"
+                                style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    transform: `translateY(${virtualRow.start - (virtualizer.options.scrollMargin || 0)}px)`,
+                                }}
+                            >
+                                <PartBlock
+                                    part={part}
+                                    isLoading={false}
+                                    isSelectionMode={isSelectionMode}
+                                    isSelected={selectedParts.has(part.id)}
+                                    activeOrderId={partToOrderMap.get(part.id)}
+                                    onLongPress={() => handleLongPress(part.id)}
+                                    onSelect={(isSelected) => handlePartSelect(part.id, isSelected)}
+                                />
+                            </div>
+                        );
+                    })}
+                </Accordion>
+            </div>
 
             {/* Триггер бесконечной прокрутки */}
             {isInfiniteScroll && (

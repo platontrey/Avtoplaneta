@@ -13,6 +13,7 @@ import CreateChatDialog from './CreateChatDialog';
 import ChatSettings, { type ChatSettingsData } from './ChatSettings';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { sanitizeHtml } from '@/lib/security';
 
 export default function MessagesPage() {
     const { user: currentUser, isLoading } = useAuth();
@@ -123,10 +124,12 @@ export default function MessagesPage() {
   };
 
   const handleSendDromMessage = async () => {
-    if (!selectedDromDialog || !dromMessageInput.trim()) return;
+    const trimmed = dromMessageInput.trim();
+    if (!selectedDromDialog || !trimmed) return;
     setDromSending(true);
     try {
-      await messagingApi.sendDromMessage(selectedDromDialog.dialog_id, dromMessageInput.trim());
+      const cleanContent = sanitizeHtml(trimmed, 'COMMENT');
+      await messagingApi.sendDromMessage(selectedDromDialog.dialog_id, cleanContent);
       setDromMessageInput('');
       setHasNewDromMessages(false);
       await loadDromMessages(selectedDromDialog.dialog_id);

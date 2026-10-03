@@ -97,7 +97,7 @@ export default function MarkdownViewer({ content }: MarkdownViewerProps) {
       }
 
       // Обычный текст до следующего спецсимвола
-      const nextSpecial = remaining.search(/[`*!\[_]/);
+      const nextSpecial = remaining.search(/[`*![_]/);
       if (nextSpecial === -1) {
         parts.push(remaining);
         break;

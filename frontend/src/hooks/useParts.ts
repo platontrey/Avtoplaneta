@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tansta
 import type { QueryClient } from '@tanstack/react-query';
 import { partsApi } from '@/features/parts/api/partsApi';
 import type { Part } from '@/features/parts/types';
+import { CACHE_TIERS } from '@/lib/queryClient';
 
 /**
  * Ключи запросов для работы с запчастями
@@ -173,7 +174,7 @@ export function useParts(filters?: PartFilters) {
       console.log('useParts queryFn executing with filters:', filters);
       return partsApi.getAll(filters || {});
     },
-    staleTime: 1000 * 60 * 2, // 2 minutes
+    ...CACHE_TIERS.CATALOG,
   });
 }
 
@@ -186,7 +187,7 @@ export function usePart(id?: number | null) {
     queryFn: () => partsApi.getById(id as number),
     enabled: typeof id === 'number' && id > 0,
     retry: false,
-    staleTime: 1000 * 60 * 2,
+    ...CACHE_TIERS.CATALOG,
   });
 }
 
@@ -212,7 +213,7 @@ export function useInfiniteParts(filters?: Omit<PartFilters, 'limit' | 'page'>) 
       // Если последняя страница содержит меньше 20 элементов, значит это последняя
       return lastPage.length === 20 ? allPages.length + 1 : undefined;
     },
-    staleTime: 1000 * 60 * 2, // 2 minutes
+    ...CACHE_TIERS.CATALOG,
   });
 }
 

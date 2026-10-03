@@ -21,6 +21,7 @@ interface CompleteOrderDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (order: Order) => void;
+  isPending?: boolean;
 }
 
 export const CompleteOrderDialog: React.FC<CompleteOrderDialogProps> = ({
@@ -28,9 +29,10 @@ export const CompleteOrderDialog: React.FC<CompleteOrderDialogProps> = ({
   isOpen,
   onClose,
   onConfirm,
+  isPending = false,
 }) => {
   return (
-    <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <AlertDialog open={isOpen} onOpenChange={(open) => !open && !isPending && onClose()}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Завершить сделку по заказу #{order?.id}?</AlertDialogTitle>
@@ -40,13 +42,14 @@ export const CompleteOrderDialog: React.FC<CompleteOrderDialogProps> = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Отмена</AlertDialogCancel>
+          <AlertDialogCancel disabled={isPending}>Отмена</AlertDialogCancel>
           <AlertDialogAction
+            disabled={isPending}
             onClick={() => {
               if (order) onConfirm(order);
             }}
           >
-            Завершить продажу
+            {isPending ? 'Завершение...' : 'Завершить продажу'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -59,6 +62,7 @@ interface DeleteOrderDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (order: Order) => void;
+  isPending?: boolean;
 }
 
 export const DeleteOrderDialog: React.FC<DeleteOrderDialogProps> = ({
@@ -66,9 +70,10 @@ export const DeleteOrderDialog: React.FC<DeleteOrderDialogProps> = ({
   isOpen,
   onClose,
   onConfirm,
+  isPending = false,
 }) => {
   return (
-    <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <AlertDialog open={isOpen} onOpenChange={(open) => !open && !isPending && onClose()}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Отменить и удалить заказ #{order?.id}?</AlertDialogTitle>
@@ -77,14 +82,15 @@ export const DeleteOrderDialog: React.FC<DeleteOrderDialogProps> = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Назад</AlertDialogCancel>
+          <AlertDialogCancel disabled={isPending}>Назад</AlertDialogCancel>
           <AlertDialogAction
+            disabled={isPending}
             onClick={() => {
               if (order) onConfirm(order);
             }}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            Удалить заказ
+            {isPending ? 'Удаление...' : 'Удалить заказ'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

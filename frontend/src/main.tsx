@@ -9,8 +9,12 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from './lib/queryClient'
 import { pushManager } from './lib/pushNotifications'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { initGlobalErrorHandlers } from './lib/telemetry'
 import './index.css'
 import App from './App.tsx'
+
+// Инициализируем корпоративный перехватчик рантайм-ошибок и асинхронных сбоев
+initGlobalErrorHandlers()
 
 // Auto-recover from stale cached chunk mismatches upon new deployments
 window.addEventListener('vite:preloadError', () => {

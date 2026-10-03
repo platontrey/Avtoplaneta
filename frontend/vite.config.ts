@@ -83,9 +83,15 @@ export default defineConfig({
     },
   },
   server: {
-      host: '0.0.0.0',
-      allowedHosts: ['spectrologically-seeable-zenobia.ngrok-free.dev'],
-      proxy: {
+    host: '0.0.0.0',
+    allowedHosts: ['spectrologically-seeable-zenobia.ngrok-free.dev'],
+    headers: {
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'X-XSS-Protection': '1; mode=block',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+    },
+    proxy: {
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,

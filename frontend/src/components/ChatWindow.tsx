@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Conversation, Message, User } from '../features/messaging/types';
 import { messagingApi } from '../features/messaging/api/messagingApi';
+import { sanitizeHtml } from '@/lib/security';
 
 interface VoiceMessagePlayerProps {
   voiceUrl: string;
@@ -137,16 +138,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, currentUser, onCl
     }
   };
 
-  useEffect(() => {
-    loadMessages();
-    loadUsers();
-  }, [conversation.id]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const loadMessages = async () => {
+  const loadMessages = useCallback(async () => {
     try {
       const data = await messagingApi.getMessages(conversation.id);
       setMessages(data);
@@ -155,9 +147,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, currentUser, onCl
     } finally {
       setLoading(false);
     }
-  };
+  }, [conversation.id]);
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       const data = await messagingApi.getUsers();
       console.log('Loaded users:', data);
@@ -165,7 +157,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, currentUser, onCl
     } catch (error) {
       console.error('Failed to load users:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadMessages();
+    loadUsers();
+  }, [loadMessages, loadUsers]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -173,10 +174,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, currentUser, onCl
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    const trimmed = newMessage.trim();
+    if (!trimmed) return;
 
     try {
-      const message = await messagingApi.sendMessage(conversation.id, newMessage.trim());
+      const cleanContent = sanitizeHtml(trimmed, 'COMMENT');
+      const message = await messagingApi.sendMessage(conversation.id, cleanContent);
       setMessages(prev => [...prev, message]);
       setNewMessage('');
     } catch (error) {

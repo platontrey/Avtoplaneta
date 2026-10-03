@@ -6,6 +6,7 @@ import React, { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { logClientError } from '@/lib/telemetry';
 
 interface Props {
   children: ReactNode;
@@ -77,6 +78,8 @@ class ErrorBoundary extends Component<Props, State> {
     } else {
       console.error('ErrorBoundary caught an error:', error, errorInfo);
     }
+
+    logClientError(error, { componentStack: errorInfo.componentStack });
 
     this.setState({
       hasError: true,

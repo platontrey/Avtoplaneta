@@ -79,7 +79,7 @@ interface ApiEndpoint {
   responseExample?: string;
 }
 
-export default function Readme({ user: _user, defaultTab = 'guides' }: ReadmeProps) {
+export default function Readme({ defaultTab = 'guides' }: ReadmeProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get('tab');
   const urlDoc = searchParams.get('doc');
@@ -285,7 +285,7 @@ export default function Readme({ user: _user, defaultTab = 'guides' }: ReadmePro
     // 1. Динамический парсинг путей из swagger.json
     if (swaggerSpec && swaggerSpec.paths) {
       for (const [pathKey, methods] of Object.entries(swaggerSpec.paths)) {
-        for (const [methodKey, opAny] of Object.entries(methods as Record<string, any>)) {
+        for (const [methodKey, opAny] of Object.entries(methods as Record<string, unknown>)) {
           const method = methodKey.toUpperCase() as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
           const op = opAny as {
             operationId?: string;
@@ -298,9 +298,9 @@ export default function Readme({ user: _user, defaultTab = 'guides' }: ReadmePro
               type?: string;
               required?: boolean;
               description?: string;
-              schema?: any;
+              schema?: unknown;
             }>;
-            responses?: Record<string, any>;
+            responses?: Record<string, unknown>;
           };
 
           const rawService = (op.tags && op.tags[0]) || 'PartsService';

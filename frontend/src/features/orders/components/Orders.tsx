@@ -377,6 +377,7 @@ export const Orders: React.FC = () => {
         order={orderToComplete}
         isOpen={Boolean(orderToComplete)}
         onClose={() => setOrderToComplete(null)}
+        isPending={completeOrderMutation.isPending}
         onConfirm={(order) => {
           completeOrderMutation.mutate(order.id);
         }}
@@ -387,6 +388,7 @@ export const Orders: React.FC = () => {
         order={orderToDelete}
         isOpen={Boolean(orderToDelete)}
         onClose={() => setOrderToDelete(null)}
+        isPending={deleteOrderMutation.isPending}
         onConfirm={(order) => {
           deleteOrderMutation.mutate(order.id);
         }}
