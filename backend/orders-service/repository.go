@@ -19,6 +19,9 @@ var txKey = txKeyType{}
 
 // RunInTransaction выполняет функцию fn в рамках транзакции
 func RunInTransaction(ctx context.Context, pool *pgxpool.Pool, fn func(ctx context.Context) error) error {
+	if pool == nil {
+		return fn(ctx)
+	}
 	tx, err := pool.Begin(ctx)
 	if err != nil {
 		return err
