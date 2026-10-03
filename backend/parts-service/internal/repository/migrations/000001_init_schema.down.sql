@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS earnings;
+DROP TABLE IF EXISTS parts;

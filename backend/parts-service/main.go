@@ -15,12 +15,18 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 
 	"avtoplaneta/pkg/tracing"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"parts-service/internal/catalog"
+	"parts-service/internal/config"
+	"parts-service/internal/events"
+	"parts-service/internal/grpc"
+	"parts-service/internal/handler"
+	"parts-service/internal/repository"
+	"parts-service/internal/search"
+	"parts-service/internal/service"
 )
-
-var redisClient *redis.Client
 
 func main() {
 	// Установка количества OS-тредов для оптимизации под доступное количество ядер
@@ -44,50 +50,63 @@ func main() {
 		log.Println("No .env file found")
 	}
 
-	config := LoadConfig()
-	InitDB(config)
-	InitRedis(config)
+	cfg := config.LoadConfig()
+	dbPool, err := repository.InitDB(cfg)
+	if err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+	defer dbPool.Close()
+
+	redisClient := initRedis(cfg)
+	defer redisClient.Close()
 
 	// Создание контекста с отменой для graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	defer closeGRPCClients()
+
+	// Инициализация gRPC клиентов для межсервисной коммуникации
+	grpc.InitGRPCClients()
+	defer grpc.CloseGRPCClients()
 
 	// Инициализация Elasticsearch
-	var esClient ElasticsearchClient
-	if err := InitElasticsearch(config.ElasticsearchURL); err != nil {
+	var esClient search.ElasticsearchClient
+	if err := search.InitElasticsearch(cfg.ElasticsearchURL); err != nil {
 		log.Printf("Предупреждение: Не удалось инициализировать Elasticsearch: %v", err)
 		log.Println("Продолжаем без функциональности Elasticsearch")
 		esClient = nil
 	} else {
 		// Создание индекса запчастей, если он не существует
-		if err := CreatePartsIndex(); err != nil {
+		if err := search.CreatePartsIndex(); err != nil {
 			log.Printf("Предупреждение: Не удалось создать индекс запчастей: %v", err)
-		} else {
-			// Переиндексация всех существующих запчастей
-			if err := ReindexAllParts(); err != nil {
-				log.Printf("Предупреждение: Не удалось переиндексировать запчасти: %v", err)
-			}
 		}
-		esClient = NewElasticsearchAdapter()
+		esClient = search.NewElasticsearchAdapter()
 	}
 
 	// Создание зависимостей с dependency injection
-	repo := NewPartRepository(dbPool)
-	service := NewInventoryService(repo, esClient, config, newUserDirectory())
-	partCatalog, err := LoadPartCatalog()
+	repo := repository.NewPartRepository(dbPool)
+	userDir := service.NewUserDirectory(grpc.GetAuthClient())
+	svc := service.NewInventoryService(repo, esClient, cfg, userDir)
+	svc.SetMonthlySalesProvider(grpc.GetMonthlySalesGRPC)
+
+	if esClient != nil {
+		if err := svc.ReindexAllParts(ctx); err != nil {
+			log.Printf("Предупреждение: Не удалось переиндексировать запчасти: %v", err)
+		}
+	}
+
+	partCatalog, err := catalog.LoadPartCatalog()
 	if err != nil {
 		log.Fatalf("Не удалось загрузить каталог шаблонов запчастей: %v", err)
 	}
-	vehicleCatalog, err := LoadVehicleCatalog()
+	vehicleCatalog, err := catalog.LoadVehicleCatalog()
 	if err != nil {
 		log.Fatalf("Не удалось загрузить справочник марок и моделей: %v", err)
 	}
-	defectReports := NewDefectReportWorkflow(
+	defectReports := service.NewDefectReportWorkflow(
 		partCatalog,
-		service,
+		svc,
 	)
-	handler := NewHandler(service, partCatalog, vehicleCatalog, defectReports)
+	h := handler.NewHandler(svc, partCatalog, vehicleCatalog, defectReports)
 
 	// Запуск gRPC-сервера в отдельной горутине
 	grpcPort := os.Getenv("GRPC_PORT")
@@ -95,16 +114,13 @@ func main() {
 		grpcPort = "9081"
 	}
 	go func() {
-		if err := StartGRPCServer(service, defectReports, grpcPort); err != nil {
+		if err := grpc.StartGRPCServer(svc, defectReports, grpcPort); err != nil {
 			log.Fatalf("gRPC server failed: %v", err)
 		}
 	}()
 
-	// Инициализация gRPC клиентов для межсервисной коммуникации
-	initGRPCClients()
-
 	// Создание и запуск consumer событий
-	eventConsumer := NewEventConsumer(redisClient, service)
+	eventConsumer := events.NewEventConsumer(redisClient, svc)
 	go func() {
 		if err := eventConsumer.Start(ctx); err != nil {
 			log.Printf("Ошибка consumer событий: %v", err)
@@ -120,29 +136,19 @@ func main() {
 		cancel()
 	}()
 
-	// Запуск планировщика автоматической генерации XML с контекстом
-
 	r := gin.Default()
 	r.Use(otelgin.Middleware("parts-service"))
+	r.Use(handler.CORSMiddleware())
+	handler.SetupRoutes(r, h)
 
-	// CORS middleware для кросс-доменных запросов
-	r.Use(CORSMiddleware())
-
-	// Настройка маршрутов с handler
-	SetupRoutes(r, handler)
-
-	// Создание HTTP сервера для graceful shutdown
 	srv := &http.Server{
-		Addr:    ":" + config.Port,
+		Addr:    ":" + cfg.Port,
 		Handler: r,
 	}
 
-	// Канал для ошибок сервера
 	errChan := make(chan error, 1)
-
-	// Запуск сервера в goroutine
 	go func() {
-		log.Printf("Сервис запчастей запускается на порту %s", config.Port)
+		log.Printf("Сервис запчастей запускается на порту %s", cfg.Port)
 
 		certFile := "../../cert.pem"
 		keyFile := "../../key.pem"
@@ -171,7 +177,6 @@ func main() {
 		}
 	}()
 
-	// Ожидание сигнала отмены или ошибки
 	select {
 	case <-ctx.Done():
 		log.Println("Завершение работы сервиса запчастей...")
@@ -186,18 +191,17 @@ func main() {
 	}
 }
 
-// InitRedis инициализирует подключение к Redis
-func InitRedis(config *Config) {
-	redisClient = redis.NewClient(&redis.Options{
-		Addr:     config.RedisURL,
-		Password: config.RedisPassword,
+func initRedis(cfg *config.Config) *redis.Client {
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     cfg.RedisURL,
+		Password: cfg.RedisPassword,
 	})
 
-	// Проверяем подключение
 	_, err := redisClient.Ping(context.Background()).Result()
 	if err != nil {
 		logrus.WithError(err).Fatal("Failed to connect to Redis")
 	}
 
 	logrus.Info("Redis connected successfully")
+	return redisClient
 }
