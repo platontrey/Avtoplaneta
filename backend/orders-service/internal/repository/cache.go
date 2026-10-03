@@ -1,4 +1,4 @@
-package main
+package repository
 
 import (
 	"context"
@@ -7,12 +7,14 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+
+	"orders-service/internal/domain"
 )
 
-// CacheService определяет интерфейс для кеширования
+// CacheService определяет интерфейс для кеширования активных заказов
 type CacheService interface {
-	GetOrders() ([]Order, error)
-	SetOrders(orders []Order) error
+	GetOrders() ([]domain.Order, error)
+	SetOrders(orders []domain.Order) error
 	InvalidateOrders() error
 }
 
@@ -21,7 +23,7 @@ type redisCacheService struct {
 	client *redis.Client
 }
 
-// NewCacheService создает новый сервис кеширования
+// NewCacheService создает новый сервис кеширования заказов
 func NewCacheService(client *redis.Client) CacheService {
 	return &redisCacheService{
 		client: client,
@@ -29,12 +31,14 @@ func NewCacheService(client *redis.Client) CacheService {
 }
 
 // GetOrders получает заказы из кеша
-func (c *redisCacheService) GetOrders() ([]Order, error) {
+func (c *redisCacheService) GetOrders() ([]domain.Order, error) {
+	if c.client == nil {
+		return nil, nil
+	}
 	key := "orders:active"
 
 	val, err := c.client.Get(context.Background(), key).Result()
 	if err == redis.Nil {
-		// Ключ не найден
 		return nil, nil
 	}
 	if err != nil {
@@ -42,7 +46,7 @@ func (c *redisCacheService) GetOrders() ([]Order, error) {
 		return nil, err
 	}
 
-	var orders []Order
+	var orders []domain.Order
 	if err := json.Unmarshal([]byte(val), &orders); err != nil {
 		logrus.WithError(err).Error("Failed to unmarshal orders from cache")
 		return nil, err
@@ -52,10 +56,13 @@ func (c *redisCacheService) GetOrders() ([]Order, error) {
 	return orders, nil
 }
 
-// SetOrders сохраняет заказы в кеш
-func (c *redisCacheService) SetOrders(orders []Order) error {
+// SetOrders сохраняет заказы в кеш на 10 минут
+func (c *redisCacheService) SetOrders(orders []domain.Order) error {
+	if c.client == nil {
+		return nil
+	}
 	key := "orders:active"
-	ttl := 10 * time.Minute // Кеш на 10 минут
+	ttl := 10 * time.Minute
 
 	data, err := json.Marshal(orders)
 	if err != nil {
@@ -74,6 +81,9 @@ func (c *redisCacheService) SetOrders(orders []Order) error {
 
 // InvalidateOrders удаляет заказы из кеша
 func (c *redisCacheService) InvalidateOrders() error {
+	if c.client == nil {
+		return nil
+	}
 	key := "orders:active"
 
 	if err := c.client.Del(context.Background(), key).Err(); err != nil {

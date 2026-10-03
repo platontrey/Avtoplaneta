@@ -3,157 +3,88 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
-	"net/http"
-	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+
+	"avtoplaneta/pkg/httpserver"
+	"avtoplaneta/pkg/redisclient"
+	"orders-service/internal/config"
+	"orders-service/internal/events"
+	"orders-service/internal/grpc"
+	"orders-service/internal/handler"
+	"orders-service/internal/repository"
+	"orders-service/internal/service"
 )
 
-var redisClient *redis.Client
-
 func main() {
-	// Установка количества OS-тредов для оптимизации под доступное количество ядер
+	// Оптимизация под количество ядер процессора
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	if err := godotenv.Load("../../.env"); err != nil {
-		log.Println("No .env file found")
-	}
+	gin.SetMode(gin.ReleaseMode)
+	_ = godotenv.Load("../../.env")
 
-	config := LoadConfig()
-	InitDB(config)
-	InitAuth(config)
-	InitRedis(config)
+	cfg := config.LoadConfig()
 
-	// Создание контекста с отменой для graceful shutdown
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	// Контекст для graceful shutdown
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
-	// Обработка сигналов для graceful shutdown
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		<-sigChan
-		log.Println("Получен сигнал завершения, начинаем graceful shutdown...")
-		cancel()
-	}()
-
-	// Создаем зависимости
-	orderRepo := NewOrderRepository(dbPool)
-	partsClient, err := NewPartsGRPCClient(config.PartsServiceGRPCURL)
+	// Инициализация базы данных и миграций
+	dbPool, err := repository.InitDB(cfg)
 	if err != nil {
-		log.Fatalf("failed to connect to parts service via gRPC: %v", err)
+		logrus.WithError(err).Fatal("Failed to initialize orders database")
+	}
+	defer dbPool.Close()
+
+	// Инициализация клиента Redis
+	redisClient, err := redisclient.New(cfg.RedisURL, cfg.RedisPassword)
+	if err != nil {
+		logrus.WithError(err).Fatal("Failed to connect to Redis")
+	}
+	defer redisClient.Close()
+
+	// gRPC клиент к parts-service
+	partsClient, err := grpc.NewPartsGRPCClient(cfg.PartsServiceGRPCURL)
+	if err != nil {
+		logrus.WithError(err).Fatalf("Failed to connect to parts-service via gRPC at %s", cfg.PartsServiceGRPCURL)
 	}
 	defer partsClient.Close()
-	
-	partRepo := NewPartRepositoryForOrders(partsClient)
-	cacheService := NewCacheService(redisClient)
-	eventPublisher := NewEventPublisher(redisClient)
-	ordersService := NewOrdersService(orderRepo, partRepo, cacheService, eventPublisher)
-	handler := NewHandler(ordersService, eventPublisher)
 
-	// Запуск консьюмера событий Redis (для синхронизации имени продавца и др.)
-	eventConsumer := NewRedisEventConsumer(redisClient, orderRepo, cacheService)
+	// Сборка зависимостей (Dependency Injection)
+	orderRepo := repository.NewOrderRepository(dbPool)
+	partRepo := repository.NewPartRepositoryForOrders(partsClient)
+	cacheService := repository.NewCacheService(redisClient)
+	eventPublisher := events.NewEventPublisher(redisClient)
+	ordersService := service.NewOrdersService(orderRepo, partRepo, cacheService, eventPublisher)
+	h := handler.NewHandler(ordersService, eventPublisher)
+
+	// Запуск потребителя событий Redis Streams в фоне
+	eventConsumer := events.NewRedisEventConsumer(redisClient, orderRepo, cacheService)
 	go func() {
 		if err := eventConsumer.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
 			logrus.WithError(err).Error("Redis event consumer failed in orders-service")
 		}
 	}()
 
-	// Запуск gRPC-сервера в отдельной горутине
-	grpcPort := os.Getenv("GRPC_PORT")
-	if grpcPort == "" {
-		grpcPort = "9082"
-	}
+	// Запуск gRPC-сервера в фоне
 	go func() {
-		if err := StartGRPCServer(ordersService, eventPublisher, grpcPort); err != nil {
-			log.Fatalf("gRPC server failed: %v", err)
+		if err := grpc.StartGRPCServer(ordersService, eventPublisher, cfg.GRPCPort); err != nil {
+			logrus.WithError(err).Fatal("orders-service gRPC server failed")
 		}
 	}()
 
-	r := gin.New()
+	// Настройка HTTP роутера Gin
+	r := gin.Default()
+	r.Use(handler.CORSMiddleware())
+	handler.SetupRoutes(r, h)
 
-	// CORS middleware
-	r.Use(CORSMiddleware())
-
-	// Setup routes с dependency injection
-	SetupRoutes(r, handler)
-
-	// Создание HTTP сервера для graceful shutdown
-	srv := &http.Server{
-		Addr:    ":" + config.Port,
-		Handler: r,
+	// Запуск HTTP-сервера с поддержкой TLS и graceful shutdown
+	if err := httpserver.Run(ctx, cfg.Port, r); err != nil {
+		logrus.WithError(err).Fatal("orders-service HTTP server failed")
 	}
-
-	// Канал для ошибок сервера
-	errChan := make(chan error, 1)
-
-	// Запуск сервера в goroutine
-	go func() {
-		log.Println("Сервис заказов запущен на порту", config.Port)
-
-		certFile := "../../cert.pem"
-		keyFile := "../../key.pem"
-		if _, err := os.Stat(certFile); os.IsNotExist(err) {
-			certFile = "cert.pem"
-			keyFile = "key.pem"
-		}
-
-		if os.Getenv("NODE_ENV") == "production" {
-			if _, err := os.Stat(certFile); err == nil {
-				log.Println("Запуск с TLS...")
-				if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil && !errors.Is(http.ErrServerClosed, err) {
-					errChan <- err
-				}
-			} else {
-				log.Println("Сертификаты не найдены, запуск без TLS...")
-				if err := srv.ListenAndServe(); err != nil && !errors.Is(http.ErrServerClosed, err) {
-					errChan <- err
-				}
-			}
-		} else {
-			log.Println("Режим разработки: запуск без TLS...")
-			if err := srv.ListenAndServe(); err != nil && !errors.Is(http.ErrServerClosed, err) {
-				errChan <- err
-			}
-		}
-	}()
-
-	// Ожидание сигнала отмены или ошибки
-	select {
-	case <-ctx.Done():
-		log.Println("Завершение работы сервиса заказов...")
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		if err := srv.Shutdown(shutdownCtx); err != nil {
-			log.Printf("Сервер принудительно остановлен: %v", err)
-		}
-		log.Println("Сервис заказов остановлен")
-	case err := <-errChan:
-		log.Fatal("Ошибка сервера:", err)
-	}
-}
-
-// InitRedis инициализирует подключение к Redis
-func InitRedis(config *Config) {
-	redisClient = redis.NewClient(&redis.Options{
-		Addr:     config.RedisURL,
-		Password: config.RedisPassword,
-		DB:       config.RedisDB,
-	})
-
-	// Проверяем подключение
-	_, err := redisClient.Ping(context.Background()).Result()
-	if err != nil {
-		logrus.WithError(err).Fatal("Failed to connect to Redis")
-	}
-
-	logrus.Info("Redis connected successfully")
 }

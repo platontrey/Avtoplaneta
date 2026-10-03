@@ -1,4 +1,4 @@
-package main
+package domain
 
 import (
 	"errors"
@@ -35,7 +35,7 @@ func (e ConflictError) Error() string {
 	return fmt.Sprintf("conflict in %s: %s", e.Resource, e.Message)
 }
 
-// BusinessLogicError представляет бизнес-логику ошибку
+// BusinessLogicError представляет ошибку бизнес-логики
 type BusinessLogicError struct {
 	Operation string
 	Message   string

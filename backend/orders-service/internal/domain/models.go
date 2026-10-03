@@ -1,8 +1,15 @@
-package main
+package domain
 
 import (
+	"context"
 	"time"
 )
+
+// EventPublisher определяет интерфейс для публикации событий
+type EventPublisher interface {
+	PublishOrderCompleted(ctx context.Context, orderID int64, amount float64) error
+	PublishUserAction(ctx context.Context, userID, action string, details map[string]interface{}) error
+}
 
 // Order представляет заказ в системе
 type Order struct {
@@ -101,6 +108,60 @@ type CustomerDetails struct {
 	Orders []Order `json:"orders"`
 }
 
+// CreateOrderItemInput входные данные позиции заказа
+type CreateOrderItemInput struct {
+	PartID   int64    `json:"part_id"`
+	Quantity int      `json:"quantity"`
+	Price    *float64 `json:"price,omitempty"`
+}
+
+// CreateOrderRequest запрос на создание заказа
+type CreateOrderRequest struct {
+	CustomerID       int64                  `json:"customer_id"`
+	OrderNumber      string                 `json:"order_number"`
+	Source           string                 `json:"source"`
+	Part             string                 `json:"part"`
+	PartID           int64                  `json:"part_id"`
+	BuyerNumber      string                 `json:"buyer_number"`
+	PaymentStatus    string                 `json:"payment_status"`
+	WarehouseStatus  string                 `json:"warehouse_status"`
+	DeliveryMethod   string                 `json:"delivery_method"`
+	TransportCompany string                 `json:"transport_company"`
+	TrackingNumber   string                 `json:"tracking_number"`
+	Notes            string                 `json:"notes"`
+	Discount         float64                `json:"discount"`
+	QuickSale        bool                   `json:"quick_sale"`
+	Items            []CreateOrderItemInput `json:"items"`
+}
+
+// UpdateOrderDetailsRequest запрос на частичное обновление деталей заказа
+type UpdateOrderDetailsRequest struct {
+	BuyerNumber      *string  `json:"buyer_number,omitempty"`
+	OrderNumber      *string  `json:"order_number,omitempty"`
+	Source           *string  `json:"source,omitempty"`
+	Status           *string  `json:"status,omitempty"`
+	PaymentStatus    *string  `json:"payment_status,omitempty"`
+	WarehouseStatus  *string  `json:"warehouse_status,omitempty"`
+	DeliveryMethod   *string  `json:"delivery_method,omitempty"`
+	TransportCompany *string  `json:"transport_company,omitempty"`
+	TrackingNumber   *string  `json:"tracking_number,omitempty"`
+	Notes            *string  `json:"notes,omitempty"`
+	Discount         *float64 `json:"discount,omitempty"`
+}
+
+// AddOrderItemRequest запрос на добавление позиции в заказ
+type AddOrderItemRequest struct {
+	PartID   int64    `json:"part_id"`
+	Quantity int      `json:"quantity"`
+	Price    *float64 `json:"price,omitempty"`
+}
+
+// UpdateOrderItemRequest запрос на редактирование позиции в заказе
+type UpdateOrderItemRequest struct {
+	Quantity *int     `json:"quantity,omitempty"`
+	Price    *float64 `json:"price,omitempty"`
+}
+
 // CreateCustomerRequest запрос на создание клиента
 type CreateCustomerRequest struct {
 	Name            string  `json:"name"`
@@ -124,4 +185,3 @@ type UpdateCustomerRequest struct {
 	DiscountPercent float64 `json:"discount_percent"`
 	Notes           string  `json:"notes"`
 }
-

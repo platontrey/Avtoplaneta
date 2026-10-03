@@ -1,4 +1,4 @@
-package main
+package service
 
 import (
 	"context"
@@ -8,94 +8,43 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+
+	"orders-service/internal/domain"
+	"orders-service/internal/repository"
 )
 
 // OrdersService определяет интерфейс для бизнес-логики управления заказами
 type OrdersService interface {
-	GetOrders(ctx context.Context) ([]Order, error)
-	GetCompletedOrders(ctx context.Context) ([]Order, error)
-	CreateOrder(ctx context.Context, req CreateOrderRequest, userID int64, userName string) (*Order, error)
+	GetOrders(ctx context.Context) ([]domain.Order, error)
+	GetCompletedOrders(ctx context.Context) ([]domain.Order, error)
+	CreateOrder(ctx context.Context, req domain.CreateOrderRequest, userID int64, userName string) (*domain.Order, error)
 	UpdateOrderStatus(ctx context.Context, orderID int64, status string) error
-	UpdateOrderDetails(ctx context.Context, orderID int64, req UpdateOrderDetailsRequest) (*Order, error)
+	UpdateOrderDetails(ctx context.Context, orderID int64, req domain.UpdateOrderDetailsRequest) (*domain.Order, error)
 	CompleteOrder(ctx context.Context, orderID int64) error
 	DeleteOrder(ctx context.Context, orderID int64) error
-	AddOrderItem(ctx context.Context, orderID int64, req AddOrderItemRequest) error
-	UpdateOrderItem(ctx context.Context, orderID, itemID int64, req UpdateOrderItemRequest) error
+	AddOrderItem(ctx context.Context, orderID int64, req domain.AddOrderItemRequest) error
+	UpdateOrderItem(ctx context.Context, orderID, itemID int64, req domain.UpdateOrderItemRequest) error
 	DeleteOrderItem(ctx context.Context, orderID, itemID int64) error
-	GetMonthlySales(ctx context.Context) ([]MonthlySales, error)
+	GetMonthlySales(ctx context.Context) ([]domain.MonthlySales, error)
 
 	// Customer operations
-	ListCustomers(ctx context.Context, category, search string, limit, offset int32) ([]CustomerWithStats, error)
-	GetCustomer(ctx context.Context, id int64) (*CustomerDetails, error)
-	CreateCustomer(ctx context.Context, req CreateCustomerRequest) (*Customer, error)
-	UpdateCustomer(ctx context.Context, id int64, req UpdateCustomerRequest) (*Customer, error)
+	ListCustomers(ctx context.Context, category, search string, limit, offset int32) ([]domain.CustomerWithStats, error)
+	GetCustomer(ctx context.Context, id int64) (*domain.CustomerDetails, error)
+	CreateCustomer(ctx context.Context, req domain.CreateCustomerRequest) (*domain.Customer, error)
+	UpdateCustomer(ctx context.Context, id int64, req domain.UpdateCustomerRequest) (*domain.Customer, error)
 	DeleteCustomer(ctx context.Context, id int64) error
-}
-
-// CreateOrderItemInput входные данные позиции заказа
-type CreateOrderItemInput struct {
-	PartID   int64    `json:"part_id"`
-	Quantity int      `json:"quantity"`
-	Price    *float64 `json:"price,omitempty"`
-}
-
-// CreateOrderRequest запрос на создание заказа
-type CreateOrderRequest struct {
-	CustomerID       int64                  `json:"customer_id"`
-	OrderNumber      string                 `json:"order_number"`
-	Source           string                 `json:"source"`
-	Part             string                 `json:"part"`
-	PartID           int64                  `json:"part_id"`
-	BuyerNumber      string                 `json:"buyer_number"`
-	PaymentStatus    string                 `json:"payment_status"`
-	WarehouseStatus  string                 `json:"warehouse_status"`
-	DeliveryMethod   string                 `json:"delivery_method"`
-	TransportCompany string                 `json:"transport_company"`
-	TrackingNumber   string                 `json:"tracking_number"`
-	Notes            string                 `json:"notes"`
-	Discount         float64                `json:"discount"`
-	QuickSale        bool                   `json:"quick_sale"`
-	Items            []CreateOrderItemInput `json:"items"`
-}
-
-// UpdateOrderDetailsRequest запрос на частичное обновление деталей заказа
-type UpdateOrderDetailsRequest struct {
-	BuyerNumber      *string  `json:"buyer_number,omitempty"`
-	OrderNumber      *string  `json:"order_number,omitempty"`
-	Source           *string  `json:"source,omitempty"`
-	Status           *string  `json:"status,omitempty"`
-	PaymentStatus    *string  `json:"payment_status,omitempty"`
-	WarehouseStatus  *string  `json:"warehouse_status,omitempty"`
-	DeliveryMethod   *string  `json:"delivery_method,omitempty"`
-	TransportCompany *string  `json:"transport_company,omitempty"`
-	TrackingNumber   *string  `json:"tracking_number,omitempty"`
-	Notes            *string  `json:"notes,omitempty"`
-	Discount         *float64 `json:"discount,omitempty"`
-}
-
-// AddOrderItemRequest запрос на добавление позиции в заказ
-type AddOrderItemRequest struct {
-	PartID   int64    `json:"part_id"`
-	Quantity int      `json:"quantity"`
-	Price    *float64 `json:"price,omitempty"`
-}
-
-// UpdateOrderItemRequest запрос на редактирование позиции в заказе
-type UpdateOrderItemRequest struct {
-	Quantity *int     `json:"quantity,omitempty"`
-	Price    *float64 `json:"price,omitempty"`
 }
 
 // ordersService реализует OrdersService
 type ordersService struct {
-	orderRepo OrderRepository
-	partRepo  PartRepositoryForOrders
-	cache     CacheService
-	publisher EventPublisher
+	orderRepo repository.OrderRepository
+	partRepo  repository.PartRepositoryForOrders
+	cache     repository.CacheService
+	publisher domain.EventPublisher
 }
 
 // NewOrdersService создает новый сервис заказов
-func NewOrdersService(orderRepo OrderRepository, partRepo PartRepositoryForOrders, cache CacheService, publisher EventPublisher) OrdersService {
+func NewOrdersService(orderRepo repository.OrderRepository, partRepo repository.PartRepositoryForOrders, cache repository.CacheService, publisher domain.EventPublisher) OrdersService {
 	return &ordersService{
 		orderRepo: orderRepo,
 		partRepo:  partRepo,
@@ -104,7 +53,7 @@ func NewOrdersService(orderRepo OrderRepository, partRepo PartRepositoryForOrder
 	}
 }
 
-func computeOrderTotal(order *Order) {
+func computeOrderTotal(order *domain.Order) {
 	var subtotal float64
 	for _, item := range order.Items {
 		subtotal += item.Price * float64(item.Quantity)
@@ -112,10 +61,10 @@ func computeOrderTotal(order *Order) {
 	order.TotalAmount = math.Max(subtotal-order.Discount, 0)
 }
 
-func (s *ordersService) enrichOrders(ctx context.Context, orders []Order, fetchLiveParts bool) {
+func (s *ordersService) enrichOrders(ctx context.Context, orders []domain.Order, fetchLiveParts bool) {
 	now := time.Now()
-	partCache := make(map[int64]*Part)
-	lookupPart := func(partID int64) (*Part, error) {
+	partCache := make(map[int64]*domain.Part)
+	lookupPart := func(partID int64) (*domain.Part, error) {
 		if cached, ok := partCache[partID]; ok {
 			if cached == nil {
 				return nil, fmt.Errorf("part %d not found", partID)
@@ -204,13 +153,15 @@ func (s *ordersService) enrichOrders(ctx context.Context, orders []Order, fetchL
 }
 
 // GetOrders получает все активные заказы с использованием кеша
-func (s *ordersService) GetOrders(ctx context.Context) ([]Order, error) {
-	cachedOrders, err := s.cache.GetOrders()
-	if err != nil {
-		logrus.WithError(err).Warn("Failed to get orders from cache, falling back to database")
-	} else if cachedOrders != nil {
-		logrus.Info("Returning orders from cache")
-		return cachedOrders, nil
+func (s *ordersService) GetOrders(ctx context.Context) ([]domain.Order, error) {
+	if s.cache != nil {
+		cachedOrders, err := s.cache.GetOrders()
+		if err != nil {
+			logrus.WithError(err).Warn("Failed to get orders from cache, falling back to database")
+		} else if cachedOrders != nil {
+			logrus.Info("Returning orders from cache")
+			return cachedOrders, nil
+		}
 	}
 
 	orders, err := s.orderRepo.FindActive(ctx)
@@ -221,30 +172,31 @@ func (s *ordersService) GetOrders(ctx context.Context) ([]Order, error) {
 
 	s.enrichOrders(ctx, orders, true)
 
-	if err := s.cache.SetOrders(orders); err != nil {
-		logrus.WithError(err).Warn("Failed to cache orders")
+	if s.cache != nil {
+		if err := s.cache.SetOrders(orders); err != nil {
+			logrus.WithError(err).Warn("Failed to cache orders")
+		}
 	}
 
 	return orders, nil
 }
 
 // GetCompletedOrders получает завершённые заказы (историю продаж)
-func (s *ordersService) GetCompletedOrders(ctx context.Context) ([]Order, error) {
+func (s *ordersService) GetCompletedOrders(ctx context.Context) ([]domain.Order, error) {
 	orders, err := s.orderRepo.FindCompleted(ctx)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to get completed orders from database")
 		return nil, fmt.Errorf("failed to get completed orders from database: %w", err)
 	}
 
-	// Для завершённых заказов используем снимки названий из БД (и живые данные, если деталь ещё осталась на складе)
 	s.enrichOrders(ctx, orders, false)
 	return orders, nil
 }
 
-// CreateOrder создает новый заказ (сетевые вызовы gRPC вынесены за пределы SQL-транзакции)
-func (s *ordersService) CreateOrder(ctx context.Context, req CreateOrderRequest, userID int64, userName string) (*Order, error) {
+// CreateOrder создает новый заказ
+func (s *ordersService) CreateOrder(ctx context.Context, req domain.CreateOrderRequest, userID int64, userName string) (*domain.Order, error) {
 	if len(req.Items) == 0 {
-		return nil, ValidationError{Field: "items", Message: "at least one part must be selected"}
+		return nil, domain.ValidationError{Field: "items", Message: "at least one part must be selected"}
 	}
 
 	buyerNumber := strings.TrimSpace(req.BuyerNumber)
@@ -252,11 +204,10 @@ func (s *ordersService) CreateOrder(ctx context.Context, req CreateOrderRequest,
 		if req.QuickSale {
 			buyerNumber = "Самовывоз"
 		} else {
-			return nil, ValidationError{Field: "buyer_number", Message: "buyer number is required"}
+			return nil, domain.ValidationError{Field: "buyer_number", Message: "buyer number is required"}
 		}
 	}
 
-	// 1. Получаем данные запчастей по gRPC ДО открытия транзакции БД
 	type resolvedItem struct {
 		partID   int64
 		quantity int
@@ -355,7 +306,7 @@ func (s *ordersService) CreateOrder(ctx context.Context, req CreateOrderRequest,
 		if err == nil && existingCustomer != nil {
 			customerID = existingCustomer.ID
 		} else {
-			newCust := &Customer{
+			newCust := &domain.Customer{
 				Name:            buyerNumber,
 				Phone:           buyerNumber,
 				City:            "",
@@ -371,7 +322,7 @@ func (s *ordersService) CreateOrder(ctx context.Context, req CreateOrderRequest,
 	}
 
 	now := time.Now()
-	order := &Order{
+	order := &domain.Order{
 		CustomerID:       customerID,
 		OrderNumber:      strings.TrimSpace(req.OrderNumber),
 		Source:           source,
@@ -394,15 +345,15 @@ func (s *ordersService) CreateOrder(ctx context.Context, req CreateOrderRequest,
 		UpdatedAt:        now,
 	}
 
-	var completeOrder *Order
-	err := RunInTransaction(ctx, s.orderRepo.GetPool(), func(txCtx context.Context) error {
+	var completeOrder *domain.Order
+	err := repository.RunInTransaction(ctx, s.orderRepo.GetPool(), func(txCtx context.Context) error {
 		if err := s.orderRepo.Create(txCtx, order); err != nil {
 			logrus.WithError(err).Error("Failed to create order in database")
 			return fmt.Errorf("failed to create order: %w", err)
 		}
 
 		for _, rItem := range resolvedItems {
-			orderItem := &OrderItem{
+			orderItem := &domain.OrderItem{
 				OrderID:          order.ID,
 				PartID:           rItem.partID,
 				PartName:         rItem.name,
@@ -425,7 +376,7 @@ func (s *ordersService) CreateOrder(ctx context.Context, req CreateOrderRequest,
 		return nil, err
 	}
 
-	// Если это «Быстрая продажа с места», сразу завершаем сделку и списываем остатки
+	// Если быстрая продажа, сразу завершаем заказ
 	if req.QuickSale {
 		if err := s.CompleteOrder(ctx, completeOrder.ID); err != nil {
 			return nil, fmt.Errorf("order created (#%d), but failed to complete quick sale: %w", completeOrder.ID, err)
@@ -435,41 +386,41 @@ func (s *ordersService) CreateOrder(ctx context.Context, req CreateOrderRequest,
 		}
 	}
 
-	ordersSlice := []Order{*completeOrder}
+	ordersSlice := []domain.Order{*completeOrder}
 	s.enrichOrders(ctx, ordersSlice, !req.QuickSale)
 	*completeOrder = ordersSlice[0]
 
-	if err := s.cache.InvalidateOrders(); err != nil {
-		logrus.WithError(err).Warn("Failed to invalidate orders cache after creating order")
+	if s.cache != nil {
+		if err := s.cache.InvalidateOrders(); err != nil {
+			logrus.WithError(err).Warn("Failed to invalidate orders cache after creating order")
+		}
 	}
 
 	return completeOrder, nil
 }
 
-// UpdateOrderStatus обновляет статус заказа (и синхронизирует этапы оплаты/склада/доставки)
+// UpdateOrderStatus обновляет статус заказа
 func (s *ordersService) UpdateOrderStatus(ctx context.Context, orderID int64, status string) error {
 	validStatuses := map[string]bool{
-		"Ожидает забора ТК":          true,
-		"Требуется заказ ТК":         true,
-		"К отправке в ТК":            true,
-		"Ожидает трек-номер":         true,
-		"Требует уточнения":          true,
-		"Принят в обработку":         true,
-		"На фотофиксации":            true,
-		"Перемещение между складами": true,
-		"Ожидает предоплаты":         true,
-		"Проверен":                   true,
-		"Готов к выдаче":             true,
-		"Отправлен":                  true,
-		// Старые статусы для обратной совместимости
-		"red":    true,
-		"brown":  true,
-		"yellow": true,
-		"green":  true,
+		"yellow":                      true,
+		"green":                       true,
+		"red":                         true,
+		"Принят в обработку":          true,
+		"Ожидает предоплаты":          true,
+		"Оплачен":                     true,
+		"На фотофиксации":             true,
+		"Перемещение между складами":  true,
+		"Проверен":                    true,
+		"Упаковывается":               true,
+		"Готов к выдаче":              true,
+		"Отправлен":                   true,
+		"Выдан клиенту":               true,
+		"Возврат":                     true,
+		"Отменен":                     true,
 	}
 
 	if !validStatuses[status] {
-		return ValidationError{Field: "status", Message: fmt.Sprintf("invalid status: %s", status)}
+		return domain.ValidationError{Field: "status", Message: "invalid status"}
 	}
 
 	updates := map[string]interface{}{
@@ -478,35 +429,44 @@ func (s *ordersService) UpdateOrderStatus(ctx context.Context, orderID int64, st
 	}
 
 	switch status {
+	case "Оплачен":
+		updates["payment_status"] = "paid"
 	case "Ожидает предоплаты":
 		updates["payment_status"] = "unpaid"
-	case "На фотофиксации", "Требует уточнения":
+	case "На фотофиксации":
 		updates["warehouse_status"] = "inspecting"
 	case "Перемещение между складами":
 		updates["warehouse_status"] = "transfer"
-	case "Проверен", "Готов к выдаче":
+	case "Проверен":
 		updates["warehouse_status"] = "ready"
-	case "К отправке в ТК", "Требуется заказ ТК", "Ожидает забора ТК", "Ожидает трек-номер", "Отправлен":
+	case "Упаковывается":
+		updates["warehouse_status"] = "packing"
+	case "Готов к выдаче":
 		updates["warehouse_status"] = "ready"
-		updates["delivery_method"] = "tk"
+		updates["payment_status"] = "paid"
+	case "Отправлен":
+		updates["payment_status"] = "paid"
+	case "Выдан клиенту":
+		updates["payment_status"] = "paid"
 	}
 
 	if err := s.orderRepo.Update(ctx, orderID, updates); err != nil {
-		logrus.WithError(err).WithField("order_id", orderID).Error("Failed to update order status in database")
-		return fmt.Errorf("failed to update order status for order %d: %w", orderID, err)
+		return err
 	}
 
-	if err := s.cache.InvalidateOrders(); err != nil {
-		logrus.WithError(err).Warn("Failed to invalidate orders cache after updating status")
+	if s.cache != nil {
+		if err := s.cache.InvalidateOrders(); err != nil {
+			logrus.WithError(err).Warn("Failed to invalidate orders cache after updating status")
+		}
 	}
 
 	return nil
 }
 
-// UpdateOrderDetails обновляет реквизиты сделки (оплата, склад, доставка, ТК, трек-номер, заметки, скидка)
-func (s *ordersService) UpdateOrderDetails(ctx context.Context, orderID int64, req UpdateOrderDetailsRequest) (*Order, error) {
+// UpdateOrderDetails обновляет реквизиты сделки
+func (s *ordersService) UpdateOrderDetails(ctx context.Context, orderID int64, req domain.UpdateOrderDetailsRequest) (*domain.Order, error) {
 	if _, err := s.orderRepo.FindByID(ctx, orderID); err != nil {
-		return nil, NotFoundError{Resource: "order", ID: orderID}
+		return nil, domain.NotFoundError{Resource: "order", ID: orderID}
 	}
 
 	updates := make(map[string]interface{})
@@ -569,34 +529,31 @@ func (s *ordersService) UpdateOrderDetails(ctx context.Context, orderID int64, r
 		return nil, err
 	}
 
-	if err := s.cache.InvalidateOrders(); err != nil {
-		logrus.WithError(err).Warn("Failed to invalidate orders cache after updating order details")
+	if s.cache != nil {
+		if err := s.cache.InvalidateOrders(); err != nil {
+			logrus.WithError(err).Warn("Failed to invalidate orders cache after updating order details")
+		}
 	}
 
 	updated, err := s.orderRepo.FindWithItemsByID(ctx, orderID)
 	if err != nil {
 		return nil, err
 	}
-	slice := []Order{*updated}
+	slice := []domain.Order{*updated}
 	s.enrichOrders(ctx, slice, !updated.AutoDeleted)
 	return &slice[0], nil
 }
 
-// CompleteOrder завершает заказ:
-// 1. Для каждой позиции проверяет остаток в parts-service:
-//    - если остаток > заказанного количества -> уменьшает количество на величину заказа;
-//    - если остаток <= заказанного количества -> удаляет запчасть и её фото из инвентаря.
-// 2. Переводит заказ в завершённые (в архив) и фиксирует сумму продажи с учётом скидки.
+// CompleteOrder завершает заказ и списывает остатки
 func (s *ordersService) CompleteOrder(ctx context.Context, orderID int64) error {
 	logrus.WithField("order_id", orderID).Info("Starting order completion")
 
 	order, err := s.orderRepo.FindWithItemsByID(ctx, orderID)
 	if err != nil {
 		logrus.WithError(err).WithField("order_id", orderID).Error("Failed to find order for completion")
-		return NotFoundError{Resource: "order", ID: orderID}
+		return domain.NotFoundError{Resource: "order", ID: orderID}
 	}
 
-	// 1. Выполняем операции со складом по gRPC ВНЕ SQL-транзакции orders-service
 	var subtotal float64
 	for _, item := range order.Items {
 		subtotal += item.Price * float64(item.Quantity)
@@ -610,7 +567,6 @@ func (s *ordersService) CompleteOrder(ctx context.Context, orderID int64) error 
 			continue
 		}
 
-		// Если на складе больше штук, чем заказано — списываем заказанное количество, оставляя карточку в инвентаре
 		if part.Quantity > item.Quantity {
 			opID := fmt.Sprintf("complete-order-%d-part-%d", orderID, item.PartID)
 			if err := s.partRepo.DecreaseQuantity(ctx, item.PartID, item.Quantity, opID); err != nil {
@@ -623,7 +579,6 @@ func (s *ordersService) CompleteOrder(ctx context.Context, orderID int64) error 
 				"remaining":     part.Quantity - item.Quantity,
 			}).Info("Part quantity decreased after order completion")
 		} else {
-			// Остаток исчерпан — полностью удаляем запчасть и её фото из инвентаря
 			if err := s.partRepo.DeletePart(ctx, item.PartID); err != nil {
 				logrus.WithError(err).WithField("part_id", item.PartID).Error("Failed to delete depleted part after order completion")
 				return fmt.Errorf("failed to delete part %d: %w", item.PartID, err)
@@ -634,14 +589,13 @@ func (s *ordersService) CompleteOrder(ctx context.Context, orderID int64) error 
 
 	totalAmount := math.Max(subtotal-order.Discount, 0)
 
-	// 2. Фиксируем завершение заказа в БД orders-service
-	err = RunInTransaction(ctx, s.orderRepo.GetPool(), func(txCtx context.Context) error {
+	err = repository.RunInTransaction(ctx, s.orderRepo.GetPool(), func(txCtx context.Context) error {
 		if err := s.orderRepo.CompleteRecord(txCtx, orderID); err != nil {
 			return err
 		}
 
 		month := time.Now().Format("2006-01")
-		salesHistory := &SalesHistory{
+		salesHistory := &domain.SalesHistory{
 			Month:     month,
 			Sales:     totalAmount,
 			CreatedAt: time.Now(),
@@ -656,12 +610,16 @@ func (s *ordersService) CompleteOrder(ctx context.Context, orderID int64) error 
 		return err
 	}
 
-	if err := s.publisher.PublishOrderCompleted(ctx, orderID, totalAmount); err != nil {
-		logrus.WithError(err).WithField("order_id", orderID).Warn("Failed to publish order completed event")
+	if s.publisher != nil {
+		if err := s.publisher.PublishOrderCompleted(ctx, orderID, totalAmount); err != nil {
+			logrus.WithError(err).WithField("order_id", orderID).Warn("Failed to publish order completed event")
+		}
 	}
 
-	if err := s.cache.InvalidateOrders(); err != nil {
-		logrus.WithError(err).Warn("Failed to invalidate orders cache after completing order")
+	if s.cache != nil {
+		if err := s.cache.InvalidateOrders(); err != nil {
+			logrus.WithError(err).Warn("Failed to invalidate orders cache after completing order")
+		}
 	}
 
 	logrus.WithFields(logrus.Fields{
@@ -676,9 +634,9 @@ func (s *ordersService) CompleteOrder(ctx context.Context, orderID int64) error 
 func (s *ordersService) DeleteOrder(ctx context.Context, orderID int64) error {
 	logrus.WithField("order_id", orderID).Info("Starting order deletion")
 
-	err := RunInTransaction(ctx, s.orderRepo.GetPool(), func(txCtx context.Context) error {
+	err := repository.RunInTransaction(ctx, s.orderRepo.GetPool(), func(txCtx context.Context) error {
 		if _, err := s.orderRepo.FindByID(txCtx, orderID); err != nil {
-			return NotFoundError{Resource: "order", ID: orderID}
+			return domain.NotFoundError{Resource: "order", ID: orderID}
 		}
 
 		if err := s.orderRepo.DeleteItemsByOrderID(txCtx, orderID); err != nil {
@@ -695,23 +653,24 @@ func (s *ordersService) DeleteOrder(ctx context.Context, orderID int64) error {
 		return err
 	}
 
-	if err := s.cache.InvalidateOrders(); err != nil {
-		logrus.WithError(err).Warn("Failed to invalidate orders cache after deleting order")
+	if s.cache != nil {
+		if err := s.cache.InvalidateOrders(); err != nil {
+			logrus.WithError(err).Warn("Failed to invalidate orders cache after deleting order")
+		}
 	}
 
 	return nil
 }
 
 // AddOrderItem добавляет позицию в существующий заказ
-func (s *ordersService) AddOrderItem(ctx context.Context, orderID int64, req AddOrderItemRequest) error {
+func (s *ordersService) AddOrderItem(ctx context.Context, orderID int64, req domain.AddOrderItemRequest) error {
 	if req.Quantity <= 0 {
 		req.Quantity = 1
 	}
 
-	// Запрашиваем запчасть по gRPC до открытия транзакции
 	part, err := s.partRepo.FindByID(ctx, req.PartID)
 	if err != nil {
-		return NotFoundError{Resource: "part", ID: req.PartID}
+		return domain.NotFoundError{Resource: "part", ID: req.PartID}
 	}
 
 	itemPrice := part.Price
@@ -719,9 +678,9 @@ func (s *ordersService) AddOrderItem(ctx context.Context, orderID int64, req Add
 		itemPrice = *req.Price
 	}
 
-	err = RunInTransaction(ctx, s.orderRepo.GetPool(), func(txCtx context.Context) error {
+	err = repository.RunInTransaction(ctx, s.orderRepo.GetPool(), func(txCtx context.Context) error {
 		if _, err := s.orderRepo.FindByID(txCtx, orderID); err != nil {
-			return NotFoundError{Resource: "order", ID: orderID}
+			return domain.NotFoundError{Resource: "order", ID: orderID}
 		}
 
 		existingItem, err := s.orderRepo.FindOrderItem(txCtx, orderID, req.PartID)
@@ -734,7 +693,7 @@ func (s *ordersService) AddOrderItem(ctx context.Context, orderID int64, req Add
 				return fmt.Errorf("failed to update order item: %w", err)
 			}
 		} else {
-			orderItem := &OrderItem{
+			orderItem := &domain.OrderItem{
 				OrderID:          orderID,
 				PartID:           req.PartID,
 				PartName:         part.Name,
@@ -754,21 +713,23 @@ func (s *ordersService) AddOrderItem(ctx context.Context, orderID int64, req Add
 		return err
 	}
 
-	if err := s.cache.InvalidateOrders(); err != nil {
-		logrus.WithError(err).Warn("Failed to invalidate orders cache after adding item")
+	if s.cache != nil {
+		if err := s.cache.InvalidateOrders(); err != nil {
+			logrus.WithError(err).Warn("Failed to invalidate orders cache after adding item")
+		}
 	}
 
 	return nil
 }
 
 // UpdateOrderItem изменяет количество или цену позиции в заказе
-func (s *ordersService) UpdateOrderItem(ctx context.Context, orderID, itemID int64, req UpdateOrderItemRequest) error {
+func (s *ordersService) UpdateOrderItem(ctx context.Context, orderID, itemID int64, req domain.UpdateOrderItemRequest) error {
 	order, err := s.orderRepo.FindWithItemsByID(ctx, orderID)
 	if err != nil {
-		return NotFoundError{Resource: "order", ID: orderID}
+		return domain.NotFoundError{Resource: "order", ID: orderID}
 	}
 
-	var target *OrderItem
+	var target *domain.OrderItem
 	for i := range order.Items {
 		if order.Items[i].ID == itemID {
 			target = &order.Items[i]
@@ -776,7 +737,7 @@ func (s *ordersService) UpdateOrderItem(ctx context.Context, orderID, itemID int
 		}
 	}
 	if target == nil {
-		return NotFoundError{Resource: "order_item", ID: itemID}
+		return domain.NotFoundError{Resource: "order_item", ID: itemID}
 	}
 
 	if req.Quantity != nil && *req.Quantity > 0 {
@@ -790,8 +751,10 @@ func (s *ordersService) UpdateOrderItem(ctx context.Context, orderID, itemID int
 		return err
 	}
 
-	if err := s.cache.InvalidateOrders(); err != nil {
-		logrus.WithError(err).Warn("Failed to invalidate orders cache after updating item")
+	if s.cache != nil {
+		if err := s.cache.InvalidateOrders(); err != nil {
+			logrus.WithError(err).Warn("Failed to invalidate orders cache after updating item")
+		}
 	}
 	return nil
 }
@@ -800,18 +763,20 @@ func (s *ordersService) UpdateOrderItem(ctx context.Context, orderID, itemID int
 func (s *ordersService) DeleteOrderItem(ctx context.Context, orderID, itemID int64) error {
 	order, err := s.orderRepo.FindWithItemsByID(ctx, orderID)
 	if err != nil {
-		return NotFoundError{Resource: "order", ID: orderID}
+		return domain.NotFoundError{Resource: "order", ID: orderID}
 	}
 	if len(order.Items) <= 1 {
-		return ValidationError{Field: "items", Message: "cannot remove the last item of an order; delete the order instead"}
+		return domain.ValidationError{Field: "items", Message: "cannot remove the last item of an order; delete the order instead"}
 	}
 
 	if err := s.orderRepo.DeleteItem(ctx, orderID, itemID); err != nil {
 		return err
 	}
 
-	if err := s.cache.InvalidateOrders(); err != nil {
-		logrus.WithError(err).Warn("Failed to invalidate orders cache after deleting item")
+	if s.cache != nil {
+		if err := s.cache.InvalidateOrders(); err != nil {
+			logrus.WithError(err).Warn("Failed to invalidate orders cache after deleting item")
+		}
 	}
 	return nil
 }
@@ -829,49 +794,43 @@ func formatTimeAgo(duration time.Duration) string {
 }
 
 // GetMonthlySales получает продажи по месяцам
-func (s *ordersService) GetMonthlySales(ctx context.Context) ([]MonthlySales, error) {
+func (s *ordersService) GetMonthlySales(ctx context.Context) ([]domain.MonthlySales, error) {
 	return s.orderRepo.GetMonthlySales(ctx)
 }
 
 // ListCustomers возвращает список клиентов с фильтрацией и поиском
-func (s *ordersService) ListCustomers(ctx context.Context, category, search string, limit, offset int32) ([]CustomerWithStats, error) {
+func (s *ordersService) ListCustomers(ctx context.Context, category, search string, limit, offset int32) ([]domain.CustomerWithStats, error) {
 	return s.orderRepo.ListCustomersWithStats(ctx, strings.TrimSpace(category), strings.TrimSpace(search), limit, offset)
 }
 
 // GetCustomer возвращает карточку клиента и историю его заказов
-func (s *ordersService) GetCustomer(ctx context.Context, id int64) (*CustomerDetails, error) {
+func (s *ordersService) GetCustomer(ctx context.Context, id int64) (*domain.CustomerDetails, error) {
 	customer, err := s.orderRepo.GetCustomerByID(ctx, id)
 	if err != nil {
-		return nil, NotFoundError{Resource: "customer", ID: id}
+		return nil, domain.NotFoundError{Resource: "customer", ID: id}
 	}
 
 	orders, err := s.orderRepo.GetOrdersByCustomerID(ctx, id)
 	if err != nil {
-		logrus.WithError(err).WithField("customer_id", id).Warn("Failed to get orders for customer")
-		orders = []Order{}
+		return nil, fmt.Errorf("failed to fetch customer orders: %w", err)
 	}
-
-	var totalOrders int64
-	var totalSpent float64
-	var lastOrderAt *time.Time
 
 	s.enrichOrders(ctx, orders, false)
 
-	for i := range orders {
-		totalOrders++
-		if orders[i].AutoDeleted || orders[i].Status == "green" {
-			totalSpent += orders[i].TotalAmount
-		}
-		if lastOrderAt == nil || orders[i].CreatedAt.After(*lastOrderAt) {
-			t := orders[i].CreatedAt
+	var totalSpent float64
+	var lastOrderAt *time.Time
+	for _, o := range orders {
+		totalSpent += o.TotalAmount
+		if lastOrderAt == nil || o.CreatedAt.After(*lastOrderAt) {
+			t := o.CreatedAt
 			lastOrderAt = &t
 		}
 	}
 
-	return &CustomerDetails{
-		CustomerWithStats: CustomerWithStats{
+	return &domain.CustomerDetails{
+		CustomerWithStats: domain.CustomerWithStats{
 			Customer:    *customer,
-			TotalOrders: totalOrders,
+			TotalOrders: int64(len(orders)),
 			TotalSpent:  totalSpent,
 			LastOrderAt: lastOrderAt,
 		},
@@ -880,11 +839,11 @@ func (s *ordersService) GetCustomer(ctx context.Context, id int64) (*CustomerDet
 }
 
 // CreateCustomer создаёт нового клиента вручную
-func (s *ordersService) CreateCustomer(ctx context.Context, req CreateCustomerRequest) (*Customer, error) {
+func (s *ordersService) CreateCustomer(ctx context.Context, req domain.CreateCustomerRequest) (*domain.Customer, error) {
 	phone := strings.TrimSpace(req.Phone)
 	name := strings.TrimSpace(req.Name)
 	if phone == "" && name == "" {
-		return nil, ValidationError{Field: "phone", Message: "укажите телефон или имя клиента"}
+		return nil, domain.ValidationError{Field: "phone", Message: "укажите телефон или имя клиента"}
 	}
 	if name == "" {
 		name = phone
@@ -895,7 +854,7 @@ func (s *ordersService) CreateCustomer(ctx context.Context, req CreateCustomerRe
 		category = "regular"
 	}
 
-	customer := &Customer{
+	customer := &domain.Customer{
 		Name:            name,
 		Phone:           phone,
 		City:            strings.TrimSpace(req.City),
@@ -916,10 +875,10 @@ func (s *ordersService) CreateCustomer(ctx context.Context, req CreateCustomerRe
 }
 
 // UpdateCustomer обновляет данные клиента
-func (s *ordersService) UpdateCustomer(ctx context.Context, id int64, req UpdateCustomerRequest) (*Customer, error) {
+func (s *ordersService) UpdateCustomer(ctx context.Context, id int64, req domain.UpdateCustomerRequest) (*domain.Customer, error) {
 	customer, err := s.orderRepo.GetCustomerByID(ctx, id)
 	if err != nil {
-		return nil, NotFoundError{Resource: "customer", ID: id}
+		return nil, domain.NotFoundError{Resource: "customer", ID: id}
 	}
 
 	if req.Name != "" {
@@ -949,8 +908,7 @@ func (s *ordersService) UpdateCustomer(ctx context.Context, id int64, req Update
 func (s *ordersService) DeleteCustomer(ctx context.Context, id int64) error {
 	_, err := s.orderRepo.GetCustomerByID(ctx, id)
 	if err != nil {
-		return NotFoundError{Resource: "customer", ID: id}
+		return domain.NotFoundError{Resource: "customer", ID: id}
 	}
 	return s.orderRepo.DeleteCustomer(ctx, id)
 }
-

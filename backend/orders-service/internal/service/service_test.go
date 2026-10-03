@@ -1,4 +1,4 @@
-package main
+package service
 
 import (
 	"context"
@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"orders-service/internal/domain"
 )
 
 // MockOrderRepository мок для OrderRepository
@@ -16,7 +18,7 @@ type MockOrderRepository struct {
 	mock.Mock
 }
 
-func (m *MockOrderRepository) Create(ctx context.Context, order *Order) error {
+func (m *MockOrderRepository) Create(ctx context.Context, order *domain.Order) error {
 	args := m.Called(ctx, order)
 	if order.ID == 0 {
 		order.ID = 100
@@ -24,7 +26,7 @@ func (m *MockOrderRepository) Create(ctx context.Context, order *Order) error {
 	return args.Error(0)
 }
 
-func (m *MockOrderRepository) CreateItem(ctx context.Context, item *OrderItem) error {
+func (m *MockOrderRepository) CreateItem(ctx context.Context, item *domain.OrderItem) error {
 	args := m.Called(ctx, item)
 	if item.ID == 0 {
 		item.ID = 200
@@ -32,48 +34,48 @@ func (m *MockOrderRepository) CreateItem(ctx context.Context, item *OrderItem) e
 	return args.Error(0)
 }
 
-func (m *MockOrderRepository) FindByID(ctx context.Context, id int64) (*Order, error) {
+func (m *MockOrderRepository) FindByID(ctx context.Context, id int64) (*domain.Order, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*Order), args.Error(1)
+	return args.Get(0).(*domain.Order), args.Error(1)
 }
 
-func (m *MockOrderRepository) FindWithItemsByID(ctx context.Context, id int64) (*Order, error) {
+func (m *MockOrderRepository) FindWithItemsByID(ctx context.Context, id int64) (*domain.Order, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*Order), args.Error(1)
+	return args.Get(0).(*domain.Order), args.Error(1)
 }
 
-func (m *MockOrderRepository) FindAll(ctx context.Context) ([]Order, error) {
+func (m *MockOrderRepository) FindAll(ctx context.Context) ([]domain.Order, error) {
 	args := m.Called(ctx)
-	return args.Get(0).([]Order), args.Error(1)
+	return args.Get(0).([]domain.Order), args.Error(1)
 }
 
-func (m *MockOrderRepository) FindActive(ctx context.Context) ([]Order, error) {
+func (m *MockOrderRepository) FindActive(ctx context.Context) ([]domain.Order, error) {
 	args := m.Called(ctx)
-	return args.Get(0).([]Order), args.Error(1)
+	return args.Get(0).([]domain.Order), args.Error(1)
 }
 
-func (m *MockOrderRepository) FindCompleted(ctx context.Context) ([]Order, error) {
+func (m *MockOrderRepository) FindCompleted(ctx context.Context) ([]domain.Order, error) {
 	args := m.Called(ctx)
-	return args.Get(0).([]Order), args.Error(1)
+	return args.Get(0).([]domain.Order), args.Error(1)
 }
 
-func (m *MockOrderRepository) FindWithItems(ctx context.Context) ([]Order, error) {
+func (m *MockOrderRepository) FindWithItems(ctx context.Context) ([]domain.Order, error) {
 	args := m.Called(ctx)
-	return args.Get(0).([]Order), args.Error(1)
+	return args.Get(0).([]domain.Order), args.Error(1)
 }
 
-func (m *MockOrderRepository) FindOrderItem(ctx context.Context, orderID, partID int64) (*OrderItem, error) {
+func (m *MockOrderRepository) FindOrderItem(ctx context.Context, orderID, partID int64) (*domain.OrderItem, error) {
 	args := m.Called(ctx, orderID, partID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*OrderItem), args.Error(1)
+	return args.Get(0).(*domain.OrderItem), args.Error(1)
 }
 
 func (m *MockOrderRepository) Update(ctx context.Context, id int64, updates map[string]interface{}) error {
@@ -91,7 +93,7 @@ func (m *MockOrderRepository) CompleteRecord(ctx context.Context, id int64) erro
 	return args.Error(0)
 }
 
-func (m *MockOrderRepository) UpdateItem(ctx context.Context, item *OrderItem) error {
+func (m *MockOrderRepository) UpdateItem(ctx context.Context, item *domain.OrderItem) error {
 	args := m.Called(ctx, item)
 	return args.Error(0)
 }
@@ -116,12 +118,12 @@ func (m *MockOrderRepository) MarkExpiredAsAutoDeleted(ctx context.Context, befo
 	return args.Error(0)
 }
 
-func (m *MockOrderRepository) GetMonthlySales(ctx context.Context) ([]MonthlySales, error) {
+func (m *MockOrderRepository) GetMonthlySales(ctx context.Context) ([]domain.MonthlySales, error) {
 	args := m.Called(ctx)
-	return args.Get(0).([]MonthlySales), args.Error(1)
+	return args.Get(0).([]domain.MonthlySales), args.Error(1)
 }
 
-func (m *MockOrderRepository) CreateSalesHistory(ctx context.Context, history *SalesHistory) error {
+func (m *MockOrderRepository) CreateSalesHistory(ctx context.Context, history *domain.SalesHistory) error {
 	args := m.Called(ctx, history)
 	return args.Error(0)
 }
@@ -136,28 +138,28 @@ func (m *MockOrderRepository) GetPool() *pgxpool.Pool {
 }
 
 // Customer repository mocks
-func (m *MockOrderRepository) ListCustomersWithStats(ctx context.Context, category, search string, limit, offset int32) ([]CustomerWithStats, error) {
+func (m *MockOrderRepository) ListCustomersWithStats(ctx context.Context, category, search string, limit, offset int32) ([]domain.CustomerWithStats, error) {
 	args := m.Called(ctx, category, search, limit, offset)
-	return args.Get(0).([]CustomerWithStats), args.Error(1)
+	return args.Get(0).([]domain.CustomerWithStats), args.Error(1)
 }
 
-func (m *MockOrderRepository) GetCustomerByID(ctx context.Context, id int64) (*Customer, error) {
+func (m *MockOrderRepository) GetCustomerByID(ctx context.Context, id int64) (*domain.Customer, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*Customer), args.Error(1)
+	return args.Get(0).(*domain.Customer), args.Error(1)
 }
 
-func (m *MockOrderRepository) GetCustomerByPhone(ctx context.Context, phone string) (*Customer, error) {
+func (m *MockOrderRepository) GetCustomerByPhone(ctx context.Context, phone string) (*domain.Customer, error) {
 	args := m.Called(ctx, phone)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*Customer), args.Error(1)
+	return args.Get(0).(*domain.Customer), args.Error(1)
 }
 
-func (m *MockOrderRepository) CreateCustomer(ctx context.Context, customer *Customer) error {
+func (m *MockOrderRepository) CreateCustomer(ctx context.Context, customer *domain.Customer) error {
 	args := m.Called(ctx, customer)
 	if customer.ID == 0 {
 		customer.ID = 10
@@ -165,7 +167,7 @@ func (m *MockOrderRepository) CreateCustomer(ctx context.Context, customer *Cust
 	return args.Error(0)
 }
 
-func (m *MockOrderRepository) UpdateCustomer(ctx context.Context, customer *Customer) error {
+func (m *MockOrderRepository) UpdateCustomer(ctx context.Context, customer *domain.Customer) error {
 	args := m.Called(ctx, customer)
 	return args.Error(0)
 }
@@ -175,9 +177,9 @@ func (m *MockOrderRepository) DeleteCustomer(ctx context.Context, id int64) erro
 	return args.Error(0)
 }
 
-func (m *MockOrderRepository) GetOrdersByCustomerID(ctx context.Context, customerID int64) ([]Order, error) {
+func (m *MockOrderRepository) GetOrdersByCustomerID(ctx context.Context, customerID int64) ([]domain.Order, error) {
 	args := m.Called(ctx, customerID)
-	return args.Get(0).([]Order), args.Error(1)
+	return args.Get(0).([]domain.Order), args.Error(1)
 }
 
 // MockPartRepositoryForOrders мок для PartRepositoryForOrders
@@ -185,12 +187,12 @@ type MockPartRepositoryForOrders struct {
 	mock.Mock
 }
 
-func (m *MockPartRepositoryForOrders) FindByID(ctx context.Context, id int64) (*Part, error) {
+func (m *MockPartRepositoryForOrders) FindByID(ctx context.Context, id int64) (*domain.Part, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*Part), args.Error(1)
+	return args.Get(0).(*domain.Part), args.Error(1)
 }
 
 func (m *MockPartRepositoryForOrders) UpdateQuantity(ctx context.Context, id int64, newQuantity int) error {
@@ -218,15 +220,15 @@ type MockCacheService struct {
 	mock.Mock
 }
 
-func (m *MockCacheService) GetOrders() ([]Order, error) {
+func (m *MockCacheService) GetOrders() ([]domain.Order, error) {
 	args := m.Called()
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]Order), args.Error(1)
+	return args.Get(0).([]domain.Order), args.Error(1)
 }
 
-func (m *MockCacheService) SetOrders(orders []Order) error {
+func (m *MockCacheService) SetOrders(orders []domain.Order) error {
 	args := m.Called(orders)
 	return args.Error(0)
 }
@@ -261,7 +263,7 @@ func TestCreateOrder_SingleItem(t *testing.T) {
 	svc := NewOrdersService(mockOrderRepo, mockPartRepo, mockCache, mockPublisher)
 	ctx := context.Background()
 
-	part := &Part{
+	part := &domain.Part{
 		ID:       50,
 		Name:     "Генератор Bosch",
 		Price:    15000,
@@ -270,27 +272,27 @@ func TestCreateOrder_SingleItem(t *testing.T) {
 	}
 
 	mockPartRepo.On("FindByID", ctx, int64(50)).Return(part, nil)
-	mockOrderRepo.On("GetCustomerByPhone", ctx, "+79991234567").Return((*Customer)(nil), nil)
-	mockOrderRepo.On("CreateCustomer", ctx, mock.AnythingOfType("*main.Customer")).Return(nil)
-	mockOrderRepo.On("Create", ctx, mock.AnythingOfType("*main.Order")).Return(nil)
-	mockOrderRepo.On("CreateItem", ctx, mock.AnythingOfType("*main.OrderItem")).Return(nil)
-	mockOrderRepo.On("FindWithItemsByID", mock.Anything, int64(100)).Return(&Order{
+	mockOrderRepo.On("GetCustomerByPhone", ctx, "+79991234567").Return((*domain.Customer)(nil), nil)
+	mockOrderRepo.On("CreateCustomer", ctx, mock.AnythingOfType("*domain.Customer")).Return(nil)
+	mockOrderRepo.On("Create", ctx, mock.AnythingOfType("*domain.Order")).Return(nil)
+	mockOrderRepo.On("CreateItem", ctx, mock.AnythingOfType("*domain.OrderItem")).Return(nil)
+	mockOrderRepo.On("FindWithItemsByID", mock.Anything, int64(100)).Return(&domain.Order{
 		ID:          100,
 		TotalAmount: 15000,
 		Status:      "Ожидает предоплаты",
 		PartID:      50,
 		Seller:      "Менеджер Иван",
-		Items: []OrderItem{
+		Items: []domain.OrderItem{
 			{PartID: 50, Quantity: 1, Price: 15000},
 		},
 	}, nil)
 	mockCache.On("InvalidateOrders").Return(nil)
 
-	req := CreateOrderRequest{
+	req := domain.CreateOrderRequest{
 		PartID:      50,
 		BuyerNumber: "+79991234567",
 		Source:      "drom",
-		Items: []CreateOrderItemInput{
+		Items: []domain.CreateOrderItemInput{
 			{PartID: 50, Quantity: 1},
 		},
 	}
@@ -318,9 +320,9 @@ func TestCreateOrder_EmptyItems(t *testing.T) {
 	svc := NewOrdersService(mockOrderRepo, mockPartRepo, mockCache, mockPublisher)
 	ctx := context.Background()
 
-	req := CreateOrderRequest{
+	req := domain.CreateOrderRequest{
 		BuyerNumber: "+79991234567",
-		Items:       []CreateOrderItemInput{},
+		Items:       []domain.CreateOrderItemInput{},
 	}
 
 	_, err := svc.CreateOrder(ctx, req, 1, "Менеджер")
@@ -366,12 +368,12 @@ func TestCustomerOperations(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("CreateCustomer", func(t *testing.T) {
-		mockOrderRepo.On("GetCustomerByPhone", ctx, "+79998887766").Return((*Customer)(nil), nil)
-		mockOrderRepo.On("CreateCustomer", ctx, mock.MatchedBy(func(c *Customer) bool {
+		mockOrderRepo.On("GetCustomerByPhone", ctx, "+79998887766").Return((*domain.Customer)(nil), nil)
+		mockOrderRepo.On("CreateCustomer", ctx, mock.MatchedBy(func(c *domain.Customer) bool {
 			return c.Name == "ООO Автомир" && c.Phone == "+79998887766" && c.Category == "b2b"
 		})).Return(nil)
 
-		req := CreateCustomerRequest{
+		req := domain.CreateCustomerRequest{
 			Name:            "ООO Автомир",
 			Phone:           "+79998887766",
 			Category:        "b2b",
@@ -384,14 +386,14 @@ func TestCustomerOperations(t *testing.T) {
 	})
 
 	t.Run("GetCustomerDetails", func(t *testing.T) {
-		customer := &Customer{ID: 10, Name: "ООO Автомир", Phone: "+79998887766"}
-		orders := []Order{
+		customer := &domain.Customer{ID: 10, Name: "ООO Автомир", Phone: "+79998887766"}
+		orders := []domain.Order{
 			{
 				ID:          1,
 				OrderNumber: "ORD-001",
 				TotalAmount: 10000,
 				Status:      "green",
-				Items: []OrderItem{
+				Items: []domain.OrderItem{
 					{PartID: 1, Quantity: 1, Price: 10000},
 				},
 			},
@@ -409,7 +411,7 @@ func TestCustomerOperations(t *testing.T) {
 	})
 
 	t.Run("DeleteCustomer", func(t *testing.T) {
-		customer := &Customer{ID: 15, Name: "Клиент на удаление"}
+		customer := &domain.Customer{ID: 15, Name: "Клиент на удаление"}
 		mockOrderRepo.On("GetCustomerByID", ctx, int64(15)).Return(customer, nil)
 		mockOrderRepo.On("DeleteCustomer", ctx, int64(15)).Return(nil)
 

@@ -1,4 +1,4 @@
-package main
+package events
 
 import (
 	"context"
@@ -28,6 +28,10 @@ func NewEventPublisher(client *redis.Client) EventPublisher {
 
 // PublishOrderCompleted публикует событие завершения заказа
 func (p *RedisEventPublisher) PublishOrderCompleted(ctx context.Context, orderID int64, amount float64) error {
+	if p.client == nil {
+		return nil
+	}
+
 	event := map[string]interface{}{
 		"type":     "order_completed",
 		"order_id": orderID,
@@ -55,6 +59,10 @@ func (p *RedisEventPublisher) PublishOrderCompleted(ctx context.Context, orderID
 
 // PublishUserAction публикует событие действия пользователя
 func (p *RedisEventPublisher) PublishUserAction(ctx context.Context, userID, action string, details map[string]interface{}) error {
+	if p.client == nil {
+		return nil
+	}
+
 	event := map[string]interface{}{
 		"type":    "user_action",
 		"user_id": userID,

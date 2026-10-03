@@ -1,10 +1,11 @@
-package main
+package grpc
 
 import (
 	"context"
 	"fmt"
 
 	partsv1 "avtoplaneta/gen/parts/v1"
+	"orders-service/internal/domain"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -12,7 +13,7 @@ import (
 
 // PartsGRPCClient интерфейс для работы с запчастями по gRPC
 type PartsGRPCClient interface {
-	GetPartByID(ctx context.Context, id int64) (*Part, error)
+	GetPartByID(ctx context.Context, id int64) (*domain.Part, error)
 	DecreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error
 	IncreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error
 	DeletePart(ctx context.Context, id int64) error
@@ -38,22 +39,25 @@ func NewPartsGRPCClient(target string) (PartsGRPCClient, error) {
 }
 
 func (c *partsGRPCClient) Close() error {
-	return c.conn.Close()
+	if c.conn != nil {
+		return c.conn.Close()
+	}
+	return nil
 }
 
-func (c *partsGRPCClient) GetPartByID(ctx context.Context, id int64) (*Part, error) {
+func (c *partsGRPCClient) GetPartByID(ctx context.Context, id int64) (*domain.Part, error) {
 	req := &partsv1.GetPartRequest{Id: uint32(id)}
 	resp, err := c.client.GetPart(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	photo := ""
 	if len(resp.Photos) > 0 {
 		photo = resp.Photos[0]
 	}
 
-	return &Part{
+	return &domain.Part{
 		ID:       int64(resp.Id),
 		Name:     resp.Name,
 		Quantity: int(resp.Quantity),

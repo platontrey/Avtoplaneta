@@ -1,4 +1,4 @@
-package main
+package repository
 
 import (
 	"context"
@@ -9,83 +9,52 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/sirupsen/logrus"
 
 	"orders-service/db/sqlc"
+	"orders-service/internal/domain"
 )
 
-type txKeyType struct{}
-var txKey = txKeyType{}
-
-// RunInTransaction выполняет функцию fn в рамках транзакции
-func RunInTransaction(ctx context.Context, pool *pgxpool.Pool, fn func(ctx context.Context) error) error {
-	if pool == nil {
-		return fn(ctx)
-	}
-	tx, err := pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-
-	txCtx := context.WithValue(ctx, txKey, tx)
-	if err := fn(txCtx); err != nil {
-		return err
-	}
-
-	return tx.Commit(ctx)
-}
-
-// OrderRepository определяет интерфейс для работы с заказами
+// OrderRepository определяет интерфейс для работы с заказами и клиентами
 type OrderRepository interface {
-	Create(ctx context.Context, order *Order) error
-	CreateItem(ctx context.Context, item *OrderItem) error
-	FindByID(ctx context.Context, id int64) (*Order, error)
-	FindWithItemsByID(ctx context.Context, id int64) (*Order, error)
-	FindAll(ctx context.Context) ([]Order, error)
-	FindActive(ctx context.Context) ([]Order, error)
-	FindCompleted(ctx context.Context) ([]Order, error)
-	FindWithItems(ctx context.Context) ([]Order, error)
-	FindOrderItem(ctx context.Context, orderID, partID int64) (*OrderItem, error)
+	Create(ctx context.Context, order *domain.Order) error
+	CreateItem(ctx context.Context, item *domain.OrderItem) error
+	FindByID(ctx context.Context, id int64) (*domain.Order, error)
+	FindWithItemsByID(ctx context.Context, id int64) (*domain.Order, error)
+	FindAll(ctx context.Context) ([]domain.Order, error)
+	FindActive(ctx context.Context) ([]domain.Order, error)
+	FindCompleted(ctx context.Context) ([]domain.Order, error)
+	FindWithItems(ctx context.Context) ([]domain.Order, error)
+	FindOrderItem(ctx context.Context, orderID, partID int64) (*domain.OrderItem, error)
 	Update(ctx context.Context, id int64, updates map[string]interface{}) error
 	UpdateStatus(ctx context.Context, id int64, status string) error
 	CompleteRecord(ctx context.Context, id int64) error
-	UpdateItem(ctx context.Context, item *OrderItem) error
+	UpdateItem(ctx context.Context, item *domain.OrderItem) error
 	DeleteItem(ctx context.Context, orderID, itemID int64) error
 	Delete(ctx context.Context, id int64) error
 	DeleteItemsByOrderID(ctx context.Context, orderID int64) error
 	MarkExpiredAsAutoDeleted(ctx context.Context, before time.Time) error
-	GetMonthlySales(ctx context.Context) ([]MonthlySales, error)
-	CreateSalesHistory(ctx context.Context, history *SalesHistory) error
+	GetMonthlySales(ctx context.Context) ([]domain.MonthlySales, error)
+	CreateSalesHistory(ctx context.Context, history *domain.SalesHistory) error
 	UpdateSellerName(ctx context.Context, sellerID int64, name string) error
 	GetPool() *pgxpool.Pool
 
 	// Customer methods
-	CreateCustomer(ctx context.Context, customer *Customer) error
-	GetCustomerByID(ctx context.Context, id int64) (*Customer, error)
-	GetCustomerByPhone(ctx context.Context, phone string) (*Customer, error)
-	ListCustomersWithStats(ctx context.Context, category, search string, limit, offset int32) ([]CustomerWithStats, error)
-	UpdateCustomer(ctx context.Context, customer *Customer) error
+	CreateCustomer(ctx context.Context, customer *domain.Customer) error
+	GetCustomerByID(ctx context.Context, id int64) (*domain.Customer, error)
+	GetCustomerByPhone(ctx context.Context, phone string) (*domain.Customer, error)
+	ListCustomersWithStats(ctx context.Context, category, search string, limit, offset int32) ([]domain.CustomerWithStats, error)
+	UpdateCustomer(ctx context.Context, customer *domain.Customer) error
 	DeleteCustomer(ctx context.Context, id int64) error
-	GetOrdersByCustomerID(ctx context.Context, customerID int64) ([]Order, error)
+	GetOrdersByCustomerID(ctx context.Context, customerID int64) ([]domain.Order, error)
 }
 
-
-// PartRepositoryForOrders определяет интерфейс для работы с запчастями (для orders-service)
-type PartRepositoryForOrders interface {
-	FindByID(ctx context.Context, id int64) (*Part, error)
-	UpdateQuantity(ctx context.Context, id int64, newQuantity int) error
-	DecreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error
-	IncreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error
-	DeletePart(ctx context.Context, id int64) error
-}
-
-// orderRepository реализует OrderRepository
+// orderRepository реализует OrderRepository с использованием sqlc и pgx
 type orderRepository struct {
 	pool    *pgxpool.Pool
 	queries *sqlc.Queries
 }
 
+// NewOrderRepository создает экземпляр OrderRepository
 func NewOrderRepository(pool *pgxpool.Pool) OrderRepository {
 	return &orderRepository{
 		pool:    pool,
@@ -134,14 +103,14 @@ func toTimestamptzPtr(t *time.Time) pgtype.Timestamptz {
 	return pgtype.Timestamptz{Time: *t, Valid: true}
 }
 
-func sqlcOrderToDomain(o sqlc.Order) Order {
+func sqlcOrderToDomain(o sqlc.Order) domain.Order {
 	completedAt := toTimePtr(o.CompletedAt)
 	completedAtFormatted := ""
 	if completedAt != nil {
 		completedAtFormatted = completedAt.Format("2006-01-02 15:04:05")
 	}
 
-	return Order{
+	return domain.Order{
 		ID:                   o.ID,
 		CustomerID:           o.CustomerID,
 		OrderNumber:          o.OrderNumber,
@@ -166,12 +135,12 @@ func sqlcOrderToDomain(o sqlc.Order) Order {
 		CompletedAt:          completedAt,
 		CompletedAtFormatted: completedAtFormatted,
 		UpdatedAt:            toTime(o.UpdatedAt),
-		Items:                []OrderItem{},
+		Items:                []domain.OrderItem{},
 	}
 }
 
-func sqlcOrderItemToDomain(oi sqlc.OrderItem) OrderItem {
-	return OrderItem{
+func sqlcOrderItemToDomain(oi sqlc.OrderItem) domain.OrderItem {
+	return domain.OrderItem{
 		ID:               oi.ID,
 		OrderID:          oi.OrderID,
 		PartID:           oi.PartID,
@@ -182,8 +151,8 @@ func sqlcOrderItemToDomain(oi sqlc.OrderItem) OrderItem {
 	}
 }
 
-func sqlcCustomerToDomain(c sqlc.Customer) Customer {
-	return Customer{
+func sqlcCustomerToDomain(c sqlc.Customer) domain.Customer {
+	return domain.Customer{
 		ID:              c.ID,
 		Name:            c.Name,
 		Phone:           c.Phone,
@@ -198,9 +167,9 @@ func sqlcCustomerToDomain(c sqlc.Customer) Customer {
 	}
 }
 
-func sqlcCustomerRowToDomain(r sqlc.ListCustomersWithStatsRow) CustomerWithStats {
-	return CustomerWithStats{
-		Customer: Customer{
+func sqlcCustomerRowToDomain(r sqlc.ListCustomersWithStatsRow) domain.CustomerWithStats {
+	return domain.CustomerWithStats{
+		Customer: domain.Customer{
 			ID:              r.ID,
 			Name:            r.Name,
 			Phone:           r.Phone,
@@ -219,7 +188,7 @@ func sqlcCustomerRowToDomain(r sqlc.ListCustomersWithStatsRow) CustomerWithStats
 	}
 }
 
-func (r *orderRepository) Create(ctx context.Context, order *Order) error {
+func (r *orderRepository) Create(ctx context.Context, order *domain.Order) error {
 	now := time.Now()
 	if order.CreatedAt.IsZero() {
 		order.CreatedAt = now
@@ -270,7 +239,7 @@ func (r *orderRepository) Create(ctx context.Context, order *Order) error {
 	return nil
 }
 
-func (r *orderRepository) FindByID(ctx context.Context, id int64) (*Order, error) {
+func (r *orderRepository) FindByID(ctx context.Context, id int64) (*domain.Order, error) {
 	o, err := r.getQueries(ctx).GetOrderByID(ctx, id)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -278,11 +247,11 @@ func (r *orderRepository) FindByID(ctx context.Context, id int64) (*Order, error
 		}
 		return nil, fmt.Errorf("failed to find order with ID %d: %w", id, err)
 	}
-	domain := sqlcOrderToDomain(o)
-	return &domain, nil
+	d := sqlcOrderToDomain(o)
+	return &d, nil
 }
 
-func (r *orderRepository) FindWithItemsByID(ctx context.Context, id int64) (*Order, error) {
+func (r *orderRepository) FindWithItemsByID(ctx context.Context, id int64) (*domain.Order, error) {
 	o, err := r.getQueries(ctx).GetOrderByID(ctx, id)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -296,30 +265,30 @@ func (r *orderRepository) FindWithItemsByID(ctx context.Context, id int64) (*Ord
 		return nil, fmt.Errorf("failed to find items for order %d: %w", id, err)
 	}
 
-	domain := sqlcOrderToDomain(o)
-	domain.Items = make([]OrderItem, len(items))
+	d := sqlcOrderToDomain(o)
+	d.Items = make([]domain.OrderItem, len(items))
 	for i, item := range items {
-		domain.Items[i] = sqlcOrderItemToDomain(item)
+		d.Items[i] = sqlcOrderItemToDomain(item)
 	}
-	return &domain, nil
+	return &d, nil
 }
 
-func (r *orderRepository) FindAll(ctx context.Context) ([]Order, error) {
+func (r *orderRepository) FindAll(ctx context.Context) ([]domain.Order, error) {
 	rows, err := r.getQueries(ctx).FindAllOrders(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find all orders: %w", err)
 	}
 
-	orders := make([]Order, len(rows))
+	orders := make([]domain.Order, len(rows))
 	for i, row := range rows {
 		orders[i] = sqlcOrderToDomain(row)
 	}
 	return orders, nil
 }
 
-func (r *orderRepository) attachItems(ctx context.Context, rows []sqlc.Order) ([]Order, error) {
+func (r *orderRepository) attachItems(ctx context.Context, rows []sqlc.Order) ([]domain.Order, error) {
 	if len(rows) == 0 {
-		return []Order{}, nil
+		return []domain.Order{}, nil
 	}
 
 	orderIDs := make([]int64, len(rows))
@@ -332,25 +301,25 @@ func (r *orderRepository) attachItems(ctx context.Context, rows []sqlc.Order) ([
 		return nil, fmt.Errorf("failed to load items for orders: %w", err)
 	}
 
-	itemsMap := make(map[int64][]OrderItem)
+	itemsMap := make(map[int64][]domain.OrderItem)
 	for _, item := range items {
 		itemsMap[item.OrderID] = append(itemsMap[item.OrderID], sqlcOrderItemToDomain(item))
 	}
 
-	orders := make([]Order, len(rows))
+	orders := make([]domain.Order, len(rows))
 	for i, row := range rows {
-		domain := sqlcOrderToDomain(row)
-		domain.Items = itemsMap[row.ID]
-		if domain.Items == nil {
-			domain.Items = []OrderItem{}
+		d := sqlcOrderToDomain(row)
+		d.Items = itemsMap[row.ID]
+		if d.Items == nil {
+			d.Items = []domain.OrderItem{}
 		}
-		orders[i] = domain
+		orders[i] = d
 	}
 
 	return orders, nil
 }
 
-func (r *orderRepository) FindWithItems(ctx context.Context) ([]Order, error) {
+func (r *orderRepository) FindWithItems(ctx context.Context) ([]domain.Order, error) {
 	rows, err := r.getQueries(ctx).FindAllOrders(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find orders with items: %w", err)
@@ -358,11 +327,11 @@ func (r *orderRepository) FindWithItems(ctx context.Context) ([]Order, error) {
 	return r.attachItems(ctx, rows)
 }
 
-func (r *orderRepository) FindActive(ctx context.Context) ([]Order, error) {
+func (r *orderRepository) FindActive(ctx context.Context) ([]domain.Order, error) {
 	return r.FindWithItems(ctx)
 }
 
-func (r *orderRepository) FindCompleted(ctx context.Context) ([]Order, error) {
+func (r *orderRepository) FindCompleted(ctx context.Context) ([]domain.Order, error) {
 	rows, err := r.getQueries(ctx).FindCompletedOrders(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find completed orders: %w", err)
@@ -420,7 +389,7 @@ func (r *orderRepository) MarkExpiredAsAutoDeleted(ctx context.Context, before t
 	return nil
 }
 
-func (r *orderRepository) CreateItem(ctx context.Context, item *OrderItem) error {
+func (r *orderRepository) CreateItem(ctx context.Context, item *domain.OrderItem) error {
 	snapshot := item.PartNameSnapshot
 	if snapshot == "" {
 		snapshot = item.PartName
@@ -441,7 +410,7 @@ func (r *orderRepository) CreateItem(ctx context.Context, item *OrderItem) error
 	return nil
 }
 
-func (r *orderRepository) FindOrderItem(ctx context.Context, orderID, partID int64) (*OrderItem, error) {
+func (r *orderRepository) FindOrderItem(ctx context.Context, orderID, partID int64) (*domain.OrderItem, error) {
 	params := sqlc.FindOrderItemParams{
 		OrderID: orderID,
 		PartID:  partID,
@@ -454,8 +423,8 @@ func (r *orderRepository) FindOrderItem(ctx context.Context, orderID, partID int
 		}
 		return nil, fmt.Errorf("failed to find order item: %w", err)
 	}
-	domain := sqlcOrderItemToDomain(oi)
-	return &domain, nil
+	d := sqlcOrderItemToDomain(oi)
+	return &d, nil
 }
 
 func (r *orderRepository) UpdateStatus(ctx context.Context, id int64, status string) error {
@@ -470,7 +439,7 @@ func (r *orderRepository) UpdateStatus(ctx context.Context, id int64, status str
 	return nil
 }
 
-func (r *orderRepository) UpdateItem(ctx context.Context, item *OrderItem) error {
+func (r *orderRepository) UpdateItem(ctx context.Context, item *domain.OrderItem) error {
 	params := sqlc.UpdateOrderItemParams{
 		ID:       item.ID,
 		Quantity: int32(item.Quantity),
@@ -502,20 +471,20 @@ func (r *orderRepository) DeleteItemsByOrderID(ctx context.Context, orderID int6
 	return nil
 }
 
-func (r *orderRepository) GetMonthlySales(ctx context.Context) ([]MonthlySales, error) {
+func (r *orderRepository) GetMonthlySales(ctx context.Context) ([]domain.MonthlySales, error) {
 	rows, err := r.getQueries(ctx).GetMonthlySales(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get monthly sales: %w", err)
 	}
 
-	monthlySales := make([]MonthlySales, len(rows))
+	monthlySales := make([]domain.MonthlySales, len(rows))
 	for i, row := range rows {
-		monthlySales[i] = MonthlySales{Month: row.Month, Sales: row.Sales}
+		monthlySales[i] = domain.MonthlySales{Month: row.Month, Sales: row.Sales}
 	}
 	return monthlySales, nil
 }
 
-func (r *orderRepository) CreateSalesHistory(ctx context.Context, history *SalesHistory) error {
+func (r *orderRepository) CreateSalesHistory(ctx context.Context, history *domain.SalesHistory) error {
 	params := sqlc.CreateSalesHistoryParams{
 		Month:     history.Month,
 		Sales:     history.Sales,
@@ -537,7 +506,7 @@ func (r *orderRepository) UpdateSellerName(ctx context.Context, sellerID int64, 
 	})
 }
 
-func (r *orderRepository) CreateCustomer(ctx context.Context, customer *Customer) error {
+func (r *orderRepository) CreateCustomer(ctx context.Context, customer *domain.Customer) error {
 	now := time.Now()
 	if customer.CreatedAt.IsZero() {
 		customer.CreatedAt = now
@@ -566,25 +535,25 @@ func (r *orderRepository) CreateCustomer(ctx context.Context, customer *Customer
 	return nil
 }
 
-func (r *orderRepository) GetCustomerByID(ctx context.Context, id int64) (*Customer, error) {
+func (r *orderRepository) GetCustomerByID(ctx context.Context, id int64) (*domain.Customer, error) {
 	c, err := r.getQueries(ctx).GetCustomerByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	domain := sqlcCustomerToDomain(c)
-	return &domain, nil
+	d := sqlcCustomerToDomain(c)
+	return &d, nil
 }
 
-func (r *orderRepository) GetCustomerByPhone(ctx context.Context, phone string) (*Customer, error) {
+func (r *orderRepository) GetCustomerByPhone(ctx context.Context, phone string) (*domain.Customer, error) {
 	c, err := r.getQueries(ctx).GetCustomerByPhone(ctx, phone)
 	if err != nil {
 		return nil, err
 	}
-	domain := sqlcCustomerToDomain(c)
-	return &domain, nil
+	d := sqlcCustomerToDomain(c)
+	return &d, nil
 }
 
-func (r *orderRepository) ListCustomersWithStats(ctx context.Context, category, search string, limit, offset int32) ([]CustomerWithStats, error) {
+func (r *orderRepository) ListCustomersWithStats(ctx context.Context, category, search string, limit, offset int32) ([]domain.CustomerWithStats, error) {
 	if limit <= 0 {
 		limit = 50
 	}
@@ -600,14 +569,14 @@ func (r *orderRepository) ListCustomersWithStats(ctx context.Context, category, 
 		return nil, fmt.Errorf("failed to list customers: %w", err)
 	}
 
-	customers := make([]CustomerWithStats, len(rows))
+	customers := make([]domain.CustomerWithStats, len(rows))
 	for i, row := range rows {
 		customers[i] = sqlcCustomerRowToDomain(row)
 	}
 	return customers, nil
 }
 
-func (r *orderRepository) UpdateCustomer(ctx context.Context, customer *Customer) error {
+func (r *orderRepository) UpdateCustomer(ctx context.Context, customer *domain.Customer) error {
 	params := sqlc.UpdateCustomerParams{
 		ID:              customer.ID,
 		Name:            customer.Name,
@@ -633,13 +602,13 @@ func (r *orderRepository) DeleteCustomer(ctx context.Context, id int64) error {
 	return r.getQueries(ctx).DeleteCustomer(ctx, id)
 }
 
-func (r *orderRepository) GetOrdersByCustomerID(ctx context.Context, customerID int64) ([]Order, error) {
+func (r *orderRepository) GetOrdersByCustomerID(ctx context.Context, customerID int64) ([]domain.Order, error) {
 	orders, err := r.getQueries(ctx).GetOrdersByCustomerID(ctx, customerID)
 	if err != nil {
 		return nil, err
 	}
 
-	domainOrders := make([]Order, len(orders))
+	domainOrders := make([]domain.Order, len(orders))
 	for i, o := range orders {
 		domainOrders[i] = sqlcOrderToDomain(o)
 	}
@@ -648,52 +617,4 @@ func (r *orderRepository) GetOrdersByCustomerID(ctx context.Context, customerID 
 
 func (r *orderRepository) GetPool() *pgxpool.Pool {
 	return r.pool
-}
-
-// partRepositoryForOrders реализует PartRepositoryForOrders
-type partRepositoryForOrders struct {
-	client PartsGRPCClient
-}
-
-func NewPartRepositoryForOrders(client PartsGRPCClient) PartRepositoryForOrders {
-	return &partRepositoryForOrders{
-		client: client,
-	}
-}
-
-func (r *partRepositoryForOrders) FindByID(ctx context.Context, id int64) (*Part, error) {
-	p, err := r.client.GetPartByID(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find part with ID %d via gRPC: %w", id, err)
-	}
-	return p, nil
-}
-
-func (r *partRepositoryForOrders) UpdateQuantity(ctx context.Context, id int64, newQuantity int) error {
-	return fmt.Errorf("UpdateQuantity is not supported via gRPC yet")
-}
-
-func (r *partRepositoryForOrders) DecreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error {
-	err := r.client.DecreaseQuantity(ctx, id, amount, operationID)
-	if err != nil {
-		return fmt.Errorf("failed to decrease quantity for part %d by %d: %w", id, amount, err)
-	}
-	return nil
-}
-
-func (r *partRepositoryForOrders) IncreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error {
-	err := r.client.IncreaseQuantity(ctx, id, amount, operationID)
-	if err != nil {
-		return fmt.Errorf("failed to increase quantity for part %d by %d: %w", id, amount, err)
-	}
-	return nil
-}
-
-func (r *partRepositoryForOrders) DeletePart(ctx context.Context, id int64) error {
-	logrus.WithField("part_id", id).Info("Starting part deletion via gRPC")
-	err := r.client.DeletePart(ctx, id)
-	if err != nil {
-		return fmt.Errorf("failed to delete part with ID %d via gRPC: %w", id, err)
-	}
-	return nil
 }

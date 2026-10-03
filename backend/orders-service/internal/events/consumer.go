@@ -1,4 +1,4 @@
-package main
+package events
 
 import (
 	"context"
@@ -11,18 +11,22 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+
+	"orders-service/internal/repository"
 )
 
+// RedisEventConsumer слушает события из Redis Streams
 type RedisEventConsumer struct {
 	client    *redis.Client
-	orderRepo OrderRepository
-	cache     CacheService
+	orderRepo repository.OrderRepository
+	cache     repository.CacheService
 	group     string
 	consumer  string
 	stream    string
 }
 
-func NewRedisEventConsumer(client *redis.Client, orderRepo OrderRepository, cache CacheService) *RedisEventConsumer {
+// NewRedisEventConsumer создает новый потребитель событий
+func NewRedisEventConsumer(client *redis.Client, orderRepo repository.OrderRepository, cache repository.CacheService) *RedisEventConsumer {
 	hostname, _ := os.Hostname()
 	if hostname == "" {
 		hostname = "orders-worker"
@@ -38,6 +42,7 @@ func NewRedisEventConsumer(client *redis.Client, orderRepo OrderRepository, cach
 	}
 }
 
+// Start запускает цикл прослушивания сообщений из Redis Streams
 func (c *RedisEventConsumer) Start(ctx context.Context) error {
 	if c.client == nil {
 		logrus.Warn("Redis client is nil, skipping event consumer")
