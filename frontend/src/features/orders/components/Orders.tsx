@@ -51,7 +51,38 @@ export const Orders: React.FC = () => {
   const quickUpdateMutation = useMutation({
     mutationFn: ({ orderId, payload }: { orderId: number; payload: Parameters<typeof updateOrderDetails>[1] }) =>
       updateOrderDetails(orderId, payload),
-    onSuccess: invalidateAll,
+    onMutate: async ({ orderId, payload }) => {
+      await queryClient.cancelQueries({ queryKey: ['orders'] });
+      await queryClient.cancelQueries({ queryKey: ['orders', 'completed'] });
+
+      const previousActive = queryClient.getQueryData<Order[]>(['orders']);
+      const previousCompleted = queryClient.getQueryData<Order[]>(['orders', 'completed']);
+
+      if (previousActive) {
+        queryClient.setQueryData<Order[]>(['orders'], (old) =>
+          old ? old.map((ord) => (ord.id === orderId ? { ...ord, ...payload } : ord)) : []
+        );
+      }
+
+      if (previousCompleted) {
+        queryClient.setQueryData<Order[]>(['orders', 'completed'], (old) =>
+          old ? old.map((ord) => (ord.id === orderId ? { ...ord, ...payload } : ord)) : []
+        );
+      }
+
+      return { previousActive, previousCompleted };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousActive) {
+        queryClient.setQueryData(['orders'], context.previousActive);
+      }
+      if (context?.previousCompleted) {
+        queryClient.setQueryData(['orders', 'completed'], context.previousCompleted);
+      }
+    },
+    onSettled: () => {
+      invalidateAll();
+    },
   });
 
   const deleteOrderMutation = useMutation({

@@ -111,7 +111,24 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      // Использован стандартный сплиттинг Vite для правильного tree-shaking lucide-react
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/react-router-dom/')) {
+              return 'vendor-react';
+            }
+            if (id.includes('/@tanstack/')) {
+              return 'vendor-query';
+            }
+            if (id.includes('/@radix-ui/')) {
+              return 'vendor-radix';
+            }
+            if (id.includes('/framer-motion/')) {
+              return 'vendor-motion';
+            }
+          }
+        },
+      },
     },
     chunkSizeWarningLimit: 1000,
   },
