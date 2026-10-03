@@ -72,9 +72,10 @@ Frontend App
 #### Интеграция с Backend:
 - **CORS**: Настроен для локального развития (localhost:5173, 5174, 3000)
 - **CSRF защита**: Получение и отправка CSRF токенов
-- **Сессии**: Cookie-based аутентификация
-- **API calls**: RESTful запросы к API Gateway
+- **Сессии**: Cookie-based аутентификация через HttpOnly сессии
+- **API calls**: RESTful запросы через Traefik Ingress с ForwardAuth верификацией
 - **File uploads**: Multipart формы для изображений
+- **Центр документации**: Интерактивный портал `/readme` со спецификацией OpenAPI/Swagger и схемами
 
 #### Ключевые возможности:
 - **Responsive дизайн** для мобильных устройств
@@ -87,7 +88,7 @@ Frontend App
 
 ### Обзор
 
-Межсервисная коммуникация (gateway ↔ services, service ↔ service) реализована через **gRPC** с Protocol Buffers вместо классического HTTP/JSON-проксирования. Это даёт:
+Межсервисная коммуникация между микросервисами (`service ↔ service`) на 100% реализована через **gRPC** с Protocol Buffers. Внешний клиентский трафик маршрутизируется напрямую через промышленный **Traefik Ingress**. Это даёт:
 
 - **HTTP/2 мультиплексирование** — одно TCP-соединение на все вызовы
 - **Protobuf-сериализация** — компактнее и быстрее JSON (в 3-10 раз)
@@ -181,11 +182,12 @@ backend/
   - Статические каталоги авто и деталей (`/api/vehicle-catalog`, `/api/part-catalog`).
   - REST-эндпоинты чатов (`/api/messaging/*`).
 
-### 4. Auth Service (Сервис аутентификации)
+### 4. Auth Service (Сервис аутентификации и сессий)
 
 **Директория:** `auth-service/`
-**Порт:** 8083
-**Технологии:** Gin, sqlc, pgx/v5, PostgreSQL, Gorilla Sessions, Goth (Google OAuth)
+**Порты:** HTTP 8083, gRPC 9083
+**Технологии:** Gin, sqlc, pgx/v5, PostgreSQL, Gorilla Sessions, Goth (Google OAuth), Redis
+**Архитектура:** Чистая слоистая структура `internal/{config, domain, events, grpc, handler, metrics, repository, security, service}` с общим `pkg/authcontext` и `pkg/httpserver`
 
 #### Основные функции:
 - **Аутентификация пользователей** (локальная + Google OAuth)
@@ -220,63 +222,75 @@ type User struct {
 - **Rate limiting**: 10 попыток входа в минуту на IP
 - **Логирование**: Все действия безопасности
 
-### 5. Orders Service (Сервис заказов)
+### 5. Orders Service (Сервис заказов и клиентов)
 
 **Директория:** `orders-service/`
-**Порт:** 8082
-**Технологии:** Gin, sqlc, Squirrel, pgx/v5, PostgreSQL
+**Порты:** HTTP 8082, gRPC 9082
+**Технологии:** Gin, sqlc, pgx/v5, PostgreSQL, Redis Streams, gRPC-клиенты
+**Архитектура:** Чистая слоистая структура `internal/{config, domain, events, grpc, handler, repository, service}`
 
 #### Основные функции:
-- **Создание заказов** с привязкой к частям
-- **Управление статусами заказов** (цветовая кодировка)
-- **Просмотр заказов** с пагинацией
-- **Удаление заказов**
-- **Интеграция с частями** (автоматическое помечение для удаления)
+- **Управление заказами**: Создание, обновление позиций, удаление, расчет скидок
+- **Жизненный цикл и цветовые статусы**: red (Новый), brown (В сборке), yellow (Готов), green (Выполнен)
+- **Автоматическое списание остатков**: При выполнении заказа детали списываются через gRPC в `parts-service`; при исчерпании остатка устанавливается маркер `quantity = -1`, скрывающий позицию из UI и XML-выгрузок
+- **Клиентская база (CRM)**: Аналитика LTV, учет суммарных трат, персональные скидки, история заказов
+- **Дедупликация и нормализация контактов**:
+  - Алгоритм `parseBuyerInfo`: распознает номера телефонов, приводит к каноническому формату `+7XXXXXXXXXX` и отсекает служебные пометки ("Получатель")
+  - Защита от дубликатов на уровне БД: `UNIQUE INDEX idx_customers_unique_phone`
+  - API возвращает `409 Conflict` при попытке создать существующего клиента
+- **Система версионирования миграций (`schema_migrations`)**: Встроена системная таблица учета миграций, гарантирующая строго однократное выполнение каждого `.up.sql` файла в транзакции
 
 #### Модели данных:
 
 ```go
 type Order struct {
-    ID                 int64       `json:"id"`
-    CustomerID         int64       `json:"customer_id"`
-    SellerID           int64       `json:"seller_id"` // ID продавца
-    Seller             string      `json:"seller"`    // Имя продавца
-    Part               string      `json:"part"`      // Название детали
-    PartID             int64       `json:"part_id"`   // ID детали
-    Location           string      `json:"location"`  // Склад
-    BuyerNumber        string      `json:"buyer_number"`
-    Status             string      `json:"status"` // "red", "brown", "yellow", "green"
-    StatusText         string      `json:"status_text"`
-    CreatedAt          time.Time   `json:"created_at"`
-    Items              []OrderItem `json:"items"`
+    ID               int64       `json:"id"`
+    CustomerID       int64       `json:"customer_id"`
+    SellerID         int64       `json:"seller_id"` // ID продавца
+    Seller           string      `json:"seller"`    // Имя продавца
+    Part             string      `json:"part"`      // Название детали
+    PartID           int64       `json:"part_id"`   // ID детали
+    Location         string      `json:"location"`  // Склад
+    BuyerNumber      string      `json:"buyer_number"`
+    Status           string      `json:"status"`    // "red", "brown", "yellow", "green"
+    StatusText       string      `json:"status_text"`
+    OrderNumber      string      `json:"order_number"`
+    PaymentStatus    string      `json:"payment_status"`
+    WarehouseStatus  string      `json:"warehouse_status"`
+    TransportCompany string      `json:"transport_company"`
+    TrackingNumber   string      `json:"tracking_number"`
+    Discount         float64     `json:"discount"`
+    CreatedAt        time.Time   `json:"created_at"`
+    CompletedAt      *time.Time  `json:"completed_at,omitempty"`
+    Items            []OrderItem `json:"items"`
 }
 
-type OrderItem struct {
-    ID       int64   `json:"id"`
-    OrderID  int64   `json:"order_id"`
-    PartID   int64   `json:"part_id"`
-    Quantity int     `json:"quantity"`
-    Price    float64 `json:"price"`
+type Customer struct {
+    ID              int64     `json:"id"`
+    Name            string    `json:"name"`
+    Phone           string    `json:"phone"` // Нормализован к +7...
+    City            string    `json:"city"`
+    PreferredTK     string    `json:"preferred_tk"`
+    Category        string    `json:"category"` // Обычный, Оптовик, Постоянный
+    DiscountPercent int       `json:"discount_percent"`
+    TotalOrders     int64     `json:"total_orders"`
+    TotalSpent      float64   `json:"total_spent"`
+    LastOrderAt     *time.Time`json:"last_order_at,omitempty"`
 }
 ```
 
 #### Статусы заказов:
-- **🔴 Red**: "Need to order transport company"
-- **🟤 Brown**: "Waiting for response"
-- **🟡 Yellow**: "Need to deliver"
-- **🟢 Green**: "Transported"
+- **🔴 Red**: Новый заказ с сайта или мобильного приложения (требует обработки)
+- **🟤 Brown**: В сборке / ожидает ответа (склад готовит детали)
+- **🟡 Yellow**: Готов к выдаче / передан курьеру ТК
+- **🟢 Green**: Завершен / доставлен (автоматическое списание деталей и фиксация в истории продаж)
 
-#### Особенности:
-- **Аутентификация**: Через middleware, проверка сессий
-- **Форматирование дат**: CreatedAtFormatted, TimeAgo (относительное время)
-- **Интеграция**: Получает имя пользователя напрямую из auth БД
-- **Списание запасов**: При полном списании запасов детали по заказу (`quantity - amount <= 0`), `orders-service` присваивает детальке статус `quantity = -1`, убирая её из UI и XML-выгрузок.
-
-### 6. Parts Service (Сервис запчастей)
+### 6. Parts Service (Сервис запчастей и склада)
 
 **Директория:** `parts-service/`
-**Порт:** 8081
-**Технологии:** Gin, sqlc, Squirrel, pgx/v5, PostgreSQL, Elasticsearch
+**Порты:** HTTP 8081, gRPC 9081
+**Технологии:** Gin, sqlc, pgx/v5, PostgreSQL, Elasticsearch, Redis Streams
+**Архитектура:** Чистая слоистая структура `internal/{catalog, config, domain, events, grpc, handler, metrics, repository, search, service}` с общим `pkg/authcontext`, `pkg/httpserver` и `pkg/redisclient`
 
 #### Основные функции:
 - **Управление запасами** (CRUD операции с частями)
@@ -332,6 +346,21 @@ type Part struct {
 - Общее количество частей (включая нулевые дефектовки)
 - Общая стоимость (price * quantity)
 - Распределение по категориям
+
+### 7. Messaging Service (Сервис сообщений и чатов)
+
+**Директория:** `messaging-service/`
+**Порты:** HTTP 8084, gRPC 9084
+**Технологии:** Gin, sqlc, pgx/v5, PostgreSQL, Redis, goquery (парсинг Drom.ru)
+
+#### Основные функции:
+- **Чаты/диалоги** между пользователями системы
+- **Текстовые и голосовые сообщения** (gRPC streaming для voice upload)
+- **Реакции** (emoji) на сообщения
+- **Уведомления** о новых сообщениях
+- **Поиск** по истории сообщений
+- **Интеграция с Drom.ru** — парсинг и отправка сообщений через Drom API
+- **Кэширование** сообщений в Redis
 
 ### 8. Export Service (Сервис выгрузки)
 
@@ -449,141 +478,118 @@ ALLOWED_ORIGIN=https://yourdomain.com
 ```
 
 ### Запуск сервисов:
+
+**Для продакшена / интеграционного запуска (рекомендуется):**
 ```bash
-# API Gateway
-go run main.go
-
-# Auth Service
-cd auth-service && go run .
-
-# Orders Service
-cd orders-service && go run .
-
-# Parts Service
-cd parts-service && go run .
+# Запуск через Docker Compose (включая Traefik, PostgreSQL, Redis, Elasticsearch)
+docker compose up -d
 ```
 
-## API Endpoints
+**Для локальной разработки:**
+```bash
+cd backend
 
-### Auth Service
-- `POST /auth/login` - Вход пользователя
-- `GET /auth/google` - OAuth Google
-- `GET /auth/me` - Текущий пользователь
-- `GET /auth/csrf-token` - Получить CSRF токен
-- `POST /auth/logout` - Выход
+# Генерация gRPC и Swagger контрактов
+make proto
 
-### Admin (Auth Service)
-- `GET /admin/users` - Список пользователей
-- `POST /admin/users` - Создать пользователя
-- `DELETE /admin/users/:id` - Удалить пользователя
-- `GET /admin/status` - Статус сервера
-- `GET /admin/logs` - Логи сервера
+# Запуск всех 5 микросервисов параллельно
+make start-dev
+```
 
-### Orders Service
-- `GET /orders` - Получить заказы
-- `POST /orders` - Создать заказ
-- `PUT /admin/orders/:id/status` - Обновить статус
-- `DELETE /admin/orders/:id` - Удалить заказ
+## API Документация и Спецификация
 
-### Parts Service
-- `GET /api/inventory` - Получить инвентарь
-- `POST /api/addpart` - Добавить часть
-- `PUT /api/updatepart/:id` - Обновить часть
-- `DELETE /api/deletepart/:id` - Удалить часть
-- `POST /api/uploadpartphoto/:id` - Загрузить фото
-- `POST /api/markpartfordeletion/:id` - Отметить для удаления
-- `GET /api/statistics` - Статистика
+Вся спецификация API описана строго через **OpenAPI (Swagger v2)** и доступна:
+1. **В веб-интерфейсе:** Интерактивный Центр документации по маршруту `/readme` (быстрый поиск, генератор cURL запросов, схемы параметров и ответов).
+2. **Файл спецификации:** `backend/gen/swagger/api.swagger.json` (а также статически на веб-сервере `/api.swagger.json`).
+3. **Protobuf-исходники:** `backend/proto/*`.
 
-## Мониторинг и логирование
+### Основные группы маршрутов:
+
+#### Auth Service (:8083 HTTP / :9083 gRPC)
+- `POST /auth/login` — Локальный вход по паролю (выставляет HttpOnly сессионную cookie)
+- `GET /auth/verify` — Проверка сессии Traefik ForwardAuth (<1 мс)
+- `GET /auth/me` — Текущий профиль пользователя
+- `POST /auth/logout` — Завершение сессии
+- `GET /api/v1/users` — Список сотрудников (Admin)
+- `GET /api/v1/activity` — Аудит-журнал активности (Admin)
+- `GET /api/v1/admin/status` — Системный статус и версии сервисов
+
+#### Parts Service (:8081 HTTP / :9081 gRPC)
+- `GET /api/v1/inventory` — Полнотекстовый поиск деталей через Elasticsearch (`quantity >= 0`)
+- `GET /api/v1/parts/item/{id}` — Карточка запчасти
+- `POST /api/v1/parts` — Создание новой детали
+- `PUT /api/v1/parts/{id}` — Обновление детали
+- `DELETE /api/v1/parts/{id}` — Удаление детали (Soft Delete)
+- `POST /api/v1/parts/{id}/decrease` — Уменьшение остатка
+- `POST /api/v1/defect-reports` — Создание дефектной ведомости (`quantity = 0`)
+- `GET /api/v1/statistics` — Аналитика инвентаря и распределение по категориям
+
+#### Orders Service (:8082 HTTP / :9082 gRPC)
+- `GET /orders` — Список активных заказов
+- `POST /orders` — Создание заказа (авто-поиск/создание клиента, резервирование)
+- `PUT /orders/{id}/status` — Изменение статуса заказа (red -> brown -> yellow)
+- `PUT /orders/{id}/complete` — Завершение заказа и автоматическое списание детали (`quantity = -1`)
+- `DELETE /orders/{id}` — Отмена заказа
+- `GET /orders/customers` — Клиентская база с аналитикой LTV и скидками (нормализация номеров `+7...`)
+- `GET /orders/monthly-sales` — Динамика продаж по месяцам
+
+#### Messaging Service (:8084 HTTP / :9084 gRPC)
+- `GET /api/messaging/threads` — Список диалогов
+- `POST /api/messaging/threads/{id}/messages` — Отправка сообщения
+- `GET /api/messaging/unread` — Счетчик непрочитанных сообщений
+
+#### Export Service (:8085 HTTP)
+- `GET /uploads/pricelist.xml` — Сгенерированный XML-каталог для Drom.ru
+- `GET /api/export/drom.xml` — Актуальный фид запчастей для Drom
+- `GET /api/export/avito.xml` — XML-фид запчастей для Avito
+
+## Мониторинг и наблюдаемость (Observability)
 
 ### Логирование:
-- **API Gateway**: Все HTTP запросы с IP и методом
-- **Auth Service**: Все действия безопасности (входы, выходы, создание пользователей)
-- **Services**: Ошибки и важные операции
+- **Traefik Access Logs**: Все внешние HTTP-запросы с таймингами, кодами ответов и IP.
+- **ForwardAuth Logs**: Мониторинг задержки проверки сессий (среднее время < 0.8 мс).
+- **Service Logs**: Структурированные логи микросервисов (Zap / Logrus) с контекстом запроса.
 
-### Мониторинг:
-- **Статус сервера**: `/admin/status`
-- **Статистика**: `/api/statistics`
-- **Логи**: `/admin/logs`
+### Мониторинг и метрики:
+- **Prometheus**: Сбор метрик производительности со всех сервисов по эндпоинтам `/metrics`.
+- **Grafana**: Дашборды доступности, RPS, времени отклика p95/p99 и использования памяти.
+- **OpenTelemetry & Grafana Tempo**: Сквозной распределенный трейсинг межсервисных gRPC и HTTP вызовов.
 
-## Производительность
-
-### Оптимизации:
-- **Elasticsearch**: Для быстрого поиска в больших объемах данных
-- **Индексы БД**: Создаются во время SQL-миграций (`db/migrations/`) и выполняются через embedded миграции при запуске сервисов.
-- **Пагинация**: Во всех списочных запросах
-- **Кэширование**: CSRF токены (в памяти, Redis в продакшене)
-
-### Масштабируемость:
-- **Микросервисы**: Независимое масштабирование каждого сервиса
-- **База данных**: Общая БД с разделением по таблицам
-- **Elasticsearch**: Отдельный кластер для поиска
-
-## Разработка и тестирование
-
-### 7. Messaging Service (Сервис сообщений)
-
-**Директория:** `messaging-service/`
-**Порты:** HTTP 8084, gRPC 9084
-**Технологии:** Gin, sqlc, Squirrel, pgx/v5, PostgreSQL, Redis, goquery (парсинг Drom.ru)
-
-#### Основные функции:
-- **Чаты/диалоги** между пользователями системы
-- **Текстовые и голосовые сообщения** (gRPC streaming для voice upload)
-- **Реакции** (emoji) на сообщения
-- **Уведомления** о новых сообщениях
-- **Поиск** по истории сообщений
-- **Интеграция с Drom.ru** — парсинг и отправка сообщений через Drom API
-- **Кэширование** сообщений в Redis
-
-#### gRPC методы (21 RPC):
-- Conversations: CRUD + RemoveParticipant
-- Messages: Get/Send/Delete/MarkRead + Streaming Voice Upload
-- Reactions: Add/Remove
-- Notifications: Get/MarkRead/MarkAllRead
-- User Status: Get/Update
-- Search: Full-text search
-- Drom: GetDialogs/GetMessages/SendMessage
-
-### Структура проекта (gRPC):
+## Структура проекта (Backend)
 ```
 backend/
-├── main.go                 # API Gateway
-├── gateway.go              # gRPC-клиенты, маршрутизация, middleware
-├── proto/                  # Proto-определения (.proto)
-│   ├── buf.yaml            # buf конфигурация
-│   ├── buf.gen.yaml        # правила генерации
+├── pkg/                     # Общие библиотеки микросервисов
+│   ├── authcontext/         # Извлечение данных пользователя из ForwardAuth заголовков
+│   ├── httpcache/           # Поддержка ETag / If-None-Match кэширования
+│   ├── httpserver/          # Стандартизированный HTTP сервер и Graceful Shutdown
+│   ├── redisclient/         # Клиент Redis и шина событий Redis Streams
+│   ├── tracing/             # OpenTelemetry инструментация
+│   └── userdirectory/       # Клиент справочника пользователей
+├── proto/                   # Исходные Protobuf спецификации
 │   ├── auth/v1/auth.proto
 │   ├── parts/v1/parts.proto
 │   ├── orders/v1/orders.proto
 │   └── messaging/v1/messaging.proto
-├── gen/                    # Сгенерированный Go-код из proto
+├── gen/                     # Сгенерированный код
 │   ├── auth/v1/
 │   ├── parts/v1/
 │   ├── orders/v1/
-│   └── messaging/v1/
+│   ├── messaging/v1/
+│   └── swagger/             # api.swagger.json (OpenAPI v2)
 ├── auth-service/
-│   ├── main.go            # HTTP + gRPC сервер
-│   ├── grpc_server.go     # gRPC-реализация AuthService
-│   ├── models.go
-│   ├── handlers.go
-│   └── jwt.go
-├── orders-service/
-│   ├── main.go            # HTTP + gRPC сервер
-│   ├── grpc_server.go     # gRPC-реализация OrdersService
-│   ├── models.go
-│   └── handlers.go
+│   ├── internal/            # config, domain, events, grpc, handler, metrics, repository, security, service
+│   └── main.go
 ├── parts-service/
-│   ├── main.go            # HTTP + gRPC сервер
-│   ├── grpc_server.go     # gRPC-реализация PartsService
-│   ├── grpc_client.go     # gRPC клиенты к auth и orders
-│   ├── models.go
-│   └── handlers.go
-└── messaging-service/
-    ├── main.go            # HTTP + gRPC сервер
-    ├── grpc_server.go     # gRPC-реализация MessagingService
-    ├── models.go
-    └── routes.go
+│   ├── internal/            # catalog, config, domain, events, grpc, handler, metrics, repository, search, service
+│   └── main.go
+├── orders-service/
+│   ├── internal/            # config, domain, events, grpc, handler, repository, service
+│   └── main.go
+├── messaging-service/       # Сервис сообщений и чатов
+│   └── main.go
+├── export-service/          # Сервис генерации XML фидов
+│   └── main.go
+└── Makefile                 # Сборка, тестирование, генерация proto и Swagger
 ```
 
 ### Лучшие практики:

@@ -9,7 +9,7 @@ Avtoplaneta - это комплексная система управления 
 Проект состоит из следующих основных компонентов:
 
 ### 🖥️ Frontend (Веб-приложение)
-- **Технологии**: React 18, TypeScript, Vite, Tailwind CSS, Nginx (с Brotli & Gzip сжатием)
+- **Технологии**: React 19, TypeScript, Vite, Tailwind CSS v4, Nginx (с Brotli & Gzip сжатием)
 - **Расположение**: `frontend/`
 - **Документация**: [frontend/README.md](frontend/README.md)
 
@@ -128,28 +128,24 @@ docker compose -f docker-compose.dev.yml up
 ```bash
 cd backend
 
-# Генерация gRPC-кода из proto-файлов (требуется protoc + buf)
+# Генерация gRPC-кода и OpenAPI спецификации из proto-файлов (требуется buf)
 make proto
 
-# Установка Go-зависимостей
-go mod download
-cd auth-service && go mod download && cd ..
-cd orders-service && go mod download && cd ..
-cd parts-service && go mod download && cd ..
-cd messaging-service && go mod download && cd ..
+# Установка всех Go-зависимостей микросервисов и pkg
+make deps
 
 # Настройте переменные окружения в .env файле
 cp .env.example .env
 # Отредактируйте .env файл с вашими настройками
 
-# Запуск API Gateway
-go run main.go
-
-# В отдельных терминалах запустить сервисы:
-cd auth-service && go run .
-cd orders-service && go run .
-cd parts-service && go run .
-cd messaging-service && go run .
+# Запуск микросервисов для локальной разработки:
+make start-dev
+# Либо запуск отдельных сервисов:
+# cd auth-service && go run .
+# cd parts-service && go run .
+# cd orders-service && go run .
+# cd messaging-service && go run .
+# cd export-service && go run .
 ```
 
 #### Frontend
@@ -173,10 +169,16 @@ cd AvtoplanetaApp
 **Backend (.env):**
 ```env
 DATABASE_URL=postgres://user:pass@localhost:5432/avtoplaneta
+AUTH_DATABASE_URL=postgres://user:pass@localhost:5432/avtoplaneta_auth
+PARTS_DATABASE_URL=postgres://user:pass@localhost:5432/avtoplaneta_parts
+ORDERS_DATABASE_URL=postgres://user:pass@localhost:5432/avtoplaneta_orders
+MESSAGING_DATABASE_URL=postgres://user:pass@localhost:5432/avtoplaneta_messaging
+REDIS_URL=redis://localhost:6379
+ELASTICSEARCH_URL=http://localhost:9200
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
-SESSION_SECRET=secure_random_key
-fOPENROUTER_API_KEY=sk-or-v1-your-openrouter-key
+SESSION_SECRET=secure_random_key_min_32_chars
+OPENROUTER_API_KEY=sk-or-v1-your-openrouter-key
 ```
 
 **Frontend (.env):**
@@ -187,52 +189,60 @@ VITE_GOOGLE_CLIENT_ID=your_google_client_id
 
 ## API Документация
 
-### Основные endpoints
-- `GET /api/inventory` - Получение списка запчастей
-- `POST /api/addpart` - Добавление новой запчасти
-- `GET /orders` - Получение списка заказов
-- `POST /auth/login` - Аутентификация пользователя
+Вся документация по API доступна в следующих форматах:
+1. **Интерактивный Центр документации и API в веб-интерфейсе:** доступен по маршруту `/readme` прямо в приложении с живым поиском по всем эндпоинтам, фильтрацией по сервисам, генератором cURL команд и схемами запросов.
+2. **OpenAPI / Swagger v2 спецификация:** сгенерированный файл `backend/gen/swagger/api.swagger.json` (также доступен статически по URL `/api.swagger.json`).
+3. **Protobuf контракты:** `backend/proto/*` — первоисточник типов и RPC контрактов.
 
-Подробная документация API доступна в [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md)
+### Ключевые группы маршрутов:
+- `GET /api/v1/inventory` — Полнотекстовый поиск и каталог деталей (`quantity >= 0`)
+- `POST /api/v1/parts` — Добавление детали
+- `POST /api/v1/defect-reports` — Создание дефектных ведомостей (`quantity = 0`)
+- `GET/POST /orders` — Управление заказами
+- `PUT /orders/:id/complete` — Завершение заказа и автоматическое списание деталей (`quantity = -1`)
+- `GET/POST /orders/customers` — Клиентская база с нормализацией телефонов `+7...`
+- `POST /auth/login` — Аутентификация сотрудников
+- `GET /auth/verify` — Проверка сессии через Traefik ForwardAuth (<1 мс)
+
+Подробное описание архитектуры и сетевых потоков доступно в [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md).
 
 ## Безопасность
 
+- **Traefik ForwardAuth** на шлюзе: каждый защищенный запрос валидируется в `auth-service` до попадания в бизнес-сервисы
 - **CSRF защита** на всех state-changing операциях
-- **Ролевая авторизация** с middleware проверками
-- **Безопасные сессии** с HttpOnly cookies
+- **Ролевая авторизация (RBAC)**: Admin, Manager, Operator
+- **Безопасные сессии** с HttpOnly и SameSite cookies
 - **Парольный хэшинг** с bcrypt
-- **Rate limiting** для предотвращения атак
+- **Идемпотентность складских списаний** через таблицу `part_stock_operations`
 
 ## Разработка
 
 ### Структура проекта
 ```
 avtoplaneta/
-├── backend/                  # Микросервисы Go
-│   ├── main.go              # API Gateway
-│   ├── gateway.go           # gRPC-клиенты, маршрутизация
-│   ├── proto/               # Proto-определения (.proto)
-│   │   ├── auth/v1/         # Auth Service API
-│   │   ├── parts/v1/        # Parts Service API
-│   │   ├── orders/v1/       # Orders Service API
-│   │   └── messaging/v1/    # Messaging Service API
-│   ├── gen/                 # Сгенерированный Go-код из proto
-│   ├── auth-service/        # Сервис аутентификации
-│   ├── orders-service/      # Сервис заказов
-│   ├── parts-service/       # Сервис запчастей
-│   ├── messaging-service/   # Сервис сообщений/чатов
-│   ├── Makefile             # Proto-генерация и утилиты
-│   └── ARCHITECTURE.md      # Документация архитектуры
-├── frontend/                # React приложение
-│   ├── src/
-│   ├── package.json
-│   └── README.md
-├── AvtoplanetaApp/          # Android приложение
-│   ├── app/
-│   └── README.md
-├── scripts/                 # Скрипты генерации данных
-├── docker-compose.yml       # Docker конфигурация
-└── README.md               # Этот файл
+├── backend/                  # Микросервисы на Go
+│   ├── pkg/                  # Общие библиотеки (httpserver, redisclient, authcontext, httpcache)
+│   ├── proto/                # Proto-определения (.proto)
+│   │   ├── auth/v1/          # Auth Service API
+│   │   ├── parts/v1/         # Parts Service API
+│   │   ├── orders/v1/        # Orders Service API
+│   │   └── messaging/v1/     # Messaging Service API
+│   ├── gen/                  # Сгенерированный Go-код и OpenAPI Swagger
+│   │   └── swagger/          # api.swagger.json
+│   ├── auth-service/         # Сервис аутентификации, сессий и пользователей
+│   ├── parts-service/        # Сервис каталога запчастей, склада и дефектовок
+│   ├── orders-service/       # Сервис заказов, клиентов и списания остатков
+│   ├── messaging-service/    # Сервис сообщений и чатов
+│   ├── export-service/       # Сервис фоновой генерации XML каталогов (Drom, Avito)
+│   ├── Makefile              # Сборка, тесты, генерация proto и Swagger
+│   └── ARCHITECTURE.md       # Подробная архитектура системы
+├── frontend/                 # React 19 веб-приложение
+│   ├── src/                  # Исходный код (включая Центр документации и API)
+│   ├── public/               # Статические ресурсы (включая api.swagger.json)
+│   └── package.json
+├── AvtoplanetaApp/           # Мобильное приложение (Flutter)
+├── docker-compose.yml        # Docker развертывание с Traefik Ingress
+└── README.md                 # Корневая документация
 ```
 
 ### Скрипты
