@@ -169,6 +169,12 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/readme" className="flex items-center">
+                    <BookOpen className="w-4 h-4 mr-2" />
+                    Документация и API
+                  </Link>
+                </DropdownMenuItem>
                 {user.role === 'operator' && (
                   <DropdownMenuItem asChild>
                     <Link to="/operator-instructions" className="flex items-center">
@@ -186,23 +192,14 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
                   </DropdownMenuItem>
                 )}
                 {user.role === 'admin' && (
-                  <>
-                    <DropdownMenuItem asChild>
-                      <Link to="/admin" className="flex items-center">
-                        <Settings className="w-4 h-4 mr-2" />
-                        Админ панель
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to="/readme" className="flex items-center">
-                        <BookOpen className="w-4 h-4 mr-2" />
-                        Документация
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                  </>
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin" className="flex items-center">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Админ панель
+                    </Link>
+                  </DropdownMenuItem>
                 )}
-                {(user.role === 'operator' || user.role === 'manager') && <DropdownMenuSeparator />}
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={onLogout} className="text-red-600 dark:text-red-400">
                   <LogOut className="w-4 h-4 mr-2" />
                   Выйти

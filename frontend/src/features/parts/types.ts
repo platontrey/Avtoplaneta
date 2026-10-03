@@ -22,6 +22,8 @@ export interface Part {
   vin?: string;
   to_delete_at_formatted?: string;
   time_until_deletion?: string;
+  created_at?: string;
+  updated_at?: string;
   // Характеристики запчасти
   body_brand?: string;
   engine_brand?: string;

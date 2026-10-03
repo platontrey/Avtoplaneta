@@ -435,14 +435,14 @@ function PartBlock({
                             >
                                 <motion.img
                                     key={photoUploadTimestamp}
-                                    src={(part.photos && part.photos.length > 0) ? `${API_BASE_URL}${part.photos[0]}?t=${photoUploadTimestamp}` : '/placeholder-part.svg'}
+                                    src={(part.photos && part.photos.length > 0) ? `${API_BASE_URL}${part.photos[0]}${part.updated_at ? `?v=${encodeURIComponent(part.updated_at)}` : ''}` : '/placeholder-part.svg'}
                                     alt={part.name || 'Изображение детали'}
                                     onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
                                         e.currentTarget.onerror = null;
                                         e.currentTarget.src = '/placeholder-part.svg';
                                     }}
-                                    fetchPriority="high"
-                                    loading="eager"
+                                    loading="lazy"
+                                    decoding="async"
                                     className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded-lg border cursor-pointer ml-3 mr-3 hover:ring-2 hover:ring-primary/50 transition-all"
                                     whileHover={{ scale: 1.08, rotate: 3 }}
                                     whileTap={{ scale: 0.95 }}
@@ -581,8 +581,10 @@ function PartBlock({
                                                         title="Нажмите для увеличения фото"
                                                     >
                                                         <motion.img
-                                                            src={`${API_BASE_URL}${photoPath}?t=${partEdit.photoUpload.uploadTimestamp}`}
+                                                            src={`${API_BASE_URL}${photoPath}${part.updated_at ? `?v=${encodeURIComponent(part.updated_at)}` : ''}`}
                                                             alt={`${part.name} - фото ${index + 1}`}
+                                                            loading="lazy"
+                                                            decoding="async"
                                                             className="w-full h-24 object-cover rounded-lg border cursor-pointer group-hover/img:ring-2 group-hover/img:ring-primary/50 group-hover/img:brightness-105 transition-all"
                                                             transition={{ duration: 0.2 }}
                                                             onError={(e: React.SyntheticEvent<HTMLImageElement>) => {

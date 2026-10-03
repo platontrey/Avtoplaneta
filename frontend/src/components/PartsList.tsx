@@ -118,21 +118,27 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
     };
 
     useEffect(() => {
-        if (!isInfiniteScroll || !onLoadMore) return;
+        if (!isInfiniteScroll || !onLoadMore || !hasMore || isLoading) return;
 
-        const handleScroll = () => {
-            if (isLoading || !hasMore) return;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0]?.isIntersecting) {
+                    onLoadMore();
+                }
+            },
+            { rootMargin: '400px' }
+        );
 
-            const scrolledToBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 500;
-            if (scrolledToBottom) {
-                onLoadMore();
+        const currentTarget = loadMoreRef.current;
+        if (currentTarget) {
+            observer.observe(currentTarget);
+        }
+
+        return () => {
+            if (currentTarget) {
+                observer.unobserve(currentTarget);
             }
         };
-
-        window.addEventListener('scroll', handleScroll);
-        handleScroll();
-
-        return () => window.removeEventListener('scroll', handleScroll);
     }, [isInfiniteScroll, onLoadMore, hasMore, isLoading]);
 
     useEffect(() => {

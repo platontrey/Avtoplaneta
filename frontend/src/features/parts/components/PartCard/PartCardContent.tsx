@@ -40,7 +40,7 @@ export function PartCardContent({ part }: PartCardContentProps) {
                   transition={{ duration: 0.2 }}
                 >
                   <LazyLoadImage
-                    src={`${API_BASE_URL}${part.photo}?t=${Date.now()}`}
+                    src={`${API_BASE_URL}${part.photo}${part.updated_at ? `?v=${encodeURIComponent(part.updated_at)}` : ''}`}
                     alt={part.name}
                     className="max-w-full h-auto max-h-48 object-contain rounded border"
                     effect="blur"
@@ -50,7 +50,7 @@ export function PartCardContent({ part }: PartCardContentProps) {
               </DialogTrigger>
               <DialogContent className="max-w-4xl">
                 <LazyLoadImage
-                  src={`${API_BASE_URL}${part.photo}?t=${Date.now()}`}
+                  src={`${API_BASE_URL}${part.photo}${part.updated_at ? `?v=${encodeURIComponent(part.updated_at)}` : ''}`}
                   alt={part.name}
                   className="w-full h-auto max-h-[80vh] object-contain"
                   effect="blur"
