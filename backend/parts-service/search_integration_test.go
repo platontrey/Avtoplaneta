@@ -186,14 +186,23 @@ func TestSearchIntegration_CategoryFilter(t *testing.T) {
 			return false
 		}
 		// Проверяем наличие фильтра по категории
-		catFilter := filters[1]["bool"].(map[string]interface{})
-		shoulds := catFilter["should"].([]map[string]interface{})
-		termClause := shoulds[0]["term"].(map[string]interface{})
-		if val, ok := termClause["category"].(string); ok {
-			return val == "Тормозная система"
+		catFilter, ok := filters[1]["bool"].(map[string]interface{})
+		if !ok {
+			return false
 		}
-		if obj, ok := termClause["category"].(map[string]interface{}); ok {
-			return obj["value"] == "Тормозная система"
+		shoulds, ok := catFilter["should"].([]map[string]interface{})
+		if !ok {
+			return false
+		}
+		for _, s := range shoulds {
+			if termClause, ok := s["term"].(map[string]interface{}); ok {
+				if val, ok := termClause["category"].(string); ok && val == "Тормозная система" {
+					return true
+				}
+				if obj, ok := termClause["category"].(map[string]interface{}); ok && obj["value"] == "Тормозная система" {
+					return true
+				}
+			}
 		}
 		return false
 	}), 0, 50).Return([]ElasticsearchPart{

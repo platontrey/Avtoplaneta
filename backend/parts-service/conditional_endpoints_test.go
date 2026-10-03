@@ -39,7 +39,7 @@ func conditionalRouter(t *testing.T, version string) *gin.Engine {
 
 // Дорогие ответы должны переставать собираться, когда склад не менялся.
 func TestExpensiveEndpointsRevalidate(t *testing.T) {
-	for _, path := range []string{"/api/statistics", "/api/admin/supplier-codes"} {
+	for _, path := range []string{"/api/statistics"} {
 		t.Run(path, func(t *testing.T) {
 			router := conditionalRouter(t, "1700000000-42")
 
@@ -87,4 +87,15 @@ func TestExpensiveEndpointsWithoutVersion(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, response.Code)
 	require.Empty(t, response.Header().Get("ETag"))
+}
+
+// Коды поставщиков для админки не должны кэшироваться, чтобы изменения сразу отображались.
+func TestSupplierCodesNoStore(t *testing.T) {
+	router := conditionalRouter(t, "1700000000-42")
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/admin/supplier-codes", nil))
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.Equal(t, "no-store, no-cache, must-revalidate", recorder.Header().Get("Cache-Control"))
 }

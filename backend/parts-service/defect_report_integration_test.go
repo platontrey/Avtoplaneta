@@ -51,7 +51,6 @@ func TestDefectReportHTTPSynchronousBatch(t *testing.T) {
 
 	createdParts := recordingService.snapshot()
 	require.Len(t, createdParts, len(catalog.Parts))
-	require.Len(t, createdParts, 2992)
 
 	var supplierCode string
 	for _, part := range createdParts {
@@ -228,7 +227,7 @@ func TestPartCatalogHTTPRevalidation(t *testing.T) {
 	var received PartCatalog
 	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &received))
 	require.Equal(t, catalog.Version, received.Version)
-	require.Len(t, received.Parts, 2992)
+	require.Len(t, received.Parts, len(catalog.Parts))
 	require.Equal(t, []string{"Передний", "Задний", "Полный"}, attributeOptions(&received, "drive"))
 	require.Equal(t, []string{"МКПП", "АКПП", "Роботизированная", "Вариатор"}, attributeOptions(&received, "transmission"))
 

@@ -1,0 +1,12 @@
+go 1.27.1
+
+use (
+	./backend/auth-service
+	./backend/export-service
+	./backend/gen
+	./backend/messaging-service
+	./backend/orders-service
+	./backend/parts-service
+	./backend/pkg
+	./backend/tools/vehicle-catalog-sync
+)

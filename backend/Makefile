@@ -1,4 +1,4 @@
-.PHONY: proto proto-lint proto-clean proto-deps proto-rebuild build-all build-gateway build-services start-dev test test-integration vehicle-catalog
+.PHONY: proto proto-lint proto-clean proto-deps proto-rebuild build-all build-services start-dev test test-integration vehicle-catalog
 
 # Генерация Go-кода из proto-файлов
 proto:
@@ -33,10 +33,7 @@ proto-deps:
 proto-rebuild: proto-clean proto
 
 # Сборка всех сервисов (проверка компиляции)
-build-all: build-gateway build-services
-
-build-gateway:
-	go build -o /dev/null ./...
+build-all: build-services
 
 build-services:
 	cd auth-service && go build -o /dev/null ./...
@@ -44,12 +41,11 @@ build-services:
 	cd orders-service && go build -o /dev/null ./...
 	cd messaging-service && go build -o /dev/null ./...
 	cd export-service && go build -o /dev/null ./...
+	cd pkg && go test -run=^$$ ./...
 	@echo "All services build OK"
 
 # Сборка бинарников для запуска в контейнерах (без компиляции внутри Docker)
 build-binaries:
-	@echo "Building gateway static binary..."
-	mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o bin/gateway .
 	@echo "Building auth-service static binary..."
 	cd auth-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o bin/auth-service .
 	@echo "Building parts-service static binary..."
@@ -64,18 +60,17 @@ build-binaries:
 
 # Установка всех Go-зависимостей
 deps:
-	go mod download
 	cd auth-service && go mod download
 	cd parts-service && go mod download
 	cd orders-service && go mod download
 	cd messaging-service && go mod download
 	cd export-service && go mod download
 	cd gen && go mod download
+	cd pkg && go mod download
 	@echo "All dependencies downloaded"
 
 # Запуск всех сервисов в фоне (для разработки)
 start-dev:
-	go run . main.go gateway.go ai.go metrics.go &
 	cd auth-service && go run . &
 	cd parts-service && go run . &
 	cd orders-service && go run . &
@@ -88,8 +83,10 @@ test:
 	@echo "Running unit tests for all services..."
 	cd auth-service && go test ./...
 	cd parts-service && go test ./...
+	cd orders-service && go test ./...
 	cd messaging-service && go test ./...
 	cd export-service && go test ./...
+	cd pkg && go test ./...
 	@echo "All unit tests passed!"
 
 # Запуск интеграционных тестов (требуется запущенная БД)
