@@ -11,14 +11,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/sessions"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
 	authv1 "avtoplaneta/gen/auth/v1"
 )
 
-var store *sessions.CookieStore
 var config *Config
 
 // User представляет пользователя в системе
@@ -33,27 +31,9 @@ type User struct {
 	Password string `json:"-"`
 }
 
-// InitAuth инициализирует хранилище сессий
+// InitAuth сохраняет конфигурацию сервиса
 func InitAuth(cfg *Config) {
 	config = cfg
-	sessionKey := config.SessionSecret
-
-	// Проверка длины ключа сессии
-	if len(sessionKey) < 32 {
-		log.Fatal("БЕЗОПАСНОСТЬ: SESSION_SECRET должен быть не менее 32 символов")
-	}
-
-	store = sessions.NewCookieStore([]byte(sessionKey))
-
-	// Параметры безопасного использования cookies
-	isProduction := config.NodeEnv == "production"
-	store.Options = &sessions.Options{
-		Path:     "/",
-		MaxAge:   86400 * 7,            // 7 дней
-		HttpOnly: true,                 // Предотвращает XSS атаки
-		Secure:   isProduction,         // HTTPS только в продакшене
-		SameSite: http.SameSiteLaxMode, // Защита от CSRF
-	}
 }
 
 var (
