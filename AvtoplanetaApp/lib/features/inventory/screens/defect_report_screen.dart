@@ -5,6 +5,7 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../app/theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../data/defect_report_api.dart';
 import '../data/vehicle_catalog.dart';
@@ -292,7 +293,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
               child: const Text(
                 'Создать',
                 style: TextStyle(
-                  color: Color(0xFF4F8EF7),
+                  color: AppTheme.primaryColor,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -479,7 +480,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
         // ignore: deprecated_member_use
         value: value,
         decoration: InputDecoration(labelText: label),
-        dropdownColor: const Color(0xFF16213E),
+        dropdownColor: AppTheme.cardColor,
         style: const TextStyle(color: Colors.white, fontSize: 16),
         items: items
             .map((item) => DropdownMenuItem(value: item, child: Text(item)))
@@ -555,9 +556,9 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
         Container(
           height: 250,
           decoration: BoxDecoration(
-            color: const Color(0xFF16213E),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.white10),
+            color: AppTheme.cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.borderColor),
           ),
           child: filteredParts.isEmpty
               ? Center(
@@ -653,7 +654,7 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
                           Text(
                             '${part['price'] ?? 0} ₽',
                             style: const TextStyle(
-                              color: Color(0xFF4F8EF7),
+                              color: AppTheme.primaryColor,
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
                             ),
@@ -674,23 +675,23 @@ class _DefectReportScreenState extends ConsumerState<DefectReportScreen> {
       padding: const EdgeInsets.only(right: 6),
       child: InkWell(
         onTap: () => setState(() => _displayLimit = val),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(6),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             color: isSelected
-                ? const Color(0xFF4F8EF7).withValues(alpha: 0.2)
+                ? AppTheme.primaryColor.withValues(alpha: 0.16)
                 : Colors.transparent,
             border: Border.all(
-              color: isSelected ? const Color(0xFF4F8EF7) : Colors.white10,
+              color: isSelected ? AppTheme.primaryColor : AppTheme.borderColor,
               width: 1,
             ),
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(6),
           ),
           child: Text(
             label ?? val.toString(),
             style: TextStyle(
-              color: isSelected ? const Color(0xFF4F8EF7) : Colors.white70,
+              color: isSelected ? AppTheme.primaryColor : AppTheme.mutedColor,
               fontSize: 11,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             ),

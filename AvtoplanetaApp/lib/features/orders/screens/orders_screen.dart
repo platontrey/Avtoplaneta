@@ -9,6 +9,7 @@ import '../../../core/models/customer.dart';
 import '../../../core/models/order.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/widgets/app_states.dart';
+import '../../../shared/widgets/shimmer_skeletons.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../inventory/providers/inventory_provider.dart';
 import '../providers/customers_provider.dart';
@@ -194,7 +195,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
             child: _tab == 'customers'
                 ? _buildCustomersView(context, ref)
                 : ordersAsync.when(
-                    loading: () => const Center(child: CircularProgressIndicator()),
+                    loading: () => const OrderListSkeleton(),
                     error: (e, _) => AppEmptyState(
                       icon: LucideIcons.cloud_off,
                       title: 'Не удалось загрузить заказы',

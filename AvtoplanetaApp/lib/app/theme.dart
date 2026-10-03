@@ -13,6 +13,8 @@ class AppTheme {
   static const successColor = Color(0xFF34D399);
   static const warningColor = Color(0xFFFBBF24);
   static const dangerColor = Color(0xFFFB7185);
+  static const infoColor = Color(0xFF38BDF8);
+  static const accentPurple = Color(0xFF818CF8);
 
   static ThemeData get dark {
     const scheme = ColorScheme.dark(

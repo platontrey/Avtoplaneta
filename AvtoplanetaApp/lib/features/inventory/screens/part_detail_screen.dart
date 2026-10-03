@@ -9,6 +9,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/utils/qr_signer.dart';
 import '../widgets/photo_viewer_dialog.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../../app/theme.dart';
 import '../providers/inventory_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../orders/widgets/part_order_sheet.dart';
@@ -47,7 +48,7 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                       if (user?.isOperator == true)
                         IconButton(
                           tooltip: 'Редактировать фото (маркер, размытие, обрезка)',
-                          icon: const Icon(LucideIcons.wand_sparkles, color: Color(0xFF818CF8)),
+                          icon: const Icon(LucideIcons.wand_sparkles, color: AppTheme.accentPurple),
                           onPressed: isOffline
                               ? () => ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(content: Text('В оффлайн-режиме редактирование недоступно')),
@@ -133,10 +134,6 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
           );
         },
         data: (part) {
-          bool shows(String field) {
-            return true;
-          }
-          String val(String? v) => _notEmpty(v) ? v! : '—';
           String formatFrontRear(String? v) {
             if (!_notEmpty(v)) return '—';
             final upper = v!.trim().toUpperCase();
@@ -186,7 +183,7 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                                   imageUrl: apiClient.resolveUrl(part.photos[i]),
                                   fit: BoxFit.cover,
                                   placeholder: (ctx, url) => Container(
-                                    color: const Color(0xFF16213E),
+                                    color: AppTheme.cardColor,
                                     child: const Icon(
                                       LucideIcons.image,
                                       size: 64,
@@ -194,7 +191,7 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                                     ),
                                   ),
                                   errorWidget: (ctx, url, err) => Container(
-                                    color: const Color(0xFF16213E),
+                                    color: AppTheme.cardColor,
                                     child: const Icon(
                                       LucideIcons.image_off,
                                       size: 64,
@@ -254,7 +251,7 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                                         vertical: 5,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF4F46E5).withValues(alpha: 0.92),
+                                        color: AppTheme.primaryColor.withValues(alpha: 0.92),
                                         borderRadius: BorderRadius.circular(16),
                                         boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 4)],
                                       ),
@@ -322,8 +319,9 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                     Container(
                       height: 160,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF16213E),
-                        borderRadius: BorderRadius.circular(12),
+                        color: AppTheme.cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppTheme.borderColor),
                       ),
                       child: const Center(
                         child: Icon(
@@ -341,7 +339,7 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Row(
                     children: [
                       Text(
@@ -349,9 +347,9 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                             ? '${part.price.toStringAsFixed(0)} ₽'
                             : 'отсутствует',
                         style: TextStyle(
-                          color: part.price > 0 ? const Color(0xFF4F8EF7) : Colors.orangeAccent,
-                          fontSize: part.price > 0 ? 24 : 18,
-                          fontWeight: FontWeight.bold,
+                          color: part.price > 0 ? AppTheme.primaryColor : AppTheme.warningColor,
+                          fontSize: part.price > 0 ? 26 : 18,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                       const Spacer(),
@@ -365,60 +363,49 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                     if (part.model != null) _row('Модель', part.model!),
                     if (part.bodyBrand != null) _row('Марка кузова', part.bodyBrand!),
                   ]),
-                  _section('Характеристики', [
-                    if (shows('engine_brand'))
-                      _row('Марка двигателя', val(part.engineBrand)),
-                    if (shows('car_release_date'))
-                      _row('Год выпуска', val(part.carReleaseDate)),
-                    if (part.vin != null) _row('VIN / Номер кузова', part.vin!),
-                    if (shows('car_release_period'))
-                      _row('Период выпуска автомобиля', val(part.carReleasePeriod)),
-                    if (shows('transmission'))
-                      _row('Тип трансмиссии', val(part.transmission)),
-                    if (shows('transmission_model'))
-                      _row('Модель трансмиссии', val(part.transmissionModel)),
-                    if (shows('drive')) _row('Привод', val(part.drive)),
-                    if (shows('front_rear'))
-                      _row('Перед / зад', formatFrontRear(part.frontRear)),
-                    if (shows('left_right'))
-                      _row('Лево / право', formatLeftRight(part.leftRight)),
-                    if (shows('top_bottom'))
-                      _row('Верх / низ', val(part.topBottom)),
-                    if (shows('number'))
-                      _row('Номер детали', val(part.number)),
-                    if (shows('manufacturer'))
-                      _row('Производитель', val(part.manufacturer)),
-                    if (shows('manufacturer_code'))
-                      _row('Код производителя', val(part.manufacturerCode)),
-                    if (shows('color'))
-                      _row('Цвет', val(part.color)),
-                    if (shows('condition'))
-                      _row('Состояние', val(part.condition)),
-                    if (shows('defect'))
-                      _row('Дефект', val(part.defect)),
-                    if (shows('supplier_code'))
-                      _row('Код поставки', val(part.supplierCode)),
-                    if (shows('wear_percentage'))
-                      _row('Процент износа', _notEmpty(part.wearPercentage) ? '${part.wearPercentage}%' : '—'),
-                    if (shows('season'))
-                      _row('Сезон', val(part.season)),
-                    if (shows('diameter'))
-                      _row('Диаметр', val(part.diameter)),
-                    if (shows('width'))
-                      _row('Ширина', val(part.width)),
-                    if (shows('profile'))
-                      _row('Профиль', val(part.profile)),
-                    if (shows('tire_quantity'))
-                      _row('Количество шин', val(part.tireQuantity)),
-                    if (shows('drilling'))
-                      _row('Сверловка', val(part.drilling)),
-                    if (shows('offset'))
-                      _row('Вылет', val(part.offset)),
-                    if (shows('center_hole_diameter'))
-                      _row('Центральное отверстие', val(part.centerHoleDiameter)),
-                    if (shows('tire_model'))
-                      _row('Модель шины', val(part.tireModel)),
+                  _section('Автомобиль', [
+                    if (_notEmpty(part.engineBrand)) _row('Марка двигателя', part.engineBrand!),
+                    if (_notEmpty(part.carReleaseDate)) _row('Год выпуска', part.carReleaseDate!),
+                    if (_notEmpty(part.vin)) _row('VIN / Кузов', part.vin!),
+                    if (_notEmpty(part.carReleasePeriod)) _row('Период выпуска', part.carReleasePeriod!),
+                    if (_notEmpty(part.transmission)) _row('Тип трансмиссии', part.transmission!),
+                    if (_notEmpty(part.transmissionModel)) _row('Модель трансмиссии', part.transmissionModel!),
+                    if (_notEmpty(part.drive)) _row('Привод', part.drive!),
                   ]),
+                  _section('Параметры детали', [
+                    if (_notEmpty(part.frontRear)) _row('Перед / зад', formatFrontRear(part.frontRear)),
+                    if (_notEmpty(part.leftRight)) _row('Лево / право', formatLeftRight(part.leftRight)),
+                    if (_notEmpty(part.topBottom)) _row('Верх / низ', part.topBottom!),
+                    if (_notEmpty(part.number)) _row('Номер детали', part.number!),
+                    if (_notEmpty(part.manufacturer)) _row('Производитель', part.manufacturer!),
+                    if (_notEmpty(part.manufacturerCode)) _row('Код производителя', part.manufacturerCode!),
+                    if (_notEmpty(part.color)) _row('Цвет', part.color!),
+                    if (_notEmpty(part.condition)) _row('Состояние', part.condition!),
+                    if (_notEmpty(part.defect)) _row('Дефект', part.defect!),
+                    if (_notEmpty(part.supplierCode)) _row('Код поставщика', part.supplierCode!),
+                  ]),
+                  if (_notEmpty(part.wearPercentage) ||
+                      _notEmpty(part.season) ||
+                      _notEmpty(part.diameter) ||
+                      _notEmpty(part.width) ||
+                      _notEmpty(part.profile) ||
+                      _notEmpty(part.tireQuantity) ||
+                      _notEmpty(part.drilling) ||
+                      _notEmpty(part.offset) ||
+                      _notEmpty(part.centerHoleDiameter) ||
+                      _notEmpty(part.tireModel))
+                    _section('Колеса и шины', [
+                      if (_notEmpty(part.wearPercentage)) _row('Износ', '${part.wearPercentage}%'),
+                      if (_notEmpty(part.season)) _row('Сезон', part.season!),
+                      if (_notEmpty(part.diameter)) _row('Диаметр', part.diameter!),
+                      if (_notEmpty(part.width)) _row('Ширина', part.width!),
+                      if (_notEmpty(part.profile)) _row('Профиль', part.profile!),
+                      if (_notEmpty(part.tireQuantity)) _row('Количество шин', part.tireQuantity!),
+                      if (_notEmpty(part.drilling)) _row('Сверловка', part.drilling!),
+                      if (_notEmpty(part.offset)) _row('Вылет', part.offset!),
+                      if (_notEmpty(part.centerHoleDiameter)) _row('ЦО', part.centerHoleDiameter!),
+                      if (_notEmpty(part.tireModel)) _row('Модель шины', part.tireModel!),
+                    ]),
                 if (part.oemCode != null || part.supplierCode != null)
                   _section('Коды', [
                     if (part.oemCode != null) _row('OEM код', part.oemCode!),
@@ -433,17 +420,17 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                 if (part.description != null && part.description!.isNotEmpty)
                   _section('Описание', [
                     Padding(
-                      padding: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.only(top: 2),
                       child: Text(
                         part.description!,
-                        style: const TextStyle(color: Colors.white70),
+                        style: const TextStyle(color: Colors.white, height: 1.45, fontSize: 13),
                       ),
                     ),
                   ]),
                 _section('QR-код запчасти', [
                   Center(
                     child: Container(
-                      margin: const EdgeInsets.symmetric(vertical: 12),
+                      margin: const EdgeInsets.symmetric(vertical: 8),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -461,8 +448,8 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                   ),
                   const Center(
                     child: Text(
-                      'Отсканируйте код для быстрого поиска',
-                      style: TextStyle(color: Colors.white38, fontSize: 11),
+                      'Отсканируйте код для быстрого поиска на складе',
+                      style: TextStyle(color: AppTheme.mutedColor, fontSize: 11),
                     ),
                   ),
                 ]),
@@ -506,41 +493,53 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
     decoration: BoxDecoration(
       color: qty > 0
-          ? const Color(0xFF43A047).withValues(alpha: 0.2)
-          : const Color(0xFFE53935).withValues(alpha: 0.2),
-      borderRadius: BorderRadius.circular(8),
+          ? AppTheme.successColor.withValues(alpha: 0.15)
+          : AppTheme.dangerColor.withValues(alpha: 0.15),
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(
+        color: qty > 0
+            ? AppTheme.successColor.withValues(alpha: 0.35)
+            : AppTheme.dangerColor.withValues(alpha: 0.35),
+      ),
     ),
     child: Text(
       qty > 0 ? '$qty шт. в наличии' : 'Нет в наличии',
       style: TextStyle(
-        color: qty > 0 ? const Color(0xFF43A047) : const Color(0xFFE53935),
-        fontWeight: FontWeight.w600,
+        color: qty > 0 ? AppTheme.successColor : AppTheme.dangerColor,
+        fontWeight: FontWeight.w700,
+        fontSize: 12,
       ),
     ),
   );
 
-  bool _notEmpty(String? value) => value != null && value.isNotEmpty;
+  bool _notEmpty(String? value) => value != null && value.trim().isNotEmpty && value.trim() != '—';
 
   Widget _section(String title, List<Widget> children) => children.isEmpty
       ? const SizedBox.shrink()
-      : Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Divider(color: Colors.white12),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
+      : Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppTheme.cardColor,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppTheme.borderColor),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title.toUpperCase(),
+                style: const TextStyle(
+                  color: AppTheme.mutedColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            ...children,
-            const SizedBox(height: 8),
-          ],
+              const SizedBox(height: 10),
+              ...children,
+            ],
+          ),
         );
 
   Widget _row(String label, String value) => Padding(
@@ -549,16 +548,16 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 130,
+          width: 140,
           child: Text(
             label,
-            style: const TextStyle(color: Colors.white38, fontSize: 13),
+            style: const TextStyle(color: AppTheme.mutedColor, fontSize: 13),
           ),
         ),
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(color: Colors.white, fontSize: 13),
+            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
           ),
         ),
       ],

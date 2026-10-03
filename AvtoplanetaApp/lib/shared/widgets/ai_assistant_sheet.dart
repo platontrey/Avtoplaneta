@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
+import '../../app/theme.dart';
 import '../../core/api/api_client.dart';
 
 class AIAssistantSheet extends StatefulWidget {
@@ -104,9 +105,12 @@ class _AIAssistantSheetState extends State<AIAssistantSheet> {
                         ),
                         decoration: BoxDecoration(
                           color: message.isUser
-                              ? const Color(0xFF4F8EF7)
-                              : const Color(0xFF16213E),
-                          borderRadius: BorderRadius.circular(14),
+                              ? AppTheme.primaryColor
+                              : AppTheme.cardColor,
+                          borderRadius: BorderRadius.circular(16),
+                          border: message.isUser
+                              ? null
+                              : Border.all(color: AppTheme.borderColor),
                         ),
                         child: Text(
                           message.text,

@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme.dart';
 import '../../core/services/update_service.dart';
 import '../../features/updater/widgets/update_dialog.dart';
-import 'ai_assistant_sheet.dart';
 
 class MainScaffold extends ConsumerStatefulWidget {
   final Widget child;
@@ -42,75 +41,11 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
   }
 
   int _locationToIndex(String location) {
-    if (location.startsWith('/inventory/add') ||
-        location.startsWith('/inventory/defect-report')) {
-      return 3;
-    }
     if (location.startsWith('/inventory')) return 0;
-    if (location.startsWith('/statistics')) return 1;
+    if (location.startsWith('/orders')) return 1;
     if (location.startsWith('/messages')) return 2;
-    if (location.startsWith('/orders')) return 4;
+    if (location.startsWith('/statistics')) return 3;
     return 0;
-  }
-
-  void _showAddMenu(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (_) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Что добавить?',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Выберите подходящий сценарий',
-                style: TextStyle(color: AppTheme.mutedColor),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                tileColor: AppTheme.cardColor,
-                leading: const Icon(
-                  LucideIcons.package_plus,
-                  color: AppTheme.primaryColor,
-                ),
-                title: const Text('Добавить запчасть'),
-                subtitle: const Text('Одна позиция в инвентарь'),
-                onTap: () {
-                  Navigator.pop(context);
-                  context.go('/inventory/add');
-                },
-              ),
-              const SizedBox(height: 10),
-              ListTile(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                tileColor: AppTheme.cardColor,
-                leading: const Icon(
-                  LucideIcons.clipboard_check,
-                  color: AppTheme.secondaryColor,
-                ),
-                title: const Text('Создать дефектную ведомость'),
-                subtitle: const Text('Добавить сразу несколько позиций'),
-                onTap: () {
-                  Navigator.pop(context);
-                  context.go('/inventory/defect-report');
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   @override
@@ -127,9 +62,9 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         label: 'Инвентарь',
       ),
       NavigationDestination(
-        icon: Icon(LucideIcons.chart_column_increasing),
-        selectedIcon: Icon(LucideIcons.chart_column_increasing),
-        label: 'Статистика',
+        icon: Icon(LucideIcons.receipt),
+        selectedIcon: Icon(LucideIcons.receipt),
+        label: 'Заказы',
       ),
       NavigationDestination(
         icon: Icon(LucideIcons.message_circle),
@@ -137,19 +72,9 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         label: 'Сообщения',
       ),
       NavigationDestination(
-        icon: Icon(LucideIcons.circle_plus),
-        selectedIcon: Icon(LucideIcons.circle_plus),
-        label: 'Добавить',
-      ),
-      NavigationDestination(
-        icon: Icon(LucideIcons.receipt),
-        selectedIcon: Icon(LucideIcons.receipt),
-        label: 'Заказы',
-      ),
-      NavigationDestination(
-        icon: Icon(LucideIcons.bot),
-        selectedIcon: Icon(LucideIcons.bot),
-        label: 'ИИ',
+        icon: Icon(LucideIcons.chart_column_increasing),
+        selectedIcon: Icon(LucideIcons.chart_column_increasing),
+        label: 'Статистика',
       ),
     ];
 
@@ -160,11 +85,11 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
           border: Border(top: BorderSide(color: AppTheme.borderColor)),
         ),
         child: NavigationBar(
-          height: 70,
+          height: 68,
           backgroundColor: AppTheme.surfaceColor,
           surfaceTintColor: Colors.transparent,
           indicatorColor: AppTheme.primaryColor.withValues(alpha: 0.16),
-          labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
           selectedIndex: currentIndex,
           destinations: destinations,
           onDestinationSelected: (index) {
@@ -172,19 +97,11 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
               case 0:
                 context.go('/inventory');
               case 1:
-                context.go('/statistics');
+                context.go('/orders');
               case 2:
                 context.go('/messages');
               case 3:
-                _showAddMenu(context);
-              case 4:
-                context.go('/orders');
-              case 5:
-                showModalBottomSheet<void>(
-                  context: context,
-                  isScrollControlled: true,
-                  builder: (_) => const AIAssistantSheet(),
-                );
+                context.go('/statistics');
             }
           },
         ),

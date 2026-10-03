@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
+import '../../../app/theme.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/utils/formatters.dart';
 import '../data/part_catalog.dart';
@@ -537,10 +538,13 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
             )
           else
             TextButton(
-              onPressed: _submit,
+              onPressed: _loading ? null : _submit,
               child: const Text(
                 'Сохранить',
-                style: TextStyle(color: Color(0xFF4F8EF7)),
+                style: TextStyle(
+                  color: AppTheme.primaryColor,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
         ],
@@ -657,8 +661,32 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
             _field(_addressCtrl, 'Адрес склада'),
             _field(_salesmanCtrl, 'Продавец'),
 
-            const SizedBox(height: 80),
+            const SizedBox(height: 24),
           ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+          decoration: const BoxDecoration(
+            color: AppTheme.surfaceColor,
+            border: Border(top: BorderSide(color: AppTheme.borderColor)),
+          ),
+          child: FilledButton.icon(
+            onPressed: _loading ? null : _submit,
+            icon: _loading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Icon(LucideIcons.check),
+            label: Text(
+              _loading
+                  ? 'Сохранение...'
+                  : (widget.editId != null ? 'Сохранить изменения' : 'Добавить запчасть'),
+            ),
+          ),
         ),
       ),
     );
@@ -675,10 +703,10 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
             scrollDirection: Axis.horizontal,
             children: [
               Card(
-                color: const Color(0xFF16213E),
+                color: AppTheme.cardColor,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: const BorderSide(color: Colors.white24, width: 1),
+                  side: const BorderSide(color: AppTheme.borderColor, width: 1),
                 ),
                 child: InkWell(
                   onTap: _selectingImage ? null : _showPhotoOptions,
@@ -813,7 +841,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
                             placeholder: (context, url) => Container(
                               width: 108,
                               height: 116,
-                              color: const Color(0xFF16213E),
+                              color: AppTheme.cardColor,
                               child: const Center(
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               ),
@@ -821,7 +849,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
                             errorWidget: (context, url, error) => Container(
                               width: 108,
                               height: 116,
-                              color: const Color(0xFF16213E),
+                              color: AppTheme.cardColor,
                               child: const Icon(
                                 LucideIcons.image_off,
                                 color: Colors.white24,

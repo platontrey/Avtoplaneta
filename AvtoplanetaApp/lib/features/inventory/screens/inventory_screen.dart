@@ -5,12 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:flutter/services.dart';
 import '../../../app/theme.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/part.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/qr_signer.dart';
+import '../../../shared/widgets/ai_assistant_sheet.dart';
 import '../../../shared/widgets/app_states.dart';
+import '../../../shared/widgets/shimmer_skeletons.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../orders/widgets/part_order_sheet.dart';
 import '../providers/inventory_provider.dart';
@@ -110,6 +113,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   }
 
   void _toggleSelection(Part part) {
+    HapticFeedback.selectionClick();
     setState(() {
       _selectionMode = true;
       if (!_selectedPartIds.add(part.id)) _selectedPartIds.remove(part.id);
@@ -245,20 +249,15 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               icon: const Icon(LucideIcons.qr_code),
               onPressed: () => _openScanner(context),
             ),
-            if (user?.isOperator == true)
-              IconButton(
-                tooltip: 'Добавить',
-                icon: const Icon(LucideIcons.circle_plus),
-                onPressed: isOffline
-                    ? () => ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'В оффлайн-режиме добавление недоступно',
-                          ),
-                        ),
-                      )
-                    : () => _showAddMenu(context),
+            IconButton(
+              tooltip: 'ИИ-помощник',
+              icon: const Icon(LucideIcons.bot, color: AppTheme.secondaryColor),
+              onPressed: () => showModalBottomSheet<void>(
+                context: context,
+                isScrollControlled: true,
+                builder: (_) => const AIAssistantSheet(),
               ),
+            ),
             IconButton(
               tooltip: 'Профиль',
               icon: const Icon(LucideIcons.user),
@@ -314,7 +313,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               ),
       ),
       body: inventoryAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const PartListSkeleton(),
         error: (e, _) => AppEmptyState(
           icon: LucideIcons.cloud_off,
           title: 'Не удалось загрузить склад',
@@ -512,6 +511,21 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           ],
         ),
       ),
+      floatingActionButton: !_selectionMode && (user?.isOperator == true)
+          ? FloatingActionButton.extended(
+              onPressed: isOffline
+                  ? () => ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'В оффлайн-режиме добавление недоступно',
+                          ),
+                        ),
+                      )
+                  : () => _showAddMenu(context),
+              icon: const Icon(LucideIcons.plus),
+              label: const Text('Добавить'),
+            )
+          : null,
       bottomNavigationBar: _selectionMode
           ? _BulkActionBar(
               count: _selectedPartIds.length,
@@ -2208,6 +2222,7 @@ class _ScannerModalState extends State<_ScannerModal> {
               for (final barcode in barcodes) {
                 final String? rawValue = barcode.rawValue;
                 if (rawValue != null && rawValue.isNotEmpty) {
+                  HapticFeedback.mediumImpact();
                   widget.onScan(rawValue);
                   break;
                 }

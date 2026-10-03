@@ -176,6 +176,7 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
         );
       }
       if (mounted) {
+        HapticFeedback.mediumImpact();
         Navigator.pop(context, true);
       }
     } catch (error) {
