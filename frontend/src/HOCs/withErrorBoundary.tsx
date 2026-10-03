@@ -77,6 +77,3 @@ export function withErrorBoundary<P extends object>(
   return WithErrorBoundaryComponent;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _unused = withErrorBoundary;
-console.log(_unused); // intentionally used to avoid export warning

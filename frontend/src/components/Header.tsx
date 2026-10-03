@@ -1,9 +1,8 @@
 /*
-* Copyright (c) 2025 Avtoplaneta. All rights reserved.
-*/
+ * Copyright (c) 2025 Avtoplaneta. All rights reserved.
+ */
 
 import React from 'react';
-import styled from 'styled-components';
 import { Package, BarChart3, Plus, LogOut, User as UserIcon, Settings, ChevronDown, BookOpen, MessageCircle } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -16,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import ThemeToggle from './ThemeToggle';
+import { cn } from "@/lib/utils";
 
 import type { User } from '../features/auth/types';
 
@@ -28,175 +28,6 @@ interface HeaderProps {
   /** Функция выхода из системы */
   onLogout?: () => void;
 }
-
-/**
- * Стилизованный контейнер заголовка
- */
-const HeaderContainer = styled.header`
-  border-bottom: 1px solid #d1d5db;
-
-  .dark & {
-    border-bottom: 1px solid oklch(1 0 0 / 12%);
-  }
-`;
-
-/**
- * Стилизованный контейнер содержимого заголовка
- */
-const HeaderContent = styled.div`
-  max-width: 80rem;
-  margin: 0 auto;
-  padding: 1rem 1rem 1rem 1.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  @media (min-width: 640px) {
-    padding: 1rem 1.75rem;
-  }
-`;
-
-/**
- * Стилизованный контейнер левой части заголовка
- */
-const HeaderLeft = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-
-  @media (min-width: 640px) {
-    gap: 1rem;
-  }
-`;
-
-/**
- * Стилизованный контейнер правой части заголовка
- */
-const HeaderRight = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-`;
-
-/**
- * Стилизованный логотип
- */
-const LogoContainer = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-`;
-
-/**
- * Стилизованный контейнер логотипа с иконкой
- */
-const LogoIcon = styled.div`
-  border-radius: 0.375rem;
-  border: 1px solid #d1d5db;
-  padding: 0.5rem;
-
-  .dark & {
-    border: 1px solid oklch(1 0 0 / 12%);
-  }
-`;
-
-/**
- * Стилизованный заголовок
- */
-const HeaderTitle = styled.h1`
-  font-size: 1.5rem;
-  font-weight: 700;
-
-  @media (min-width: 640px) {
-    font-size: 2rem;
-  }
-`;
-
-/**
- * Стилизованный контейнер навигационных кнопок
- */
-const NavigationContainer = styled.div`
-  display: none;
-
-  @media (min-width: 640px) {
-    display: flex;
-    gap: 0.25rem;
-  }
-`;
-
-/**
- * Стилизованная навигационная кнопка
- */
-const NavButton = styled(Link)<{ $isActive: boolean }>`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  white-space: nowrap;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  transition: all 0.2s;
-  outline: none;
-  height: 2.5rem;
-  padding: 0.5rem 1.5rem;
-  width: 8rem;
-
-  &:focus-visible {
-    border-color: hsl(var(--ring));
-    box-shadow: 0 0 0 3px hsl(var(--ring) / 0.5);
-  }
-
-  svg {
-    pointer-events: none;
-    height: 1rem;
-    width: 1rem;
-    flex-shrink: 0;
-  }
-
-  ${props => props.$isActive ? `
-    background-color: #000;
-    color: #fff;
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
-
-    .dark & {
-      background-color: #222222;
-      color: #fff;
-    }
-
-    &:hover {
-      background-color: #000;
-      color: #fff;
-
-      .dark & {
-        background-color: #222222;
-        color: #fff;
-      }
-    }
-  ` : `
-    background-color: transparent;
-    box-shadow: none;
-
-    &:hover {
-      background-color: #000;
-      color: #fff;
-
-      .dark & {
-        background-color: #222222;
-        color: #fff;
-      }
-    }
-  `}
-`;
-
-/**
- * Стилизованный контейнер мобильной навигации
- */
-const MobileNavigation = styled.div`
-  @media (min-width: 640px) {
-    display: none;
-  }
-`;
 
 /**
  * Основной компонент Header
@@ -220,41 +51,49 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
     return location.pathname === path;
   };
 
-  return (
-    <HeaderContainer>
-      <HeaderContent>
-        <HeaderLeft>
-          <LogoContainer>
-            <LogoIcon>
-              <Package size={24} />
-            </LogoIcon>
-            <HeaderTitle>Автопланета</HeaderTitle>
-          </LogoContainer>
+  const navButtonClass = (isActive: boolean) =>
+    cn(
+      "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all outline-none h-10 px-6 w-32 focus-visible:ring-2 focus-visible:ring-ring [&>svg]:size-4 [&>svg]:shrink-0",
+      isActive
+        ? "bg-black text-white dark:bg-[#222222] shadow-sm hover:bg-black dark:hover:bg-[#222222]"
+        : "bg-transparent text-foreground hover:bg-black hover:text-white dark:hover:bg-[#222222] dark:hover:text-white"
+    );
 
-          <NavigationContainer>
-            <NavButton to="/inventory" $isActive={isActivePath('/inventory')}>
+  return (
+    <header className="border-b border-gray-300 dark:border-white/12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-7 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-2">
+            <div className="rounded-md border border-gray-300 dark:border-white/12 p-2">
+              <Package size={24} />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold">Автопланета</h1>
+          </div>
+
+          <div className="hidden sm:flex gap-1">
+            <Link to="/inventory" className={navButtonClass(isActivePath('/inventory'))}>
               <Package />
               Инвентарь
-            </NavButton>
-            <NavButton to="/statistics" $isActive={isActivePath('/statistics')}>
+            </Link>
+            <Link to="/statistics" className={navButtonClass(isActivePath('/statistics'))}>
               <BarChart3 />
               Статистика
-            </NavButton>
-            <NavButton to="/messages" $isActive={isActivePath('/messages')}>
+            </Link>
+            <Link to="/messages" className={navButtonClass(isActivePath('/messages'))}>
               <MessageCircle />
               Сообщения
-            </NavButton>
-            <NavButton to="/add-car" $isActive={isActivePath('/add-car')} style={{ paddingLeft: '3rem', paddingRight: '3rem' }}>
+            </Link>
+            <Link to="/add-car" className={cn(navButtonClass(isActivePath('/add-car')), "!px-12")}>
               <Plus />
               Добавить
-            </NavButton>
-            <NavButton to="/orders" $isActive={isActivePath('/orders')}>
+            </Link>
+            <Link to="/orders" className={navButtonClass(isActivePath('/orders'))}>
               <Package />
               Заказы
-            </NavButton>
-          </NavigationContainer>
+            </Link>
+          </div>
 
-          <MobileNavigation>
+          <div className="sm:hidden">
             <DropdownMenu modal={false} onOpenChange={(open) => console.log('Mobile menu open state:', open)}>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" onClick={() => console.log('Mobile menu trigger clicked')}>
@@ -294,11 +133,10 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </MobileNavigation>
-        </HeaderLeft>
+          </div>
+        </div>
 
-
-        <HeaderRight>
+        <div className="flex items-center gap-2">
           <ThemeToggle />
 
           {/* User profile dropdown */}
@@ -372,10 +210,9 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-        </HeaderRight>
-
-      </HeaderContent>
-    </HeaderContainer>
+        </div>
+      </div>
+    </header>
   );
 };
 

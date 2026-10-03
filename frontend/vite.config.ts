@@ -86,32 +86,7 @@ export default defineConfig({
       host: '0.0.0.0',
       allowedHosts: ['spectrologically-seeable-zenobia.ngrok-free.dev'],
       proxy: {
-      '/api/inventory': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/api/addpart': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/api/deletepart': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/api/updatepart': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/api/uploadpartphoto': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/api/statistics': {
+      '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
         secure: false,

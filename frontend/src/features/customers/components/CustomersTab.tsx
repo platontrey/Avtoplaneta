@@ -7,7 +7,7 @@ import {
   useUpdateCustomer,
   useDeleteCustomer,
 } from '@/hooks/useCustomers';
-import type { CustomerWithStats, CustomerCategory } from '@/lib/types';
+import type { Customer, CustomerWithStats, CustomerCategory } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -502,7 +502,7 @@ interface CustomerDetailsModalProps {
   customerId: number;
   onClose: () => void;
   onEdit: (c: CustomerWithStats) => void;
-  onCopyTK: (c: any) => void;
+  onCopyTK: (c: Customer) => void;
   copiedId: number | null;
 }
 
@@ -776,8 +776,8 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ isOpen, customer,
         });
       }
       onClose();
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Ошибка сохранения клиента');
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Ошибка сохранения клиента');
     }
   };
 

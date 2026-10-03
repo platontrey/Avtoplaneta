@@ -338,7 +338,7 @@ export function usePartEdit(options: UsePartEditOptions): UsePartEditReturn {
       setIsEditing(false);
       setShouldDeletePhoto(false); // Reset flag on error
     }
-  }, [editForm.name, editForm.quantity, editForm.description, editForm.category, editForm.price, editForm.salesman, editForm.location, editForm.address, editForm.status, editForm.brand, editForm.model, editForm.photo, editForm.body_brand, editForm.engine_brand, editForm.car_release_date, editForm.car_release_period, editForm.front_rear, editForm.left_right, editForm.top_bottom, editForm.number, editForm.manufacturer, editForm.manufacturer_code, editForm.oem_code, editForm.color, editForm.condition, editForm.supplier_code, editForm.defect, editForm.transmission, editForm.transmission_model, editForm.drive, editForm.wear_percentage, editForm.season, editForm.diameter, editForm.width, editForm.profile, editForm.tire_quantity, editForm.drilling, editForm.offset, editForm.center_hole_diameter, editForm.tire_model, initialPart.id, updatePartMutation, queryClient, photoUpload]);
+  }, [editForm, initialPart, updatePartMutation, queryClient, photoUpload]);
 
 
   return {

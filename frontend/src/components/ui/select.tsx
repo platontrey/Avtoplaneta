@@ -68,7 +68,7 @@ function SelectContent({
         )}
         position={position}
         align={align}
-        onCloseAutoFocus={(event: any) => event.preventDefault()}
+        onCloseAutoFocus={(event: Event) => event.preventDefault()}
         {...props}
       >
         <SelectScrollUpButton />

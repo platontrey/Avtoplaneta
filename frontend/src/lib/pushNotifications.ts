@@ -7,7 +7,7 @@ export interface PushNotificationPayload {
   body: string;
   icon?: string;
   badge?: string;
-  data?: any;
+  data?: unknown;
 }
 
 export class PushNotificationManager {

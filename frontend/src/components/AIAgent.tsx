@@ -51,7 +51,7 @@ interface SpeechRecognitionAlternative {
   confidence: number;
 }
 
-declare var SpeechRecognition: {
+declare const SpeechRecognition: {
   prototype: SpeechRecognition;
   new(): SpeechRecognition;
 };
@@ -65,6 +65,19 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { motion, AnimatePresence } from 'framer-motion';
 import { aiAgentApi } from '../lib/api';
+import type { Part } from '../lib/types';
+
+interface AgentAction {
+  type: string;
+  path?: string;
+  query?: string;
+  data?: Record<string, unknown>;
+  part_name?: string;
+  field?: string;
+  value?: unknown;
+  options?: string[];
+  [key: string]: unknown;
+}
 
 interface Message {
   id: string;
@@ -72,7 +85,7 @@ interface Message {
   sender: 'user' | 'ai';
   timestamp: Date;
   type?: 'text' | 'action' | 'error';
-  action?: any; // Для хранения контекста действий
+  action?: AgentAction; // Для хранения контекста действий
 }
 
 function AIAgent({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }) {
@@ -94,7 +107,7 @@ function AIAgent({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }
   const navigate = useNavigate();
 
   // Функция выполнения действий
-  const executeAction = async (action: any) => {
+  const executeAction = async (action: AgentAction) => {
     if (!action || !action.type) return;
 
     try {
@@ -130,7 +143,7 @@ function AIAgent({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }
               addMessage(`Запчасть "${results[0].name}" успешно удалена`, 'ai', 'action');
             } else if (results && results.length > 1) {
               // Если найдено несколько, предлагаем уточнить
-              const options = results.slice(0, 3).map((part: any) => part.name).join(', ');
+              const options = results.slice(0, 3).map((part: { name: string }) => part.name).join(', ');
               addMessage(`Найдено несколько запчастей: ${options}. Уточните, какую именно удалить.`, 'ai', 'action');
             } else {
               addMessage(`Запчасть "${action.part_name}" не найдена`, 'ai', 'action');
@@ -144,13 +157,13 @@ function AIAgent({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }
             const results = await aiAgentApi.searchParts(action.part_name);
             if (results && results.length === 1) {
               // Если найдена ровно одна запчасть, обновляем её
-              const updateData: any = {};
+              const updateData: Record<string, unknown> = {};
               updateData[action.field] = action.value;
               await aiAgentApi.updatePart(results[0].id, updateData);
               addMessage(`Запчасть "${results[0].name}" успешно обновлена`, 'ai', 'action');
             } else if (results && results.length > 1) {
               // Если найдено несколько, предлагаем уточнить
-              const options = results.slice(0, 3).map((part: any) => part.name).join(', ');
+              const options = results.slice(0, 3).map((part: { name: string }) => part.name).join(', ');
               addMessage(`Найдено несколько запчастей: ${options}. Уточните, какую именно обновить.`, 'ai', 'action');
             } else {
               addMessage(`Запчасть "${action.part_name}" не найдена`, 'ai', 'action');
@@ -162,9 +175,9 @@ function AIAgent({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }
           if (action.data) {
             console.log('AIAgent: Выполняю add_part с данными:', action.data);
             try {
-              await aiAgentApi.addPart(action.data);
+              await aiAgentApi.addPart(action.data as unknown as Omit<Part, 'id'>);
               console.log('AIAgent: add_part выполнен успешно');
-              addMessage(`Запчасть "${action.data.name}" успешно добавлена! Цена: ${action.data.price || 0} руб., количество: ${action.data.quantity || 1} шт.`, 'ai', 'action');
+              addMessage(`Запчасть "${(action.data.name as string) || ''}" успешно добавлена! Цена: ${(action.data.price as number) || 0} руб., количество: ${(action.data.quantity as number) || 1} шт.`, 'ai', 'action');
             } catch (error) {
               console.error('AIAgent: Ошибка при добавлении запчасти:', error);
               addMessage('Произошла ошибка при добавлении запчасти. Попробуйте еще раз.', 'ai', 'error');
@@ -176,14 +189,14 @@ function AIAgent({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }
 
         case 'update_part':
           if (action.id && action.data) {
-            await aiAgentApi.updatePart(action.id, action.data);
+            await aiAgentApi.updatePart(Number(action.id), action.data as unknown as Partial<Part>);
             addMessage(`Запчасть с ID ${action.id} успешно обновлена`, 'ai', 'action');
           }
           break;
 
         case 'delete_part':
           if (action.id) {
-            await aiAgentApi.deletePart(action.id);
+            await aiAgentApi.deletePart(Number(action.id));
             addMessage(`Запчасть с ID ${action.id} успешно удалена`, 'ai', 'action');
           }
           break;
@@ -251,7 +264,7 @@ function AIAgent({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }
 
     try {
       recognitionRef.current.start();
-    } catch (error) {
+    } catch {
       setIsListening(false);
       addMessage('Не удалось начать распознавание речи', 'ai', 'error');
     }
@@ -323,7 +336,7 @@ function AIAgent({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }
   };
 
   // Обработка ответа на уточнение
-  const handleClarificationResponse = async (userResponse: string, clarificationAction: any) => {
+  const handleClarificationResponse = async (userResponse: string, clarificationAction: AgentAction) => {
     try {
       const options = clarificationAction.options || [];
       const selectedIndex = parseInt(userResponse) - 1; // Предполагаем, что пользователь ввел номер
