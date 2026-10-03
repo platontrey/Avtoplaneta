@@ -145,35 +145,32 @@ func HandlePhotoUpload(c *gin.Context, partID int64) (string, error) {
 		}
 	}
 
-	// Валидировать размер файла (макс 5МБ)
-	if file.Size > 5*1024*1024 {
+	// Валидировать размер файла (макс MaxUploadFileSize)
+	if file.Size > MaxUploadFileSize {
 		fmt.Printf("DEBUG HandlePhotoUpload: File too large: %d bytes\n", file.Size)
-		return "", fmt.Errorf("размер файла должен быть менее 5МБ")
+		return "", fmt.Errorf("размер файла должен быть менее %dМБ", MaxUploadFileSize/(1024*1024))
 	}
 
-	// Создать директорию uploads, если она не существует
-	fmt.Printf("DEBUG HandlePhotoUpload: Creating uploads directory\n")
-	if err := os.MkdirAll("./uploads", 0755); err != nil {
-		fmt.Printf("DEBUG HandlePhotoUpload: Failed to create uploads directory: %v\n", err)
-		return "", fmt.Errorf("не удалось создать директорию uploads")
+	// Открыть загруженный файл для оптимизации
+	src, err := file.Open()
+	if err != nil {
+		fmt.Printf("DEBUG HandlePhotoUpload: Failed to open uploaded file: %v\n", err)
+		return "", fmt.Errorf("не удалось открыть файл: %v", err)
 	}
+	defer src.Close()
 
-	// Сгенерировать уникальное имя файла
-	ext := filepath.Ext(file.Filename)
-	if ext == "" {
-		ext = ".jpg" // расширение по умолчанию
-	}
-	filename := fmt.Sprintf("%d_%d%s", partID, time.Now().Unix(), ext)
+	// Сгенерировать уникальное имя файла (.jpg для полной совместимости со всеми сервисами и Drom)
+	filename := fmt.Sprintf("%d_%d.jpg", partID, time.Now().UnixNano()/1000000)
 	filePath := filepath.Join("./uploads", filename)
 	fmt.Printf("DEBUG HandlePhotoUpload: Generated filename: %s, path: %s\n", filename, filePath)
 
-	// Сохранить файл
-	fmt.Printf("DEBUG HandlePhotoUpload: Saving file to: %s\n", filePath)
-	if err := c.SaveUploadedFile(file, filePath); err != nil {
-		fmt.Printf("DEBUG HandlePhotoUpload: Failed to save file: %v\n", err)
-		return "", fmt.Errorf("не удалось сохранить фото: %v", err)
+	// Оптимизировать и сохранить файл в Progressive JPEG (авто-ориентация по EXIF, макс 2048px)
+	fmt.Printf("DEBUG HandlePhotoUpload: Optimizing and saving file to: %s\n", filePath)
+	if err := OptimizeAndSaveImage(src, filePath); err != nil {
+		fmt.Printf("DEBUG HandlePhotoUpload: Failed to process and save file: %v\n", err)
+		return "", fmt.Errorf("не удалось обработать и сохранить фото: %v", err)
 	}
-	fmt.Printf("DEBUG HandlePhotoUpload: File saved successfully\n")
+	fmt.Printf("DEBUG HandlePhotoUpload: File optimized and saved successfully\n")
 
 	// Обновить часть с путем к фото (добавить в массив photos)
 	photoPath := "/uploads/" + filename
@@ -322,23 +319,18 @@ func SavePhotoFromBytes(partID int64, data []byte) (string, error) {
 		return "", fmt.Errorf("часть не найдена")
 	}
 
-	// Валидировать размер (макс 5МБ)
-	if len(data) > 5*1024*1024 {
-		return "", fmt.Errorf("размер файла должен быть менее 5МБ")
+	// Валидировать размер (макс MaxUploadFileSize)
+	if len(data) > MaxUploadFileSize {
+		return "", fmt.Errorf("размер файла должен быть менее %dМБ", MaxUploadFileSize/(1024*1024))
 	}
 
-	// Создать директорию uploads
-	if err := os.MkdirAll("./uploads", 0755); err != nil {
-		return "", fmt.Errorf("не удалось создать директорию uploads")
-	}
-
-	// Сгенерировать имя файла
-	filename := fmt.Sprintf("%d_%d.jpg", partID, time.Now().Unix())
+	// Сгенерировать имя файла (.jpg)
+	filename := fmt.Sprintf("%d_%d.jpg", partID, time.Now().UnixNano()/1000000)
 	filePath := filepath.Join("./uploads", filename)
 
-	// Сохранить файл
-	if err := os.WriteFile(filePath, data, 0644); err != nil {
-		return "", fmt.Errorf("не удалось сохранить фото: %v", err)
+	// Оптимизировать и сохранить файл
+	if err := OptimizeAndSaveImageBytes(data, filePath); err != nil {
+		return "", fmt.Errorf("не удалось обработать и сохранить фото: %v", err)
 	}
 
 	// Обновить массив фото

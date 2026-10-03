@@ -81,10 +81,10 @@ export function useAddPart(): UseAddPartReturn {
       return;
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024;
+    // Validate file size (max 30MB)
+    const maxSize = 30 * 1024 * 1024;
     if (file.size > maxSize) {
-      alert('File size must be less than 5MB.');
+      alert('Размер файла должен быть менее 30МБ.');
       return;
     }
 

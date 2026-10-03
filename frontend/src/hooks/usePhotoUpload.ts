@@ -73,10 +73,10 @@ export function usePhotoUpload(options: UsePhotoUploadOptions = {}): UsePhotoUpl
       return;
     }
 
-    // Validate file size (max 5MB to prevent memory issues)
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    // Validate file size (max 30MB)
+    const maxSize = 30 * 1024 * 1024; // 30MB
     if (file.size > maxSize) {
-      alert('File size must be less than 5MB.');
+      alert('Размер файла должен быть менее 30МБ.');
       return;
     }
 

@@ -209,10 +209,10 @@ export default function AddPart() {
                 continue;
             }
 
-            // Validate file size (max 5MB to prevent memory issues)
-            const maxSize = 5 * 1024 * 1024; // 5MB
+            // Validate file size (max 30MB)
+            const maxSize = 30 * 1024 * 1024; // 30MB
             if (file.size > maxSize) {
-                alert(`Размер файла ${file.name} должен быть менее 5МБ.`);
+                alert(`Размер файла ${file.name} должен быть менее 30МБ.`);
                 continue;
             }
 

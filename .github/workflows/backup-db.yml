@@ -1,0 +1,39 @@
+name: Backup Database
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Ежедневный автоматический бэкап в 20:00 UTC (03:00 ночи по времени Томска UTC+7)
+    - cron: '0 20 * * *'
+
+jobs:
+  backup:
+    runs-on: self-hosted
+    steps:
+      - name: Create Database Backup
+        id: dump
+        run: |
+          cd /opt/avtoplaneta
+          mkdir -p backups
+          
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          BACKUP_FILE="/opt/avtoplaneta/backups/avtoplaneta_db_${TIMESTAMP}.sql.gz"
+          
+          echo "Создание дампа PostgreSQL (только схема и данные, без файлов/фото)..."
+          docker compose exec -T postgres pg_dump -U postgres avtoplaneta | gzip > "${BACKUP_FILE}"
+          
+          SIZE=$(du -h "${BACKUP_FILE}" | cut -f1)
+          echo "Бэкап успешно создан: ${BACKUP_FILE} (размер: ${SIZE})"
+          
+          # Оставляем только последние 14 бэкапов на сервере
+          ls -tp /opt/avtoplaneta/backups/*.sql.gz 2>/dev/null | grep -v '/$' | tail -n +15 | xargs -I {} rm -- {} 2>/dev/null || true
+          
+          echo "backup_file=${BACKUP_FILE}" >> $GITHUB_OUTPUT
+          echo "backup_name=avtoplaneta_db_${TIMESTAMP}.sql.gz" >> $GITHUB_OUTPUT
+
+      - name: Upload Backup to GitHub Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: database-backup-${{ steps.dump.outputs.backup_name }}
+          path: ${{ steps.dump.outputs.backup_file }}
+          retention-days: 30
