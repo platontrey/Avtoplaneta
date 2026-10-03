@@ -20,6 +20,8 @@ export interface Part {
   photo?: string; // Для обратной совместимости
   inn?: string;                    // ИНН поставщика
   vin?: string;
+  to_delete_at_formatted?: string;
+  time_until_deletion?: string;
   // Характеристики запчасти
   body_brand?: string;
   engine_brand?: string;

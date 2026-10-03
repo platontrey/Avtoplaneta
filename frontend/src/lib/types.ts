@@ -2,53 +2,7 @@
  * Copyright (c) 2025 Avtoplaneta. All rights reserved.
  */
 
-export interface Part {
-  id: number;
-  name: string;
-  quantity: number;
-  description?: string;
-  category?: string;
-  price?: number;
-  salesman?: string;
-  location?: string;
-  address?: string;
-  status?: boolean;
-  brand?: string;
-  model?: string;
-  photo?: string;
-  inn?: string;
-  vin?: string;
-  to_delete_at_formatted?: string;
-  time_until_deletion?: string;
-  body_brand?: string;
-  engine_brand?: string;
-  car_release_date?: string;
-  car_release_period?: string;
-  front_rear?: string;
-  left_right?: string;
-  top_bottom?: string;
-  number?: string;
-  manufacturer?: string;
-  manufacturer_code?: string;
-  oem_code?: string;
-  color?: string;
-  condition?: string;
-  supplier_code?: string;
-  defect?: string;
-  transmission?: string;
-  transmission_model?: string;
-  drive?: string;
-  wear_percentage?: string;
-  season?: string;
-  diameter?: string;
-  width?: string;
-  profile?: string;
-  tire_quantity?: string;
-  drilling?: string;
-  offset?: string;
-  center_hole_diameter?: string;
-  tire_model?: string;
-}
+export type { Part, PartFormData, PartFilters } from '@/features/parts/types';
 
 export interface CategoryCount {
   name: string;
@@ -110,13 +64,7 @@ export interface Order {
   items: OrderItem[];
 }
 
-export interface User {
-  id: number;
-  email: string;
-  name: string;
-  provider: string;
-  role: string;
-}
+export type { User, LoginCredentials, AuthState } from '@/features/auth/types';
 
 export interface UserActivityLog {
   id: number;
