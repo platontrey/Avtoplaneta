@@ -1,7 +1,7 @@
 //go:build integration
 // +build integration
 
-package main
+package repository
 
 import (
 	"bufio"
@@ -13,6 +13,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"auth-service/internal/domain"
 )
 
 type IntegrationTestSuite struct {
@@ -23,7 +25,7 @@ type IntegrationTestSuite struct {
 }
 
 func loadEnvFile() {
-	paths := []string{"../../.env", "../.env", ".env"}
+	paths := []string{"../../../../.env", "../../../.env", "../../.env", "../.env", ".env"}
 	var file *os.File
 	var err error
 	for _, path := range paths {
@@ -95,13 +97,11 @@ func (s *IntegrationTestSuite) SetupTest() {
 	s.pool.Exec(context.Background(), "DELETE FROM users")
 }
 
-// ─── Миграция ───────────────────────────────────────────────────────────────
-
 func runMigrationsForTest(pool *pgxpool.Pool) error {
-	entries, _ := migrationsFS.ReadDir("db/migrations")
+	entries, _ := migrationsFS.ReadDir("migrations")
 	for _, entry := range entries {
 		if len(entry.Name()) > 7 && entry.Name()[len(entry.Name())-7:] == ".up.sql" {
-			data, _ := migrationsFS.ReadFile("db/migrations/" + entry.Name())
+			data, _ := migrationsFS.ReadFile("migrations/" + entry.Name())
 			_, err := pool.Exec(context.Background(), string(data))
 			if err != nil {
 				return err
@@ -111,10 +111,8 @@ func runMigrationsForTest(pool *pgxpool.Pool) error {
 	return nil
 }
 
-// ─── CreateUser + FindByID ──────────────────────────────────────────────────
-
 func (s *IntegrationTestSuite) TestCreateAndFindUser() {
-	user := &User{
+	user := &domain.User{
 		Email:    "real@test.com",
 		Name:     "Real User",
 		Initials: "RU",
@@ -137,10 +135,8 @@ func (s *IntegrationTestSuite) TestCreateAndFindUser() {
 	assert.Equal(s.T(), "1234567890", found.INN)
 }
 
-// ─── FindByEmailOrName ──────────────────────────────────────────────────────
-
 func (s *IntegrationTestSuite) TestFindByEmailOrName() {
-	user := &User{Email: "byemail@test.com", Name: "Email User", Initials: "EU", Provider: "local", Password: "x"}
+	user := &domain.User{Email: "byemail@test.com", Name: "Email User", Initials: "EU", Provider: "local", Password: "x"}
 	s.userRepo.Create(user)
 
 	found, err := s.userRepo.FindByEmailOrName("byemail@test.com")
@@ -151,26 +147,21 @@ func (s *IntegrationTestSuite) TestFindByEmailOrName() {
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "Email User", found.Name)
 
-	// Case-insensitive & trimmed search by name
 	found, err = s.userRepo.FindByEmailOrName("  email user  ")
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "Email User", found.Name)
 
-	// Case-insensitive & trimmed search by email
 	found, err = s.userRepo.FindByEmailOrName(" BYEMAIL@TEST.COM ")
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "byemail@test.com", found.Email)
 
-	// Search by initials
 	found, err = s.userRepo.FindByEmailOrName("eu")
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "Email User", found.Name)
 }
 
-// ─── ExistsByEmailOrName ────────────────────────────────────────────────────
-
 func (s *IntegrationTestSuite) TestExistsByEmailOrName() {
-	user := &User{Email: "exists@test.com", Name: "Exists User", Provider: "local", Password: "x"}
+	user := &domain.User{Email: "exists@test.com", Name: "Exists User", Provider: "local", Password: "x"}
 	s.userRepo.Create(user)
 
 	exists, err := s.userRepo.ExistsByEmailOrName("exists@test.com", "")
@@ -186,16 +177,14 @@ func (s *IntegrationTestSuite) TestExistsByEmailOrName() {
 	assert.False(s.T(), exists)
 }
 
-// ─── UpdateUser ─────────────────────────────────────────────────────────────
-
 func (s *IntegrationTestSuite) TestUpdateUser() {
-	user := &User{Email: "update@test.com", Name: "Old Name", Provider: "local", Password: "x"}
+	user := &domain.User{Email: "update@test.com", Name: "Old Name", Provider: "local", Password: "x"}
 	created, _ := s.userRepo.Create(user)
 
-	updated, err := s.userRepo.Update(created.ID, UpdateUserParams{
-		Name:  "New Name",
-		Role:  "manager",
-		INN:   "999999",
+	updated, err := s.userRepo.Update(created.ID, domain.UpdateUserParams{
+		Name: "New Name",
+		Role: "manager",
+		INN:  "999999",
 	})
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "New Name", updated.Name)
@@ -208,10 +197,8 @@ func (s *IntegrationTestSuite) TestUpdateUser() {
 	assert.Equal(s.T(), "manager", found.Role)
 }
 
-// ─── Partial Update ─────────────────────────────────────────────────────────
-
 func (s *IntegrationTestSuite) TestUpdateUserPartial() {
-	user := &User{
+	user := &domain.User{
 		Email:    "partial@test.com",
 		Name:     "Original",
 		Provider: "local",
@@ -220,7 +207,7 @@ func (s *IntegrationTestSuite) TestUpdateUserPartial() {
 	}
 	created, _ := s.userRepo.Create(user)
 
-	updated, err := s.userRepo.Update(created.ID, UpdateUserParams{
+	updated, err := s.userRepo.Update(created.ID, domain.UpdateUserParams{
 		Name: "Only Name Changed",
 	})
 	assert.NoError(s.T(), err)
@@ -229,10 +216,8 @@ func (s *IntegrationTestSuite) TestUpdateUserPartial() {
 	assert.Equal(s.T(), "partial@test.com", updated.Email)
 }
 
-// ─── DeleteUser ─────────────────────────────────────────────────────────────
-
 func (s *IntegrationTestSuite) TestDeleteUser() {
-	user := &User{Email: "delete@test.com", Name: "Delete Me", Provider: "local", Password: "x"}
+	user := &domain.User{Email: "delete@test.com", Name: "Delete Me", Provider: "local", Password: "x"}
 	created, _ := s.userRepo.Create(user)
 
 	err := s.userRepo.Delete(created.ID)
@@ -242,12 +227,10 @@ func (s *IntegrationTestSuite) TestDeleteUser() {
 	assert.Error(s.T(), err)
 }
 
-// ─── FindAll + CountAll ─────────────────────────────────────────────────────
-
 func (s *IntegrationTestSuite) TestFindAllAndCount() {
-	s.userRepo.Create(&User{Email: "a@test.com", Name: "A", Provider: "local", Password: "x"})
-	s.userRepo.Create(&User{Email: "b@test.com", Name: "B", Provider: "local", Password: "x"})
-	s.userRepo.Create(&User{Email: "c@test.com", Name: "C", Provider: "google", Password: ""})
+	s.userRepo.Create(&domain.User{Email: "a@test.com", Name: "A", Provider: "local", Password: "x"})
+	s.userRepo.Create(&domain.User{Email: "b@test.com", Name: "B", Provider: "local", Password: "x"})
+	s.userRepo.Create(&domain.User{Email: "c@test.com", Name: "C", Provider: "google", Password: ""})
 
 	count, err := s.userRepo.CountAll()
 	assert.NoError(s.T(), err)
@@ -260,10 +243,8 @@ func (s *IntegrationTestSuite) TestFindAllAndCount() {
 	assert.Equal(s.T(), "c@test.com", users[2].Email)
 }
 
-// ─── CreateActivityLog ──────────────────────────────────────────────────────
-
 func (s *IntegrationTestSuite) TestCreateActivityLog() {
-	log := &UserActivityLog{
+	log := &domain.UserActivityLog{
 		UserID:       1,
 		UserName:     "Test",
 		UserEmail:    "test@test.com",
@@ -283,11 +264,9 @@ func (s *IntegrationTestSuite) TestCreateActivityLog() {
 	assert.False(s.T(), created.CreatedAt.IsZero())
 }
 
-// ─── CreateActivityLog with ResourceID ──────────────────────────────────────
-
 func (s *IntegrationTestSuite) TestCreateActivityLogWithResourceID() {
 	rid := int64(42)
-	log := &UserActivityLog{
+	log := &domain.UserActivityLog{
 		UserID:       2,
 		UserName:     "Admin",
 		UserEmail:    "admin@test.com",
@@ -302,37 +281,31 @@ func (s *IntegrationTestSuite) TestCreateActivityLogWithResourceID() {
 	assert.Equal(s.T(), int64(42), *created.ResourceID)
 }
 
-// ─── FindActivityLogs with Squirrel filters ─────────────────────────────────
-
 func (s *IntegrationTestSuite) TestFindActivityLogsWithFilters() {
-	s.activityRepo.Create(&UserActivityLog{UserID: 1, UserName: "U1", UserEmail: "u1@t.com", Action: "login", ResourceType: "user"})
-	s.activityRepo.Create(&UserActivityLog{UserID: 1, UserName: "U1", UserEmail: "u1@t.com", Action: "logout", ResourceType: "user"})
-	s.activityRepo.Create(&UserActivityLog{UserID: 2, UserName: "U2", UserEmail: "u2@t.com", Action: "login", ResourceType: "user"})
+	s.activityRepo.Create(&domain.UserActivityLog{UserID: 1, UserName: "U1", UserEmail: "u1@t.com", Action: "login", ResourceType: "user"})
+	s.activityRepo.Create(&domain.UserActivityLog{UserID: 1, UserName: "U1", UserEmail: "u1@t.com", Action: "logout", ResourceType: "user"})
+	s.activityRepo.Create(&domain.UserActivityLog{UserID: 2, UserName: "U2", UserEmail: "u2@t.com", Action: "login", ResourceType: "user"})
 
-	logs, err := s.activityRepo.FindWithFilters(ActivityLogFilters{Action: "login", Limit: 100})
+	logs, err := s.activityRepo.FindWithFilters(domain.ActivityLogFilters{Action: "login", Limit: 100})
 	assert.NoError(s.T(), err)
 	assert.Len(s.T(), logs, 2)
 
 	uid := int64(1)
-	logs, err = s.activityRepo.FindWithFilters(ActivityLogFilters{UserID: &uid, Limit: 100})
+	logs, err = s.activityRepo.FindWithFilters(domain.ActivityLogFilters{UserID: &uid, Limit: 100})
 	assert.NoError(s.T(), err)
 	assert.Len(s.T(), logs, 2)
 }
 
-// ─── FindActivityLogs Empty ─────────────────────────────────────────────────
-
 func (s *IntegrationTestSuite) TestFindActivityLogsEmpty() {
-	logs, err := s.activityRepo.FindWithFilters(ActivityLogFilters{Action: "nonexistent", Limit: 100})
+	logs, err := s.activityRepo.FindWithFilters(domain.ActivityLogFilters{Action: "nonexistent", Limit: 100})
 	assert.NoError(s.T(), err)
 	assert.Empty(s.T(), logs)
 }
 
-// ─── Squirrel query with date range ─────────────────────────────────────────
-
 func (s *IntegrationTestSuite) TestFindActivityLogsByDateRange() {
-	s.activityRepo.Create(&UserActivityLog{UserID: 1, UserName: "U", UserEmail: "u@t.com", Action: "login", ResourceType: "user"})
+	s.activityRepo.Create(&domain.UserActivityLog{UserID: 1, UserName: "U", UserEmail: "u@t.com", Action: "login", ResourceType: "user"})
 
-	logs, err := s.activityRepo.FindWithFilters(ActivityLogFilters{Limit: 100})
+	logs, err := s.activityRepo.FindWithFilters(domain.ActivityLogFilters{Limit: 100})
 	assert.NoError(s.T(), err)
 	assert.NotEmpty(s.T(), logs)
 }

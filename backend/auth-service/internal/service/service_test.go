@@ -1,4 +1,4 @@
-package main
+package service
 
 import (
 	"context"
@@ -9,6 +9,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/crypto/bcrypt"
+
+	"auth-service/internal/domain"
+	"auth-service/internal/repository"
 )
 
 type mockUserEventPublisher struct {
@@ -26,15 +29,15 @@ func (m *mockUserEventPublisher) PublishUserRenamed(ctx context.Context, userID 
 
 type ServiceTestSuite struct {
 	suite.Suite
-	mockUserRepo     *MockUserRepository
-	mockActivityRepo *MockActivityLogRepository
+	mockUserRepo     *repository.MockUserRepository
+	mockActivityRepo *repository.MockActivityLogRepository
 	service          AuthService
 }
 
 func (suite *ServiceTestSuite) SetupTest() {
-	suite.mockUserRepo = new(MockUserRepository)
-	suite.mockActivityRepo = new(MockActivityLogRepository)
-	suite.service = NewAuthService(suite.mockUserRepo, suite.mockActivityRepo, nil, nil)
+	suite.mockUserRepo = new(repository.MockUserRepository)
+	suite.mockActivityRepo = new(repository.MockActivityLogRepository)
+	suite.service = NewAuthService(suite.mockUserRepo, suite.mockActivityRepo, nil, nil, nil)
 }
 
 func (suite *ServiceTestSuite) TearDownTest() {
@@ -53,7 +56,7 @@ func (suite *ServiceTestSuite) TestAuthenticateUser_Success() {
 	password := "correct_password"
 	hashed := testPasswordHash(password)
 
-	user := &User{
+	user := &domain.User{
 		ID:       1,
 		Email:    "test@example.com",
 		Name:     "Test User",
@@ -73,7 +76,7 @@ func (suite *ServiceTestSuite) TestAuthenticateUser_Success() {
 func (suite *ServiceTestSuite) TestAuthenticateUser_WrongPassword() {
 	hashed := testPasswordHash("correct_password")
 
-	user := &User{
+	user := &domain.User{
 		ID:       1,
 		Email:    "test@example.com",
 		Provider: "local",
@@ -88,7 +91,7 @@ func (suite *ServiceTestSuite) TestAuthenticateUser_WrongPassword() {
 }
 
 func (suite *ServiceTestSuite) TestAuthenticateUser_NonLocal() {
-	user := &User{
+	user := &domain.User{
 		ID:       1,
 		Email:    "test@gmail.com",
 		Provider: "google",
@@ -115,7 +118,7 @@ func (suite *ServiceTestSuite) TestAuthenticateUser_NotFound() {
 func (suite *ServiceTestSuite) TestCreateUserFromGoogle_NewUser() {
 	suite.mockUserRepo.On("FindByEmailOrName", "new@gmail.com").Return(nil, assert.AnError)
 
-	expected := &User{
+	expected := &domain.User{
 		ID:       2,
 		Email:    "new@gmail.com",
 		Name:     "New User",
@@ -123,10 +126,10 @@ func (suite *ServiceTestSuite) TestCreateUserFromGoogle_NewUser() {
 		Role:     "operator",
 	}
 
-	call := suite.mockUserRepo.On("Create", mock.MatchedBy(func(u *User) bool {
+	call := suite.mockUserRepo.On("Create", mock.MatchedBy(func(u *domain.User) bool {
 		return u.Email == "new@gmail.com" && u.Provider == "google" && u.Role == "operator"
 	})).Return(expected, nil).Run(func(args mock.Arguments) {
-		user := args.Get(0).(*User)
+		user := args.Get(0).(*domain.User)
 		user.ID = 2
 	})
 
@@ -135,12 +138,12 @@ func (suite *ServiceTestSuite) TestCreateUserFromGoogle_NewUser() {
 	assert.NotNil(suite.T(), result)
 	assert.Equal(suite.T(), int64(2), result.ID)
 	assert.Equal(suite.T(), "google", result.Provider)
-	suite.mockUserRepo.AssertCalled(suite.T(), "Create", mock.AnythingOfType("*main.User"))
+	suite.mockUserRepo.AssertCalled(suite.T(), "Create", mock.AnythingOfType("*domain.User"))
 	_ = call
 }
 
 func (suite *ServiceTestSuite) TestCreateUserFromGoogle_Existing() {
-	existing := &User{
+	existing := &domain.User{
 		ID:       1,
 		Email:    "existing@gmail.com",
 		Name:     "Existing",
@@ -162,7 +165,7 @@ func (suite *ServiceTestSuite) TestCreateUserFromGoogle_Existing() {
 func (suite *ServiceTestSuite) TestCreateUser_Success() {
 	suite.mockUserRepo.On("ExistsByEmailOrName", "new@example.com", "New User").Return(false, nil)
 
-	expected := &User{
+	expected := &domain.User{
 		ID:       3,
 		Email:    "new@example.com",
 		Name:     "New User",
@@ -171,14 +174,14 @@ func (suite *ServiceTestSuite) TestCreateUser_Success() {
 		Password: "",
 	}
 
-	suite.mockUserRepo.On("Create", mock.MatchedBy(func(u *User) bool {
+	suite.mockUserRepo.On("Create", mock.MatchedBy(func(u *domain.User) bool {
 		return u.Email == "new@example.com" && u.Provider == "local"
 	})).Return(expected, nil).Run(func(args mock.Arguments) {
-		user := args.Get(0).(*User)
+		user := args.Get(0).(*domain.User)
 		user.ID = 3
 	})
 
-	req := CreateUserRequest{
+	req := domain.CreateUserRequest{
 		Email:    "new@example.com",
 		Name:     "New User",
 		Password: "password123",
@@ -195,7 +198,7 @@ func (suite *ServiceTestSuite) TestCreateUser_Success() {
 func (suite *ServiceTestSuite) TestCreateUser_Duplicate() {
 	suite.mockUserRepo.On("ExistsByEmailOrName", "exists@example.com", "Exists").Return(true, nil)
 
-	req := CreateUserRequest{
+	req := domain.CreateUserRequest{
 		Email:    "exists@example.com",
 		Name:     "Exists",
 		Password: "password",
@@ -211,21 +214,21 @@ func (suite *ServiceTestSuite) TestCreateUser_Duplicate() {
 // ─── UpdateUser ─────────────────────────────────────────────────────────────
 
 func (suite *ServiceTestSuite) TestUpdateUser_Success() {
-	existing := &User{ID: 1, Email: "old@example.com", Name: "Old Name", Role: "operator"}
+	existing := &domain.User{ID: 1, Email: "old@example.com", Name: "Old Name", Role: "operator"}
 
-	updated := &User{ID: 1, Email: "new@example.com", Name: "New Name", Role: "admin"}
+	updated := &domain.User{ID: 1, Email: "new@example.com", Name: "New Name", Role: "admin"}
 
 	suite.mockUserRepo.On("FindByID", int64(1)).Return(existing, nil)
 	suite.mockUserRepo.On("ExistsByEmailOrName", "new@example.com", "").Return(false, nil)
 
-	updateParams := UpdateUserParams{
+	updateParams := domain.UpdateUserParams{
 		Name:  "New Name",
 		Email: "new@example.com",
 		Role:  "admin",
 	}
 	suite.mockUserRepo.On("Update", int64(1), updateParams).Return(updated, nil)
 
-	req := UpdateUserRequest{
+	req := domain.UpdateUserRequest{
 		Name:  "New Name",
 		Email: "new@example.com",
 		Role:  "admin",
@@ -239,16 +242,16 @@ func (suite *ServiceTestSuite) TestUpdateUser_Success() {
 }
 
 func (suite *ServiceTestSuite) TestUpdateUser_PublishesRenamedEvent() {
-	existing := &User{ID: 5, Email: "seller@example.com", Name: "Old Seller", Role: "operator"}
-	updated := &User{ID: 5, Email: "seller@example.com", Name: "Renamed Seller", Role: "operator"}
+	existing := &domain.User{ID: 5, Email: "seller@example.com", Name: "Old Seller", Role: "operator"}
+	updated := &domain.User{ID: 5, Email: "seller@example.com", Name: "Renamed Seller", Role: "operator"}
 
 	suite.mockUserRepo.On("FindByID", int64(5)).Return(existing, nil)
-	suite.mockUserRepo.On("Update", int64(5), UpdateUserParams{Name: "Renamed Seller"}).Return(updated, nil)
+	suite.mockUserRepo.On("Update", int64(5), domain.UpdateUserParams{Name: "Renamed Seller"}).Return(updated, nil)
 
 	mockPub := &mockUserEventPublisher{}
-	svc := NewAuthService(suite.mockUserRepo, suite.mockActivityRepo, nil, nil, mockPub)
+	svc := NewAuthService(suite.mockUserRepo, suite.mockActivityRepo, nil, nil, nil, mockPub)
 
-	result, err := svc.UpdateUser(5, UpdateUserRequest{Name: "Renamed Seller"})
+	result, err := svc.UpdateUser(5, domain.UpdateUserRequest{Name: "Renamed Seller"})
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), "Renamed Seller", result.Name)
 	assert.True(suite.T(), mockPub.called)
@@ -259,7 +262,7 @@ func (suite *ServiceTestSuite) TestUpdateUser_PublishesRenamedEvent() {
 func (suite *ServiceTestSuite) TestUpdateUser_NotFound() {
 	suite.mockUserRepo.On("FindByID", int64(999)).Return(nil, assert.AnError)
 
-	req := UpdateUserRequest{Name: "Test"}
+	req := domain.UpdateUserRequest{Name: "Test"}
 	result, err := suite.service.UpdateUser(999, req)
 	assert.Error(suite.T(), err)
 	assert.Nil(suite.T(), result)
@@ -267,11 +270,11 @@ func (suite *ServiceTestSuite) TestUpdateUser_NotFound() {
 }
 
 func (suite *ServiceTestSuite) TestUpdateUser_DuplicateEmail() {
-	existing := &User{ID: 1, Email: "old@example.com", Name: "Old"}
+	existing := &domain.User{ID: 1, Email: "old@example.com", Name: "Old"}
 	suite.mockUserRepo.On("FindByID", int64(1)).Return(existing, nil)
 	suite.mockUserRepo.On("ExistsByEmailOrName", "taken@example.com", "").Return(true, nil)
 
-	req := UpdateUserRequest{Email: "taken@example.com"}
+	req := domain.UpdateUserRequest{Email: "taken@example.com"}
 	result, err := suite.service.UpdateUser(1, req)
 	assert.Error(suite.T(), err)
 	assert.Nil(suite.T(), result)
@@ -279,10 +282,10 @@ func (suite *ServiceTestSuite) TestUpdateUser_DuplicateEmail() {
 }
 
 func (suite *ServiceTestSuite) TestUpdateUser_NoFields() {
-	existing := &User{ID: 1, Email: "test@example.com"}
+	existing := &domain.User{ID: 1, Email: "test@example.com"}
 	suite.mockUserRepo.On("FindByID", int64(1)).Return(existing, nil)
 
-	req := UpdateUserRequest{}
+	req := domain.UpdateUserRequest{}
 	result, err := suite.service.UpdateUser(1, req)
 	assert.Error(suite.T(), err)
 	assert.Nil(suite.T(), result)
@@ -292,7 +295,7 @@ func (suite *ServiceTestSuite) TestUpdateUser_NoFields() {
 // ─── DeleteUser ─────────────────────────────────────────────────────────────
 
 func (suite *ServiceTestSuite) TestDeleteUser_Success() {
-	existing := &User{ID: 1, Email: "test@example.com"}
+	existing := &domain.User{ID: 1, Email: "test@example.com"}
 	suite.mockUserRepo.On("FindByID", int64(1)).Return(existing, nil)
 	suite.mockUserRepo.On("Delete", int64(1)).Return(nil)
 
@@ -311,7 +314,7 @@ func (suite *ServiceTestSuite) TestDeleteUser_NotFound() {
 // ─── GetUsers ───────────────────────────────────────────────────────────────
 
 func (suite *ServiceTestSuite) TestGetUsers() {
-	users := []User{
+	users := []domain.User{
 		{ID: 1, Email: "user1@example.com", Name: "User 1", Password: "secret1"},
 		{ID: 2, Email: "user2@example.com", Name: "User 2", Password: "secret2"},
 	}
@@ -325,7 +328,7 @@ func (suite *ServiceTestSuite) TestGetUsers() {
 }
 
 func (suite *ServiceTestSuite) TestGetUsers_Empty() {
-	suite.mockUserRepo.On("FindAll").Return([]User{}, nil)
+	suite.mockUserRepo.On("FindAll").Return([]domain.User{}, nil)
 
 	result, err := suite.service.GetUsers()
 	assert.NoError(suite.T(), err)
@@ -335,7 +338,7 @@ func (suite *ServiceTestSuite) TestGetUsers_Empty() {
 // ─── GetCurrentUser ─────────────────────────────────────────────────────────
 
 func (suite *ServiceTestSuite) TestGetCurrentUser_Success() {
-	user := &User{ID: 1, Email: "test@example.com", Password: "secret"}
+	user := &domain.User{ID: 1, Email: "test@example.com", Password: "secret"}
 	suite.mockUserRepo.On("FindByID", int64(1)).Return(user, nil)
 
 	result, err := suite.service.GetCurrentUser(1)
@@ -365,23 +368,23 @@ func (suite *ServiceTestSuite) TestGetTotalUsersCount() {
 // ─── LogUserActivity ────────────────────────────────────────────────────────
 
 func (suite *ServiceTestSuite) TestLogUserActivity() {
-	user := &User{ID: 1, Name: "Test", Email: "test@example.com"}
+	user := &domain.User{ID: 1, Name: "Test", Email: "test@example.com"}
 
-	suite.mockActivityRepo.On("Create", mock.MatchedBy(func(log *UserActivityLog) bool {
+	suite.mockActivityRepo.On("Create", mock.MatchedBy(func(log *domain.UserActivityLog) bool {
 		return log.UserID == 1 && log.Action == "login" && log.ResourceType == "user"
-	})).Return(&UserActivityLog{ID: 1, UserID: 1, Action: "login"}, nil)
+	})).Return(&domain.UserActivityLog{ID: 1, UserID: 1, Action: "login"}, nil)
 
 	err := suite.service.LogUserActivity(user, "login", "user", nil, "details", "127.0.0.1", "Mozilla")
 	assert.NoError(suite.T(), err)
 }
 
 func (suite *ServiceTestSuite) TestLogUserActivity_WithResourceID() {
-	user := &User{ID: 2, Name: "Admin", Email: "admin@example.com"}
+	user := &domain.User{ID: 2, Name: "Admin", Email: "admin@example.com"}
 	resourceID := int64(42)
 
-	suite.mockActivityRepo.On("Create", mock.MatchedBy(func(log *UserActivityLog) bool {
+	suite.mockActivityRepo.On("Create", mock.MatchedBy(func(log *domain.UserActivityLog) bool {
 		return log.ResourceID != nil && *log.ResourceID == 42
-	})).Return(&UserActivityLog{ID: 2, UserID: 2, Action: "update_part"}, nil)
+	})).Return(&domain.UserActivityLog{ID: 2, UserID: 2, Action: "update_part"}, nil)
 
 	err := suite.service.LogUserActivity(user, "update_part", "part", &resourceID, "Updated", "10.0.0.1", "curl")
 	assert.NoError(suite.T(), err)
@@ -392,13 +395,13 @@ func (suite *ServiceTestSuite) TestLogUserActivity_WithResourceID() {
 func (suite *ServiceTestSuite) TestGetUserActivityLogs() {
 	now := time.Now()
 	userID := int64(1)
-	filters := ActivityLogFilters{
+	filters := domain.ActivityLogFilters{
 		UserID: &userID,
 		Action: "login",
 		Limit:  50,
 	}
 
-	expected := []UserActivityLog{
+	expected := []domain.UserActivityLog{
 		{ID: 1, UserID: 1, Action: "login", CreatedAt: now},
 	}
 

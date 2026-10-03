@@ -2,157 +2,137 @@ package main
 
 import (
 	"context"
-	"errors"
-	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	googlegrpc "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
 	partsv1 "avtoplaneta/gen/parts/v1"
+	"avtoplaneta/pkg/httpserver"
+	"avtoplaneta/pkg/redisclient"
 	"avtoplaneta/pkg/tracing"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+
+	"auth-service/internal/config"
+	"auth-service/internal/events"
+	grpcserver "auth-service/internal/grpc"
+	"auth-service/internal/handler"
+	"auth-service/internal/repository"
+	"auth-service/internal/security"
+	"auth-service/internal/service"
 )
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	// Initialize OpenTelemetry Tracer
+	// Инициализация трассировки OpenTelemetry
 	tp, err := tracing.InitTracer("auth-service")
 	if err != nil {
-		logrus.WithError(err).Fatal("failed to initialize tracer")
+		logrus.WithError(err).Fatal("Failed to initialize OpenTelemetry tracer")
 	}
 	defer func() {
 		if err := tp.Shutdown(context.Background()); err != nil {
-			logrus.WithError(err).Error("failed to shutdown tracer")
+			logrus.WithError(err).Error("Failed to shutdown tracer")
 		}
 	}()
 
 	gin.SetMode(gin.ReleaseMode)
 
-	config := LoadConfig()
-	InitDB(config)
-
-	userRepo := NewUserRepository(dbPool)
-	SetUserRepo(userRepo)
-	SetAuthConfig(config)
-
-	CreateDefaultUser()
-
-	ctx, cancel := context.WithCancel(context.Background())
+	// Контекст для graceful shutdown всего сервиса
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		<-sigChan
-		log.Println("Получен сигнал завершения, начинаем graceful shutdown...")
-		cancel()
-	}()
+	// Загрузка конфигурации
+	cfg := config.LoadConfig()
 
-	InitAuth(ctx, config)
+	// Подключение к базе данных PostgreSQL
+	dbPool, err := repository.InitDB(cfg)
+	if err != nil {
+		logrus.WithError(err).Fatal("Failed to initialize database")
+	}
+	defer dbPool.Close()
 
-	var eventPublisher UserEventPublisher
-	if config.RedisURL != "" {
-		rdb := redis.NewClient(&redis.Options{Addr: config.RedisURL})
-		eventPublisher = NewRedisUserEventPublisher(rdb)
+	// Инициализация репозиториев
+	userRepo := repository.NewUserRepository(dbPool)
+	activityRepo := repository.NewActivityLogRepository(dbPool)
+
+	// Создание дефолтного администратора при первом запуске
+	repository.CreateDefaultUser(ctx, userRepo)
+
+	// Сессии и безопасность
+	sessionStore, err := security.NewCookieSessionStore(cfg.SessionSecret)
+	if err != nil {
+		logrus.WithError(err).Fatal("Failed to initialize cookie session store")
 	}
 
-	activityRepo := NewActivityLogRepository(dbPool)
-	authService := NewAuthService(userRepo, activityRepo, store, nil, eventPublisher)
-	handler := NewHandler(authService, config)
+	csrfManager := security.NewCSRFManager()
+	csrfManager.StartCleanup(ctx)
+	security.InitGoogleOAuth("")
+	rateLimiter := security.NewMemoryRateLimiter()
 
-	if config.PartsGRPCAddr != "" {
-		partsConn, err := grpc.NewClient(config.PartsGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// Подключение к Redis для публикации событий пользователей
+	var eventPublisher events.UserEventPublisher
+	if cfg.RedisURL != "" {
+		rdb, err := redisclient.New(cfg.RedisURL, "")
 		if err != nil {
-			logrus.WithError(err).Warn("Failed to create gRPC connection to parts-service in auth-service")
+			logrus.WithError(err).Warn("Failed to connect to Redis for user events")
 		} else {
-			handler.SetPartsClient(partsv1.NewPartsServiceClient(partsConn))
-			logrus.WithField("addr", config.PartsGRPCAddr).Info("Connected to parts-service via gRPC in auth-service")
+			eventPublisher = events.NewRedisUserEventPublisher(rdb)
+			defer rdb.Close()
+		}
+	}
+
+	// Сервисный слой
+	authService := service.NewAuthService(
+		userRepo,
+		activityRepo,
+		sessionStore,
+		rateLimiter,
+		csrfManager,
+		eventPublisher,
+	)
+
+	// HTTP Handler с явным DI
+	h := handler.NewHandler(authService, sessionStore, csrfManager, userRepo, cfg)
+
+	// Подключение к parts-service по gRPC
+	if cfg.PartsGRPCAddr != "" {
+		partsConn, err := googlegrpc.NewClient(cfg.PartsGRPCAddr, googlegrpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			logrus.WithError(err).Warn("Failed to create gRPC connection to parts-service")
+		} else {
+			h.SetPartsClient(partsv1.NewPartsServiceClient(partsConn))
+			logrus.WithField("addr", cfg.PartsGRPCAddr).Info("Connected to parts-service via gRPC")
 			defer partsConn.Close()
 		}
 	}
 
-	log.Println("Сервис аутентификации готов к работе с пользователями.")
-
+	// Запуск gRPC сервера
 	grpcPort := os.Getenv("GRPC_PORT")
 	if grpcPort == "" {
 		grpcPort = "9083"
 	}
-	go func() {
-		if err := StartGRPCServer(authService, config, grpcPort); err != nil {
-			log.Fatalf("gRPC server failed: %v", err)
-		}
-	}()
+	grpcSrv, err := grpcserver.StartGRPCServer(authService, sessionStore, cfg, grpcPort)
+	if err != nil {
+		logrus.WithError(err).Fatalf("Failed to start gRPC server on port %s", grpcPort)
+	}
+	defer grpcSrv.GracefulStop()
 
+	// Настройка HTTP сервера
 	r := gin.Default()
 	r.Use(otelgin.Middleware("auth-service"))
+	_ = r.SetTrustedProxies([]string{"127.0.0.1"})
+	r.Use(h.CSRFMiddleware)
 
-	err = r.SetTrustedProxies([]string{"127.0.0.1"})
-	if err != nil {
-		log.Printf("Ошибка установки доверенных прокси: %v", err)
-	}
+	handler.SetupRoutes(r, h)
 
-	r.Use(CORSMiddleware(config))
-	r.Use(csrfMiddleware)
-
-	SetupRoutes(r, handler)
-
-	srv := &http.Server{
-		Addr:    ":" + config.Port,
-		Handler: r,
-	}
-
-	errChan := make(chan error, 1)
-
-	go func() {
-		log.Printf("Сервис аутентификации запускается на порту %s", config.Port)
-
-		certFile := "../../cert.pem"
-		keyFile := "../../key.pem"
-		if _, err := os.Stat(certFile); os.IsNotExist(err) {
-			certFile = "cert.pem"
-			keyFile = "key.pem"
-		}
-
-		if os.Getenv("NODE_ENV") == "production" {
-			if _, err := os.Stat(certFile); err == nil {
-				log.Println("Запуск с TLS...")
-				if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil && !errors.Is(http.ErrServerClosed, err) {
-					errChan <- err
-				}
-			} else {
-				log.Println("Сертификаты не найдены, запуск без TLS...")
-				if err := srv.ListenAndServe(); err != nil && !errors.Is(http.ErrServerClosed, err) {
-					errChan <- err
-				}
-			}
-		} else {
-			log.Println("Режим разработки: запуск без TLS...")
-			if err := srv.ListenAndServe(); err != nil && !errors.Is(http.ErrServerClosed, err) {
-				errChan <- err
-			}
-		}
-	}()
-
-	select {
-	case <-ctx.Done():
-		log.Println("Завершение работы сервиса аутентификации...")
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		if err := srv.Shutdown(shutdownCtx); err != nil {
-			log.Printf("Сервер принудительно остановлен: %v", err)
-		}
-		log.Println("Сервис аутентификации остановлен")
-	case err := <-errChan:
-		log.Fatal("Ошибка сервера:", err)
+	// Запуск HTTP сервера через общий пакет httpserver (graceful shutdown + TLS)
+	if err := httpserver.Run(ctx, cfg.Port, r); err != nil {
+		logrus.WithError(err).Fatal("Server error")
 	}
 }

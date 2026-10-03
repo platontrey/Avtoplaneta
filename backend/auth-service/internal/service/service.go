@@ -1,72 +1,57 @@
-package main
+package service
 
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/gorilla/sessions"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/crypto/bcrypt"
+
+	"auth-service/internal/domain"
+	"auth-service/internal/events"
+	"auth-service/internal/repository"
+	"auth-service/internal/security"
 )
 
-type SessionStore interface {
-	Get(r *http.Request, name string) (*sessions.Session, error)
-	Save(r *http.Request, w http.ResponseWriter, s *sessions.Session) error
-}
-
-type RateLimiter interface {
-	IsLimited(key string, limit int, window time.Duration) (bool, error)
-}
-
+// AuthService определяет интерфейс бизнес-логики аутентификации и пользователей
 type AuthService interface {
-	AuthenticateUser(email, password string) (*User, error)
-	CreateUserFromGoogle(email, name string) (*User, error)
-	GetCurrentUser(userID int64) (*User, error)
+	AuthenticateUser(email, password string) (*domain.User, error)
+	CreateUserFromGoogle(email, name string) (*domain.User, error)
+	GetCurrentUser(userID int64) (*domain.User, error)
 	Logout(userID int64) error
 
-	CreateUser(req CreateUserRequest) (*User, error)
-	GetUsers() ([]User, error)
-	UpdateUser(userID int64, req UpdateUserRequest) (*User, error)
+	CreateUser(req domain.CreateUserRequest) (*domain.User, error)
+	GetUsers() ([]domain.User, error)
+	UpdateUser(userID int64, req domain.UpdateUserRequest) (*domain.User, error)
 	DeleteUser(userID int64) error
 	GetTotalUsersCount() (int, error)
 
-	LogUserActivity(user *User, action, resourceType string, resourceID *int64, details, ip, userAgent string) error
-	GetUserActivityLogs(filters ActivityLogFilters) ([]UserActivityLog, error)
+	LogUserActivity(user *domain.User, action, resourceType string, resourceID *int64, details, ip, userAgent string) error
+	GetUserActivityLogs(filters domain.ActivityLogFilters) ([]domain.UserActivityLog, error)
 
 	GenerateCSRFToken(userID *int64) (string, error)
 }
 
-type CreateUserRequest struct {
-	Email    string
-	Name     string
-	Initials string
-	INN      string
-	Password string
-	Role     string
-}
-
-type UpdateUserRequest struct {
-	Name     string
-	Email    string
-	Initials string
-	INN      string
-	Role     string
-}
-
 type authService struct {
-	userRepo       UserRepository
-	activityRepo   ActivityLogRepository
-	sessionStore   SessionStore
-	rateLimiter    RateLimiter
-	eventPublisher UserEventPublisher
+	userRepo       repository.UserRepository
+	activityRepo   repository.ActivityLogRepository
+	sessionStore   security.SessionStore
+	rateLimiter    security.RateLimiter
+	csrfManager    security.CSRFManager
+	eventPublisher events.UserEventPublisher
 }
 
-func NewAuthService(userRepo UserRepository, activityRepo ActivityLogRepository, sessionStore SessionStore, rateLimiter RateLimiter, publisher ...UserEventPublisher) AuthService {
-	var pub UserEventPublisher
+// NewAuthService создает новый экземпляр AuthService с dependency injection
+func NewAuthService(
+	userRepo repository.UserRepository,
+	activityRepo repository.ActivityLogRepository,
+	sessionStore security.SessionStore,
+	rateLimiter security.RateLimiter,
+	csrfManager security.CSRFManager,
+	publisher ...events.UserEventPublisher,
+) AuthService {
+	var pub events.UserEventPublisher
 	if len(publisher) > 0 {
 		pub = publisher[0]
 	}
@@ -75,11 +60,12 @@ func NewAuthService(userRepo UserRepository, activityRepo ActivityLogRepository,
 		activityRepo:   activityRepo,
 		sessionStore:   sessionStore,
 		rateLimiter:    rateLimiter,
+		csrfManager:    csrfManager,
 		eventPublisher: pub,
 	}
 }
 
-func (s *authService) AuthenticateUser(email, password string) (*User, error) {
+func (s *authService) AuthenticateUser(email, password string) (*domain.User, error) {
 	trimmedIdentifier := strings.TrimSpace(email)
 	if trimmedIdentifier == "" {
 		return nil, fmt.Errorf("логин не может быть пустым")
@@ -111,7 +97,7 @@ func (s *authService) AuthenticateUser(email, password string) (*User, error) {
 		return nil, fmt.Errorf("неверные учетные данные")
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+	if err := security.CheckPassword(user.Password, password); err != nil {
 		logrus.WithFields(logrus.Fields{
 			"identifier": trimmedIdentifier,
 		}).Warn("Invalid password during login")
@@ -127,14 +113,14 @@ func (s *authService) AuthenticateUser(email, password string) (*User, error) {
 	return user, nil
 }
 
-func (s *authService) CreateUserFromGoogle(email, name string) (*User, error) {
+func (s *authService) CreateUserFromGoogle(email, name string) (*domain.User, error) {
 	existing, err := s.userRepo.FindByEmailOrName(email)
 	if err == nil {
 		logrus.WithField("email", email).Info("Existing Google user found")
 		return existing, nil
 	}
 
-	user := &User{
+	user := &domain.User{
 		Email:    email,
 		Name:     name,
 		Provider: "google",
@@ -150,7 +136,7 @@ func (s *authService) CreateUserFromGoogle(email, name string) (*User, error) {
 	return user, nil
 }
 
-func (s *authService) GetCurrentUser(userID int64) (*User, error) {
+func (s *authService) GetCurrentUser(userID int64) (*domain.User, error) {
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil {
 		logrus.WithError(err).WithField("user_id", userID).Error("Failed to get current user")
@@ -162,16 +148,15 @@ func (s *authService) GetCurrentUser(userID int64) (*User, error) {
 }
 
 func (s *authService) Logout(userID int64) error {
-	userIDStr := strconv.FormatInt(userID, 10)
-	csrfMutex.Lock()
-	delete(csrfTokens, userIDStr)
-	csrfMutex.Unlock()
+	if s.csrfManager != nil {
+		s.csrfManager.Invalidate(userID)
+	}
 
 	logrus.WithField("user_id", userID).Info("User logged out")
 	return nil
 }
 
-func (s *authService) CreateUser(req CreateUserRequest) (*User, error) {
+func (s *authService) CreateUser(req domain.CreateUserRequest) (*domain.User, error) {
 	exists, err := s.userRepo.ExistsByEmailOrName(req.Email, req.Name)
 	if err != nil {
 		return nil, err
@@ -180,20 +165,20 @@ func (s *authService) CreateUser(req CreateUserRequest) (*User, error) {
 		return nil, fmt.Errorf("пользователь с таким email или именем уже существует")
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	hashedPassword, err := security.HashPassword(req.Password)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to hash password")
 		return nil, fmt.Errorf("не удалось создать пользователя")
 	}
 
-	user := &User{
+	user := &domain.User{
 		Email:    req.Email,
 		Name:     req.Name,
 		Initials: req.Initials,
 		INN:      req.INN,
 		Provider: "local",
 		Role:     req.Role,
-		Password: string(hashedPassword),
+		Password: hashedPassword,
 	}
 
 	if _, err := s.userRepo.Create(user); err != nil {
@@ -211,7 +196,7 @@ func (s *authService) CreateUser(req CreateUserRequest) (*User, error) {
 	return user, nil
 }
 
-func (s *authService) GetUsers() ([]User, error) {
+func (s *authService) GetUsers() ([]domain.User, error) {
 	users, err := s.userRepo.FindAll()
 	if err != nil {
 		logrus.WithError(err).Error("Failed to get users")
@@ -225,7 +210,7 @@ func (s *authService) GetUsers() ([]User, error) {
 	return users, nil
 }
 
-func (s *authService) UpdateUser(userID int64, req UpdateUserRequest) (*User, error) {
+func (s *authService) UpdateUser(userID int64, req domain.UpdateUserRequest) (*domain.User, error) {
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil {
 		return nil, fmt.Errorf("пользователь не найден")
@@ -241,7 +226,7 @@ func (s *authService) UpdateUser(userID int64, req UpdateUserRequest) (*User, er
 		}
 	}
 
-	updateParams := UpdateUserParams{
+	updateParams := domain.UpdateUserParams{
 		Name:     req.Name,
 		Email:    req.Email,
 		Initials: req.Initials,
@@ -275,22 +260,31 @@ func (s *authService) UpdateUser(userID int64, req UpdateUserRequest) (*User, er
 }
 
 func (s *authService) DeleteUser(userID int64) error {
-	user, err := s.userRepo.FindByID(userID)
+	_, err := s.userRepo.FindByID(userID)
 	if err != nil {
 		return fmt.Errorf("пользователь не найден")
 	}
 
 	if err := s.userRepo.Delete(userID); err != nil {
-		logrus.WithError(err).WithField("email", user.Email).Error("Failed to delete user")
+		logrus.WithError(err).WithField("user_id", userID).Error("Failed to delete user")
 		return err
 	}
 
-	logrus.WithField("email", user.Email).Info("User deleted successfully")
+	logrus.WithField("user_id", userID).Info("User deleted successfully")
 	return nil
 }
 
-func (s *authService) LogUserActivity(user *User, action, resourceType string, resourceID *int64, details, ip, userAgent string) error {
-	logEntry := &UserActivityLog{
+func (s *authService) GetTotalUsersCount() (int, error) {
+	count, err := s.userRepo.CountAll()
+	if err != nil {
+		logrus.WithError(err).Error("Failed to get users count")
+		return 0, err
+	}
+	return count, nil
+}
+
+func (s *authService) LogUserActivity(user *domain.User, action, resourceType string, resourceID *int64, details, ip, userAgent string) error {
+	log := &domain.UserActivityLog{
 		UserID:       user.ID,
 		UserName:     user.Name,
 		UserEmail:    user.Email,
@@ -302,46 +296,29 @@ func (s *authService) LogUserActivity(user *User, action, resourceType string, r
 		UserAgent:    userAgent,
 	}
 
-	if _, err := s.activityRepo.Create(logEntry); err != nil {
-		logrus.WithError(err).WithField("user_id", user.ID).Error("Failed to log user activity")
+	if _, err := s.activityRepo.Create(log); err != nil {
+		logrus.WithError(err).WithFields(logrus.Fields{
+			"user_id": user.ID,
+			"action":  action,
+		}).Error("Failed to log user activity")
+		return err
 	}
 
 	return nil
 }
 
-func (s *authService) GetUserActivityLogs(filters ActivityLogFilters) ([]UserActivityLog, error) {
+func (s *authService) GetUserActivityLogs(filters domain.ActivityLogFilters) ([]domain.UserActivityLog, error) {
 	logs, err := s.activityRepo.FindWithFilters(filters)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to get user activity logs")
 		return nil, err
 	}
-
 	return logs, nil
 }
 
-func (s *authService) GetTotalUsersCount() (int, error) {
-	return s.userRepo.CountAll()
-}
-
 func (s *authService) GenerateCSRFToken(userID *int64) (string, error) {
-	if userID == nil {
-		return generateCsrfToken(), nil
+	if s.csrfManager != nil {
+		return s.csrfManager.GenerateToken(userID)
 	}
-
-	userIDStr := strconv.FormatInt(*userID, 10)
-
-	csrfMutex.Lock()
-	defer csrfMutex.Unlock()
-
-	csrfTokenEntry, exists := csrfTokens[userIDStr]
-	if !exists || time.Now().After(csrfTokenEntry.expiresAt) {
-		token := generateCsrfToken()
-		csrfTokens[userIDStr] = csrfToken{
-			token:     token,
-			expiresAt: time.Now().Add(24 * time.Hour),
-		}
-		return token, nil
-	}
-
-	return csrfTokenEntry.token, nil
+	return "", nil
 }

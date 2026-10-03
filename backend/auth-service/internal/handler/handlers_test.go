@@ -1,8 +1,7 @@
-package main
+package handler
 
 import (
 	"bytes"
-	"crypto/rand"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -10,123 +9,38 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/sessions"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+
+	"auth-service/internal/config"
+	"auth-service/internal/domain"
+	"auth-service/internal/repository"
+	"auth-service/internal/security"
+	"auth-service/internal/service"
 )
-
-// ─── AuthService Mock ───────────────────────────────────────────────────────
-
-type MockAuthService struct {
-	mock.Mock
-}
-
-func (m *MockAuthService) AuthenticateUser(email, password string) (*User, error) {
-	args := m.Called(email, password)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*User), args.Error(1)
-}
-
-func (m *MockAuthService) CreateUserFromGoogle(email, name string) (*User, error) {
-	args := m.Called(email, name)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*User), args.Error(1)
-}
-
-func (m *MockAuthService) GetCurrentUser(userID int64) (*User, error) {
-	args := m.Called(userID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*User), args.Error(1)
-}
-
-func (m *MockAuthService) Logout(userID int64) error {
-	args := m.Called(userID)
-	return args.Error(0)
-}
-
-func (m *MockAuthService) CreateUser(req CreateUserRequest) (*User, error) {
-	args := m.Called(req)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*User), args.Error(1)
-}
-
-func (m *MockAuthService) GetUsers() ([]User, error) {
-	args := m.Called()
-	return args.Get(0).([]User), args.Error(1)
-}
-
-func (m *MockAuthService) UpdateUser(userID int64, req UpdateUserRequest) (*User, error) {
-	args := m.Called(userID, req)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*User), args.Error(1)
-}
-
-func (m *MockAuthService) DeleteUser(userID int64) error {
-	args := m.Called(userID)
-	return args.Error(0)
-}
-
-func (m *MockAuthService) GetTotalUsersCount() (int, error) {
-	args := m.Called()
-	return args.Int(0), args.Error(1)
-}
-
-func (m *MockAuthService) LogUserActivity(user *User, action, resourceType string, resourceID *int64, details, ip, userAgent string) error {
-	args := m.Called(user, action, resourceType, resourceID, details, ip, userAgent)
-	return args.Error(0)
-}
-
-func (m *MockAuthService) GetUserActivityLogs(filters ActivityLogFilters) ([]UserActivityLog, error) {
-	args := m.Called(filters)
-	return args.Get(0).([]UserActivityLog), args.Error(1)
-}
-
-func (m *MockAuthService) GenerateCSRFToken(userID *int64) (string, error) {
-	args := m.Called(userID)
-	return args.String(0), args.Error(1)
-}
-
-// ─── Handlers Test Suite ────────────────────────────────────────────────────
 
 type HandlersTestSuite struct {
 	suite.Suite
-	mockService  *MockAuthService
-	mockUserRepo *MockUserRepository
+	mockService  *service.MockAuthService
+	mockUserRepo *repository.MockUserRepository
 	handler      *Handler
 	router       *gin.Engine
 }
 
 func (suite *HandlersTestSuite) SetupTest() {
 	gin.SetMode(gin.TestMode)
-	suite.mockService = new(MockAuthService)
-	suite.mockUserRepo = new(MockUserRepository)
+	suite.mockService = new(service.MockAuthService)
+	suite.mockUserRepo = new(repository.MockUserRepository)
 
-	config := &Config{
+	cfg := &config.Config{
 		JWTSecret:       "test-secret-32-chars-minimum!!",
 		PartsServiceURL: "http://localhost:8081",
 	}
 
-	maxAge := 1
-	key := make([]byte, 32)
-	_, _ = rand.Read(key)
-	store = sessions.NewCookieStore(key)
-	store.MaxAge(maxAge)
+	sessionStore, _ := security.NewCookieSessionStore("test-session-secret-32-bytes-long!!")
+	csrfManager := security.NewCSRFManager()
 
-	SetUserRepo(suite.mockUserRepo)
-	SetAuthConfig(config)
-
-	suite.handler = NewHandler(suite.mockService, config)
+	suite.handler = NewHandler(suite.mockService, sessionStore, csrfManager, suite.mockUserRepo, cfg)
 	suite.router = gin.New()
 	SetupRoutes(suite.router, suite.handler)
 }
@@ -146,7 +60,7 @@ func (suite *HandlersTestSuite) TestHealthEndpoint() {
 }
 
 func (suite *HandlersTestSuite) TestUserLoginHandler_Success() {
-	user := &User{ID: 1, Email: "test@example.com", Name: "Test", Role: "operator"}
+	user := &domain.User{ID: 1, Email: "test@example.com", Name: "Test", Role: "operator"}
 	suite.mockService.On("AuthenticateUser", "test@example.com", "password123").Return(user, nil)
 
 	jsonData, _ := json.Marshal(map[string]string{"email": "test@example.com", "password": "password123"})
@@ -221,13 +135,13 @@ func newTestContext(method, path string, body []byte) (*gin.Context, *httptest.R
 }
 
 func (suite *HandlersTestSuite) TestCreateUserHandler_Success() {
-	req := CreateUserRequest{
+	req := domain.CreateUserRequest{
 		Email:    "new@example.com",
 		Name:     "New",
 		Password: "pass123",
 		Role:     "operator",
 	}
-	expected := &User{ID: 2, Email: "new@example.com", Name: "New", Role: "operator"}
+	expected := &domain.User{ID: 2, Email: "new@example.com", Name: "New", Role: "operator"}
 	suite.mockService.On("CreateUser", req).Return(expected, nil)
 
 	jsonData, _ := json.Marshal(req)
@@ -238,7 +152,7 @@ func (suite *HandlersTestSuite) TestCreateUserHandler_Success() {
 }
 
 func (suite *HandlersTestSuite) TestCreateUserHandler_Duplicate() {
-	req := CreateUserRequest{Email: "exists@example.com", Name: "Exists", Password: "pass", Role: "operator"}
+	req := domain.CreateUserRequest{Email: "exists@example.com", Name: "Exists", Password: "pass", Role: "operator"}
 	suite.mockService.On("CreateUser", req).Return(nil, assert.AnError)
 
 	jsonData, _ := json.Marshal(req)
@@ -249,7 +163,7 @@ func (suite *HandlersTestSuite) TestCreateUserHandler_Duplicate() {
 }
 
 func (suite *HandlersTestSuite) TestGetUsersHandler_Success() {
-	users := []User{
+	users := []domain.User{
 		{ID: 1, Email: "user1@example.com", Name: "User 1"},
 		{ID: 2, Email: "user2@example.com", Name: "User 2"},
 	}
@@ -259,28 +173,28 @@ func (suite *HandlersTestSuite) TestGetUsersHandler_Success() {
 	suite.handler.GetUsersHandler(c)
 
 	assert.Equal(suite.T(), http.StatusOK, w.Code)
-	var response map[string][]User
+	var response map[string][]domain.User
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Len(suite.T(), response["users"], 2)
 }
 
 func (suite *HandlersTestSuite) TestGetUsersHandler_Empty() {
-	suite.mockService.On("GetUsers").Return([]User{}, nil)
+	suite.mockService.On("GetUsers").Return([]domain.User{}, nil)
 
 	c, w := newTestContext("GET", "/admin/users", nil)
 	suite.handler.GetUsersHandler(c)
 
 	assert.Equal(suite.T(), http.StatusOK, w.Code)
-	var response map[string][]User
+	var response map[string][]domain.User
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Empty(suite.T(), response["users"])
 }
 
 func (suite *HandlersTestSuite) TestUpdateUserHandler_Success() {
-	req := UpdateUserRequest{Name: "Updated", Role: "admin"}
-	expected := &User{ID: 1, Name: "Updated", Email: "test@example.com", Role: "admin"}
+	req := domain.UpdateUserRequest{Name: "Updated", Role: "admin"}
+	expected := &domain.User{ID: 1, Name: "Updated", Email: "test@example.com", Role: "admin"}
 	suite.mockService.On("UpdateUser", int64(1), req).Return(expected, nil)
 
 	jsonData, _ := json.Marshal(req)
@@ -289,7 +203,7 @@ func (suite *HandlersTestSuite) TestUpdateUserHandler_Success() {
 	suite.handler.UpdateUserHandler(c)
 
 	assert.Equal(suite.T(), http.StatusOK, w.Code)
-	var response User
+	var response domain.User
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), "Updated", response.Name)
@@ -303,7 +217,7 @@ func (suite *HandlersTestSuite) TestUpdateUserHandler_InvalidID() {
 }
 
 func (suite *HandlersTestSuite) TestUpdateUserHandler_NotFound() {
-	req := UpdateUserRequest{Name: "Updated"}
+	req := domain.UpdateUserRequest{Name: "Updated"}
 	suite.mockService.On("UpdateUser", int64(999), req).Return(nil, assert.AnError)
 
 	jsonData, _ := json.Marshal(req)
@@ -352,11 +266,11 @@ func (suite *HandlersTestSuite) TestGetServerLogsHandler() {
 }
 
 func (suite *HandlersTestSuite) TestGetUserActivityLogsHandler() {
-	filters := ActivityLogFilters{
+	filters := domain.ActivityLogFilters{
 		Action: "login",
 		Limit:  100,
 	}
-	logs := []UserActivityLog{
+	logs := []domain.UserActivityLog{
 		{ID: 1, UserID: 1, Action: "login", ResourceType: "user", CreatedAt: time.Now()},
 	}
 	suite.mockService.On("GetUserActivityLogs", filters).Return(logs, nil)
@@ -366,7 +280,7 @@ func (suite *HandlersTestSuite) TestGetUserActivityLogsHandler() {
 	suite.handler.GetUserActivityLogsHandler(c)
 
 	assert.Equal(suite.T(), http.StatusOK, w.Code)
-	var response map[string][]UserActivityLog
+	var response map[string][]domain.UserActivityLog
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Len(suite.T(), response["logs"], 1)
@@ -375,11 +289,11 @@ func (suite *HandlersTestSuite) TestGetUserActivityLogsHandler() {
 
 func (suite *HandlersTestSuite) TestGetUserActivityLogsHandler_WithUserID() {
 	userID := int64(1)
-	filters := ActivityLogFilters{
+	filters := domain.ActivityLogFilters{
 		UserID: &userID,
 		Limit:  100,
 	}
-	logs := []UserActivityLog{
+	logs := []domain.UserActivityLog{
 		{ID: 1, UserID: 1, Action: "create_part", ResourceType: "part", CreatedAt: time.Now()},
 	}
 	suite.mockService.On("GetUserActivityLogs", filters).Return(logs, nil)
@@ -389,7 +303,7 @@ func (suite *HandlersTestSuite) TestGetUserActivityLogsHandler_WithUserID() {
 	suite.handler.GetUserActivityLogsHandler(c)
 
 	assert.Equal(suite.T(), http.StatusOK, w.Code)
-	var response map[string][]UserActivityLog
+	var response map[string][]domain.UserActivityLog
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Len(suite.T(), response["logs"], 1)
@@ -414,7 +328,7 @@ func (suite *HandlersTestSuite) TestGoogleMobileAuthHandler_Success() {
 	googleTokenInfoURL = mockGoogleServer.URL
 	defer func() { googleTokenInfoURL = oldURL }()
 
-	user := &User{ID: 10, Email: "test-google@example.com", Name: "Google User", Role: "operator"}
+	user := &domain.User{ID: 10, Email: "test-google@example.com", Name: "Google User", Role: "operator"}
 	suite.mockService.On("CreateUserFromGoogle", "test-google@example.com", "Google User").Return(user, nil)
 
 	jsonData, _ := json.Marshal(map[string]string{"id_token": "test-id-token"})
@@ -425,7 +339,7 @@ func (suite *HandlersTestSuite) TestGoogleMobileAuthHandler_Success() {
 
 	assert.Equal(suite.T(), http.StatusOK, w.Code)
 
-	var resp LoginResponse
+	var resp domain.LoginResponse
 	err := json.Unmarshal(w.Body.Bytes(), &resp)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), "test-google@example.com", resp.User.Email)
@@ -458,7 +372,7 @@ func (suite *HandlersTestSuite) TestVerifyAuthHandler_Success() {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request, _ = http.NewRequest("GET", "/auth/verify", nil)
-	c.Set("user", User{
+	c.Set("user", domain.User{
 		ID:    42,
 		Email: "verify@example.com",
 		Name:  "Verify User",
@@ -487,4 +401,3 @@ func (suite *HandlersTestSuite) TestVerifyAuthHandler_Unauthorized() {
 func TestHandlersTestSuite(t *testing.T) {
 	suite.Run(t, new(HandlersTestSuite))
 }
-

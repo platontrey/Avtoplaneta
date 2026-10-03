@@ -1,4 +1,4 @@
-package main
+package config
 
 import "os"
 
@@ -17,7 +17,7 @@ type Config struct {
 
 // LoadConfig загружает конфигурацию из переменных окружения
 func LoadConfig() *Config {
-	config := &Config{
+	cfg := &Config{
 		DatabaseURL:     os.Getenv("DATABASE_URL"),
 		SessionSecret:   os.Getenv("SESSION_SECRET"),
 		NodeEnv:         os.Getenv("NODE_ENV"),
@@ -29,25 +29,24 @@ func LoadConfig() *Config {
 		RedisURL:        os.Getenv("REDIS_URL"),
 	}
 
-	// Значения по умолчанию
-	if config.PartsGRPCAddr == "" {
-		config.PartsGRPCAddr = "localhost:9081"
+	if cfg.PartsGRPCAddr == "" {
+		cfg.PartsGRPCAddr = "localhost:9081"
 	}
-	if config.PartsServiceURL == "" {
-		config.PartsServiceURL = "http://localhost:8081"
+	if cfg.PartsServiceURL == "" {
+		cfg.PartsServiceURL = "http://localhost:8081"
 	}
-	if config.DatabaseURL == "" {
-		config.DatabaseURL = "host=localhost user=postgres password=qewret123 dbname=autoplanet port=5432 sslmode=disable"
+	if cfg.DatabaseURL == "" {
+		cfg.DatabaseURL = "host=localhost user=postgres password=qewret123 dbname=autoplanet port=5432 sslmode=disable"
 	}
-	if config.SessionSecret == "" {
-		config.SessionSecret = "CHANGE_THIS_IN_PRODUCTION_TO_A_SECURE_RANDOM_KEY_32_CHARS_MIN"
+	if cfg.SessionSecret == "" {
+		cfg.SessionSecret = "CHANGE_THIS_IN_PRODUCTION_TO_A_SECURE_RANDOM_KEY_32_CHARS_MIN"
 	}
-	if config.Port == "" {
-		config.Port = "8083"
+	if cfg.Port == "" {
+		cfg.Port = "8083"
 	}
-	if config.JWTSecret == "" {
-		config.JWTSecret = config.SessionSecret // fallback — используем SESSION_SECRET
+	if cfg.JWTSecret == "" {
+		cfg.JWTSecret = cfg.SessionSecret
 	}
 
-	return config
+	return cfg
 }

@@ -1,12 +1,15 @@
-package main
+package security
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"time"
+
+	"auth-service/internal/domain"
 )
 
+// JWTClaims структура claims для JWT токена
 type JWTClaims struct {
 	UserID int64  `json:"user_id"`
 	Email  string `json:"email"`
@@ -15,7 +18,8 @@ type JWTClaims struct {
 	jwt.RegisteredClaims
 }
 
-func GenerateJWTTokens(user *User, config *Config) (accessToken, refreshToken string, err error) {
+// GenerateJWTTokens создает пару access и refresh токенов
+func GenerateJWTTokens(user *domain.User, secret string) (accessToken, refreshToken string, err error) {
 	accessClaims := JWTClaims{
 		UserID: user.ID,
 		Email:  user.Email,
@@ -29,7 +33,7 @@ func GenerateJWTTokens(user *User, config *Config) (accessToken, refreshToken st
 	}
 
 	accessTokenObj := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
-	accessToken, err = accessTokenObj.SignedString([]byte(config.JWTSecret))
+	accessToken, err = accessTokenObj.SignedString([]byte(secret))
 	if err != nil {
 		return "", "", fmt.Errorf("не удалось подписать access token: %w", err)
 	}
@@ -41,7 +45,7 @@ func GenerateJWTTokens(user *User, config *Config) (accessToken, refreshToken st
 	}
 
 	refreshTokenObj := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
-	refreshToken, err = refreshTokenObj.SignedString([]byte(config.JWTSecret))
+	refreshToken, err = refreshTokenObj.SignedString([]byte(secret))
 	if err != nil {
 		return "", "", fmt.Errorf("не удалось подписать refresh token: %w", err)
 	}
@@ -49,6 +53,7 @@ func GenerateJWTTokens(user *User, config *Config) (accessToken, refreshToken st
 	return accessToken, refreshToken, nil
 }
 
+// ValidateJWTToken валидирует access токен
 func ValidateJWTToken(tokenString, secret string) (*JWTClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -69,6 +74,7 @@ func ValidateJWTToken(tokenString, secret string) (*JWTClaims, error) {
 	return claims, nil
 }
 
+// ValidateRefreshToken валидирует refresh токен и возвращает ID пользователя
 func ValidateRefreshToken(tokenString, secret string) (int64, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {

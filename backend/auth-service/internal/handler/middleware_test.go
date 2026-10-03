@@ -1,43 +1,42 @@
-package main
+package handler
 
 import (
-	"crypto/rand"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/sessions"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
+
+	"auth-service/internal/config"
+	"auth-service/internal/domain"
+	"auth-service/internal/repository"
+	"auth-service/internal/security"
 )
 
-func setupTestMiddlewareRouter(userRepo UserRepository, cfg *Config) *gin.Engine {
+func setupTestMiddlewareRouter(userRepo repository.UserRepository, cfg *config.Config) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 
-	key := make([]byte, 32)
-	_, _ = rand.Read(key)
-	store = sessions.NewCookieStore(key)
+	sessionStore, _ := security.NewCookieSessionStore("test-jwt-secret-key-32byteslong!")
+	csrfManager := security.NewCSRFManager()
+	h := NewHandler(nil, sessionStore, csrfManager, userRepo, cfg)
 
-	SetUserRepo(userRepo)
-	SetAuthConfig(cfg)
-
-	r.Use(csrfMiddleware)
+	r.Use(h.CSRFMiddleware)
 
 	admin := r.Group("/admin")
-	admin.Use(authMiddleware)
+	admin.Use(h.AuthMiddleware)
 	{
-		admin.GET("/users", requireMinRole("manager"), func(c *gin.Context) {
+		admin.GET("/users", h.RequireMinRole("manager"), func(c *gin.Context) {
 			u, _ := c.Get("user")
 			c.JSON(http.StatusOK, gin.H{"status": "ok", "user": u})
 		})
 
-		admin.POST("/users", requireRole("admin"), func(c *gin.Context) {
+		admin.POST("/users", h.RequireRole("admin"), func(c *gin.Context) {
 			c.JSON(http.StatusCreated, gin.H{"status": "created"})
 		})
 
-		admin.DELETE("/users/:id", requireRole("admin"), func(c *gin.Context) {
+		admin.DELETE("/users/:id", h.RequireRole("admin"), func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"status": "deleted"})
 		})
 	}
@@ -46,12 +45,12 @@ func setupTestMiddlewareRouter(userRepo UserRepository, cfg *Config) *gin.Engine
 }
 
 func TestAuthMiddleware_JWTBearer(t *testing.T) {
-	cfg := &Config{
+	cfg := &config.Config{
 		JWTSecret: "test-jwt-secret-key-32byteslong!",
 	}
-	mockRepo := new(MockUserRepository)
+	mockRepo := new(repository.MockUserRepository)
 
-	adminUser := &User{
+	adminUser := &domain.User{
 		ID:    1,
 		Email: "admin@avtoplaneta.ru",
 		Name:  "Admin",
@@ -60,7 +59,7 @@ func TestAuthMiddleware_JWTBearer(t *testing.T) {
 
 	mockRepo.On("FindByID", int64(1)).Return(adminUser, nil)
 
-	accessToken, _, err := GenerateJWTTokens(adminUser, cfg)
+	accessToken, _, err := security.GenerateJWTTokens(adminUser, cfg.JWTSecret)
 	assert.NoError(t, err)
 
 	router := setupTestMiddlewareRouter(mockRepo, cfg)
@@ -108,19 +107,19 @@ func TestAuthMiddleware_JWTBearer(t *testing.T) {
 }
 
 func TestAuthMiddleware_RoleHierarchy(t *testing.T) {
-	cfg := &Config{
+	cfg := &config.Config{
 		JWTSecret: "test-jwt-secret-key-32byteslong!",
 	}
-	mockRepo := new(MockUserRepository)
+	mockRepo := new(repository.MockUserRepository)
 
-	managerUser := &User{
+	managerUser := &domain.User{
 		ID:    2,
 		Email: "manager@avtoplaneta.ru",
 		Name:  "Manager",
 		Role:  "manager",
 	}
 
-	operatorUser := &User{
+	operatorUser := &domain.User{
 		ID:    3,
 		Email: "operator@avtoplaneta.ru",
 		Name:  "Operator",
@@ -130,8 +129,8 @@ func TestAuthMiddleware_RoleHierarchy(t *testing.T) {
 	mockRepo.On("FindByID", int64(2)).Return(managerUser, nil)
 	mockRepo.On("FindByID", int64(3)).Return(operatorUser, nil)
 
-	managerToken, _, _ := GenerateJWTTokens(managerUser, cfg)
-	operatorToken, _, _ := GenerateJWTTokens(operatorUser, cfg)
+	managerToken, _, _ := security.GenerateJWTTokens(managerUser, cfg.JWTSecret)
+	operatorToken, _, _ := security.GenerateJWTTokens(operatorUser, cfg.JWTSecret)
 
 	router := setupTestMiddlewareRouter(mockRepo, cfg)
 
@@ -158,8 +157,8 @@ func TestAuthMiddleware_RoleHierarchy(t *testing.T) {
 }
 
 func TestCSRFMiddleware_BlocksCookiePostWithoutToken(t *testing.T) {
-	cfg := &Config{JWTSecret: "test-secret"}
-	mockRepo := new(MockUserRepository)
+	cfg := &config.Config{JWTSecret: "test-secret-at-least-32-bytes-long!"}
+	mockRepo := new(repository.MockUserRepository)
 	router := setupTestMiddlewareRouter(mockRepo, cfg)
 
 	// POST запрос без Bearer и без CSRF токена должен отклоняться
@@ -170,6 +169,3 @@ func TestCSRFMiddleware_BlocksCookiePostWithoutToken(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, w.Code)
 	assert.Contains(t, w.Body.String(), "Требуется токен CSRF")
 }
-
-// Заглушка, чтобы избежать неиспользуемого импорта
-var _ = mock.Anything
