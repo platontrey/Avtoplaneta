@@ -3,12 +3,13 @@
 */
 
 import { Routes, Route } from 'react-router-dom';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import Header from './components/Header';
 import ErrorBoundary from './components/ErrorBoundary';
 import AIAgent from './components/AIAgent';
 import MobileBottomNav from './components/MobileBottomNav';
 import { useAuth } from './features/auth/hooks/useAuth';
+import { preloadSecondaryRoutes } from './lib/prefetch';
 
 // Lazy loading для компонентов
 const Inventory = lazy(() => import('./components/Inventory'));
@@ -34,6 +35,12 @@ const LoadingSpinner = () => (
 function App() {
   const { user, isLoading, logout } = useAuth();
   const [isAIOpen, setIsAIOpen] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      preloadSecondaryRoutes();
+    }
+  }, [user]);
 
   if (isLoading) {
     return (

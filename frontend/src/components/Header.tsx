@@ -18,6 +18,13 @@ import ThemeToggle from './ThemeToggle';
 import { cn } from "@/lib/utils";
 
 import type { User } from '../features/auth/types';
+import {
+  prefetchInventory,
+  prefetchStatistics,
+  prefetchMessages,
+  prefetchAddCar,
+  prefetchOrders,
+} from '@/lib/prefetch';
 
 /**
  * Интерфейс для пропсов компонента Header
@@ -71,23 +78,48 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
           </div>
 
           <div className="hidden sm:flex gap-1">
-            <Link to="/inventory" className={navButtonClass(isActivePath('/inventory'))}>
+            <Link
+              to="/inventory"
+              onMouseEnter={prefetchInventory}
+              onTouchStart={prefetchInventory}
+              className={navButtonClass(isActivePath('/inventory'))}
+            >
               <Package />
               Инвентарь
             </Link>
-            <Link to="/statistics" className={navButtonClass(isActivePath('/statistics'))}>
+            <Link
+              to="/statistics"
+              onMouseEnter={prefetchStatistics}
+              onTouchStart={prefetchStatistics}
+              className={navButtonClass(isActivePath('/statistics'))}
+            >
               <BarChart3 />
               Статистика
             </Link>
-            <Link to="/messages" className={navButtonClass(isActivePath('/messages'))}>
+            <Link
+              to="/messages"
+              onMouseEnter={prefetchMessages}
+              onTouchStart={prefetchMessages}
+              className={navButtonClass(isActivePath('/messages'))}
+            >
               <MessageCircle />
               Сообщения
             </Link>
-            <Link to="/add-car" className={cn(navButtonClass(isActivePath('/add-car')), "!px-12")}>
+            <Link
+              to="/add-car"
+              onMouseEnter={prefetchAddCar}
+              onTouchStart={prefetchAddCar}
+              className={cn(navButtonClass(isActivePath('/add-car')), "!px-12")}
+            >
               <Plus />
               Добавить
             </Link>
-            <Link to="/orders" className={navButtonClass(isActivePath('/orders'))}>
+            <Link
+              to="/orders"
+              onMouseEnter={prefetchOrders}
+              onTouchStart={prefetchOrders}
+              className={navButtonClass(isActivePath('/orders'))}
+            >
               <Package />
               Заказы
             </Link>
@@ -102,31 +134,56 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" side="bottom" sideOffset={5} style={{ zIndex: 9999 }} onPointerDownOutside={(e) => e.preventDefault()}>
                 <DropdownMenuItem asChild>
-                  <Link to="/inventory" className="flex items-center">
+                  <Link
+                    to="/inventory"
+                    onMouseEnter={prefetchInventory}
+                    onTouchStart={prefetchInventory}
+                    className="flex items-center"
+                  >
                     <Package className="w-4 h-4 mr-2" />
                     Инвентарь
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/statistics" className="flex items-center">
+                  <Link
+                    to="/statistics"
+                    onMouseEnter={prefetchStatistics}
+                    onTouchStart={prefetchStatistics}
+                    className="flex items-center"
+                  >
                     <BarChart3 className="w-4 h-4 mr-2" />
                     Статистика
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/messages" className="flex items-center">
+                  <Link
+                    to="/messages"
+                    onMouseEnter={prefetchMessages}
+                    onTouchStart={prefetchMessages}
+                    className="flex items-center"
+                  >
                     <MessageCircle className="w-4 h-4 mr-2" />
                     Сообщения
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/add-car" className="flex items-center">
+                  <Link
+                    to="/add-car"
+                    onMouseEnter={prefetchAddCar}
+                    onTouchStart={prefetchAddCar}
+                    className="flex items-center"
+                  >
                     <Plus className="w-4 h-4 mr-2" />
                     Добавить
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/orders" className="flex items-center">
+                  <Link
+                    to="/orders"
+                    onMouseEnter={prefetchOrders}
+                    onTouchStart={prefetchOrders}
+                    className="flex items-center"
+                  >
                     <Package className="w-4 h-4 mr-2" />
                     Заказы
                   </Link>

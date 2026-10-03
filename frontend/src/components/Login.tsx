@@ -2,7 +2,8 @@
  * Copyright (c) 2025 Avtoplaneta. All rights reserved.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -14,6 +15,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 
 import { useAuth } from '../features/auth/hooks/useAuth';
+import { scheduleIdle, preloadCoreRoutes } from '@/lib/prefetch';
 
 const loginSchema = z.object({
   email: z.string().min(1, { message: "Введите электронную почту или имя пользователя" }),
@@ -23,9 +25,17 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function Login() {
+  const navigate = useNavigate();
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const { login, isLoading } = useAuth();
+
+  // Фоновая предзагрузка основного интерфейса, пока пользователь на экране логина
+  useEffect(() => {
+    scheduleIdle(() => {
+      preloadCoreRoutes();
+    }, 300);
+  }, []);
 
   const {
     register,
@@ -46,8 +56,8 @@ export default function Login() {
 
     try {
       await login(data);
-      // Redirect to inventory after successful login
-      window.location.href = '/';
+      // Мгновенный SPA переход в инвентарь без жесткой перезагрузки страницы
+      navigate('/');
     } catch (err) {
       console.error('Login error:', err);
       setError(err instanceof Error ? err.message : 'Не удалось войти');

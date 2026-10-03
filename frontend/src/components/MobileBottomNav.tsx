@@ -3,47 +3,66 @@ import { Link, useLocation } from 'react-router-dom';
 import { Package, BarChart3, MessageCircle, Plus, Bot } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptic } from '@/lib/haptic';
+import {
+  prefetchInventory,
+  prefetchStatistics,
+  prefetchMessages,
+  prefetchAddCar,
+  prefetchOrders,
+} from '@/lib/prefetch';
 
 const MobileBottomNav: React.FC<{ onOpenAI: () => void }> = ({ onOpenAI }) => {
   const location = useLocation();
 
-  const navItems: { to?: string; type?: 'ai'; icon: React.ElementType; label: string; active: boolean }[] = [
+  const navItems: {
+    to?: string;
+    type?: 'ai';
+    icon: React.ElementType;
+    label: string;
+    active: boolean;
+    prefetch?: () => void;
+  }[] = [
     {
       to: '/inventory',
       icon: Package,
       label: 'Инвентарь',
-      active: location.pathname === '/' || location.pathname === '/inventory'
+      active: location.pathname === '/' || location.pathname === '/inventory',
+      prefetch: prefetchInventory,
     },
     {
       to: '/statistics',
       icon: BarChart3,
       label: 'Статистика',
-      active: location.pathname === '/statistics'
+      active: location.pathname === '/statistics',
+      prefetch: prefetchStatistics,
     },
     {
       to: '/messages',
       icon: MessageCircle,
       label: 'Сообщения',
-      active: location.pathname === '/messages'
+      active: location.pathname === '/messages',
+      prefetch: prefetchMessages,
     },
     {
       to: '/add-car',
       icon: Plus,
       label: 'Добавить',
-      active: location.pathname === '/add-car'
+      active: location.pathname === '/add-car',
+      prefetch: prefetchAddCar,
     },
     {
       to: '/orders',
       icon: Package,
       label: 'Заказы',
-      active: location.pathname === '/orders'
+      active: location.pathname === '/orders',
+      prefetch: prefetchOrders,
     },
     {
       type: 'ai',
       icon: Bot,
       label: 'ИИ',
-      active: false
-    }
+      active: false,
+    },
   ];
 
   return (
@@ -76,6 +95,8 @@ const MobileBottomNav: React.FC<{ onOpenAI: () => void }> = ({ onOpenAI }) => {
               key={item.to}
               to={item.to!}
               onClick={() => haptic.selection()}
+              onMouseEnter={item.prefetch}
+              onTouchStart={() => item.prefetch?.()}
               className={cn(
                 "flex flex-col items-center justify-center p-3 rounded-lg transition-colors min-w-0 flex-1 min-h-[44px]",
                 item.active

@@ -650,7 +650,7 @@ interface GuideArticle {
   id: string;
   category: 'onboarding' | 'warehouse' | 'orders' | 'integrations' | 'mobile';
   title: string;
-  icon: any;
+  icon: React.ElementType;
   summary: string;
   badge: string;
   content: React.ReactNode;
@@ -751,7 +751,7 @@ export default function Readme({ user, defaultTab = 'guides' }: ReadmeProps) {
   // ---------------------------------------------------------------------------
   // СТАТЬИ БАЗЫ ЗНАНИЙ
   // ---------------------------------------------------------------------------
-  const GUIDE_ARTICLES: GuideArticle[] = [
+  const GUIDE_ARTICLES: GuideArticle[] = useMemo(() => [
     {
       id: 'onboarding-intro',
       category: 'onboarding',
@@ -1238,11 +1238,11 @@ export default function Readme({ user, defaultTab = 'guides' }: ReadmeProps) {
         </div>
       ),
     },
-  ];
+  ], []);
 
   const currentArticle = useMemo(() => {
     return GUIDE_ARTICLES.find((a) => a.id === selectedArticleId) || GUIDE_ARTICLES[0];
-  }, [selectedArticleId]);
+  }, [selectedArticleId, GUIDE_ARTICLES]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
