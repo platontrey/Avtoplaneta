@@ -616,9 +616,9 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
               ),
             if (_shows('car_release_date'))
               _field(_carReleaseDateCtrl, 'Год выпуска'),
-            if (_shows('front_rear')) _field(_frontRearCtrl, 'Перед / зад'),
-            if (_shows('left_right')) _field(_leftRightCtrl, 'Лево / право'),
-            if (_shows('top_bottom')) _field(_topBottomCtrl, 'Верх / низ'),
+            if (_shows('front_rear')) _frontRearField(),
+            if (_shows('left_right')) _leftRightField(),
+            if (_shows('top_bottom')) _topBottomField(),
             if (_shows('number')) _field(_numberCtrl, 'Номер детали'),
             if (_shows('manufacturer'))
               _field(_manufacturerCtrl, 'Производитель'),
@@ -1067,6 +1067,86 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
             .map((type) => DropdownMenuItem(value: type, child: Text(type)))
             .toList(),
         onChanged: (value) => _driveCtrl.text = value ?? '',
+      ),
+    );
+  }
+
+  Widget _frontRearField() {
+    final current = _frontRearCtrl.text.trim();
+    String normalized = current;
+    if (current.toLowerCase() == 'перед') normalized = 'F';
+    if (current.toLowerCase() == 'зад') normalized = 'R';
+
+    final items = [
+      const DropdownMenuItem(value: '', child: Text('Не указано')),
+      const DropdownMenuItem(value: 'F', child: Text('F (Перед)')),
+      const DropdownMenuItem(value: 'R', child: Text('R (Зад)')),
+      if (normalized.isNotEmpty && normalized != 'F' && normalized != 'R')
+        DropdownMenuItem(value: normalized, child: Text(normalized)),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<String>(
+        key: ValueKey('front_rear_$normalized'),
+        initialValue: normalized,
+        isExpanded: true,
+        decoration: const InputDecoration(labelText: 'Перед / зад'),
+        items: items,
+        onChanged: (value) => _frontRearCtrl.text = value ?? '',
+      ),
+    );
+  }
+
+  Widget _leftRightField() {
+    final current = _leftRightCtrl.text.trim();
+    String normalized = current;
+    if (current.toLowerCase() == 'лево') normalized = 'L';
+    if (current.toLowerCase() == 'право') normalized = 'R';
+
+    final items = [
+      const DropdownMenuItem(value: '', child: Text('Не указано')),
+      const DropdownMenuItem(value: 'L', child: Text('L (Лево)')),
+      const DropdownMenuItem(value: 'R', child: Text('R (Право)')),
+      if (normalized.isNotEmpty && normalized != 'L' && normalized != 'R')
+        DropdownMenuItem(value: normalized, child: Text(normalized)),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<String>(
+        key: ValueKey('left_right_$normalized'),
+        initialValue: normalized,
+        isExpanded: true,
+        decoration: const InputDecoration(labelText: 'Лево / право'),
+        items: items,
+        onChanged: (value) => _leftRightCtrl.text = value ?? '',
+      ),
+    );
+  }
+
+  Widget _topBottomField() {
+    final current = _topBottomCtrl.text.trim();
+    const standard = ['Верх', 'Низ', 'Середина'];
+
+    final items = [
+      const DropdownMenuItem(value: '', child: Text('Не указано')),
+      const DropdownMenuItem(value: 'Верх', child: Text('Верх')),
+      const DropdownMenuItem(value: 'Низ', child: Text('Низ')),
+      const DropdownMenuItem(value: 'Середина', child: Text('Середина')),
+      if (current.isNotEmpty && !standard.contains(current))
+        DropdownMenuItem(value: current, child: Text(current)),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<String>(
+        key: ValueKey('top_bottom_$current'),
+        initialValue: current,
+        isExpanded: true,
+        decoration: const InputDecoration(labelText: 'Верх / низ'),
+        items: items,
+        onChanged: (value) => _topBottomCtrl.text = value ?? '',
       ),
     );
   }
