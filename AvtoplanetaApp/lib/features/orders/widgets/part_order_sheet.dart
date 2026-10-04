@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/api/api_endpoints.dart';
 import '../../../core/models/customer.dart';
 import '../../../core/models/part.dart';
 import '../../inventory/providers/inventory_provider.dart';
@@ -144,7 +145,7 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
       if (_mode == 'existing') {
         for (final item in items) {
           await apiClient.dio.post(
-            '/api/v1/orders/$_selectedOrderId/items',
+            ApiEndpoints.orderItems(_selectedOrderId),
             data: item,
           );
         }
@@ -187,7 +188,7 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
 
         final discount = double.tryParse(_discountController.text) ?? 0.0;
         await apiClient.dio.post(
-          '/api/v1/orders',
+          ApiEndpoints.orders,
           data: {
             'customer_id': matchedCustomer?.id ?? 0,
             'discount': discount,

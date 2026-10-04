@@ -889,6 +889,7 @@ func (s *inventoryService) UpdateEarnings(ctx context.Context, amount float64) e
 		return err
 	}
 
+	s.invalidateStatisticsCache(ctx)
 	logrus.WithField("totalEarnings", s.totalEarnings).Info("Updated total earnings in database")
 	return nil
 }

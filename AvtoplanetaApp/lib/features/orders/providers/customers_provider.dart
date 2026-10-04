@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/api/api_endpoints.dart';
 import '../../../core/models/customer.dart';
 
 class CustomerFilter {
@@ -49,7 +50,7 @@ final customersProvider = FutureProvider<List<Customer>>((ref) async {
   }
 
   final response = await apiClient.dio.get(
-    '/api/v1/orders/customers',
+    ApiEndpoints.customers,
     queryParameters: queryParams,
   );
 
@@ -69,7 +70,7 @@ final customersProvider = FutureProvider<List<Customer>>((ref) async {
 
 final customerDetailsProvider =
     FutureProvider.family<CustomerDetails, int>((ref, id) async {
-  final response = await apiClient.dio.get('/api/v1/orders/customers/$id');
+  final response = await apiClient.dio.get(ApiEndpoints.customerById(id));
   final data = response.data;
   if (data is Map) {
     return CustomerDetails.fromJson(Map<String, dynamic>.from(data));
@@ -89,7 +90,7 @@ class CustomerService {
     double discountPercent = 0.0,
   }) async {
     final response = await apiClient.dio.post(
-      '/api/v1/orders/customers',
+      ApiEndpoints.customers,
       data: {
         'name': name.trim(),
         'phone': phone.trim(),
@@ -116,7 +117,7 @@ class CustomerService {
     double discountPercent = 0.0,
   }) async {
     final response = await apiClient.dio.put(
-      '/api/v1/orders/customers/$id',
+      ApiEndpoints.customerById(id),
       data: {
         'name': name.trim(),
         'phone': phone.trim(),
@@ -132,6 +133,6 @@ class CustomerService {
   }
 
   static Future<void> deleteCustomer(int id) async {
-    await apiClient.dio.delete('/api/v1/orders/customers/$id');
+    await apiClient.dio.delete(ApiEndpoints.customerById(id));
   }
 }

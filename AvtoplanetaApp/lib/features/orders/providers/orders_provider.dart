@@ -1,10 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/api/api_endpoints.dart';
 import '../../../core/models/order.dart';
 
 final ordersProvider = FutureProvider<OrdersResponse>((ref) async {
-  final response = await apiClient.dio.get('/api/v1/orders');
+  final response = await apiClient.dio.get(ApiEndpoints.orders);
   final data = response.data;
   if (data is List) {
     final orders = data
@@ -20,7 +21,7 @@ final ordersProvider = FutureProvider<OrdersResponse>((ref) async {
 });
 
 final completedOrdersProvider = FutureProvider<OrdersResponse>((ref) async {
-  final response = await apiClient.dio.get('/api/v1/orders', queryParameters: {'state': 'completed'});
+  final response = await apiClient.dio.get(ApiEndpoints.orders, queryParameters: {'state': 'completed'});
   final data = response.data;
   if (data is List) {
     final orders = data

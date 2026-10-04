@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/api/api_client.dart';
+import '../../../core/api/api_endpoints.dart';
 import '../../../core/models/customer.dart';
 import '../../../core/models/order.dart';
 import '../../../core/utils/formatters.dart';
@@ -860,7 +861,7 @@ class _OrderActions extends StatelessWidget {
               description:
                   'Завершить продажу по заказу #$orderId? Запчасти будут списаны со склада и учтены в статистике продаж.',
               actionLabel: 'Выдать / Завершить',
-              path: '/api/v1/orders/$orderId/complete',
+              path: ApiEndpoints.completeOrder(orderId),
               method: 'PUT',
             ),
             child: const Text('Выдать / Завершить'),
@@ -875,7 +876,7 @@ class _OrderActions extends StatelessWidget {
               description:
                   'Отменить заказ #$orderId? Запчасти останутся в наличии на складе.',
               actionLabel: 'Отменить заказ',
-              path: '/api/v1/orders/$orderId',
+              path: ApiEndpoints.orderById(orderId),
               method: 'DELETE',
             ),
             style: OutlinedButton.styleFrom(foregroundColor: Colors.red),

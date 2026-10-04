@@ -27,6 +27,7 @@ class ApiClient {
       },
     ));
 
+    _dio.interceptors.add(_ContentTypeValidatorInterceptor());
     _dio.interceptors.add(_AuthInterceptor(_dio));
     _dio.interceptors.add(_ErrorLoggingInterceptor());
 
@@ -150,6 +151,37 @@ class _ErrorLoggingInterceptor extends Interceptor {
       );
     }
     handler.next(err);
+  }
+}
+
+/// Перехватчик для защиты от ошибочных HTML-ответов сервера (например, при некорректной маршрутизации SPA или сбое прокси).
+class _ContentTypeValidatorInterceptor extends Interceptor {
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    final contentType =
+        response.headers.value('content-type')?.toLowerCase() ?? '';
+    final data = response.data;
+
+    final isHtmlContent = contentType.contains('text/html');
+    final isHtmlString = data is String &&
+        (data.trimLeft().toLowerCase().startsWith('<!doctype html') ||
+            data.trimLeft().toLowerCase().startsWith('<html'));
+
+    if (isHtmlContent || isHtmlString) {
+      final path = response.requestOptions.path;
+      final error = DioException(
+        requestOptions: response.requestOptions,
+        response: response,
+        type: DioExceptionType.badResponse,
+        error:
+            'Ошибка маршрутизации API: сервер вернул HTML-страницу вместо JSON данных для эндпоинта "$path". '
+            'Проверьте конфигурацию маршрутизации бэкенда.',
+      );
+      handler.reject(error);
+      return;
+    }
+
+    handler.next(response);
   }
 }
 
