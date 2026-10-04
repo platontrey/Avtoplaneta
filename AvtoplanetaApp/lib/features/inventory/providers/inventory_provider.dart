@@ -337,6 +337,9 @@ bool _matchesTopBottom(String? partVal, String filterVal) {
   if (f == 'низ' || f == 'нижний' || f == 'b' || f == 'l' || f == 'bottom' || f == 'lower') {
     return p == 'b' || p == 'l' || p.contains('низ') || p.contains('bottom') || p.contains('lower');
   }
+  if (f == 'середина' || f == 'средний' || f == 'm' || f == 'mid' || f == 'middle') {
+    return p.contains('середина') || p.contains('средн') || p == 'm' || p == 'mid';
+  }
   if (f == 'верх / низ' || f == 'верх/низ') {
     return p.contains('верх') || p.contains('низ') || p == 't' || p == 'b';
   }

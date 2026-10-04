@@ -18,8 +18,10 @@ import '../../auth/providers/auth_provider.dart';
 import '../../orders/widgets/part_order_sheet.dart';
 import '../providers/inventory_provider.dart';
 import '../providers/part_catalog_provider.dart';
+import '../providers/vehicle_catalog_provider.dart';
 import '../widgets/bulk_part_actions.dart';
 import '../widgets/photo_viewer_dialog.dart';
+import '../widgets/vehicle_picker_field.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
   const InventoryScreen({super.key});
@@ -719,10 +721,16 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       addChip('Кол-во до: ${filter.maxQuantity}', filter.copyWith(maxQuantity: '', page: 1));
     }
     if (filter.frontRear.isNotEmpty) {
-      addChip('Перед/зад: ${filter.frontRear}', filter.copyWith(frontRear: '', page: 1));
+      final label = filter.frontRear == 'F'
+          ? 'F (Перед)'
+          : (filter.frontRear == 'R' ? 'R (Зад)' : filter.frontRear);
+      addChip('Перед/зад: $label', filter.copyWith(frontRear: '', page: 1));
     }
     if (filter.leftRight.isNotEmpty) {
-      addChip('Право/лево: ${filter.leftRight}', filter.copyWith(leftRight: '', page: 1));
+      final label = filter.leftRight == 'L'
+          ? 'L (Лево)'
+          : (filter.leftRight == 'R' ? 'R (Право)' : filter.leftRight);
+      addChip('Право/лево: $label', filter.copyWith(leftRight: '', page: 1));
     }
     if (filter.topBottom.isNotEmpty) {
       addChip('Верх/низ: ${filter.topBottom}', filter.copyWith(topBottom: '', page: 1));
@@ -928,7 +936,7 @@ const _defaultPartCategories = [
   'Другое',
 ];
 
-class _InventoryFilterSheet extends StatefulWidget {
+class _InventoryFilterSheet extends ConsumerStatefulWidget {
   final InventoryFilter current;
   final List<String> categories;
 
@@ -938,10 +946,10 @@ class _InventoryFilterSheet extends StatefulWidget {
   });
 
   @override
-  State<_InventoryFilterSheet> createState() => _InventoryFilterSheetState();
+  ConsumerState<_InventoryFilterSheet> createState() => _InventoryFilterSheetState();
 }
 
-class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
+class _InventoryFilterSheetState extends ConsumerState<_InventoryFilterSheet> {
   late final TextEditingController _brandController;
   late final TextEditingController _modelController;
   late final TextEditingController _locationController;
@@ -1023,9 +1031,20 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
     _category = widget.current.category;
     _transmission = widget.current.transmission;
     _drive = widget.current.drive;
+
     _frontRear = widget.current.frontRear;
+    if (_frontRear.toLowerCase() == 'перед') _frontRear = 'F';
+    if (_frontRear.toLowerCase() == 'зад') _frontRear = 'R';
+
     _leftRight = widget.current.leftRight;
+    if (_leftRight.toLowerCase() == 'лево') _leftRight = 'L';
+    if (_leftRight.toLowerCase() == 'право') _leftRight = 'R';
+
     _topBottom = widget.current.topBottom;
+    if (_topBottom.toLowerCase() == 'верх') _topBottom = 'Верх';
+    if (_topBottom.toLowerCase() == 'низ') _topBottom = 'Низ';
+    if (_topBottom.toLowerCase() == 'середина') _topBottom = 'Середина';
+
     _season = widget.current.season;
     _status = widget.current.status;
     _hasPhoto = widget.current.hasPhoto;
@@ -1274,6 +1293,17 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final vehicleCatalog = ref.watch(vehicleCatalogProvider).valueOrNull;
+    final partCatalog = ref.watch(partCatalogProvider).valueOrNull;
+
+    final brandOptions = vehicleCatalog?.brands.map((b) => b.name).toList() ?? const <String>[];
+    final modelOptions = vehicleCatalog?.modelsOf(_brandController.text.trim()) ?? const <String>[];
+    final bodyOptions = vehicleCatalog?.bodiesOf(_brandController.text.trim(), _modelController.text.trim()) ?? const <String>[];
+    final engineOptions = vehicleCatalog?.enginesOf(_brandController.text.trim(), _modelController.text.trim()) ?? const <String>[];
+
+    final transmissionCatalogOptions = partCatalog?.optionsForAttribute('transmission') ?? const <String>[];
+    final driveCatalogOptions = partCatalog?.optionsForAttribute('drive') ?? const <String>[];
+
     final categories = {
       ..._defaultPartCategories,
       ...widget.categories.where((category) => category.isNotEmpty),
@@ -1367,23 +1397,18 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
                       ],
                       onChanged: (value) => setState(() => _category = value ?? ''),
                     ),
-                    const SizedBox(height: 12),
-                    TextField(
+                    VehiclePickerField(
                       controller: _brandController,
-                      onChanged: (_) => setState(() {}),
-                      decoration: const InputDecoration(
-                        labelText: 'Бренд',
-                        hintText: 'BMW, Toyota…',
-                      ),
+                      label: 'Бренд',
+                      options: brandOptions,
+                      onSelected: (_) => setState(() {}),
                     ),
-                    const SizedBox(height: 12),
-                    TextField(
+                    VehiclePickerField(
                       controller: _modelController,
-                      onChanged: (_) => setState(() {}),
-                      decoration: const InputDecoration(
-                        labelText: 'Модель',
-                        hintText: 'E90, A4…',
-                      ),
+                      label: 'Модель',
+                      options: modelOptions,
+                      hint: _brandController.text.trim().isEmpty ? 'Сначала выберите бренд' : null,
+                      onSelected: (_) => setState(() {}),
                     ),
                     const SizedBox(height: 12),
                     TextField(
@@ -1521,24 +1546,20 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
                 ListView(
                   padding: EdgeInsets.fromLTRB(20, 16, 20, keyboardInset + 20),
                   children: [
-                    TextField(
+                    VehiclePickerField(
                       controller: _bodyBrandController,
-                      onChanged: (_) => setState(() {}),
-                      decoration: const InputDecoration(
-                        labelText: 'Марка кузова',
-                        hintText: 'E90, W204, G05…',
-                      ),
+                      label: 'Марка кузова',
+                      options: bodyOptions,
+                      hint: _brandController.text.trim().isEmpty ? 'Сначала выберите бренд' : null,
+                      onSelected: (_) => setState(() {}),
                     ),
-                    const SizedBox(height: 12),
-                    TextField(
+                    VehiclePickerField(
                       controller: _engineBrandController,
-                      onChanged: (_) => setState(() {}),
-                      decoration: const InputDecoration(
-                        labelText: 'Марка двигателя',
-                        hintText: 'N52B30, 2JZ…',
-                      ),
+                      label: 'Марка двигателя',
+                      options: engineOptions,
+                      hint: _brandController.text.trim().isEmpty ? 'Сначала выберите бренд' : null,
+                      onSelected: (_) => setState(() {}),
                     ),
-                    const SizedBox(height: 12),
                     TextField(
                       controller: _vinController,
                       onChanged: (_) => setState(() {}),
@@ -1604,13 +1625,18 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
                     DropdownButtonFormField<String>(
                       key: ValueKey('transmission-$_transmission'),
                       initialValue: _transmission,
+                      isExpanded: true,
                       decoration: const InputDecoration(labelText: 'Трансмиссия'),
-                      items: const [
-                        DropdownMenuItem(value: '', child: Text('Все типы трансмиссии')),
-                        DropdownMenuItem(value: 'АКПП', child: Text('АКПП (Автомат)')),
-                        DropdownMenuItem(value: 'МКПП', child: Text('МКПП (Механика)')),
-                        DropdownMenuItem(value: 'Вариатор', child: Text('Вариатор (CVT)')),
-                        DropdownMenuItem(value: 'Робот', child: Text('Робот')),
+                      items: [
+                        const DropdownMenuItem(value: '', child: Text('Все типы трансмиссии')),
+                        ...{
+                          ...transmissionCatalogOptions,
+                          'АКПП',
+                          'МКПП',
+                          'Вариатор',
+                          'Робот',
+                          if (_transmission.isNotEmpty) _transmission,
+                        }.map((t) => DropdownMenuItem(value: t, child: Text(t))),
                       ],
                       onChanged: (value) => setState(() => _transmission = value ?? ''),
                     ),
@@ -1627,12 +1653,17 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
                     DropdownButtonFormField<String>(
                       key: ValueKey('drive-$_drive'),
                       initialValue: _drive,
+                      isExpanded: true,
                       decoration: const InputDecoration(labelText: 'Привод'),
-                      items: const [
-                        DropdownMenuItem(value: '', child: Text('Все приводы')),
-                        DropdownMenuItem(value: 'Передний', child: Text('Передний привод')),
-                        DropdownMenuItem(value: 'Задний', child: Text('Задний привод')),
-                        DropdownMenuItem(value: 'Полный', child: Text('Полный привод')),
+                      items: [
+                        const DropdownMenuItem(value: '', child: Text('Все приводы')),
+                        ...{
+                          ...driveCatalogOptions,
+                          'Передний',
+                          'Задний',
+                          'Полный',
+                          if (_drive.isNotEmpty) _drive,
+                        }.map((d) => DropdownMenuItem(value: d, child: Text(d))),
                       ],
                       onChanged: (value) => setState(() => _drive = value ?? ''),
                     ),
@@ -1640,12 +1671,18 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
                     DropdownButtonFormField<String>(
                       key: ValueKey('frontRear-$_frontRear'),
                       initialValue: _frontRear,
+                      isExpanded: true,
                       decoration: const InputDecoration(labelText: 'Перед / зад'),
-                      items: const [
-                        DropdownMenuItem(value: '', child: Text('Все расположения')),
-                        DropdownMenuItem(value: 'перед', child: Text('Перед')),
-                        DropdownMenuItem(value: 'зад', child: Text('Зад')),
-                        DropdownMenuItem(value: 'перед / зад', child: Text('Перед / зад')),
+                      items: [
+                        const DropdownMenuItem(value: '', child: Text('Все расположения')),
+                        const DropdownMenuItem(value: 'F', child: Text('F (Перед)')),
+                        const DropdownMenuItem(value: 'R', child: Text('R (Зад)')),
+                        const DropdownMenuItem(value: 'перед / зад', child: Text('Перед / зад')),
+                        if (_frontRear.isNotEmpty &&
+                            _frontRear != 'F' &&
+                            _frontRear != 'R' &&
+                            _frontRear != 'перед / зад')
+                          DropdownMenuItem(value: _frontRear, child: Text(_frontRear)),
                       ],
                       onChanged: (value) => setState(() => _frontRear = value ?? ''),
                     ),
@@ -1653,12 +1690,18 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
                     DropdownButtonFormField<String>(
                       key: ValueKey('leftRight-$_leftRight'),
                       initialValue: _leftRight,
+                      isExpanded: true,
                       decoration: const InputDecoration(labelText: 'Право / лево'),
-                      items: const [
-                        DropdownMenuItem(value: '', child: Text('Все стороны')),
-                        DropdownMenuItem(value: 'лево', child: Text('Лево')),
-                        DropdownMenuItem(value: 'право', child: Text('Право')),
-                        DropdownMenuItem(value: 'лево / право', child: Text('Лево / право')),
+                      items: [
+                        const DropdownMenuItem(value: '', child: Text('Все стороны')),
+                        const DropdownMenuItem(value: 'L', child: Text('L (Лево)')),
+                        const DropdownMenuItem(value: 'R', child: Text('R (Право)')),
+                        const DropdownMenuItem(value: 'лево / право', child: Text('Лево / право')),
+                        if (_leftRight.isNotEmpty &&
+                            _leftRight != 'L' &&
+                            _leftRight != 'R' &&
+                            _leftRight != 'лево / право')
+                          DropdownMenuItem(value: _leftRight, child: Text(_leftRight)),
                       ],
                       onChanged: (value) => setState(() => _leftRight = value ?? ''),
                     ),
@@ -1666,12 +1709,20 @@ class _InventoryFilterSheetState extends State<_InventoryFilterSheet> {
                     DropdownButtonFormField<String>(
                       key: ValueKey('topBottom-$_topBottom'),
                       initialValue: _topBottom,
+                      isExpanded: true,
                       decoration: const InputDecoration(labelText: 'Верх / низ'),
-                      items: const [
-                        DropdownMenuItem(value: '', child: Text('Все положения')),
-                        DropdownMenuItem(value: 'верх', child: Text('Верх')),
-                        DropdownMenuItem(value: 'низ', child: Text('Низ')),
-                        DropdownMenuItem(value: 'верх / низ', child: Text('Верх / низ')),
+                      items: [
+                        const DropdownMenuItem(value: '', child: Text('Все положения')),
+                        const DropdownMenuItem(value: 'Верх', child: Text('Верх')),
+                        const DropdownMenuItem(value: 'Низ', child: Text('Низ')),
+                        const DropdownMenuItem(value: 'Середина', child: Text('Середина')),
+                        const DropdownMenuItem(value: 'верх / низ', child: Text('Верх / низ')),
+                        if (_topBottom.isNotEmpty &&
+                            _topBottom != 'Верх' &&
+                            _topBottom != 'Низ' &&
+                            _topBottom != 'Середина' &&
+                            _topBottom != 'верх / низ')
+                          DropdownMenuItem(value: _topBottom, child: Text(_topBottom)),
                       ],
                       onChanged: (value) => setState(() => _topBottom = value ?? ''),
                     ),
