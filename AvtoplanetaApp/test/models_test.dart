@@ -314,6 +314,14 @@ void main() {
       expect(params['category'], 'Трансмиссия');
       expect(params['brand'], 'Toyota');
     });
+
+    test('InventoryFilter preserves multi-search query string in query parameters', () {
+      const filter = InventoryFilter(
+        search: 'бампер, фара или капот; крыло',
+      );
+      final params = filter.toQueryParameters();
+      expect(params['search'], 'бампер, фара или капот; крыло');
+    });
   });
 
   group('VehicleCatalog tests', () {

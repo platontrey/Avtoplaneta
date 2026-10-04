@@ -392,10 +392,14 @@ final inventoryProvider =
               .map((e) => Part.fromJson(Map<String, dynamic>.from(e as Map)))
               .toList();
 
-          // Локальная фильтрация в кэше
+          // Локальная фильтрация в кэше с поддержкой мультипоиска
           if (filter.search.isNotEmpty) {
-            final query = filter.search.toLowerCase();
-            final terms = query.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
+            final fragments = filter.search
+                .split(RegExp(r'(?:\s+(?:или|or)\s+|[,\n\r;|]+)', caseSensitive: false))
+                .map((f) => f.trim().toLowerCase())
+                .where((f) => f.isNotEmpty)
+                .toList();
+
             filteredList = filteredList.where((p) {
               final name = p.name.toLowerCase();
               final brand = p.brand?.toLowerCase() ?? '';
@@ -403,43 +407,53 @@ final inventoryProvider =
               final oem = p.oemCode?.toLowerCase() ?? '';
               final number = p.number?.toLowerCase() ?? '';
 
-              for (final term in terms) {
-                final inText = name.contains(term) ||
-                    brand.contains(term) ||
-                    model.contains(term) ||
-                    oem.contains(term) ||
-                    number.contains(term);
-                if (inText) continue;
+              // Хотя бы один фрагмент должен совпасть (OR)
+              return fragments.any((fragment) {
+                final terms = fragment
+                    .split(RegExp(r'\s+'))
+                    .where((t) => t.isNotEmpty)
+                    .toList();
+                if (terms.isEmpty) return true;
 
-                // Проверка совпадения со свойствами положения
-                if ((term.startsWith('перед') || term == 'front') &&
-                    _matchesFrontRear(p.frontRear, 'перед')) {
-                  continue;
-                }
-                if ((term.startsWith('зад') || term == 'rear') &&
-                    _matchesFrontRear(p.frontRear, 'зад')) {
-                  continue;
-                }
-                if ((term.startsWith('прав') || term == 'right') &&
-                    _matchesLeftRight(p.leftRight, 'право')) {
-                  continue;
-                }
-                if ((term.startsWith('лев') || term == 'left') &&
-                    _matchesLeftRight(p.leftRight, 'лево')) {
-                  continue;
-                }
-                if ((term.startsWith('верх') || term == 'top') &&
-                    _matchesTopBottom(p.topBottom, 'верх')) {
-                  continue;
-                }
-                if ((term.startsWith('низ') || term == 'bottom') &&
-                    _matchesTopBottom(p.topBottom, 'низ')) {
-                  continue;
-                }
+                // Внутри фрагмента все термины должны совпасть (AND)
+                for (final term in terms) {
+                  final inText = name.contains(term) ||
+                      brand.contains(term) ||
+                      model.contains(term) ||
+                      oem.contains(term) ||
+                      number.contains(term);
+                  if (inText) continue;
 
-                return false;
-              }
-              return true;
+                  // Проверка совпадения со свойствами положения
+                  if ((term.startsWith('перед') || term == 'front') &&
+                      _matchesFrontRear(p.frontRear, 'перед')) {
+                    continue;
+                  }
+                  if ((term.startsWith('зад') || term == 'rear') &&
+                      _matchesFrontRear(p.frontRear, 'зад')) {
+                    continue;
+                  }
+                  if ((term.startsWith('прав') || term == 'right') &&
+                      _matchesLeftRight(p.leftRight, 'право')) {
+                    continue;
+                  }
+                  if ((term.startsWith('лев') || term == 'left') &&
+                      _matchesLeftRight(p.leftRight, 'лево')) {
+                    continue;
+                  }
+                  if ((term.startsWith('верх') || term == 'top') &&
+                      _matchesTopBottom(p.topBottom, 'верх')) {
+                    continue;
+                  }
+                  if ((term.startsWith('низ') || term == 'bottom') &&
+                      _matchesTopBottom(p.topBottom, 'низ')) {
+                    continue;
+                  }
+
+                  return false;
+                }
+                return true;
+              });
             }).toList();
           }
           if (filter.category.isNotEmpty) {

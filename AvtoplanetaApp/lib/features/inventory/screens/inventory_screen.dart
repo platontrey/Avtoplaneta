@@ -278,7 +278,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                           controller: _searchCtrl,
                           onChanged: _onSearch,
                           decoration: InputDecoration(
-                            hintText: 'Название, марка, модель или место',
+                            hintText: 'Поиск (через запятую: фара, крыло)',
                             prefixIcon: const Icon(LucideIcons.search),
                             suffixIcon: _searchCtrl.text.isNotEmpty
                                 ? IconButton(
