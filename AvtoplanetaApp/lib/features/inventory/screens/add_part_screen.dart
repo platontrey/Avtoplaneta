@@ -34,7 +34,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
   final _nameCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   final _categoryCtrl = TextEditingController();
-  final _priceCtrl = TextEditingController();
+  final _priceCtrl = TextEditingController(text: '0');
   final _quantityCtrl = TextEditingController(text: '1');
   final _brandCtrl = TextEditingController();
   final _modelCtrl = TextEditingController();
@@ -164,8 +164,17 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       setState(() {
         _nameCtrl.text = data['name'] ?? '';
         _descCtrl.text = data['description'] ?? '';
-        _categoryCtrl.text = data['category'] ?? '';
-        _priceCtrl.text = (data['price'] ?? '').toString();
+        final rawPrice = data['price'];
+        if (rawPrice == null || rawPrice.toString().trim().isEmpty) {
+          _priceCtrl.text = '0';
+        } else {
+          final p = num.tryParse(rawPrice.toString());
+          if (p != null) {
+            _priceCtrl.text = p % 1 == 0 ? p.toInt().toString() : p.toString();
+          } else {
+            _priceCtrl.text = rawPrice.toString();
+          }
+        }
         _quantityCtrl.text = (data['quantity'] ?? '1').toString();
         _brandCtrl.text = data['brand'] ?? '';
         _modelCtrl.text = data['model'] ?? '';
@@ -416,6 +425,9 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
   }
 
   Future<void> _submit() async {
+    if (_priceCtrl.text.trim().isEmpty) {
+      _priceCtrl.text = '0';
+    }
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -560,8 +572,9 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
             _categoryField(),
             _field(
               _priceCtrl,
-              'Цена (₽) *',
-              required: true,
+              'Цена (₽)',
+              hint: '0',
+              required: false,
               keyboard: TextInputType.number,
             ),
             _field(
