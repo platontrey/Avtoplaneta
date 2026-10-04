@@ -98,6 +98,31 @@ export const updateOrderDetails = async (orderId: number, payload: UpdateOrderDe
   return response.json();
 };
 
+export interface AddOrderItemPayload {
+  part_id: number;
+  quantity: number;
+  price?: number;
+}
+
+export const addOrderItem = async (
+  orderId: number,
+  payload: AddOrderItemPayload
+) => {
+  const response = await fetch(`${ORDERS_API_URL}/api/v1/orders/${orderId}/items`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to add item to order: ${errorText}`);
+  }
+
+  return response.json();
+};
+
 export const updateOrderItem = async (
   orderId: number,
   itemId: number,

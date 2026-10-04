@@ -4,9 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { createOrder, getOrders } from '../features/orders/api/ordersApi';
-import { getAuthHeaders } from '@/lib/csrf';
-import { ORDERS_API_URL } from '@/lib/api';
+import { createOrder, getOrders, addOrderItem } from '../features/orders/api/ordersApi';
 import type { Order } from '@/lib/types';
 
 export interface OrderForm {
@@ -88,19 +86,7 @@ export const useOrderDialog = (partName: string, defaultPrice: number = 0) => {
       quantity: number;
       price?: number;
     }) => {
-      const response = await fetch(`${ORDERS_API_URL}/orders/${orderId}/items`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        credentials: 'include',
-        body: JSON.stringify({ part_id: partId, quantity, price }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to add item to order: ${errorText}`);
-      }
-
-      return response.json();
+      return addOrderItem(orderId, { part_id: partId, quantity, price });
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['orders'] });
