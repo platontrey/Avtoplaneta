@@ -182,7 +182,7 @@ func (h *Handler) CSRFMiddleware(c *gin.Context) {
 		return
 	}
 
-	if path == "/admin/user-activity-logs" && (c.ClientIP() == "127.0.0.1" || c.ClientIP() == "::1" || c.ClientIP() == "[::1]") {
+	if (path == "/admin/user-activity-logs" || path == "/api/admin/user-activity-logs" || path == "/api/v1/admin/user-activity-logs") && (c.ClientIP() == "127.0.0.1" || c.ClientIP() == "::1" || c.ClientIP() == "[::1]") {
 		c.Next()
 		return
 	}

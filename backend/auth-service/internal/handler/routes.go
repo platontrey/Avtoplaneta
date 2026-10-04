@@ -44,28 +44,34 @@ func SetupRoutes(r *gin.Engine, h *Handler) {
 	r.GET("/api/app/version", h.GetAppVersionHandler)
 	r.GET("/api/app/download", h.DownloadAppHandler)
 
-	// Маршруты панели администратора
-	admin := r.Group("/admin")
-	admin.Use(h.AuthMiddleware)
-	{
-		// Управление пользователями - требуется роль admin
-		admin.POST("/users", h.RequireRole("admin"), h.CreateUserHandler)
-		admin.GET("/users", h.RequireMinRole("manager"), h.GetUsersHandler)
-		admin.PUT("/users/:id", h.RequireRole("admin"), h.UpdateUserHandler)
-		admin.DELETE("/users/:id", h.RequireRole("admin"), h.DeleteUserHandler)
+	// Маршруты панели администратора (канонические /api/v1/admin, /api/admin и устаревшие /admin)
+	registerAdminRoutes := func(prefix string) {
+		admin := r.Group(prefix)
+		admin.Use(h.AuthMiddleware)
+		{
+			// Управление пользователями - требуется роль admin
+			admin.POST("/users", h.RequireRole("admin"), h.CreateUserHandler)
+			admin.GET("/users", h.RequireMinRole("manager"), h.GetUsersHandler)
+			admin.PUT("/users/:id", h.RequireRole("admin"), h.UpdateUserHandler)
+			admin.DELETE("/users/:id", h.RequireRole("admin"), h.DeleteUserHandler)
 
-		// Управление сервером - требуется роль admin
-		admin.GET("/status", h.RequireRole("admin"), h.GetServerStatusHandler)
-		admin.GET("/logs", h.RequireRole("admin"), h.GetServerLogsHandler)
+			// Управление сервером - требуется роль admin
+			admin.GET("/status", h.RequireRole("admin"), h.GetServerStatusHandler)
+			admin.GET("/logs", h.RequireRole("admin"), h.GetServerLogsHandler)
 
-		// Логи активности пользователей - требуется роль admin
-		admin.GET("/user-activity-logs", h.RequireRole("admin"), h.GetUserActivityLogsHandler)
-		admin.POST("/user-activity-logs", h.RequireRole("admin"), h.LogUserActivityHandler)
-
-		// Внутренний endpoint для логирования активности без аутентификации (только для внутренних сервисов)
-		r.POST("/internal/log-activity", h.InternalLogUserActivityHandler)
-
-		// Внутренний endpoint для получения пользователей без аутентификации (только для внутренних сервисов)
-		r.GET("/internal/users", h.InternalGetUsersHandler)
+			// Логи активности пользователей - требуется роль admin
+			admin.GET("/user-activity-logs", h.RequireRole("admin"), h.GetUserActivityLogsHandler)
+			admin.POST("/user-activity-logs", h.RequireRole("admin"), h.LogUserActivityHandler)
+		}
 	}
+
+	registerAdminRoutes("/api/v1/admin")
+	registerAdminRoutes("/api/admin")
+	registerAdminRoutes("/admin")
+
+	// Внутренний endpoint для логирования активности без аутентификации (только для внутренних сервисов)
+	r.POST("/internal/log-activity", h.InternalLogUserActivityHandler)
+
+	// Внутренний endpoint для получения пользователей без аутентификации (только для внутренних сервисов)
+	r.GET("/internal/users", h.InternalGetUsersHandler)
 }
