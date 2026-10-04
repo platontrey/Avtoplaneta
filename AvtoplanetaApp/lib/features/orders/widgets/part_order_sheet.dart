@@ -150,12 +150,46 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
         }
       } else {
         final isQuick = _mode == 'quick';
-        final buyer = _buyerNumberController.text.trim();
+        final rawBuyer = _buyerNumberController.text.trim();
+        final buyerDigits = rawBuyer.replaceAll(RegExp(r'\D'), '');
+
+        // Нормализация контакта покупателя (очистка от тире, скобок, пробелов в канонический +7XXXXXXXXXX)
+        String buyer = rawBuyer;
+        if (buyerDigits.length == 10) {
+          buyer = '+7$buyerDigits';
+        } else if (buyerDigits.length == 11 &&
+            (buyerDigits.startsWith('7') || buyerDigits.startsWith('8'))) {
+          buyer = '+7${buyerDigits.substring(1)}';
+        } else if (buyerDigits.length > 11) {
+          buyer = '+$buyerDigits';
+        }
+
+        // Если клиент не был явно выбран из выпадающего списка, ищем по цифрам номера
+        Customer? matchedCustomer = _selectedCustomer;
+        if (matchedCustomer == null && buyerDigits.length >= 10) {
+          final allCustomers =
+              ref.read(customersProvider).valueOrNull ?? const <Customer>[];
+          final canonicalDigits = buyerDigits.length == 11 &&
+                  (buyerDigits.startsWith('7') || buyerDigits.startsWith('8'))
+              ? buyerDigits.substring(1)
+              : (buyerDigits.length == 10 ? buyerDigits : '');
+          for (final c in allCustomers) {
+            final cDigits = c.phone.replaceAll(RegExp(r'\D'), '');
+            if (cDigits.isNotEmpty &&
+                (cDigits == buyerDigits ||
+                    (canonicalDigits.isNotEmpty &&
+                        cDigits.endsWith(canonicalDigits)))) {
+              matchedCustomer = c;
+              break;
+            }
+          }
+        }
+
         final discount = double.tryParse(_discountController.text) ?? 0.0;
         await apiClient.dio.post(
           '/orders',
           data: {
-            'customer_id': _selectedCustomer?.id ?? 0,
+            'customer_id': matchedCustomer?.id ?? 0,
             'discount': discount,
             'order_number': _orderNumberController.text.trim(),
             'part': widget.parts.map((part) => part.name).join(', '),
@@ -318,8 +352,16 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
           optionsBuilder: (textEditingValue) {
             final query = textEditingValue.text.trim().toLowerCase();
             if (query.length < 2) return const [];
+            final queryDigits = query.replaceAll(RegExp(r'\D'), '');
             return allCustomers.where((c) {
-              return c.name.toLowerCase().contains(query) ||
+              final phoneDigits = c.phone.replaceAll(RegExp(r'\D'), '');
+              final matchesPhone = queryDigits.length >= 2 &&
+                  (phoneDigits.contains(queryDigits) ||
+                      (queryDigits.length >= 10 &&
+                          phoneDigits.endsWith(
+                              queryDigits.substring(queryDigits.length - 10))));
+              return matchesPhone ||
+                  c.name.toLowerCase().contains(query) ||
                   c.phone.toLowerCase().contains(query) ||
                   c.city.toLowerCase().contains(query);
             });

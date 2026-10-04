@@ -238,7 +238,7 @@ func parseBuyerInfo(raw string) (phone string, name string) {
 	words := strings.Fields(namePart)
 	var nameWords []string
 	for _, w := range words {
-		cleanWord := strings.Trim(w, "+()- ")
+		cleanWord := strings.Trim(w, "+()- —–")
 		isNumeric := true
 		for _, ch := range cleanWord {
 			if ch < '0' || ch > '9' {
@@ -271,10 +271,16 @@ func (s *ordersService) resolveCustomerForOrder(ctx context.Context, req domain.
 		return 0
 	}
 
-	// 1. Ищем существующего клиента по нормализованному номеру
+	// 1. Ищем существующего клиента по нормализованному номеру и возможным вариациям (8..., 7...)
 	existingCustomer, err := s.orderRepo.GetCustomerByPhone(ctx, phone)
 	if err != nil && phone != buyerNumber {
 		existingCustomer, err = s.orderRepo.GetCustomerByPhone(ctx, buyerNumber)
+	}
+	if err != nil && strings.HasPrefix(phone, "+7") && len(phone) == 12 {
+		existingCustomer, err = s.orderRepo.GetCustomerByPhone(ctx, "8"+phone[2:])
+		if err != nil {
+			existingCustomer, err = s.orderRepo.GetCustomerByPhone(ctx, phone[1:])
+		}
 	}
 
 	if err == nil && existingCustomer != nil {
@@ -303,6 +309,17 @@ func (s *ordersService) resolveCustomerForOrder(ctx context.Context, req domain.
 
 	// Если произошел конфликт уникальности из-за параллельного запроса
 	if conflictCust, errConf := s.orderRepo.GetCustomerByPhone(ctx, phone); errConf == nil && conflictCust != nil {
+		return conflictCust.ID
+	}
+	if strings.HasPrefix(phone, "+7") && len(phone) == 12 {
+		if conflictCust, errConf := s.orderRepo.GetCustomerByPhone(ctx, "8"+phone[2:]); errConf == nil && conflictCust != nil {
+			return conflictCust.ID
+		}
+		if conflictCust, errConf := s.orderRepo.GetCustomerByPhone(ctx, phone[1:]); errConf == nil && conflictCust != nil {
+			return conflictCust.ID
+		}
+	}
+	if conflictCust, errConf := s.orderRepo.GetCustomerByPhone(ctx, buyerNumber); errConf == nil && conflictCust != nil {
 		return conflictCust.ID
 	}
 
