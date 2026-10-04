@@ -31,9 +31,11 @@ void main() {
         ApiEndpoints.authLogout,
         ApiEndpoints.authRefresh,
         ApiEndpoints.adminUsers,
+        ApiEndpoints.adminUserById(1),
         ApiEndpoints.adminSupplierCodes,
         ApiEndpoints.adminStatus,
         ApiEndpoints.adminLogs,
+        ApiEndpoints.adminUserActivityLogs,
         ApiEndpoints.conversations,
         ApiEndpoints.messagingUsers,
       ];
@@ -48,7 +50,7 @@ void main() {
       }
     });
 
-    test('codebase has no direct legacy calls to /orders without /api/ prefix', () {
+    test('codebase has no direct legacy calls to /orders, /customers or /admin without /api/ prefix', () {
       final libDir = Directory('lib');
       expect(libDir.existsSync(), isTrue);
 
@@ -61,6 +63,7 @@ void main() {
       final forbiddenPatterns = [
         RegExp(r'''dio\.(get|post|put|delete|patch)\(\s*['"]/orders['"/]'''),
         RegExp(r'''dio\.(get|post|put|delete|patch)\(\s*['"]/customers['"/]'''),
+        RegExp(r'''dio\.(get|post|put|delete|patch)\(\s*['"]/admin/'''),
       ];
 
       final violations = <String>[];

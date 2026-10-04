@@ -32,10 +32,12 @@ abstract class ApiEndpoints {
   static const String authRefresh = '/auth/refresh';
 
   // Admin
-  static const String adminUsers = '/admin/users';
+  static const String adminUsers = '/api/v1/admin/users';
+  static String adminUserById(int id) => '/api/v1/admin/users/$id';
   static const String adminSupplierCodes = '/api/v1/admin/supplier-codes';
-  static const String adminStatus = '/admin/status';
-  static const String adminLogs = '/admin/logs';
+  static const String adminStatus = '/api/v1/admin/status';
+  static const String adminLogs = '/api/v1/admin/logs';
+  static const String adminUserActivityLogs = '/api/v1/admin/user-activity-logs';
 
   // Messaging
   static const String conversations = '/api/messaging/conversations';

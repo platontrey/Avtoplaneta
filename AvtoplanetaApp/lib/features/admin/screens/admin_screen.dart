@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../app/theme.dart';
 import '../../../core/api/api_client.dart';
+import '../../../core/api/api_endpoints.dart';
 import '../../../core/models/user.dart';
 import '../../../core/services/update_service.dart';
 import '../../inventory/providers/inventory_provider.dart';
@@ -153,14 +154,14 @@ class ActivityFilterState {
 // ─── Провайдеры ────────────────────────────────────────────────────────────
 
 final usersListProvider = FutureProvider<List<User>>((ref) async {
-  final response = await apiClient.dio.get('/admin/users');
+  final response = await apiClient.dio.get(ApiEndpoints.adminUsers);
   final data = response.data as Map<String, dynamic>;
   final list = data['users'] as List<dynamic>? ?? [];
   return list.map((e) => User.fromJson(e as Map<String, dynamic>)).toList();
 });
 
 final supplierBatchesProvider = FutureProvider<List<SupplierBatch>>((ref) async {
-  final response = await apiClient.dio.get('/api/v1/admin/supplier-codes');
+  final response = await apiClient.dio.get(ApiEndpoints.adminSupplierCodes);
   final data = response.data as Map<String, dynamic>? ?? {};
   final rawBatches = data['batches'];
   if (rawBatches is List && rawBatches.isNotEmpty) {
@@ -179,13 +180,13 @@ final supplierBatchesProvider = FutureProvider<List<SupplierBatch>>((ref) async 
 });
 
 final serverStatusProvider = FutureProvider<ServerStatusInfo>((ref) async {
-  final response = await apiClient.dio.get('/admin/status');
+  final response = await apiClient.dio.get(ApiEndpoints.adminStatus);
   final data = response.data as Map<String, dynamic>? ?? {};
   return ServerStatusInfo.fromJson(data);
 });
 
 final serverLogsProvider = FutureProvider<List<ServerLogEntry>>((ref) async {
-  final response = await apiClient.dio.get('/admin/logs');
+  final response = await apiClient.dio.get(ApiEndpoints.adminLogs);
   final data = response.data as Map<String, dynamic>? ?? {};
   final list = data['logs'] as List<dynamic>? ?? [];
   return list
@@ -209,7 +210,7 @@ final userActivityLogsProvider = FutureProvider<List<UserActivityLogEntry>>((ref
   };
 
   final response = await apiClient.dio.get(
-    '/admin/user-activity-logs',
+    ApiEndpoints.adminUserActivityLogs,
     queryParameters: queryParams,
   );
   final data = response.data as Map<String, dynamic>? ?? {};
@@ -487,7 +488,7 @@ class _UserTile extends ConsumerWidget {
             onPressed: () async {
               Navigator.pop(ctx);
               try {
-                await apiClient.dio.delete('/admin/users/${user.id}');
+                await apiClient.dio.delete(ApiEndpoints.adminUserById(user.id));
                 onChanged();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -659,7 +660,7 @@ class _CreateUserDialogState extends State<_CreateUserDialog> {
 
     try {
       await apiClient.dio.post(
-        '/admin/users',
+        ApiEndpoints.adminUsers,
         data: {
           'name': name,
           'email': email,
@@ -816,7 +817,7 @@ class _EditUserDialogState extends State<_EditUserDialog> {
 
     try {
       await apiClient.dio.put(
-        '/admin/users/${widget.user.id}',
+        ApiEndpoints.adminUserById(widget.user.id),
         data: {
           'name': name,
           'email': email,
