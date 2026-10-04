@@ -163,6 +163,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       }
       setState(() {
         _nameCtrl.text = data['name'] ?? '';
+        _categoryCtrl.text = (data['category'] ?? '').toString();
         _descCtrl.text = data['description'] ?? '';
         final rawPrice = data['price'];
         if (rawPrice == null || rawPrice.toString().trim().isEmpty) {
@@ -989,17 +990,21 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
 
   Widget _categoryField() {
     final current = _categoryCtrl.text.trim();
+    final categories = [
+      if (current.isNotEmpty && !_categories.contains(current)) current,
+      ..._categories,
+    ];
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           DropdownButtonFormField<String>(
-            key: ValueKey(current),
-            initialValue: _categories.contains(current) ? current : null,
+            key: ValueKey('category_${current}_${_categories.length}'),
+            initialValue: current.isNotEmpty ? current : null,
             isExpanded: true,
             decoration: const InputDecoration(labelText: 'Категория *'),
-            items: _categories
+            items: categories
                 .map(
                   (category) => DropdownMenuItem(
                     value: category,
@@ -1026,14 +1031,18 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
 
   Widget _transmissionField() {
     final current = _transmissionCtrl.text.trim();
+    final options = [
+      if (current.isNotEmpty && !_transmissionOptions.contains(current)) current,
+      ..._transmissionOptions,
+    ];
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: DropdownButtonFormField<String>(
-        key: ValueKey('transmission-$current'),
-        initialValue: _transmissionOptions.contains(current) ? current : null,
+        key: ValueKey('transmission_${current}_${_transmissionOptions.length}'),
+        initialValue: current.isNotEmpty ? current : null,
         isExpanded: true,
         decoration: const InputDecoration(labelText: 'Тип трансмиссии'),
-        items: _transmissionOptions
+        items: options
             .map((type) => DropdownMenuItem(value: type, child: Text(type)))
             .toList(),
         onChanged: (value) => _transmissionCtrl.text = value ?? '',
@@ -1043,14 +1052,18 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
 
   Widget _driveField() {
     final current = _driveCtrl.text.trim();
+    final options = [
+      if (current.isNotEmpty && !_driveOptions.contains(current)) current,
+      ..._driveOptions,
+    ];
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: DropdownButtonFormField<String>(
-        key: ValueKey('drive-$current'),
-        initialValue: _driveOptions.contains(current) ? current : null,
+        key: ValueKey('drive_${current}_${_driveOptions.length}'),
+        initialValue: current.isNotEmpty ? current : null,
         isExpanded: true,
         decoration: const InputDecoration(labelText: 'Привод'),
-        items: _driveOptions
+        items: options
             .map((type) => DropdownMenuItem(value: type, child: Text(type)))
             .toList(),
         onChanged: (value) => _driveCtrl.text = value ?? '',

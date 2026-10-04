@@ -82,6 +82,19 @@ void main() {
       expect(part.supplierCode, 'SUP-7');
     });
 
+    test('supports category and zero price for editing part', () {
+      final part = Part.fromJson({
+        'id': 8,
+        'name': 'Капот',
+        'category': 'Кузовные запчасти',
+        'price': 0,
+        'quantity': 1,
+      });
+
+      expect(part.category, 'Кузовные запчасти');
+      expect(part.price, 0.0);
+    });
+
     test('availability respects the API status with quantity fallback', () {
       final unavailable = Part.fromJson({
         'id': 8,
