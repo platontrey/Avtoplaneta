@@ -739,7 +739,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       addChip('Код произв.: ${filter.manufacturerCode}', filter.copyWith(manufacturerCode: '', page: 1));
     }
     if (filter.supplierCode.isNotEmpty) {
-      addChip('Код поставщ.: ${filter.supplierCode}', filter.copyWith(supplierCode: '', page: 1));
+      addChip('Код поставки: ${filter.supplierCode}', filter.copyWith(supplierCode: '', page: 1));
     }
     if (filter.transmissionModel.isNotEmpty) {
       addChip('Модель КПП: ${filter.transmissionModel}', filter.copyWith(transmissionModel: '', page: 1));
@@ -1779,8 +1779,8 @@ class _InventoryFilterSheetState extends ConsumerState<_InventoryFilterSheet> {
                       controller: _supplierCodeController,
                       onChanged: (_) => setState(() {}),
                       decoration: const InputDecoration(
-                        labelText: 'Код поставщика',
-                        hintText: 'Код поставщика…',
+                        labelText: 'Код поставки',
+                        hintText: 'Код поставки…',
                       ),
                     ),
                     const SizedBox(height: 12),

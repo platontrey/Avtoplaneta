@@ -625,6 +625,8 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
             if (_shows('manufacturer_code'))
               _field(_manufacturerCodeCtrl, 'Код производителя'),
             if (_shows('oem_code')) _field(_oemCtrl, 'OEM код'),
+            if (_shows('supplier_code'))
+              _field(_supplierCtrl, 'Код поставки'),
             if (_shows('condition')) _field(_conditionCtrl, 'Состояние'),
             if (_shows('defect')) _field(_defectCtrl, 'Дефект'),
             if (_shows('transmission')) _transmissionField(),

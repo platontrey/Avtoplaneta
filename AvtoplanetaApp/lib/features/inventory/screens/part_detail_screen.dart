@@ -405,9 +405,11 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                       if (_notEmpty(part.centerHoleDiameter)) _row('ЦО', part.centerHoleDiameter!),
                       if (_notEmpty(part.tireModel)) _row('Модель шины', part.tireModel!),
                     ]),
-                if (_notEmpty(part.oemCode))
+                if (_notEmpty(part.oemCode) || _notEmpty(part.supplierCode))
                   _section('Коды', [
-                    _row('OEM код', part.oemCode!),
+                    if (_notEmpty(part.oemCode)) _row('OEM код', part.oemCode!),
+                    if (_notEmpty(part.supplierCode))
+                      _row('Код поставки', part.supplierCode!),
                   ]),
                 _section('Расположение', [
                   if (part.location.isNotEmpty) _row('Место', part.location),
