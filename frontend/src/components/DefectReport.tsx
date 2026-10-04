@@ -65,6 +65,7 @@ const defectReportSchema = z.object({
   body_brand: z.string().optional(),
   interior_color: z.string().optional(),
   body_color: z.string().optional(),
+  supplier_code: z.string().optional(),
   description: z.string().max(1000, "Описание слишком длинное (макс 1000 символов)").optional(),
 });
 
@@ -76,6 +77,7 @@ const buildDefectReportPayload = (data: DefectReportFormData, catalogVersion?: s
   year: Number(data.year) || 0,
   car_release_period: data.car_release_period,
   vin: data.vin,
+  supplier_code: data.supplier_code?.trim() || undefined,
   mileage: Number(data.mileage) || 0,
   engine_brand: data.engine_brand,
   body_brand: data.body_brand,
@@ -119,6 +121,7 @@ export default function DefectReport() {
       drive: "",
       interior_color: "",
       body_color: "",
+      supplier_code: "",
       description: "В связи с изменением цены конечную стоимость товара узнавать по WhatsApp 89138538227",
     },
   });
@@ -132,6 +135,7 @@ export default function DefectReport() {
     year,
     car_release_period,
     vin,
+    supplier_code,
     mileage,
     engine_brand,
     body_brand,
@@ -157,6 +161,7 @@ export default function DefectReport() {
           year,
           car_release_period,
           vin,
+          supplier_code,
           mileage,
           engine_brand,
           body_brand,
@@ -175,6 +180,7 @@ export default function DefectReport() {
       year,
       car_release_period,
       vin,
+      supplier_code,
       mileage,
       engine_brand,
       body_brand,
@@ -309,6 +315,21 @@ export default function DefectReport() {
               <div>
                 <Label htmlFor="vin">VIN / Номер кузова</Label>
                 <Input id="vin" {...register("vin")} type="text" placeholder="WVWZZZ1JZ3W386549" className="h-10" autoComplete="off" />
+              </div>
+
+              <div>
+                <Label htmlFor="supplier_code">Код поставки / партии</Label>
+                <Input
+                  id="supplier_code"
+                  {...register("supplier_code")}
+                  type="text"
+                  placeholder="Автонумерация (1, 2, 3...)"
+                  className="h-10"
+                  autoComplete="off"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Оставьте пустым для автонумерации минимальным номером
+                </p>
               </div>
 
               <div>
@@ -544,6 +565,9 @@ export default function DefectReport() {
                           {part.body_brand && <div>Марка кузова: {part.body_brand}</div>}
                           {part.engine_brand && <div>Марка двигателя: {part.engine_brand}</div>}
                           {part.vin && <div>VIN: {part.vin}</div>}
+                          {part.supplier_code && (
+                            <div className="text-primary font-medium">Код поставки: {part.supplier_code}</div>
+                          )}
                           {part.transmission && <div className="text-blue-600 dark:text-blue-400 font-medium">Трансмиссия: {part.transmission}</div>}
                           {part.transmission_model && <div className="text-blue-600 dark:text-blue-400 font-medium">Модель трансмиссии: {part.transmission_model}</div>}
                           {part.drive && <div className="text-blue-600 dark:text-blue-400 font-medium">Привод: {part.drive}</div>}

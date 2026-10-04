@@ -17,6 +17,7 @@ export interface DefectReportPayload {
   drive?: string;
   description?: string;
   catalog_version?: string;
+  supplier_code?: string;
 }
 
 export interface DefectReportPreviewPart {

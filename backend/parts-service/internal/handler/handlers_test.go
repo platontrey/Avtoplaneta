@@ -75,6 +75,14 @@ func (m *MockInventoryService) GetSupplierCodes(ctx context.Context) ([]string, 
 	return args.Get(0).([]string), args.Error(1)
 }
 
+func (m *MockInventoryService) GetNextSupplierCode(ctx context.Context) (string, error) {
+	return "1", nil
+}
+
+func (m *MockInventoryService) PeekNextSupplierCode(ctx context.Context) (string, error) {
+	return "1", nil
+}
+
 func (m *MockInventoryService) UploadPartPhoto(ctx context.Context, id int64, c *gin.Context) (string, error) {
 	args := m.Called(ctx, id, c)
 	return args.String(0), args.Error(1)

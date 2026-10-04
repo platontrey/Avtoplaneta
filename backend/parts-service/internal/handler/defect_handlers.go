@@ -24,7 +24,7 @@ func (h *Handler) PreviewDefectReportHandler(c *gin.Context) {
 		return
 	}
 
-	prepared, err := h.defectReports.Preview(report)
+	prepared, err := h.defectReports.Preview(c.Request.Context(), report)
 	if err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
 		return

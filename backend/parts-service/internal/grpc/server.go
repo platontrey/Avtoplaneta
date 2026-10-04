@@ -598,7 +598,7 @@ func (s *partsGRPCServer) PreviewDefectReport(ctx context.Context, req *partsv1.
 	report.Year, _ = strconv.Atoi(req.Year)
 	report.Mileage, _ = strconv.Atoi(req.Mileage)
 
-	prepared, err := s.defectReports.Preview(report)
+	prepared, err := s.defectReports.Preview(ctx, report)
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "не удалось построить дефектную ведомость: %v", err)
 	}

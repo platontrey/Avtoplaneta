@@ -129,6 +129,12 @@ func (m *mockPartRepository) IncreaseQuantity(ctx context.Context, id int64, amo
 	args := m.Called(ctx, id, amount, operationID)
 	return args.Error(0)
 }
+func (m *mockPartRepository) GetNextSupplierCode(ctx context.Context) (string, error) {
+	return "1", nil
+}
+func (m *mockPartRepository) PeekNextSupplierCode(ctx context.Context) (string, error) {
+	return "1", nil
+}
 
 type mockElasticsearchClient struct {
 	mock.Mock

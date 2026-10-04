@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 )
 
 //go:embed catalog.json
@@ -125,6 +124,7 @@ type DefectReportRequest struct {
 	TransmissionModel string             `json:"transmission_model"`
 	Drive             string             `json:"drive"`
 	CatalogVersion    string             `json:"catalog_version,omitempty"`
+	SupplierCode      string             `json:"supplier_code,omitempty"`
 	SellerID          int64              `json:"seller_id"`
 	SellerName        string             `json:"seller_name"`
 	SelectedParts     []DefectReportPart `json:"selectedParts,omitempty"`
@@ -240,7 +240,10 @@ func (catalog *PartCatalog) ExpandDefectReport(report DefectReportRequest) []Def
 		"interior_color":     strings.TrimSpace(report.InteriorColor),
 		"body_color":         strings.TrimSpace(report.BodyColor),
 	}
-	supplierCode := strconv.FormatInt(time.Now().UnixMilli(), 10)
+	supplierCode := strings.TrimSpace(report.SupplierCode)
+	if supplierCode == "" {
+		supplierCode = "1"
+	}
 	parts := make([]DefectReportPart, 0, len(catalog.Parts))
 
 	for _, template := range catalog.Parts {
@@ -292,7 +295,10 @@ func (catalog *PartCatalog) ApplyBindingsToParts(parts []DefectReportPart, repor
 		"body_color":         strings.TrimSpace(report.BodyColor),
 	}
 
-	supplierCode := strconv.FormatInt(time.Now().UnixMilli(), 10)
+	supplierCode := strings.TrimSpace(report.SupplierCode)
+	if supplierCode == "" {
+		supplierCode = "1"
+	}
 	for i := range parts {
 		if strings.TrimSpace(parts[i].SupplierCode) == "" {
 			parts[i].SupplierCode = supplierCode

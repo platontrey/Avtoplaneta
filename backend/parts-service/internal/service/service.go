@@ -48,6 +48,8 @@ type InventoryService interface {
 	BulkUpdateParts(ctx context.Context, updates []map[string]interface{}) (int, error)        // Массовое обновление запчастей
 	DeleteZeroQuantityPartsBySupplier(ctx context.Context, supplierCode string) (int64, error) // Удаление по поставщику
 	GetSupplierCodes(ctx context.Context) ([]string, error)                                    // Получение кодов поставщиков
+	GetNextSupplierCode(ctx context.Context) (string, error)                                   // Получение следующего номера поставки
+	PeekNextSupplierCode(ctx context.Context) (string, error)                                  // Просмотр следующего номера поставки без инкремента
 
 	// UploadPartPhoto Фото операции
 	UploadPartPhoto(ctx context.Context, id int64, c *gin.Context) (string, error) // Загрузка фото запчасти
@@ -784,6 +786,16 @@ func (s *inventoryService) GetSupplierCodes(ctx context.Context) ([]string, erro
 	}
 	fmt.Printf("Service: GetSupplierCodes returned %d codes\n", len(codes))
 	return codes, nil
+}
+
+// GetNextSupplierCode получает следующий номер поставки через репозиторий
+func (s *inventoryService) GetNextSupplierCode(ctx context.Context) (string, error) {
+	return s.repo.GetNextSupplierCode(ctx)
+}
+
+// PeekNextSupplierCode просматривает следующий номер поставки без инкремента
+func (s *inventoryService) PeekNextSupplierCode(ctx context.Context) (string, error) {
+	return s.repo.PeekNextSupplierCode(ctx)
 }
 
 // UploadPartPhoto загружает фото

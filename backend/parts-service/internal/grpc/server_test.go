@@ -59,6 +59,8 @@ func (s *inventoryParamsCaptureService) BulkDeleteParts(context.Context, []int64
 func (s *inventoryParamsCaptureService) BulkUpdateParts(context.Context, []map[string]interface{}) (int, error) { return 0, nil }
 func (s *inventoryParamsCaptureService) DeleteZeroQuantityPartsBySupplier(context.Context, string) (int64, error) { return 0, nil }
 func (s *inventoryParamsCaptureService) GetSupplierCodes(context.Context) ([]string, error) { return nil, nil }
+func (s *inventoryParamsCaptureService) GetNextSupplierCode(context.Context) (string, error) { return "1", nil }
+func (s *inventoryParamsCaptureService) PeekNextSupplierCode(context.Context) (string, error) { return "1", nil }
 func (s *inventoryParamsCaptureService) UploadPartPhoto(context.Context, int64, *gin.Context) (string, error) { return "", nil }
 func (s *inventoryParamsCaptureService) DeletePartPhoto(context.Context, int64, string) error { return nil }
 func (s *inventoryParamsCaptureService) SavePhotoFromBytes(context.Context, int64, []byte) (string, error) { return "", nil }

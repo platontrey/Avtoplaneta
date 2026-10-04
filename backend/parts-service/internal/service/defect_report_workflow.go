@@ -74,15 +74,34 @@ func defectReportDedupKey(report *catalog.DefectReportRequest) string {
 		strings.ToLower(strings.TrimSpace(report.Transmission)),
 		strings.ToLower(strings.TrimSpace(report.TransmissionModel)),
 		strings.ToLower(strings.TrimSpace(report.Drive)),
+		strings.ToLower(strings.TrimSpace(report.SupplierCode)),
 	}, "|")
 	sum := sha256.Sum256([]byte("payload:" + raw))
 	return hex.EncodeToString(sum[:])
 }
 
 // prepare разворачивает набор запчастей по каталогу.
-func (w *DefectReportWorkflow) prepare(report *catalog.DefectReportRequest, allowLegacyClientParts bool) error {
+func (w *DefectReportWorkflow) prepare(ctx context.Context, report *catalog.DefectReportRequest, allowLegacyClientParts bool, isCreate bool) error {
 	if w == nil || w.catalog == nil {
 		return errPartCatalogUnavailable
+	}
+
+	supplierCode := strings.TrimSpace(report.SupplierCode)
+	if supplierCode == "" {
+		if w.service != nil {
+			var err error
+			if isCreate {
+				supplierCode, err = w.service.GetNextSupplierCode(ctx)
+			} else {
+				supplierCode, err = w.service.PeekNextSupplierCode(ctx)
+			}
+			if err != nil || supplierCode == "" {
+				supplierCode = "1"
+			}
+		} else {
+			supplierCode = "1"
+		}
+		report.SupplierCode = supplierCode
 	}
 
 	if !allowLegacyClientParts || len(report.SelectedParts) == 0 {
@@ -95,9 +114,9 @@ func (w *DefectReportWorkflow) prepare(report *catalog.DefectReportRequest, allo
 	return nil
 }
 
-func (w *DefectReportWorkflow) Preview(report catalog.DefectReportRequest) (catalog.DefectReportRequest, error) {
+func (w *DefectReportWorkflow) Preview(ctx context.Context, report catalog.DefectReportRequest) (catalog.DefectReportRequest, error) {
 	report.SelectedParts = nil
-	if err := w.prepare(&report, false); err != nil {
+	if err := w.prepare(ctx, &report, false, false); err != nil {
 		return catalog.DefectReportRequest{}, err
 	}
 	return report, nil
@@ -270,7 +289,7 @@ func (w *DefectReportWorkflow) Create(ctx context.Context, report *catalog.Defec
 		close(entry.done)
 	}()
 
-	if err := w.prepare(report, allowLegacyClientParts); err != nil {
+	if err := w.prepare(ctx, report, allowLegacyClientParts, true); err != nil {
 		entry.err = err
 		return nil, err
 	}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -43,6 +44,8 @@ type PartRepository interface {
 
 	DeleteZeroQuantityPartsBySupplier(ctx context.Context, supplierCode string) (int64, error)
 	GetSupplierCodes(ctx context.Context) ([]string, error)
+	GetNextSupplierCode(ctx context.Context) (string, error)
+	PeekNextSupplierCode(ctx context.Context) (string, error)
 
 	GetTotalEarnings(ctx context.Context) (float64, error)
 	UpdateTotalEarnings(ctx context.Context, amount float64) error
@@ -1049,6 +1052,47 @@ func (r *partRepository) GetSupplierCodes(ctx context.Context) ([]string, error)
 	}
 	logrus.WithField("count", len(codes)).Info("Repository: GetSupplierCodes")
 	return codes, nil
+}
+
+func (r *partRepository) GetNextSupplierCode(ctx context.Context) (string, error) {
+	var seqVal int64
+	err := r.pool.QueryRow(ctx, "SELECT nextval('defect_batch_seq')").Scan(&seqVal)
+	if err != nil {
+		logrus.WithError(err).Warn("Repository: nextval(defect_batch_seq) failed, falling back to max supplier_code query")
+		var maxVal int64
+		fallbackErr := r.pool.QueryRow(ctx, `
+			SELECT COALESCE(MAX(CAST(supplier_code AS BIGINT)), 0) + 1
+			FROM parts
+			WHERE supplier_code ~ '^[0-9]+$' AND LENGTH(supplier_code) < 10
+		`).Scan(&maxVal)
+		if fallbackErr == nil && maxVal > 0 {
+			return strconv.FormatInt(maxVal, 10), nil
+		}
+		return "1", nil
+	}
+	return strconv.FormatInt(seqVal, 10), nil
+}
+
+func (r *partRepository) PeekNextSupplierCode(ctx context.Context) (string, error) {
+	var lastVal int64
+	var isCalled bool
+	err := r.pool.QueryRow(ctx, "SELECT last_value, is_called FROM defect_batch_seq").Scan(&lastVal, &isCalled)
+	if err != nil {
+		var maxVal int64
+		fallbackErr := r.pool.QueryRow(ctx, `
+			SELECT COALESCE(MAX(CAST(supplier_code AS BIGINT)), 0) + 1
+			FROM parts
+			WHERE supplier_code ~ '^[0-9]+$' AND LENGTH(supplier_code) < 10
+		`).Scan(&maxVal)
+		if fallbackErr == nil && maxVal > 0 {
+			return strconv.FormatInt(maxVal, 10), nil
+		}
+		return "1", nil
+	}
+	if !isCalled {
+		return strconv.FormatInt(lastVal, 10), nil
+	}
+	return strconv.FormatInt(lastVal+1, 10), nil
 }
 
 // ─── Earnings ───────────────────────────────────────────────────────────────

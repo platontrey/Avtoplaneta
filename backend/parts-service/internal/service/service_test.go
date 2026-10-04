@@ -126,6 +126,16 @@ func (m *MockPartRepository) GetSupplierCodes(ctx context.Context) ([]string, er
 	return args.Get(0).([]string), args.Error(1)
 }
 
+func (m *MockPartRepository) GetNextSupplierCode(ctx context.Context) (string, error) {
+	args := m.Called(ctx)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockPartRepository) PeekNextSupplierCode(ctx context.Context) (string, error) {
+	args := m.Called(ctx)
+	return args.String(0), args.Error(1)
+}
+
 func (m *MockPartRepository) UpdatePartPhotos(ctx context.Context, id int64, photos domain.StringArray) error {
 	args := m.Called(ctx, id, photos)
 	return args.Error(0)
