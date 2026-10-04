@@ -227,18 +227,19 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
   ];
 
   const frontRearOptions: SelectOption[] = [
-    { value: 'Передний', label: 'Передний' },
-    { value: 'Задний', label: 'Задний' },
+    { value: 'F', label: 'F (Перед)' },
+    { value: 'R', label: 'R (Зад)' },
   ];
 
   const leftRightOptions: SelectOption[] = [
-    { value: 'Левый', label: 'Левый' },
-    { value: 'Правый', label: 'Правый' },
+    { value: 'L', label: 'L (Лево)' },
+    { value: 'R', label: 'R (Право)' },
   ];
 
   const topBottomOptions: SelectOption[] = [
-    { value: 'Верхний', label: 'Верхний' },
-    { value: 'Нижний', label: 'Нижний' },
+    { value: 'Верх', label: 'Верх' },
+    { value: 'Низ', label: 'Низ' },
+    { value: 'Середина', label: 'Середина' },
   ];
 
   const seasonOptions: SelectOption[] = [
@@ -614,9 +615,15 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
     if (drilling) items.push({ id: 'drilling', label: `Сверловка: ${drilling}`, onClear: () => setDrilling('') });
     if (drive) items.push({ id: 'drive', label: `Привод: ${drive}`, onClear: () => setDrive('') });
     if (engineBrand) items.push({ id: 'engineBrand', label: `Марка двигателя: ${engineBrand}`, onClear: () => setEngineBrand('') });
-    if (frontRear) items.push({ id: 'frontRear', label: `Расположение: ${frontRear}`, onClear: () => setFrontRear('') });
+    if (frontRear) {
+      const frLabel = frontRear === 'F' ? 'F (Перед)' : frontRear === 'R' ? 'R (Зад)' : frontRear;
+      items.push({ id: 'frontRear', label: `Расположение: ${frLabel}`, onClear: () => setFrontRear('') });
+    }
     if (hasPhoto && hasPhoto !== 'all') items.push({ id: 'hasPhoto', label: `Фото: ${hasPhoto === 'with' ? 'С фото' : 'Без фото'}`, onClear: () => setHasPhoto('all') });
-    if (leftRight) items.push({ id: 'leftRight', label: `Сторона: ${leftRight}`, onClear: () => setLeftRight('') });
+    if (leftRight) {
+      const lrLabel = leftRight === 'L' ? 'L (Лево)' : leftRight === 'R' ? 'R (Право)' : leftRight;
+      items.push({ id: 'leftRight', label: `Сторона: ${lrLabel}`, onClear: () => setLeftRight('') });
+    }
     if (location) items.push({ id: 'location', label: `Местоположение: ${location}`, onClear: () => setLocation('') });
     if (manufacturer) items.push({ id: 'manufacturer', label: `Производитель: ${manufacturer}`, onClear: () => setManufacturer('') });
     if (manufacturerCode) items.push({ id: 'manufacturerCode', label: `Код производителя: ${manufacturerCode}`, onClear: () => setManufacturerCode('') });
