@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -703,6 +704,14 @@ func (r *partRepository) DeleteExpiredParts(ctx context.Context, before time.Tim
 	return err
 }
 
+func calculateGrowth(current, previous float64) float64 {
+	if previous <= 0 {
+		return 0
+	}
+	growth := ((current - previous) / previous) * 100.0
+	return math.Round(growth*10) / 10
+}
+
 func (r *partRepository) GetStatistics(ctx context.Context) (domain.StatisticsResponse, error) {
 	var stats domain.StatisticsResponse
 
@@ -714,6 +723,22 @@ func (r *partRepository) GetStatistics(ctx context.Context) (domain.StatisticsRe
 	stats.TotalParts = int(totals.TotalParts)
 	stats.TotalQuantity = int(totals.TotalQuantity)
 	stats.TotalValue = totals.TotalValue
+
+	now := time.Now()
+	// Срез на начало текущего месяца
+	cutoff := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	prev, err := r.queries.GetStatsTotalsBefore(ctx, pgtype.Timestamptz{Time: cutoff, Valid: true})
+	if err == nil && prev.PrevParts == 0 {
+		// Fallback: 30 дней назад, если на начало месяца данных не было
+		cutoff = now.AddDate(0, 0, -30)
+		prev, err = r.queries.GetStatsTotalsBefore(ctx, pgtype.Timestamptz{Time: cutoff, Valid: true})
+	}
+
+	if err == nil && prev.PrevParts > 0 {
+		stats.PartsGrowth = calculateGrowth(float64(totals.TotalParts), float64(prev.PrevParts))
+		stats.QuantityGrowth = calculateGrowth(float64(totals.TotalQuantity), float64(prev.PrevQuantity))
+		stats.ValueGrowth = calculateGrowth(totals.TotalValue, prev.PrevValue)
+	}
 
 	categories, err := r.queries.GetStatsCategories(ctx)
 	if err != nil {
@@ -733,6 +758,9 @@ func (r *partRepository) GetStatistics(ctx context.Context) (domain.StatisticsRe
 	logrus.WithFields(logrus.Fields{
 		"total_parts":      stats.TotalParts,
 		"total_value":      stats.TotalValue,
+		"parts_growth":     stats.PartsGrowth,
+		"quantity_growth":  stats.QuantityGrowth,
+		"value_growth":     stats.ValueGrowth,
 		"categories_count": len(stats.Categories),
 	}).Info("Statistics retrieved successfully")
 

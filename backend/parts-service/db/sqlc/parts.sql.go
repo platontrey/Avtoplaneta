@@ -582,6 +582,31 @@ func (q *Queries) GetStatsTotals(ctx context.Context) (GetStatsTotalsRow, error)
 	return i, err
 }
 
+const GetStatsTotalsBefore = `-- name: GetStatsTotalsBefore :one
+SELECT
+    COUNT(*)::bigint AS prev_parts,
+    COALESCE(SUM(quantity), 0)::bigint AS prev_quantity,
+    COALESCE(SUM(price * quantity), 0)::float8 AS prev_value
+FROM parts
+WHERE to_delete_at IS NULL
+  AND quantity >= 1
+  AND created_at < $1
+  AND (deleted_at IS NULL OR deleted_at >= $1)
+`
+
+type GetStatsTotalsBeforeRow struct {
+	PrevParts    int64   `json:"prev_parts"`
+	PrevQuantity int64   `json:"prev_quantity"`
+	PrevValue    float64 `json:"prev_value"`
+}
+
+func (q *Queries) GetStatsTotalsBefore(ctx context.Context, createdAt pgtype.Timestamptz) (GetStatsTotalsBeforeRow, error) {
+	row := q.db.QueryRow(ctx, GetStatsTotalsBefore, createdAt)
+	var i GetStatsTotalsBeforeRow
+	err := row.Scan(&i.PrevParts, &i.PrevQuantity, &i.PrevValue)
+	return i, err
+}
+
 const GetSupplierCodes = `-- name: GetSupplierCodes :many
 SELECT DISTINCT supplier_code FROM parts
 WHERE supplier_code IS NOT NULL AND supplier_code != '' AND quantity = 0 AND to_delete_at IS NULL AND deleted_at IS NULL

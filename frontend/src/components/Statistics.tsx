@@ -16,6 +16,10 @@ type StatisticsPayload = Partial<StatisticsResponse> & {
   total_quantity?: unknown;
   total_value?: unknown;
   total_earnings?: unknown;
+  parts_growth?: unknown;
+  quantity_growth?: unknown;
+  value_growth?: unknown;
+  earnings_growth?: unknown;
   monthly_sales?: unknown;
 };
 
@@ -40,11 +44,28 @@ const normalizeStatistics = (value: unknown): StatisticsResponse => {
     .filter((item): item is { month: string; sales: number } => Boolean(item && typeof item === 'object' && 'month' in item && typeof item.month === 'string'))
     .map((item) => ({ month: item.month, sales: toFiniteNumber(item.sales) }));
 
+  const partsGrowth = payload.partsGrowth !== undefined || payload.parts_growth !== undefined
+    ? toFiniteNumber(payload.partsGrowth ?? payload.parts_growth)
+    : undefined;
+  const quantityGrowth = payload.quantityGrowth !== undefined || payload.quantity_growth !== undefined
+    ? toFiniteNumber(payload.quantityGrowth ?? payload.quantity_growth)
+    : undefined;
+  const valueGrowth = payload.valueGrowth !== undefined || payload.value_growth !== undefined
+    ? toFiniteNumber(payload.valueGrowth ?? payload.value_growth)
+    : undefined;
+  const earningsGrowth = payload.earningsGrowth !== undefined || payload.earnings_growth !== undefined
+    ? toFiniteNumber(payload.earningsGrowth ?? payload.earnings_growth)
+    : undefined;
+
   return {
     totalParts: toFiniteNumber(payload.totalParts ?? payload.total_parts),
     totalQuantity: toFiniteNumber(payload.totalQuantity ?? payload.total_quantity),
     totalValue: toFiniteNumber(payload.totalValue ?? payload.total_value),
     totalEarnings: toFiniteNumber(payload.totalEarnings ?? payload.total_earnings),
+    partsGrowth,
+    quantityGrowth,
+    valueGrowth,
+    earningsGrowth,
     categories,
     monthlySales,
   };
@@ -56,12 +77,17 @@ function Statistics() {
   const { resolvedTheme } = useTheme();
 
   const GrowthIndicator = ({ growth }: { growth: number }) => {
+    const isZero = Math.abs(growth) < 0.05;
     const Icon = growth >= 0 ? TrendingUp : TrendingDown;
-    const color = growth >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
-    const sign = growth >= 0 ? '+' : '';
+    const color = isZero
+      ? 'text-muted-foreground'
+      : growth > 0
+        ? 'text-green-600 dark:text-green-400'
+        : 'text-red-600 dark:text-red-400';
+    const sign = growth > 0 ? '+' : '';
     return (
       <div className="absolute top-2 right-2 bg-muted rounded-lg p-2 flex items-center gap-1">
-        <Icon className={`h-4 w-4 ${color}`} />
+        {!isZero && <Icon className={`h-4 w-4 ${color}`} />}
         <span className={`text-sm font-bold ${color}`}>{sign}{growth.toFixed(1)}%</span>
       </div>
     );
@@ -238,8 +264,11 @@ function Statistics() {
      fill: ['#059669', '#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#34d399', '#10b981', '#059669', '#047857', '#065f46', '#064e3b', '#022c22'][index % 12]
   })) || [];
 
-  // Calculate growth percentage for earnings
-  const growthPercentage = (() => {
+  // Individual growth metrics for each card
+  const partsGrowth = data?.partsGrowth ?? 0;
+  const quantityGrowth = data?.quantityGrowth ?? 0;
+  const valueGrowth = data?.valueGrowth ?? 0;
+  const earningsGrowth = data?.earningsGrowth ?? (() => {
     if (!data?.monthlySales || data.monthlySales.length < 2) return 0;
     const sorted = [...data.monthlySales].sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
     const last = sorted[sorted.length - 1].sales;
@@ -247,11 +276,6 @@ function Statistics() {
     if (prev === 0) return 0;
     return ((last - prev) / prev) * 100;
   })();
-
-  // For other metrics, use the same growth as earnings for now (since no historical data)
-  const partsGrowth = growthPercentage;
-  const quantityGrowth = growthPercentage;
-  const valueGrowth = growthPercentage;
 
   const summaryData = [
     { name: 'Всего запчастей', value: data?.totalParts || 0, color: '#6b7280' },
@@ -307,7 +331,7 @@ function Statistics() {
             </Card>
             <Card className="shadow-none gap-0 relative">
               <CardHeader className="pb-0 flex flex-col items-start">
-                <GrowthIndicator growth={growthPercentage} />
+                <GrowthIndicator growth={earningsGrowth} />
                 <div className="bg-muted rounded-lg p-2 mb-0">
                   <ChartNoAxesCombined className="h-8 w-8" />
                 </div>

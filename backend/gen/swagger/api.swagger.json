@@ -2308,6 +2308,22 @@
             "type": "object",
             "$ref": "#/definitions/v1MonthlySales"
           }
+        },
+        "partsGrowth": {
+          "type": "number",
+          "format": "double"
+        },
+        "quantityGrowth": {
+          "type": "number",
+          "format": "double"
+        },
+        "valueGrowth": {
+          "type": "number",
+          "format": "double"
+        },
+        "earningsGrowth": {
+          "type": "number",
+          "format": "double"
         }
       }
     },

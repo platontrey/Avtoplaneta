@@ -240,12 +240,16 @@ func (p *Part) SetSpecifications(specs map[string]interface{}) {
 }
 
 type StatisticsResponse struct {
-	TotalParts    int             `json:"total_parts"`
-	TotalQuantity int             `json:"total_quantity"`
-	TotalValue    float64         `json:"total_value"`
-	TotalEarnings float64         `json:"total_earnings"`
-	Categories    []CategoryCount `json:"categories"`
-	MonthlySales  []MonthlySales  `json:"monthly_sales"`
+	TotalParts     int             `json:"total_parts"`
+	TotalQuantity  int             `json:"total_quantity"`
+	TotalValue     float64         `json:"total_value"`
+	TotalEarnings  float64         `json:"total_earnings"`
+	PartsGrowth    float64         `json:"parts_growth"`
+	QuantityGrowth float64         `json:"quantity_growth"`
+	ValueGrowth    float64         `json:"value_growth"`
+	EarningsGrowth float64         `json:"earnings_growth"`
+	Categories     []CategoryCount `json:"categories"`
+	MonthlySales   []MonthlySales  `json:"monthly_sales"`
 }
 
 type CategoryCount struct {

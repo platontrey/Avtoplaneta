@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"runtime"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -585,6 +587,22 @@ func (s *inventoryService) GetStatistics(ctx context.Context) (domain.Statistics
 		stats.MonthlySales = []domain.MonthlySales{}
 	} else {
 		stats.MonthlySales = monthlySales
+	}
+
+	// Рассчитываем динамику продаж по месяцам
+	if len(stats.MonthlySales) >= 2 {
+		sorted := make([]domain.MonthlySales, len(stats.MonthlySales))
+		copy(sorted, stats.MonthlySales)
+		sort.Slice(sorted, func(i, j int) bool {
+			return sorted[i].Month < sorted[j].Month
+		})
+		last := sorted[len(sorted)-1].Sales
+		prev := sorted[len(sorted)-2].Sales
+		if prev > 0 {
+			stats.EarningsGrowth = math.Round(((last-prev)/prev)*1000) / 10
+		} else if last > 0 {
+			stats.EarningsGrowth = 100.0
+		}
 	}
 
 	// Кэшируем результат

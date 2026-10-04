@@ -413,6 +413,10 @@ message StatisticsResponse {
   double total_earnings = 4;
   repeated CategoryCount categories = 5;
   repeated MonthlySales monthly_sales = 6;
+  double parts_growth = 7;
+  double quantity_growth = 8;
+  double value_growth = 9;
+  double earnings_growth = 10;
 }
 
 message UpdateEarningsRequest {

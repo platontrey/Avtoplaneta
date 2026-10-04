@@ -450,12 +450,16 @@ func (s *partsGRPCServer) GetStatistics(ctx context.Context, req *partsv1.GetSta
 	}
 
 	return &partsv1.StatisticsResponse{
-		TotalParts:    int32(stats.TotalParts),
-		TotalQuantity: int32(stats.TotalQuantity),
-		TotalValue:    stats.TotalValue,
-		TotalEarnings: stats.TotalEarnings,
-		Categories:    categories,
-		MonthlySales:  monthlySales,
+		TotalParts:     int32(stats.TotalParts),
+		TotalQuantity:  int32(stats.TotalQuantity),
+		TotalValue:     stats.TotalValue,
+		TotalEarnings:  stats.TotalEarnings,
+		Categories:     categories,
+		MonthlySales:   monthlySales,
+		PartsGrowth:    stats.PartsGrowth,
+		QuantityGrowth: stats.QuantityGrowth,
+		ValueGrowth:    stats.ValueGrowth,
+		EarningsGrowth: stats.EarningsGrowth,
 	}, nil
 }
 

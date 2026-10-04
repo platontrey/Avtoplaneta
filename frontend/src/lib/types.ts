@@ -19,6 +19,10 @@ export interface StatisticsResponse {
   totalQuantity: number;
   totalValue: number;
   totalEarnings: number;
+  partsGrowth?: number;
+  quantityGrowth?: number;
+  valueGrowth?: number;
+  earningsGrowth?: number;
   categories: CategoryCount[];
   monthlySales: MonthlySales[];
 }
