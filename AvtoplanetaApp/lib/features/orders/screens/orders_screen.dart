@@ -974,7 +974,7 @@ class _EditOrderSheetState extends State<_EditOrderSheet> {
     setState(() => _saving = true);
     try {
       await apiClient.dio.patch(
-        '/api/v1/orders/${widget.order.id}',
+        ApiEndpoints.orderById(widget.order.id),
         data: {
           'payment_status': _paymentStatus,
           'warehouse_status': _warehouseStatus,
@@ -994,7 +994,7 @@ class _EditOrderSheetState extends State<_EditOrderSheet> {
         final newPrice = double.tryParse(_priceControllers[item.id]?.text ?? '') ?? item.price;
         if (newQty != item.quantity || newPrice != item.price) {
           await apiClient.dio.patch(
-            '/api/v1/orders/${widget.order.id}/items/${item.id}',
+            ApiEndpoints.orderItem(widget.order.id, item.id),
             data: {'quantity': newQty, 'price': newPrice},
           );
         }

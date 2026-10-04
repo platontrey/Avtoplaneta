@@ -143,9 +143,13 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
     setState(() => _submitting = true);
     try {
       if (_mode == 'existing') {
+        final orderId = _selectedOrderId;
+        if (orderId == null) {
+          throw Exception('Не выбран заказ для добавления деталей');
+        }
         for (final item in items) {
           await apiClient.dio.post(
-            ApiEndpoints.orderItems(_selectedOrderId),
+            ApiEndpoints.orderItems(orderId),
             data: item,
           );
         }
