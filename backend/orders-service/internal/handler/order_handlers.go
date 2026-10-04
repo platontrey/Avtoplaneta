@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 
 	"avtoplaneta/pkg/authcontext"
 	"orders-service/internal/domain"
@@ -62,10 +63,21 @@ func (h *Handler) CreateOrderHandler(c *gin.Context) {
 
 	order, err := h.ordersService.CreateOrder(ctx, req, user.ID, user.Name)
 	if err != nil {
+		logrus.WithError(err).WithFields(logrus.Fields{
+			"user_id":      user.ID,
+			"user_name":    user.Name,
+			"buyer_number": req.BuyerNumber,
+			"order_number": req.OrderNumber,
+			"items_count":  len(req.Items),
+		}).Error("Failed to create order")
+
 		if domain.IsValidationError(err) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order"})
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Failed to create order",
+				"details": err.Error(),
+			})
 		}
 		return
 	}
@@ -204,10 +216,19 @@ func (h *Handler) AddOrderItemHandler(c *gin.Context) {
 	}
 
 	if err := h.ordersService.AddOrderItem(ctx, orderID, req); err != nil {
+		logrus.WithError(err).WithFields(logrus.Fields{
+			"order_id": orderID,
+			"part_id":  req.PartID,
+			"quantity": req.Quantity,
+		}).Error("Failed to add item to order")
+
 		if domain.IsNotFoundError(err) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add item to order"})
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Failed to add item to order",
+				"details": err.Error(),
+			})
 		}
 		return
 	}

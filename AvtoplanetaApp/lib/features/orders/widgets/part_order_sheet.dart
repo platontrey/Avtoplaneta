@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter/services.dart';
@@ -181,8 +182,23 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
       }
     } catch (error) {
       if (mounted) {
+        String message = error.toString();
+        if (error is DioException && error.response?.data != null) {
+          final data = error.response!.data;
+          if (data is Map) {
+            final details = data['details'] ?? data['error'] ?? data['message'];
+            if (details != null && details.toString().isNotEmpty) {
+              message = details.toString();
+            }
+          } else if (data is String && data.isNotEmpty) {
+            message = data;
+          }
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Не удалось оформить заказ: $error')),
+          SnackBar(
+            content: Text('Не удалось оформить заказ: $message'),
+            backgroundColor: Colors.red.shade800,
+          ),
         );
       }
     } finally {
