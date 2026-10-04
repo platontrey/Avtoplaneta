@@ -19,6 +19,7 @@ import (
 	"parts-service/db/sqlc"
 	"parts-service/internal/catalog"
 	"parts-service/internal/domain"
+	"parts-service/internal/search"
 )
 
 // PartRepository определяет контракт для доступа к данным запчастей
@@ -639,8 +640,7 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 		case "search":
 			searchStr := strings.TrimSpace(value.(string))
 			if searchStr != "" {
-				terms := strings.Fields(searchStr)
-				for _, term := range terms {
+				buildTermSqlizer := func(term string) squirrel.Sqlizer {
 					termPattern := "%" + term + "%"
 					baseExpr := "(name ILIKE ? OR description ILIKE ? OR brand ILIKE ? OR model ILIKE ? OR number ILIKE ? OR oem_code ILIKE ? OR vin ILIKE ? OR category ILIKE ? OR car_release_date ILIKE ? OR car_release_period ILIKE ? OR body_brand ILIKE ? OR engine_brand ILIKE ? OR front_rear ILIKE ? OR left_right ILIKE ? OR top_bottom ILIKE ? OR color ILIKE ? OR condition ILIKE ? OR transmission ILIKE ? OR transmission_model ILIKE ? OR drive ILIKE ? OR defect ILIKE ? OR wear_percentage ILIKE ? OR season ILIKE ? OR diameter ILIKE ? OR width ILIKE ? OR profile ILIKE ? OR drilling ILIKE ? OR \"offset\" ILIKE ? OR center_hole_diameter ILIKE ? OR tire_model ILIKE ? OR tire_quantity ILIKE ? OR location ILIKE ? OR address ILIKE ? OR salesman ILIKE ? OR manufacturer ILIKE ? OR manufacturer_code ILIKE ? OR supplier_code ILIKE ?"
 					args := make([]interface{}, 37)
@@ -665,7 +665,32 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 						baseExpr += " OR top_bottom = 'B' OR top_bottom = 'L' OR top_bottom ILIKE '%низ%'"
 					}
 					baseExpr += ")"
-					builder = builder.Where(squirrel.Expr(baseExpr, args...))
+					return squirrel.Expr(baseExpr, args...)
+				}
+
+				fragments := search.SplitMultiSearchQuery(searchStr)
+				if len(fragments) > 1 {
+					var orPreds []squirrel.Sqlizer
+					for _, frag := range fragments {
+						var andPreds []squirrel.Sqlizer
+						for _, term := range strings.Fields(frag) {
+							if strings.TrimSpace(term) != "" {
+								andPreds = append(andPreds, buildTermSqlizer(term))
+							}
+						}
+						if len(andPreds) > 0 {
+							orPreds = append(orPreds, squirrel.And(andPreds))
+						}
+					}
+					if len(orPreds) > 0 {
+						builder = builder.Where(squirrel.Or(orPreds))
+					}
+				} else if len(fragments) == 1 {
+					for _, term := range strings.Fields(fragments[0]) {
+						if strings.TrimSpace(term) != "" {
+							builder = builder.Where(buildTermSqlizer(term))
+						}
+					}
 				}
 			}
 		}

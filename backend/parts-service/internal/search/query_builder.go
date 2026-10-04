@@ -1,6 +1,7 @@
 package search
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -154,11 +155,272 @@ func GetPositionTermQueries(term string) []map[string]interface{} {
 	return queries
 }
 
+var multiSearchSplitRegex = regexp.MustCompile(`(?i)(?:\s+(?:или|or)\s+|[,\n\r;|]+)`)
+
+// SplitMultiSearchQuery разбивает строку поиска на отдельные поисковые подзапросы,
+// если используются разделители (запятая, точка с запятой, перенос строки, |, ключевые слова "или" / "or").
+func SplitMultiSearchQuery(raw string) []string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil
+	}
+
+	parts := multiSearchSplitRegex.Split(trimmed, -1)
+	var result []string
+	for _, p := range parts {
+		clean := strings.TrimSpace(p)
+		if clean != "" {
+			result = append(result, clean)
+		}
+	}
+	return result
+}
+
+var defaultSearchableFields = []string{
+	"name^10", "name.ngram^5",
+	"brand^4", "brand.text^4", "brand.ngram^3",
+	"model^4", "model.text^4", "model.ngram^3",
+	"body_brand^3", "body_brand.text^3", "body_brand.ngram^2",
+	"engine_brand^3", "engine_brand.text^3", "engine_brand.ngram^2",
+	"number^4", "number.text^4",
+	"oem_code^4", "oem_code.text^4",
+	"manufacturer_code^3", "manufacturer_code.text^3",
+	"supplier_code^2", "supplier_code.text^2",
+	"vin^3", "vin.text^3",
+	"category^3", "category.text^3", "category.ngram^2",
+	"car_release_date^3", "car_release_date.text^3", "car_release_date.ngram^2",
+	"car_release_period^3", "car_release_period.text^3", "car_release_period.ngram^2",
+	"front_rear^3", "front_rear.text^3", "front_rear.ngram^2",
+	"left_right^3", "left_right.text^3", "left_right.ngram^2",
+	"top_bottom^3", "top_bottom.text^3", "top_bottom.ngram^2",
+	"color^3", "color.text^3", "color.ngram^2",
+	"condition^2", "condition.text^2", "condition.ngram^1",
+	"transmission^3", "transmission.text^3", "transmission.ngram^2",
+	"transmission_model^3", "transmission_model.text^3", "transmission_model.ngram^2",
+	"drive^3", "drive.text^3", "drive.ngram^2",
+	"manufacturer^2", "manufacturer.text^2", "manufacturer.ngram^1",
+	"defect^2", "defect.text^2",
+	"season^3", "season.text^3", "season.ngram^2",
+	"diameter^2", "diameter.text^2",
+	"width^2", "width.text^2",
+	"profile^2", "profile.text^2",
+	"drilling^2", "drilling.text^2",
+	"offset^2", "offset.text^2",
+	"center_hole_diameter^2", "center_hole_diameter.text^2",
+	"tire_model^3", "tire_model.text^3", "tire_model.ngram^2",
+	"tire_quantity^1", "tire_quantity.text^1",
+	"wear_percentage^1", "wear_percentage.text^1",
+	"location^1", "location.text^1",
+	"address^1", "address.text^1",
+	"salesman^1", "salesman.text^1",
+	"description^1",
+}
+
+func buildTermQueries(term string, searchableFields []string) []map[string]interface{} {
+	variants := []string{term}
+	tTrans := TransliterateLatinToCyrillic(term)
+	if tTrans != strings.ToLower(term) {
+		variants = append(variants, tTrans)
+	}
+	tQwerty := ConvertQwertyToRussian(term)
+	if tQwerty != strings.ToLower(term) && tQwerty != tTrans {
+		variants = append(variants, tQwerty)
+	}
+
+	termQueries := []map[string]interface{}{}
+	for _, variant := range variants {
+		escapedVar := escapeESQuery(variant)
+
+		// 1. Точное / ngram / стеммированное совпадение по всем полям
+		termQueries = append(termQueries, map[string]interface{}{
+			"multi_match": map[string]interface{}{
+				"query":  variant,
+				"fields": searchableFields,
+				"type":   "best_fields",
+			},
+		})
+
+		// 2. Префиксный поиск через match_bool_prefix (когда слово не дописано)
+		termQueries = append(termQueries, map[string]interface{}{
+			"multi_match": map[string]interface{}{
+				"query":  variant,
+				"fields": searchableFields,
+				"type":   "bool_prefix",
+			},
+		})
+
+		// 3. Префиксный wildcard (слово*) через query_string по всем полям
+		termQueries = append(termQueries, map[string]interface{}{
+			"query_string": map[string]interface{}{
+				"query":            escapedVar + "*",
+				"fields":           searchableFields,
+				"default_operator": "OR",
+				"analyze_wildcard": true,
+				"boost":            2.0,
+			},
+		})
+
+		// 4. Подстрочный wildcard (*слово*) для фрагментов от 3 символов
+		if len([]rune(variant)) >= 3 {
+			termQueries = append(termQueries, map[string]interface{}{
+				"query_string": map[string]interface{}{
+					"query":            "*" + escapedVar + "*",
+					"fields":           searchableFields,
+					"default_operator": "OR",
+					"analyze_wildcard": true,
+					"boost":            1.0,
+				},
+			})
+		}
+
+		// 5. Позиционные синонимы (F/R/L и перед/зад/право/лево/верх/низ)
+		if posQueries := GetPositionTermQueries(variant); len(posQueries) > 0 {
+			termQueries = append(termQueries, posQueries...)
+		}
+	}
+	return termQueries
+}
+
+func buildSearchRelevanceBoosts(searchStr string, searchableFields []string) []map[string]interface{} {
+	transliteratedSearch := TransliterateLatinToCyrillic(searchStr)
+	qwertySearch := ConvertQwertyToRussian(searchStr)
+
+	should := []map[string]interface{}{
+		// Точное совпадение в названии (Максимальный приоритет 100.0)
+		{
+			"match": map[string]interface{}{
+				"name": map[string]interface{}{
+					"query": searchStr,
+					"boost": 100.0,
+				},
+			},
+		},
+		// Фразовое совпадение с префиксом в названии
+		{
+			"match_phrase_prefix": map[string]interface{}{
+				"name": map[string]interface{}{
+					"query": searchStr,
+					"boost": 50.0,
+				},
+			},
+		},
+		// Фразовое совпадение с префиксом по всей строке по всем полям
+		{
+			"multi_match": map[string]interface{}{
+				"query":  searchStr,
+				"fields": searchableFields,
+				"type":   "bool_prefix",
+				"boost":  40.0,
+			},
+		},
+		// Совпадение всей поисковой фразы целиком по всем полям
+		{
+			"multi_match": map[string]interface{}{
+				"query":  searchStr,
+				"fields": searchableFields,
+				"type":   "best_fields",
+				"boost":  15.0,
+			},
+		},
+	}
+
+	if transliteratedSearch != strings.ToLower(searchStr) {
+		should = append(should,
+			map[string]interface{}{
+				"match": map[string]interface{}{
+					"name": map[string]interface{}{
+						"query": transliteratedSearch,
+						"boost": 80.0,
+					},
+				},
+			},
+			map[string]interface{}{
+				"multi_match": map[string]interface{}{
+					"query":  transliteratedSearch,
+					"fields": searchableFields,
+					"type":   "best_fields",
+					"boost":  10.0,
+				},
+			},
+		)
+	}
+
+	if qwertySearch != strings.ToLower(searchStr) && qwertySearch != transliteratedSearch {
+		should = append(should,
+			map[string]interface{}{
+				"match": map[string]interface{}{
+					"name": map[string]interface{}{
+						"query": qwertySearch,
+						"boost": 70.0,
+					},
+				},
+			},
+			map[string]interface{}{
+				"multi_match": map[string]interface{}{
+					"query":  qwertySearch,
+					"fields": searchableFields,
+					"type":   "best_fields",
+					"boost":  8.0,
+				},
+			},
+		)
+	}
+
+	// Нечёткий поиск для компенсации опечаток
+	should = append(should, map[string]interface{}{
+		"multi_match": map[string]interface{}{
+			"query":                searchStr,
+			"fields":               []string{"name^2", "brand.text^1", "model.text^1", "car_release_date.text^1", "car_release_period.text^1", "front_rear.text^1", "color.text^1", "transmission.text^1"},
+			"type":                 "best_fields",
+			"fuzziness":            "AUTO:4,7",
+			"prefix_length":        2,
+			"minimum_should_match": "75%",
+			"boost":                0.1,
+		},
+	})
+
+	return should
+}
+
+// buildSingleFragmentQuery строит bool запрос для отдельного фрагмента мультипоиска
+func buildSingleFragmentQuery(frag string, searchableFields []string) map[string]interface{} {
+	terms := strings.Fields(frag)
+	if len(terms) == 0 {
+		return nil
+	}
+
+	fragMust := []map[string]interface{}{}
+	for _, term := range terms {
+		if strings.TrimSpace(term) == "" {
+			continue
+		}
+		termQueries := buildTermQueries(term, searchableFields)
+		fragMust = append(fragMust, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should":               termQueries,
+				"minimum_should_match": 1,
+			},
+		})
+	}
+
+	fragShould := buildSearchRelevanceBoosts(frag, searchableFields)
+
+	fragBool := map[string]interface{}{
+		"must": fragMust,
+	}
+	if len(fragShould) > 0 {
+		fragBool["should"] = fragShould
+	}
+
+	return map[string]interface{}{
+		"bool": fragBool,
+	}
+}
+
 // buildElasticsearchQuery строит запрос для Elasticsearch
 func BuildElasticsearchQuery(params domain.InventoryQueryParams) map[string]interface{} {
 	must := []map[string]interface{}{}
 	filter := []map[string]interface{}{}
-
 	should := []map[string]interface{}{}
 
 	// Фильтр для отображения валидных запчастей (quantity >= 0)
@@ -171,222 +433,41 @@ func BuildElasticsearchQuery(params domain.InventoryQueryParams) map[string]inte
 	})
 
 	if params.Search != "" {
-		terms := strings.Fields(params.Search)
-		transliteratedSearch := TransliterateLatinToCyrillic(params.Search)
-		qwertySearch := ConvertQwertyToRussian(params.Search)
-
-		searchableFields := []string{
-			"name^10", "name.ngram^5",
-			"brand^4", "brand.text^4", "brand.ngram^3",
-			"model^4", "model.text^4", "model.ngram^3",
-			"body_brand^3", "body_brand.text^3", "body_brand.ngram^2",
-			"engine_brand^3", "engine_brand.text^3", "engine_brand.ngram^2",
-			"number^4", "number.text^4",
-			"oem_code^4", "oem_code.text^4",
-			"manufacturer_code^3", "manufacturer_code.text^3",
-			"supplier_code^2", "supplier_code.text^2",
-			"vin^3", "vin.text^3",
-			"category^3", "category.text^3", "category.ngram^2",
-			"car_release_date^3", "car_release_date.text^3", "car_release_date.ngram^2",
-			"car_release_period^3", "car_release_period.text^3", "car_release_period.ngram^2",
-			"front_rear^3", "front_rear.text^3", "front_rear.ngram^2",
-			"left_right^3", "left_right.text^3", "left_right.ngram^2",
-			"top_bottom^3", "top_bottom.text^3", "top_bottom.ngram^2",
-			"color^3", "color.text^3", "color.ngram^2",
-			"condition^2", "condition.text^2", "condition.ngram^1",
-			"transmission^3", "transmission.text^3", "transmission.ngram^2",
-			"transmission_model^3", "transmission_model.text^3", "transmission_model.ngram^2",
-			"drive^3", "drive.text^3", "drive.ngram^2",
-			"manufacturer^2", "manufacturer.text^2", "manufacturer.ngram^1",
-			"defect^2", "defect.text^2",
-			"season^3", "season.text^3", "season.ngram^2",
-			"diameter^2", "diameter.text^2",
-			"width^2", "width.text^2",
-			"profile^2", "profile.text^2",
-			"drilling^2", "drilling.text^2",
-			"offset^2", "offset.text^2",
-			"center_hole_diameter^2", "center_hole_diameter.text^2",
-			"tire_model^3", "tire_model.text^3", "tire_model.ngram^2",
-			"tire_quantity^1", "tire_quantity.text^1",
-			"wear_percentage^1", "wear_percentage.text^1",
-			"location^1", "location.text^1",
-			"address^1", "address.text^1",
-			"salesman^1", "salesman.text^1",
-			"description^1",
-		}
-
-		// 1. Обязательное совпадение: каждый терм поискового запроса должен присутствовать
-		// в запчасти (по любому из полей или как префикс не завершенного слова).
-		for _, term := range terms {
-			if strings.TrimSpace(term) == "" {
-				continue
-			}
-
-			variants := []string{term}
-			tTrans := TransliterateLatinToCyrillic(term)
-			if tTrans != strings.ToLower(term) {
-				variants = append(variants, tTrans)
-			}
-			tQwerty := ConvertQwertyToRussian(term)
-			if tQwerty != strings.ToLower(term) && tQwerty != tTrans {
-				variants = append(variants, tQwerty)
-			}
-
-			termQueries := []map[string]interface{}{}
-			for _, variant := range variants {
-				escapedVar := escapeESQuery(variant)
-
-				// 1. Точное / ngram / стеммированное совпадение по всем полям
-				termQueries = append(termQueries, map[string]interface{}{
-					"multi_match": map[string]interface{}{
-						"query":  variant,
-						"fields": searchableFields,
-						"type":   "best_fields",
-					},
-				})
-
-				// 2. Префиксный поиск через match_bool_prefix (когда слово не дописано)
-				termQueries = append(termQueries, map[string]interface{}{
-					"multi_match": map[string]interface{}{
-						"query":  variant,
-						"fields": searchableFields,
-						"type":   "bool_prefix",
-					},
-				})
-
-				// 3. Префиксный wildcard (слово*) через query_string по всем полям
-				termQueries = append(termQueries, map[string]interface{}{
-					"query_string": map[string]interface{}{
-						"query":            escapedVar + "*",
-						"fields":           searchableFields,
-						"default_operator": "OR",
-						"analyze_wildcard": true,
-						"boost":            2.0,
-					},
-				})
-
-				// 4. Подстрочный wildcard (*слово*) для фрагментов от 3 символов
-				if len([]rune(variant)) >= 3 {
-					termQueries = append(termQueries, map[string]interface{}{
-						"query_string": map[string]interface{}{
-							"query":            "*" + escapedVar + "*",
-							"fields":           searchableFields,
-							"default_operator": "OR",
-							"analyze_wildcard": true,
-							"boost":            1.0,
-						},
-					})
-				}
-
-				// 5. Позиционные синонимы (F/R/L и перед/зад/право/лево/верх/низ)
-				if posQueries := GetPositionTermQueries(variant); len(posQueries) > 0 {
-					termQueries = append(termQueries, posQueries...)
+		fragments := SplitMultiSearchQuery(params.Search)
+		if len(fragments) > 1 {
+			// Мультипоиск: объединяем подзапросы фрагментов через should (OR) с minimum_should_match: 1
+			multiShould := []map[string]interface{}{}
+			for _, frag := range fragments {
+				if fragQuery := buildSingleFragmentQuery(frag, defaultSearchableFields); fragQuery != nil {
+					multiShould = append(multiShould, fragQuery)
 				}
 			}
-
-			must = append(must, map[string]interface{}{
-				"bool": map[string]interface{}{
-					"should":               termQueries,
-					"minimum_should_match": 1,
-				},
-			})
+			if len(multiShould) > 0 {
+				must = append(must, map[string]interface{}{
+					"bool": map[string]interface{}{
+						"should":               multiShould,
+						"minimum_should_match": 1,
+					},
+				})
+			}
+		} else if len(fragments) == 1 {
+			// Одиночный поиск (стандартный путь)
+			frag := fragments[0]
+			terms := strings.Fields(frag)
+			for _, term := range terms {
+				if strings.TrimSpace(term) == "" {
+					continue
+				}
+				termQueries := buildTermQueries(term, defaultSearchableFields)
+				must = append(must, map[string]interface{}{
+					"bool": map[string]interface{}{
+						"should":               termQueries,
+						"minimum_should_match": 1,
+					},
+				})
+			}
+			should = append(should, buildSearchRelevanceBoosts(frag, defaultSearchableFields)...)
 		}
-
-		// 2. Для ранжирования и релевантности добавляем should-запросы
-		// с высокими весами для точного совпадения названия, фразового поиска и опечаток
-		should = append(should,
-			// Точное совпадение в названии (Максимальный приоритет 100.0)
-			map[string]interface{}{
-				"match": map[string]interface{}{
-					"name": map[string]interface{}{
-						"query": params.Search,
-						"boost": 100.0,
-					},
-				},
-			},
-			// Фразовое совпадение с префиксом в названии
-			map[string]interface{}{
-				"match_phrase_prefix": map[string]interface{}{
-					"name": map[string]interface{}{
-						"query": params.Search,
-						"boost": 50.0,
-					},
-				},
-			},
-			// Фразовое совпадение с префиксом по всей строке по всем полям
-			map[string]interface{}{
-				"multi_match": map[string]interface{}{
-					"query":  params.Search,
-					"fields": searchableFields,
-					"type":   "bool_prefix",
-					"boost":  40.0,
-				},
-			},
-			// Совпадение всей поисковой фразы целиком по всем полям
-			map[string]interface{}{
-				"multi_match": map[string]interface{}{
-					"query":  params.Search,
-					"fields": searchableFields,
-					"type":   "best_fields",
-					"boost":  15.0,
-				},
-			},
-		)
-
-		if transliteratedSearch != strings.ToLower(params.Search) {
-			should = append(should,
-				map[string]interface{}{
-					"match": map[string]interface{}{
-						"name": map[string]interface{}{
-							"query": transliteratedSearch,
-							"boost": 80.0,
-						},
-					},
-				},
-				map[string]interface{}{
-					"multi_match": map[string]interface{}{
-						"query":  transliteratedSearch,
-						"fields": searchableFields,
-						"type":   "best_fields",
-						"boost":  10.0,
-					},
-				},
-			)
-		}
-
-		if qwertySearch != strings.ToLower(params.Search) && qwertySearch != transliteratedSearch {
-			should = append(should,
-				map[string]interface{}{
-					"match": map[string]interface{}{
-						"name": map[string]interface{}{
-							"query": qwertySearch,
-							"boost": 70.0,
-						},
-					},
-				},
-				map[string]interface{}{
-					"multi_match": map[string]interface{}{
-						"query":  qwertySearch,
-						"fields": searchableFields,
-						"type":   "best_fields",
-						"boost":  8.0,
-					},
-				},
-			)
-		}
-
-		// Нечёткий поиск для компенсации опечаток
-		should = append(should, map[string]interface{}{
-			"multi_match": map[string]interface{}{
-				"query":                params.Search,
-				"fields":               []string{"name^2", "brand.text^1", "model.text^1", "car_release_date.text^1", "car_release_period.text^1", "front_rear.text^1", "color.text^1", "transmission.text^1"},
-				"type":                 "best_fields",
-				"fuzziness":            "AUTO:4,7",
-				"prefix_length":        2,
-				"minimum_should_match": "75%",
-				"boost":                0.1,
-			},
-		})
 	}
 
 	if params.Category != "" {
