@@ -579,7 +579,27 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
   // Формирование активных фильтров для бейджей
   const activeFilterItems = useMemo<ActiveFilterItem[]>(() => {
     const items: ActiveFilterItem[] = [];
-    if (searchQuery) items.push({ id: 'search', label: `Поиск: ${searchQuery}`, onClear: clearSearchQuery });
+    if (searchQuery.trim()) {
+      const multiTerms = searchQuery
+        .split(/(?:\s+(?:или|or)\s+|[,\n\r;|]+)/i)
+        .map((t) => t.trim())
+        .filter(Boolean);
+
+      if (multiTerms.length > 1) {
+        multiTerms.forEach((term, index) => {
+          items.push({
+            id: `search-${index}`,
+            label: `Поиск: ${term}`,
+            onClear: () => {
+              const remaining = multiTerms.filter((_, i) => i !== index);
+              setSearchQuery(remaining.join(', '));
+            },
+          });
+        });
+      } else {
+        items.push({ id: 'search', label: `Поиск: ${searchQuery}`, onClear: clearSearchQuery });
+      }
+    }
     if (address) items.push({ id: 'address', label: `Адрес склада: ${address}`, onClear: () => setAddress('') });
     if (bodyBrand) items.push({ id: 'bodyBrand', label: `Марка кузова: ${bodyBrand}`, onClear: () => setBodyBrand('') });
     if (brand) items.push({ id: 'brand', label: `Марка авто: ${brand}`, onClear: () => setBrand('') });
@@ -678,7 +698,7 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
                   value={searchQuery}
                   onChange={handleInputChange}
                   onFocus={() => results.length > 0 && setIsResultsVisible(true)}
-                  placeholder="Поиск по названию или описанию..."
+                  placeholder="Поиск по названию, номеру (можно через запятую: фара, крыло)..."
                   className="pl-10 pr-20 bg-white dark:bg-card border-input-border"
                 />
                 {/* Кнопка голосового поиска */}
