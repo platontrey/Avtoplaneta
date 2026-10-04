@@ -9,15 +9,15 @@ import MarkdownViewer from './MarkdownViewer';
 import swaggerSpec from '../data/swagger.json';
 
 // Прямой импорт оригинальных .md файлов репозитория через Vite (Single Source of Truth)
-import operatorMd from '../../../operator-instructions.md?raw';
-import managerMd from '../../../manager-instructions.md?raw';
-import archMd from '../../../backend/ARCHITECTURE.md?raw';
-import traefikMd from '../../../TRAEFIK-README.md?raw';
-import monitoringMd from '../../../MONITORING-README.md?raw';
-import mobileMd from '../../../AvtoplanetaApp/README.md?raw';
-import frontendMd from '../../README.md?raw';
-import migrationMd from '../../../scripts/migration/README.md?raw';
-import rootReadmeMd from '../../../README.md?raw';
+import operatorMd from '../docs/operator-instructions.md?raw';
+import managerMd from '../docs/manager-instructions.md?raw';
+import archMd from '../docs/ARCHITECTURE.md?raw';
+import traefikMd from '../docs/TRAEFIK-README.md?raw';
+import monitoringMd from '../docs/MONITORING-README.md?raw';
+import mobileMd from '../docs/mobile-README.md?raw';
+import frontendMd from '../docs/frontend-README.md?raw';
+import migrationMd from '../docs/migration-README.md?raw';
+import rootReadmeMd from '../docs/root-README.md?raw';
 
 import {
   Code2,
