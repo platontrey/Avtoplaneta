@@ -16,7 +16,7 @@ export const getUserActivityLogs = async (params?: {
   useful_only?: boolean;
 }): Promise<UserActivityLog[]> => {
   const baseUrl = ADMIN_API_URL || window.location.origin;
-  const url = new URL(`${baseUrl}/admin/user-activity-logs`, window.location.origin);
+  const url = new URL(`${baseUrl}/api/v1/admin/user-activity-logs`, window.location.origin);
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
@@ -50,7 +50,7 @@ export const logUserActivity = async (activity: {
   resource_id?: number;
   details?: string;
 }): Promise<void> => {
-  const response = await fetch(`${ADMIN_API_URL}/admin/user-activity-logs`, {
+  const response = await fetch(`${ADMIN_API_URL}/api/v1/admin/user-activity-logs`, {
     method: 'POST',
     headers: getAuthHeaders(),
     credentials: 'include',

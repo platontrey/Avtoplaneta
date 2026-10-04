@@ -33,6 +33,7 @@ fetchCsrfToken();
 export const getAuthHeaders = () => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
   };
 
   // Add CSRF token if available

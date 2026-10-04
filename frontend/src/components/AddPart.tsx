@@ -172,7 +172,7 @@ export default function AddPart() {
     useEffect(() => {
         const fetchUsers = async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/admin/users`, {
+                const response = await fetch(`${API_BASE_URL}/api/v1/admin/users`, {
                     method: "GET",
                     headers: getAuthHeaders(),
                     credentials: 'include',

@@ -14,6 +14,42 @@ export const ORDERS_API_URL = import.meta.env.VITE_API_BASE_URL || '';
 // Re-export unified partsApi
 export { partsApi };
 
+/**
+ * Безопасная обёртка для выполнения fetch-запросов к API с защитой от возврата HTML-страниц (SPA fallback / ошибки прокси).
+ */
+export async function safeFetchJson<T = unknown>(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<T> {
+  const headers = new Headers(init?.headers);
+  if (!headers.has('Accept')) {
+    headers.set('Accept', 'application/json');
+  }
+
+  const response = await fetch(input, {
+    ...init,
+    headers,
+  });
+
+  const contentType = response.headers.get('content-type')?.toLowerCase() || '';
+
+  if (!response.ok) {
+    if (contentType.includes('text/html')) {
+      throw new Error(`Ошибка сервера (${response.status}): получен HTML вместо JSON ответа API.`);
+    }
+    const errorText = await response.text();
+    throw new Error(`Ошибка запроса (${response.status}): ${errorText || response.statusText}`);
+  }
+
+  if (contentType.includes('text/html')) {
+    throw new Error(
+      `Ошибка маршрутизации API (${response.status}): сервер вернул HTML-страницу вместо JSON данных.`
+    );
+  }
+
+  return response.json() as Promise<T>;
+}
+
 // Statistics API
 export const statisticsApi = {
   get: async (): Promise<StatisticsResponse> => {

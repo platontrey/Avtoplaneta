@@ -62,7 +62,7 @@ export default function BulkEditDialog({ isOpen, onClose, selectedPartIds, onSuc
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/users`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/admin/users`, {
         headers: getAuthHeaders(),
         credentials: 'include',
       });

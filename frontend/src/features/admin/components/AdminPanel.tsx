@@ -45,7 +45,7 @@ export const AdminPanel: React.FC = () => {
 
   const fetchUsers = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/users`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/admin/users`, {
         credentials: 'include',
       });
 
@@ -93,7 +93,7 @@ export const AdminPanel: React.FC = () => {
   const fetchServerStatus = useCallback(async () => {
     try {
       setStatusLoading(true);
-      const response = await fetch(`${API_BASE_URL}/admin/status`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/admin/status`, {
         credentials: 'include',
       });
 
@@ -111,7 +111,7 @@ export const AdminPanel: React.FC = () => {
   const fetchServerLogs = useCallback(async () => {
     try {
       setLogsLoading(true);
-      const response = await fetch(`${API_BASE_URL}/admin/logs`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/admin/logs`, {
         credentials: 'include',
       });
 
@@ -183,7 +183,7 @@ export const AdminPanel: React.FC = () => {
   }) => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/users`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/admin/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -226,7 +226,7 @@ export const AdminPanel: React.FC = () => {
     }
   ) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/admin/users/${userId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -262,7 +262,7 @@ export const AdminPanel: React.FC = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/admin/users/${userId}`, {
         method: 'DELETE',
         headers: {
           'X-CSRF-Token': getAuthHeaders()['X-CSRF-Token'] || '',
