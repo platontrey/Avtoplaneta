@@ -21,7 +21,10 @@ class ApiClient {
       baseUrl: _baseUrl,
       connectTimeout: const Duration(seconds: 15),
       receiveTimeout: const Duration(seconds: 30),
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
     ));
 
     _dio.interceptors.add(_AuthInterceptor(_dio));

@@ -144,7 +144,7 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
       if (_mode == 'existing') {
         for (final item in items) {
           await apiClient.dio.post(
-            '/orders/$_selectedOrderId/items',
+            '/api/v1/orders/$_selectedOrderId/items',
             data: item,
           );
         }
@@ -187,7 +187,7 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
 
         final discount = double.tryParse(_discountController.text) ?? 0.0;
         await apiClient.dio.post(
-          '/orders',
+          '/api/v1/orders',
           data: {
             'customer_id': matchedCustomer?.id ?? 0,
             'discount': discount,

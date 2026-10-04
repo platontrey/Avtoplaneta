@@ -860,7 +860,7 @@ class _OrderActions extends StatelessWidget {
               description:
                   'Завершить продажу по заказу #$orderId? Запчасти будут списаны со склада и учтены в статистике продаж.',
               actionLabel: 'Выдать / Завершить',
-              path: '/orders/$orderId/complete',
+              path: '/api/v1/orders/$orderId/complete',
               method: 'PUT',
             ),
             child: const Text('Выдать / Завершить'),
@@ -875,7 +875,7 @@ class _OrderActions extends StatelessWidget {
               description:
                   'Отменить заказ #$orderId? Запчасти останутся в наличии на складе.',
               actionLabel: 'Отменить заказ',
-              path: '/orders/$orderId',
+              path: '/api/v1/orders/$orderId',
               method: 'DELETE',
             ),
             style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
@@ -973,7 +973,7 @@ class _EditOrderSheetState extends State<_EditOrderSheet> {
     setState(() => _saving = true);
     try {
       await apiClient.dio.patch(
-        '/orders/${widget.order.id}',
+        '/api/v1/orders/${widget.order.id}',
         data: {
           'payment_status': _paymentStatus,
           'warehouse_status': _warehouseStatus,
@@ -993,7 +993,7 @@ class _EditOrderSheetState extends State<_EditOrderSheet> {
         final newPrice = double.tryParse(_priceControllers[item.id]?.text ?? '') ?? item.price;
         if (newQty != item.quantity || newPrice != item.price) {
           await apiClient.dio.patch(
-            '/orders/${widget.order.id}/items/${item.id}',
+            '/api/v1/orders/${widget.order.id}/items/${item.id}',
             data: {'quantity': newQty, 'price': newPrice},
           );
         }

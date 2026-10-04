@@ -4,7 +4,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/models/order.dart';
 
 final ordersProvider = FutureProvider<OrdersResponse>((ref) async {
-  final response = await apiClient.dio.get('/orders');
+  final response = await apiClient.dio.get('/api/v1/orders');
   final data = response.data;
   if (data is List) {
     final orders = data
@@ -16,11 +16,11 @@ final ordersProvider = FutureProvider<OrdersResponse>((ref) async {
   if (data is Map) {
     return OrdersResponse.fromJson(Map<String, dynamic>.from(data));
   }
-  return const OrdersResponse(orders: [], total: 0);
+  throw Exception('Неверный формат ответа сервера при загрузке заказов: ${data.runtimeType}');
 });
 
 final completedOrdersProvider = FutureProvider<OrdersResponse>((ref) async {
-  final response = await apiClient.dio.get('/orders', queryParameters: {'state': 'completed'});
+  final response = await apiClient.dio.get('/api/v1/orders', queryParameters: {'state': 'completed'});
   final data = response.data;
   if (data is List) {
     final orders = data
@@ -32,6 +32,6 @@ final completedOrdersProvider = FutureProvider<OrdersResponse>((ref) async {
   if (data is Map) {
     return OrdersResponse.fromJson(Map<String, dynamic>.from(data));
   }
-  return const OrdersResponse(orders: [], total: 0);
+  throw Exception('Неверный формат ответа сервера при загрузке завершённых заказов: ${data.runtimeType}');
 });
 

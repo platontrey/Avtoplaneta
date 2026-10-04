@@ -49,7 +49,7 @@ final customersProvider = FutureProvider<List<Customer>>((ref) async {
   }
 
   final response = await apiClient.dio.get(
-    '/orders/customers',
+    '/api/v1/orders/customers',
     queryParameters: queryParams,
   );
 
@@ -69,7 +69,7 @@ final customersProvider = FutureProvider<List<Customer>>((ref) async {
 
 final customerDetailsProvider =
     FutureProvider.family<CustomerDetails, int>((ref, id) async {
-  final response = await apiClient.dio.get('/orders/customers/$id');
+  final response = await apiClient.dio.get('/api/v1/orders/customers/$id');
   final data = response.data;
   if (data is Map) {
     return CustomerDetails.fromJson(Map<String, dynamic>.from(data));
@@ -89,7 +89,7 @@ class CustomerService {
     double discountPercent = 0.0,
   }) async {
     final response = await apiClient.dio.post(
-      '/orders/customers',
+      '/api/v1/orders/customers',
       data: {
         'name': name.trim(),
         'phone': phone.trim(),
@@ -116,7 +116,7 @@ class CustomerService {
     double discountPercent = 0.0,
   }) async {
     final response = await apiClient.dio.put(
-      '/orders/customers/$id',
+      '/api/v1/orders/customers/$id',
       data: {
         'name': name.trim(),
         'phone': phone.trim(),
@@ -132,6 +132,6 @@ class CustomerService {
   }
 
   static Future<void> deleteCustomer(int id) async {
-    await apiClient.dio.delete('/orders/customers/$id');
+    await apiClient.dio.delete('/api/v1/orders/customers/$id');
   }
 }
