@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -10,6 +11,7 @@ import '../../../core/utils/qr_signer.dart';
 import '../widgets/photo_viewer_dialog.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../app/theme.dart';
+import '../../../core/models/part.dart';
 import '../providers/inventory_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../orders/widgets/part_order_sheet.dart';
@@ -78,6 +80,14 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                     ],
                   )
                 : const SizedBox.shrink(),
+            orElse: () => const SizedBox.shrink(),
+          ),
+          partAsync.maybeWhen(
+            data: (part) => IconButton(
+              icon: const Icon(LucideIcons.copy),
+              tooltip: 'Скопировать информацию о запчасти',
+              onPressed: () => _copyPartDetails(part),
+            ),
             orElse: () => const SizedBox.shrink(),
           ),
           if (user?.isOperator == true)
@@ -332,7 +342,7 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                       ),
                     ),
                   const SizedBox(height: 16),
-                  Text(
+                  SelectableText(
                     part.name,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: Colors.white,
@@ -420,7 +430,7 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                   _section('Описание', [
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
-                      child: Text(
+                      child: SelectableText(
                         part.description!,
                         style: const TextStyle(color: Colors.white, height: 1.45, fontSize: 13),
                       ),
@@ -452,6 +462,45 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                     ),
                   ),
                 ]),
+                if (part.quantity <= 0)
+                  Container(
+                    margin: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.dangerColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.dangerColor.withValues(alpha: 0.4)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(LucideIcons.triangle_alert, color: AppTheme.dangerColor, size: 20),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Товар отсутствует на складе (количество ≤ 0). Оформление заказа заблокировано.',
+                            style: TextStyle(
+                              color: AppTheme.dangerColor,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _copyPartDetails(part),
+                      icon: const Icon(LucideIcons.copy, size: 18),
+                      label: const Text('Скопировать информацию о запчасти'),
+                    ),
+                  ),
+                ),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
@@ -513,6 +562,71 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
 
   bool _notEmpty(String? value) => value != null && value.trim().isNotEmpty && value.trim() != '—';
 
+  String _formatPartText(Part part) {
+    final buffer = StringBuffer();
+    buffer.writeln(part.name);
+    if (part.price > 0) {
+      buffer.writeln('Цена: ${part.price.toStringAsFixed(0)} ₽');
+    }
+    buffer.writeln(part.quantity > 0 ? 'В наличии: ${part.quantity} шт.' : 'Нет в наличии');
+    if (part.category.isNotEmpty) buffer.writeln('Категория: ${part.category}');
+    if (_notEmpty(part.brand)) buffer.writeln('Бренд: ${part.brand}');
+    if (_notEmpty(part.model)) buffer.writeln('Модель: ${part.model}');
+    if (_notEmpty(part.bodyBrand)) buffer.writeln('Марка кузова: ${part.bodyBrand}');
+    if (_notEmpty(part.engineBrand)) buffer.writeln('Двигатель: ${part.engineBrand}');
+    if (_notEmpty(part.carReleaseDate)) buffer.writeln('Год выпуска: ${part.carReleaseDate}');
+    if (_notEmpty(part.vin)) buffer.writeln('VIN / Кузов: ${part.vin}');
+    if (_notEmpty(part.number)) buffer.writeln('Номер: ${part.number}');
+    if (_notEmpty(part.oemCode)) buffer.writeln('OEM: ${part.oemCode}');
+    if (_notEmpty(part.manufacturerCode)) buffer.writeln('Код производителя: ${part.manufacturerCode}');
+    if (_notEmpty(part.manufacturer)) buffer.writeln('Производитель: ${part.manufacturer}');
+    if (_notEmpty(part.condition)) buffer.writeln('Состояние: ${part.condition}');
+    if (_notEmpty(part.defect)) buffer.writeln('Дефект: ${part.defect}');
+    if (_notEmpty(part.transmission)) buffer.writeln('Трансмиссия: ${part.transmission}');
+    if (_notEmpty(part.transmissionModel)) buffer.writeln('Модель КПП: ${part.transmissionModel}');
+    if (_notEmpty(part.drive)) buffer.writeln('Привод: ${part.drive}');
+    if (_notEmpty(part.color)) buffer.writeln('Цвет: ${part.color}');
+    if (_notEmpty(part.supplierCode)) buffer.writeln('Код поставки: ${part.supplierCode}');
+    if (part.location.isNotEmpty) {
+      buffer.writeln('Склад: ${part.location}${part.address.isNotEmpty ? ' (${part.address})' : ''}');
+    }
+    if (part.description != null && part.description!.trim().isNotEmpty) {
+      buffer.writeln('\nОписание:\n${part.description!.trim()}');
+    }
+    return buffer.toString().trim();
+  }
+
+  void _copyPartDetails(Part part) {
+    final text = _formatPartText(part);
+    Clipboard.setData(ClipboardData(text: text));
+    HapticFeedback.lightImpact();
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Информация о запчасти скопирована в буфер обмена'),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  void _copyFieldValue(String label, String value) {
+    Clipboard.setData(ClipboardData(text: value));
+    HapticFeedback.selectionClick();
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$label скопирован: $value'),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   Widget _section(String title, List<Widget> children) => children.isEmpty
       ? const SizedBox.shrink()
       : Container(
@@ -541,25 +655,41 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
           ),
         );
 
-  Widget _row(String label, String value) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 140,
-          child: Text(
-            label,
-            style: const TextStyle(color: AppTheme.mutedColor, fontSize: 13),
+  Widget _row(String label, String value) => InkWell(
+    onTap: () => _copyFieldValue(label, value),
+    borderRadius: BorderRadius.circular(8),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 140,
+            child: Text(
+              label,
+              style: const TextStyle(color: AppTheme.mutedColor, fontSize: 13),
+            ),
           ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+          Expanded(
+            child: Row(
+              children: [
+                Expanded(
+                  child: SelectableText(
+                    value,
+                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(
+                  LucideIcons.copy,
+                  size: 13,
+                  color: AppTheme.mutedColor,
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 }

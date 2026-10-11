@@ -26,6 +26,15 @@ Future<bool> showPartsOrderSheet(
   List<Part> parts,
 ) async {
   if (parts.isEmpty) return false;
+  if (parts.any((p) => p.quantity <= 0)) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Нельзя оформить заказ на запчасть с количеством 0 или меньше'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return false;
+  }
   final created = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
@@ -123,6 +132,36 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate() || _submitting) {
       return;
+    }
+    if (widget.parts.any((part) => part.quantity <= 0)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Нельзя оформить заказ: запчасть отсутствует на складе (количество ≤ 0)'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    for (final part in widget.parts) {
+      final qty = int.tryParse(_quantityControllers[part.id]?.text ?? '') ?? 0;
+      if (qty <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Укажите корректное количество для "${part.name}"'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      if (qty > part.quantity) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Недостаточно на складе для "${part.name}": доступно ${part.quantity} шт.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
     }
     if (_mode == 'existing' && _selectedOrderId == null) {
       ScaffoldMessenger.of(
@@ -449,6 +488,7 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
     final ordersAsync = ref.watch(ordersProvider);
     final customers = ref.watch(customersProvider).valueOrNull ?? const <Customer>[];
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final hasOutOfStock = widget.parts.any((p) => p.quantity <= 0);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 12, 20, bottomInset + 20),
@@ -480,6 +520,32 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
                 Text(
                   '${widget.parts.first.name} · ${widget.parts.first.quantity} шт. в наличии',
                   style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              if (hasOutOfStock)
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.red.withValues(alpha: 0.5)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(LucideIcons.triangle_alert, color: Colors.red, size: 20),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Оформление заказа невозможно: деталь отсутствует на складе (количество ≤ 0).',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               const SizedBox(height: 16),
               SizedBox(
@@ -665,7 +731,10 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
                             if (quantity == null || quantity <= 0) {
                               return 'Укажите кол-во';
                             }
-                            if (part.quantity > 0 && quantity > part.quantity) {
+                            if (part.quantity <= 0) {
+                              return 'Нет в наличии (0 шт.)';
+                            }
+                            if (quantity > part.quantity) {
                               return 'Макс. ${part.quantity} шт.';
                             }
                             return null;
@@ -690,7 +759,7 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
-                  onPressed: _submitting ? null : _submit,
+                  onPressed: (_submitting || hasOutOfStock) ? null : _submit,
                   icon: _submitting
                       ? const SizedBox(
                           width: 18,
