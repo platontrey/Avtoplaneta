@@ -11,7 +11,7 @@ import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createOrder } from '@/features/orders/api/ordersApi';
 import { sanitizeText, sanitizeNumber, INPUT_LIMITS } from "@/hooks/usePartValidation";
-import { Zap } from "lucide-react";
+import { Zap, AlertTriangle } from "lucide-react";
 import type { Part } from '@/features/parts/types';
 import type { CustomerWithStats } from '@/lib/types';
 import { CustomerSelectInput } from '@/features/customers/components/CustomerSelectInput';
@@ -107,7 +107,7 @@ export default function BulkOrderDialog({ isOpen, onClose, selectedParts, onSucc
     },
     onError: (error) => {
       console.error('Failed to create bulk order:', error);
-      alert('Ошибка при создании заказа');
+      alert(error instanceof Error ? error.message : 'Ошибка при создании заказа');
     },
   });
 
@@ -133,7 +133,9 @@ export default function BulkOrderDialog({ isOpen, onClose, selectedParts, onSucc
     0
   );
   const totalAmount = Math.max(0, subtotal - (Number(discount) || 0));
-  const isValid = (quickSale || buyerNumber.trim().length > 0) && selectedParts.length > 0;
+  const outOfStockParts = selectedParts.filter((part) => (part.quantity ?? 0) <= 0);
+  const hasOutOfStockParts = outOfStockParts.length > 0;
+  const isValid = (quickSale || buyerNumber.trim().length > 0) && selectedParts.length > 0 && !hasOutOfStockParts;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -146,6 +148,17 @@ export default function BulkOrderDialog({ isOpen, onClose, selectedParts, onSucc
             Проверьте состав заказа, укажите контакт покупателя или проведите быструю продажу с места.
           </DialogDescription>
         </DialogHeader>
+
+        {hasOutOfStockParts && (
+          <div className="flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs sm:text-sm text-red-700 dark:text-red-300">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-red-600 dark:text-red-400" />
+            <div>
+              <strong>Нельзя оформить заказ:</strong> следующие запчасти имеют нулевой или отрицательный остаток:{" "}
+              {outOfStockParts.map((p) => `"${p.name}" (остаток: ${p.quantity ?? 0})`).join(', ')}.
+              Уберите их из списка выбора перед оформлением заказа.
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-2 pt-1">
           <Button
@@ -289,17 +302,26 @@ export default function BulkOrderDialog({ isOpen, onClose, selectedParts, onSucc
           <div className="border-t pt-3">
             <Label className="text-sm font-medium mb-2 block">Позиции заказа:</Label>
             <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-              {selectedParts.map((part) => (
-                <div
-                  key={part.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-muted/50 border border-border/50 rounded-lg"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{part.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Склад: {part.location || '—'} · В наличии: {part.quantity ?? 0} шт.
-                    </p>
-                  </div>
+              {selectedParts.map((part) => {
+                const isPartOutOfStock = (part.quantity ?? 0) <= 0;
+                return (
+                  <div
+                    key={part.id}
+                    className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-lg border ${
+                      isPartOutOfStock
+                        ? 'border-red-500/40 bg-red-500/10'
+                        : 'bg-muted/50 border-border/50'
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{part.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Склад: {part.location || '—'} ·{' '}
+                        <span className={isPartOutOfStock ? 'text-red-600 dark:text-red-400 font-semibold' : ''}>
+                          В наличии: {part.quantity ?? 0} шт.
+                        </span>
+                      </p>
+                    </div>
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1">
                       <Label className="text-xs text-muted-foreground">Кол-во:</Label>
@@ -334,7 +356,8 @@ export default function BulkOrderDialog({ isOpen, onClose, selectedParts, onSucc
                     </div>
                   </div>
                 </div>
-              ))}
+              );
+            })}
             </div>
           </div>
 

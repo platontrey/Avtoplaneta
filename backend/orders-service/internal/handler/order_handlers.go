@@ -224,6 +224,8 @@ func (h *Handler) AddOrderItemHandler(c *gin.Context) {
 
 		if domain.IsNotFoundError(err) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		} else if domain.IsValidationError(err) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error":   "Failed to add item to order",

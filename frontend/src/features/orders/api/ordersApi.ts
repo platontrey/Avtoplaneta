@@ -104,6 +104,21 @@ export interface AddOrderItemPayload {
   price?: number;
 }
 
+async function getErrorMessage(response: Response, fallback: string): Promise<string> {
+  try {
+    const text = await response.text();
+    if (!text) return fallback;
+    try {
+      const data = JSON.parse(text);
+      return data.error || data.details || data.message || text;
+    } catch {
+      return text;
+    }
+  } catch {
+    return fallback;
+  }
+}
+
 export const addOrderItem = async (
   orderId: number,
   payload: AddOrderItemPayload
@@ -116,8 +131,8 @@ export const addOrderItem = async (
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to add item to order: ${errorText}`);
+    const errorMsg = await getErrorMessage(response, `Не удалось добавить деталь в заказ: HTTP ${response.status}`);
+    throw new Error(errorMsg);
   }
 
   return response.json();
@@ -200,8 +215,8 @@ export const createOrder = async (orderData: CreateOrderPayload): Promise<Order>
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to create order: ${errorText}`);
+    const errorMsg = await getErrorMessage(response, `Не удалось оформить заказ: HTTP ${response.status}`);
+    throw new Error(errorMsg);
   }
 
   const result = await response.json();

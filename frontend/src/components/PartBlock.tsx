@@ -481,16 +481,27 @@ function PartBlock({
                     {/* Кнопки действий */}
                     <div className="flex space-x-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                         {/* Кнопка добавления в заказ */}
-                        <motion.div
-                            className="opacity-100 transition-opacity w-8 h-8 flex items-center justify-center rounded hover:bg-accent"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setIsOrderDialogOpen(true);
-                            }}
-                            transition={{ duration: 0.2 }}
-                        >
-                            <ShoppingCart className="h-4 w-4 cursor-pointer" />
-                        </motion.div>
+                        {(part.quantity ?? 0) > 0 ? (
+                            <motion.div
+                                className="opacity-100 transition-opacity w-8 h-8 flex items-center justify-center rounded hover:bg-accent cursor-pointer"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsOrderDialogOpen(true);
+                                }}
+                                title="Оформить заказ / Продать"
+                                transition={{ duration: 0.2 }}
+                            >
+                                <ShoppingCart className="h-4 w-4" />
+                            </motion.div>
+                        ) : (
+                            <div
+                                className="opacity-30 w-8 h-8 flex items-center justify-center rounded cursor-not-allowed"
+                                title="Нет в наличии (нельзя оформить в заказ)"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                        )}
 
                         {/* Кнопка редактирования */}
                         {user?.role === 'admin' && (

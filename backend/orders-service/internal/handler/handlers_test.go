@@ -244,3 +244,24 @@ func TestHandler_CustomerEndpoints(t *testing.T) {
 		mockSvc.AssertExpectations(t)
 	})
 }
+
+func TestHandler_AddOrderItem_ValidationError(t *testing.T) {
+	mockSvc := new(MockOrdersService)
+	mockPub := new(MockEventPublisher)
+	router := setupTestRouter(mockSvc, mockPub)
+
+	mockSvc.On("AddOrderItem", mock.Anything, int64(10), domain.AddOrderItemRequest{PartID: 20, Quantity: 1}).
+		Return(domain.ValidationError{Field: "quantity", Message: "деталь 'Фара' (ID 20) не может быть добавлена в заказ: количество на складе 0 (нет в наличии)"}).Once()
+
+	body, _ := json.Marshal(domain.AddOrderItemRequest{PartID: 20, Quantity: 1})
+	req, _ := http.NewRequest(http.MethodPost, "/orders/10/items", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-User-ID", "1")
+
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	assert.Equal(t, http.StatusBadRequest, resp.Code)
+	assert.Contains(t, resp.Body.String(), "нет в наличии")
+	mockSvc.AssertExpectations(t)
+}

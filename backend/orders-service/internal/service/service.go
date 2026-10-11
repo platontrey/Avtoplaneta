@@ -364,6 +364,13 @@ func (s *ordersService) CreateOrder(ctx context.Context, req domain.CreateOrderR
 			return nil, fmt.Errorf("failed to get part information for part %d: %w", item.PartID, err)
 		}
 
+		if part.Quantity <= 0 {
+			return nil, domain.ValidationError{
+				Field:   "quantity",
+				Message: fmt.Sprintf("деталь '%s' (ID %d) не может быть оформлена в заказ: количество на складе %d (нет в наличии)", part.Name, part.ID, part.Quantity),
+			}
+		}
+
 		itemPrice := part.Price
 		if item.Price != nil && *item.Price >= 0 {
 			itemPrice = *item.Price
@@ -785,6 +792,13 @@ func (s *ordersService) AddOrderItem(ctx context.Context, orderID int64, req dom
 	part, err := s.partRepo.FindByID(ctx, req.PartID)
 	if err != nil {
 		return domain.NotFoundError{Resource: "part", ID: req.PartID}
+	}
+
+	if part.Quantity <= 0 {
+		return domain.ValidationError{
+			Field:   "quantity",
+			Message: fmt.Sprintf("деталь '%s' (ID %d) не может быть добавлена в заказ: количество на складе %d (нет в наличии)", part.Name, part.ID, part.Quantity),
+		}
 	}
 
 	itemPrice := part.Price

@@ -45,6 +45,8 @@ function PartOrderDialog({ part, isOpen, onOpenChange }: PartOrderDialogProps) {
     o.part_id === part.id || (o.items && o.items.some((it) => it.part_id === part.id))
   );
 
+  const isOutOfStock = (part.quantity ?? 0) <= 0;
+
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithStats | null>(null);
 
   const handleSelectCustomer = (customer: CustomerWithStats | null) => {
@@ -100,12 +102,21 @@ function PartOrderDialog({ part, isOpen, onOpenChange }: PartOrderDialogProps) {
           <DialogDescription className="text-sm flex flex-wrap items-center gap-2 pt-1">
             <span className="font-medium text-foreground">{part.name}</span>
             <Badge variant="outline">Склад: {part.location || '—'}</Badge>
-            <Badge variant="secondary">В наличии: {part.quantity ?? 0} шт.</Badge>
+            <Badge variant={isOutOfStock ? "destructive" : "secondary"}>
+              В наличии: {part.quantity ?? 0} шт.
+            </Badge>
             <Badge variant="default">Прайс: ₽{catalogPrice.toLocaleString('ru-RU')}</Badge>
           </DialogDescription>
         </DialogHeader>
 
-        {activeOrdersWithPart.length > 0 && (
+        {isOutOfStock ? (
+          <div className="flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs sm:text-sm text-red-700 dark:text-red-300">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-red-600 dark:text-red-400" />
+            <div>
+              <strong>Нельзя оформить заказ:</strong> данная деталь отсутствует в наличии (количество: {part.quantity ?? 0} шт.).
+            </div>
+          </div>
+        ) : activeOrdersWithPart.length > 0 ? (
           <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs sm:text-sm text-amber-700 dark:text-amber-300">
             <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
             <div>
@@ -113,7 +124,7 @@ function PartOrderDialog({ part, isOpen, onOpenChange }: PartOrderDialogProps) {
               {activeOrdersWithPart.map((o) => `#${o.id} (${o.buyer_number}, продавец ${o.seller})`).join(', ')}.
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Переключатель режимов */}
         <div className="grid grid-cols-3 gap-2 pt-1">
@@ -211,7 +222,7 @@ function PartOrderDialog({ part, isOpen, onOpenChange }: PartOrderDialogProps) {
               </Button>
               <Button
                 onClick={() => submitQuickSale(part.id, () => onOpenChange(false))}
-                disabled={createOrderMutation.isPending}
+                disabled={isOutOfStock || createOrderMutation.isPending}
                 className="gap-1.5"
               >
                 <Zap className="h-4 w-4" />
@@ -276,7 +287,7 @@ function PartOrderDialog({ part, isOpen, onOpenChange }: PartOrderDialogProps) {
               </Button>
               <Button
                 onClick={() => submitAddToExisting(part.id, () => onOpenChange(false))}
-                disabled={!selectedOrderId || addToExistingOrderMutation.isPending}
+                disabled={isOutOfStock || !selectedOrderId || addToExistingOrderMutation.isPending}
               >
                 {addToExistingOrderMutation.isPending ? 'Добавление...' : 'Добавить в заказ'}
               </Button>
@@ -422,7 +433,7 @@ function PartOrderDialog({ part, isOpen, onOpenChange }: PartOrderDialogProps) {
               </Button>
               <Button
                 onClick={() => submitNewOrder(part.id, () => onOpenChange(false))}
-                disabled={!orderForm.buyer_number.trim() || createOrderMutation.isPending}
+                disabled={isOutOfStock || !orderForm.buyer_number.trim() || createOrderMutation.isPending}
               >
                 {createOrderMutation.isPending ? 'Создание...' : 'Создать заказ'}
               </Button>

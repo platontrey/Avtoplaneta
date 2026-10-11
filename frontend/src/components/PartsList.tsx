@@ -202,6 +202,8 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
         .map((id) => selectedPartsCatalog.get(id) || parts.find((p) => p.id === id))
         .filter((p): p is Part => Boolean(p));
 
+    const hasOutOfStockSelected = selectedPartObjects.some((p) => (p.quantity ?? 0) <= 0);
+
     return (
         <div ref={containerRef} className="space-y-4">
             {/* Панель действий для режима выбора */}
@@ -239,9 +241,11 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
                                 size="sm"
                                 className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto text-xs sm:text-sm"
                                 onClick={() => setIsBulkOrderOpen(true)}
+                                title={hasOutOfStockSelected ? "Внимание: среди выбранных есть детали с количеством <= 0" : undefined}
                             >
                                 <Check className="h-4 w-4 mr-1" />
                                 Оформить заказ ({selectedParts.size})
+                                {hasOutOfStockSelected && <span className="ml-1 text-xs">⚠️</span>}
                             </Button>
                             <Button
                                 size="sm"

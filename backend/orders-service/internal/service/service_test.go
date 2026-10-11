@@ -532,3 +532,105 @@ func TestCreateOrder_Deduplication(t *testing.T) {
 	// Проверяем, что CreateCustomer НЕ вызывался повторно, так как клиент уже существует
 	mockOrderRepo.AssertNotCalled(t, "CreateCustomer", mock.Anything, mock.Anything)
 }
+
+// Тест валидации: деталь с количеством 0 или меньше не может быть оформлена в заказ
+func TestCreateOrder_ZeroOrNegativeQuantity(t *testing.T) {
+	mockOrderRepo := new(MockOrderRepository)
+	mockPartRepo := new(MockPartRepositoryForOrders)
+	mockCache := new(MockCacheService)
+	mockPublisher := new(MockEventPublisher)
+
+	svc := NewOrdersService(mockOrderRepo, mockPartRepo, mockCache, mockPublisher)
+	ctx := context.Background()
+
+	t.Run("QuantityZero", func(t *testing.T) {
+		partZero := &domain.Part{
+			ID:       101,
+			Name:     "Бампер с дефектом",
+			Price:    5000,
+			Quantity: 0,
+		}
+		mockPartRepo.On("FindByID", ctx, int64(101)).Return(partZero, nil).Once()
+
+		req := domain.CreateOrderRequest{
+			BuyerNumber: "+79990001122",
+			Items: []domain.CreateOrderItemInput{
+				{PartID: 101, Quantity: 1},
+			},
+		}
+
+		_, err := svc.CreateOrder(ctx, req, 1, "Менеджер")
+		require.Error(t, err)
+		assert.True(t, domain.IsValidationError(err))
+		assert.Contains(t, err.Error(), "не может быть оформлена в заказ: количество на складе 0")
+	})
+
+	t.Run("QuantityNegative", func(t *testing.T) {
+		partNegative := &domain.Part{
+			ID:       102,
+			Name:     "Проданная фара",
+			Price:    8000,
+			Quantity: -1,
+		}
+		mockPartRepo.On("FindByID", ctx, int64(102)).Return(partNegative, nil).Once()
+
+		req := domain.CreateOrderRequest{
+			BuyerNumber: "+79990001122",
+			Items: []domain.CreateOrderItemInput{
+				{PartID: 102, Quantity: 1},
+			},
+		}
+
+		_, err := svc.CreateOrder(ctx, req, 1, "Менеджер")
+		require.Error(t, err)
+		assert.True(t, domain.IsValidationError(err))
+		assert.Contains(t, err.Error(), "не может быть оформлена в заказ: количество на складе -1")
+	})
+}
+
+// Тест валидации: добавление детали с количеством 0 или меньше в существующий заказ
+func TestAddOrderItem_ZeroOrNegativeQuantity(t *testing.T) {
+	mockOrderRepo := new(MockOrderRepository)
+	mockPartRepo := new(MockPartRepositoryForOrders)
+	mockCache := new(MockCacheService)
+	mockPublisher := new(MockEventPublisher)
+
+	svc := NewOrdersService(mockOrderRepo, mockPartRepo, mockCache, mockPublisher)
+	ctx := context.Background()
+
+	t.Run("AddQuantityZero", func(t *testing.T) {
+		partZero := &domain.Part{
+			ID:       201,
+			Name:     "Зеркало бракованное",
+			Price:    3000,
+			Quantity: 0,
+		}
+		mockPartRepo.On("FindByID", ctx, int64(201)).Return(partZero, nil).Once()
+
+		err := svc.AddOrderItem(ctx, 1, domain.AddOrderItemRequest{
+			PartID:   201,
+			Quantity: 1,
+		})
+		require.Error(t, err)
+		assert.True(t, domain.IsValidationError(err))
+		assert.Contains(t, err.Error(), "не может быть добавлена в заказ: количество на складе 0")
+	})
+
+	t.Run("AddQuantityNegative", func(t *testing.T) {
+		partNeg := &domain.Part{
+			ID:       202,
+			Name:     "Дверь списанная",
+			Price:    12000,
+			Quantity: -1,
+		}
+		mockPartRepo.On("FindByID", ctx, int64(202)).Return(partNeg, nil).Once()
+
+		err := svc.AddOrderItem(ctx, 1, domain.AddOrderItemRequest{
+			PartID:   202,
+			Quantity: 1,
+		})
+		require.Error(t, err)
+		assert.True(t, domain.IsValidationError(err))
+		assert.Contains(t, err.Error(), "не может быть добавлена в заказ: количество на складе -1")
+	})
+}

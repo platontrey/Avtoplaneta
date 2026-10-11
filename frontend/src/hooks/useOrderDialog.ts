@@ -71,6 +71,7 @@ export const useOrderDialog = (partName: string, defaultPrice: number = 0) => {
     },
     onError: (error) => {
       console.error('Failed to create order:', error);
+      alert(error instanceof Error ? error.message : 'Ошибка при создании заказа');
     },
   });
 
@@ -95,6 +96,7 @@ export const useOrderDialog = (partName: string, defaultPrice: number = 0) => {
     },
     onError: (error) => {
       console.error('Failed to add item to existing order:', error);
+      alert(error instanceof Error ? error.message : 'Ошибка при добавлении в заказ');
     },
   });
 
