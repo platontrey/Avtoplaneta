@@ -156,6 +156,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         a.oemCode == b.oemCode &&
         a.supplierCode == b.supplierCode &&
         a.defect == b.defect &&
+        a.frontRear == b.frontRear &&
+        a.leftRight == b.leftRight &&
+        a.topBottom == b.topBottom &&
         a.markedForDeletion == b.markedForDeletion &&
         _sameStringList(a.photos, b.photos);
   }
@@ -1130,7 +1133,7 @@ class _InventoryFilterSheetState extends ConsumerState<_InventoryFilterSheet> {
       _topBottom = '';
       _season = '';
       _status = '';
-      _hasPhoto = 'all';
+      _hasPhoto = 'with';
       _pageSize = 'all';
     });
   }
@@ -1196,7 +1199,7 @@ class _InventoryFilterSheetState extends ConsumerState<_InventoryFilterSheet> {
     if (_minPriceController.text.trim().isNotEmpty || _maxPriceController.text.trim().isNotEmpty) count++;
     if (_minQuantityController.text.trim().isNotEmpty || _maxQuantityController.text.trim().isNotEmpty) count++;
     if (_status.isNotEmpty) count++;
-    if (_hasPhoto != 'all') count++;
+    if (_hasPhoto != 'with') count++;
     if (_pageSize != 'all') count++;
     return count;
   }
@@ -1507,7 +1510,7 @@ class _InventoryFilterSheetState extends ConsumerState<_InventoryFilterSheet> {
                         DropdownMenuItem(value: 'without', child: Text('Без фото')),
                       ],
                       onChanged: (value) {
-                        setState(() => _hasPhoto = value ?? 'all');
+                        setState(() => _hasPhoto = value ?? 'with');
                       },
                     ),
                     const SizedBox(height: 12),
@@ -1950,6 +1953,7 @@ class _PartCard extends StatelessWidget {
     final photoUrl = part.photos.isNotEmpty
         ? apiClient.resolveUrl(part.photos.first)
         : null;
+    final positions = _positionParts(part);
 
     return Card(
       color: selected ? AppTheme.primaryColor.withValues(alpha: 0.18) : null,
@@ -2026,6 +2030,43 @@ class _PartCard extends StatelessWidget {
                           fontSize: 12,
                         ),
                       ),
+                    if (positions.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0284C7).withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: const Color(0xFF38BDF8).withValues(alpha: 0.4),
+                            width: 0.5,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              LucideIcons.compass,
+                              size: 11,
+                              color: Color(0xFF38BDF8),
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                positions.join(' • '),
+                                style: const TextStyle(
+                                  color: Color(0xFF38BDF8),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     Wrap(
                       spacing: 6,
@@ -2077,6 +2118,42 @@ class _PartCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _formatFrontRear(String? v) {
+    if (v == null) return '';
+    final trimmed = v.trim();
+    if (trimmed.isEmpty) return '';
+    final upper = trimmed.toUpperCase();
+    if (upper == 'F' || upper.startsWith('F ') || upper == 'ПЕРЕД') return 'Перед';
+    if (upper == 'R' || upper.startsWith('R ') || upper == 'ЗАД') return 'Зад';
+    return trimmed;
+  }
+
+  String _formatLeftRight(String? v) {
+    if (v == null) return '';
+    final trimmed = v.trim();
+    if (trimmed.isEmpty) return '';
+    final upper = trimmed.toUpperCase();
+    if (upper == 'L' || upper.startsWith('L ') || upper == 'ЛЕВО') return 'Лево';
+    if (upper == 'R' || upper.startsWith('R ') || upper == 'ПРАВО') return 'Право';
+    return trimmed;
+  }
+
+  String _formatTopBottom(String? v) {
+    if (v == null) return '';
+    return v.trim();
+  }
+
+  List<String> _positionParts(Part part) {
+    final list = <String>[];
+    final fr = _formatFrontRear(part.frontRear);
+    if (fr.isNotEmpty) list.add(fr);
+    final lr = _formatLeftRight(part.leftRight);
+    if (lr.isNotEmpty) list.add(lr);
+    final tb = _formatTopBottom(part.topBottom);
+    if (tb.isNotEmpty) list.add(tb);
+    return list;
   }
 
   Widget _placeholder() => Container(

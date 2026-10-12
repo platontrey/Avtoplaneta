@@ -36,7 +36,8 @@ function Inventory() {
           model: '',
           location: '',
           address: '',
-          status: ''
+          status: '',
+          hasPhoto: 'with',
       });
 
       const [displayLimit, setDisplayLimit] = useState<number | undefined>(undefined);

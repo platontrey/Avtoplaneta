@@ -137,6 +137,13 @@ void main() {
       expect(cleared.activeFilterCount, 0);
     });
 
+    test('defaults to hasPhoto with', () {
+      const filter = InventoryFilter();
+      expect(filter.hasPhoto, 'with');
+      expect(filter.toQueryParameters()['hasPhoto'], 'with');
+      expect(filter.activeFilterCount, 0);
+    });
+
     test('builds the exact query supported by the inventory API', () {
       const filter = InventoryFilter(
         search: 'рейка',

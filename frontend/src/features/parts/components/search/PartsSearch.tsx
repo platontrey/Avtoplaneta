@@ -104,7 +104,7 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
   const [location, setLocation] = useState('');
   const [address, setAddress] = useState('');
   const [status, setStatus] = useState('');
-  const [hasPhoto, setHasPhoto] = useState('all');
+  const [hasPhoto, setHasPhoto] = useState('with');
   const [number, setNumber] = useState('');
   const [oemCode, setOemCode] = useState('');
   const [vin, setVin] = useState('');
@@ -268,7 +268,7 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
     setLocation('');
     setAddress('');
     setStatus('');
-    setHasPhoto('all');
+    setHasPhoto('with');
     setNumber('');
     setOemCode('');
     setVin('');
@@ -524,7 +524,7 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
     () =>
       [
         category, brand, model, location, address, status,
-        hasPhoto && hasPhoto !== 'all' ? hasPhoto : '',
+        hasPhoto && hasPhoto !== 'with' ? hasPhoto : '',
         number, oemCode, vin, carReleasePeriod, bodyBrand, engineBrand, carReleaseDate,
         transmission, drive, condition, manufacturer, defect, color,
         salesman, minPrice, maxPrice, minQuantity, maxQuantity,
@@ -548,7 +548,7 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
       [
         category, brand, model, carReleaseDate, condition,
         minPrice, maxPrice, minQuantity, maxQuantity, status,
-        hasPhoto && hasPhoto !== 'all' ? hasPhoto : '',
+        hasPhoto && hasPhoto !== 'with' ? hasPhoto : '',
       ].filter(Boolean).length,
     [category, brand, model, carReleaseDate, condition, minPrice, maxPrice, minQuantity, maxQuantity, status, hasPhoto]
   );
