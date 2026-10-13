@@ -148,6 +148,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         a.status == b.status &&
         a.brand == b.brand &&
         a.model == b.model &&
+        a.bodyBrand == b.bodyBrand &&
         a.location == b.location &&
         a.address == b.address &&
         a.salesman == b.salesman &&
@@ -2072,7 +2073,8 @@ class _PartCard extends StatelessWidget {
                       spacing: 6,
                       runSpacing: 5,
                       children: [
-                        _chip(part.category, AppTheme.primaryColor),
+                        if (part.bodyBrand != null && part.bodyBrand!.trim().isNotEmpty)
+                          _chip(part.bodyBrand!.trim(), AppTheme.primaryColor),
                         if (part.location.isNotEmpty)
                           _chip(part.location, AppTheme.successColor),
                       ],
