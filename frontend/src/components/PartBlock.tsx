@@ -80,7 +80,6 @@ function PartBlock({
 
     const [copiedPhotoPath, setCopiedPhotoPath] = useState<string | null>(null);
     const [isPartCopied, setIsPartCopied] = useState(false);
-    const [copiedField, setCopiedField] = useState<string | null>(null);
 
     const handleCopyPhoto = async (photoPath: string, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -106,15 +105,6 @@ function PartBlock({
         }
     };
 
-    const handleCopyField = async (label: string, value: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        const success = await copyToClipboard(String(value));
-        if (success) {
-            setCopiedField(label);
-            setTimeout(() => setCopiedField(null), 1500);
-        }
-    };
-
     // Для множественных фото используем partsApi напрямую
     const [photoUploadTimestamp, setPhotoUploadTimestamp] = useState<number>(Date.now());
     const partEdit = usePartEdit({
@@ -124,9 +114,9 @@ function PartBlock({
 
     // Обработчики долгого нажатия
     const handlePointerDown = (e: React.PointerEvent) => {
-        // Игнорируем если клик на интерактивных элементах или контенте аккордеона
+        // Игнорируем если клик на интерактивных элементах
         const target = e.target as HTMLElement;
-        if (target.closest('input, a, button, [role="button"], [data-radix-collection-item], [data-no-longpress="true"], [data-radix-accordion-content]')) {
+        if (target.closest('input, a, [role="button"]')) {
             return;
         }
 
@@ -135,7 +125,7 @@ function PartBlock({
             if (onLongPress) {
                 onLongPress();
             }
-        }, 500); // 0.5 секунды стандарт для мобильных устройств
+        }, 300); // 0.3 секунды
     };
 
     const handlePointerUp = () => {
@@ -475,9 +465,9 @@ function PartBlock({
                             </motion.div>
                         </AnimatePresence>
                         <div className="flex flex-col min-w-0 flex-1">
-                            <span className="truncate text-sm sm:text-base font-semibold select-text">{part.name || 'Unnamed Part'}</span>
+                            <span className="truncate text-sm sm:text-base font-semibold">{part.name || 'Unnamed Part'}</span>
                             {(part.brand || part.model) && (
-                                <span className="text-xs sm:text-sm text-muted-foreground truncate select-text">
+                                <span className="text-xs sm:text-sm text-muted-foreground truncate">
                                     {part.brand && part.model ? `${part.brand} ${part.model}` : part.brand || part.model}
                                 </span>
                             )}
@@ -730,33 +720,11 @@ function PartBlock({
                                 </AnimatePresence>
                             )}
                             <div className="w-full space-y-4 pt-2">
-                                <div className="flex items-center justify-between gap-2">
-                                    <h4 className="font-semibold text-xs tracking-wider uppercase text-muted-foreground flex items-center gap-2 flex-1">
-                                        <span className="h-px bg-border flex-1"></span>
-                                        <span>Характеристики запчасти</span>
-                                        <span className="h-px bg-border flex-1"></span>
-                                    </h4>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        type="button"
-                                        onClick={handleCopyPartInfo}
-                                        className="h-7 text-xs px-2.5 gap-1.5 shrink-0"
-                                        title="Скопировать все характеристики в буфер обмена"
-                                    >
-                                        {isPartCopied ? (
-                                            <>
-                                                <Check className="h-3.5 w-3.5 text-emerald-500" />
-                                                <span className="text-emerald-500 font-medium">Скопировано</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Copy className="h-3.5 w-3.5" />
-                                                <span>Скопировать всё</span>
-                                            </>
-                                        )}
-                                    </Button>
-                                </div>
+                                <h4 className="font-semibold text-xs tracking-wider uppercase text-muted-foreground flex items-center gap-2">
+                                    <span className="h-px bg-border flex-1"></span>
+                                    <span>Характеристики запчасти</span>
+                                    <span className="h-px bg-border flex-1"></span>
+                                </h4>
 
                                 {/* Описание запчасти */}
                                 {part.description && (
@@ -769,7 +737,7 @@ function PartBlock({
                                         <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                                             Описание
                                         </div>
-                                        <div className="text-foreground whitespace-pre-line leading-relaxed select-text">
+                                        <div className="text-foreground whitespace-pre-line leading-relaxed">
                                             {part.description}
                                         </div>
                                     </motion.div>
@@ -787,7 +755,7 @@ function PartBlock({
                                             <div className="text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-0.5">
                                                 Дефект
                                             </div>
-                                            <div className="font-medium select-text">{part.defect}</div>
+                                            <div className="font-medium">{part.defect}</div>
                                         </div>
                                     </motion.div>
                                 )}
@@ -849,29 +817,16 @@ function PartBlock({
                                             })
                                             .map((item, idx) => (
                                                 <motion.div
-                                                    key={item.label}
+                                                    key={idx}
                                                     initial={{ opacity: 0, y: 10 }}
                                                     animate={{ opacity: 1, y: 0 }}
                                                     transition={{ delay: Math.min(idx * 0.03, 0.4), duration: 0.2 }}
-                                                    onClick={(e) => handleCopyField(item.label, String(item.value), e)}
-                                                    role="button"
-                                                    tabIndex={0}
-                                                    title={`Нажмите, чтобы скопировать ${item.label}`}
-                                                    className={`bg-muted/40 hover:bg-muted/70 border border-border/60 rounded-xl p-2.5 flex flex-col justify-between transition-all min-h-[58px] cursor-pointer group/spec active:scale-[0.98] ${
-                                                        copiedField === item.label ? 'ring-2 ring-emerald-500 bg-emerald-500/15' : ''
-                                                    }`}
+                                                    className="bg-muted/40 hover:bg-muted/70 border border-border/60 rounded-xl p-2.5 flex flex-col justify-between transition-colors min-h-[58px]"
                                                 >
-                                                    <div className="flex items-center justify-between gap-1">
-                                                        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground truncate" title={item.label}>
-                                                            {item.label}
-                                                        </span>
-                                                        {copiedField === item.label ? (
-                                                            <Check className="w-3 h-3 text-emerald-500 shrink-0" />
-                                                        ) : (
-                                                            <Copy className="w-3 h-3 text-muted-foreground/30 group-hover/spec:text-muted-foreground transition-colors shrink-0" />
-                                                        )}
-                                                    </div>
-                                                    <span className="text-sm font-semibold text-foreground break-words mt-0.5 line-clamp-2 select-text" title={String(item.value)}>
+                                                    <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground truncate" title={item.label}>
+                                                        {item.label}
+                                                    </span>
+                                                    <span className="text-sm font-semibold text-foreground break-words mt-0.5 line-clamp-2" title={String(item.value)}>
                                                         {item.value}
                                                     </span>
                                                 </motion.div>
