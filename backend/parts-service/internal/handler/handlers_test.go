@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
+	partsv1 "avtoplaneta/gen/parts/v1"
 	"parts-service/internal/domain"
 )
 
@@ -60,8 +61,8 @@ func (m *MockInventoryService) BulkDeleteParts(ctx context.Context, ids []int64)
 	return args.Error(0)
 }
 
-func (m *MockInventoryService) BulkUpdateParts(ctx context.Context, updates []map[string]interface{}) (int, error) {
-	args := m.Called(ctx, updates)
+func (m *MockInventoryService) BulkUpdateParts(ctx context.Context, req *partsv1.BulkUpdatePartsRequest) (int, error) {
+	args := m.Called(ctx, req)
 	return args.Get(0).(int), args.Error(1)
 }
 
@@ -439,7 +440,7 @@ func (suite *HandlersTestSuite) TestBulkUpdatePartsHandler() {
 		{"id": 1, "name": "Updated Part"},
 	}
 
-	suite.mockService.On("BulkUpdateParts", mock.Anything, []map[string]interface{}{{"id": float64(1), "name": "Updated Part"}}).Return(1, nil)
+	suite.mockService.On("BulkUpdateParts", mock.Anything, mock.Anything).Return(1, nil)
 
 	jsonData, _ := json.Marshal(updates)
 

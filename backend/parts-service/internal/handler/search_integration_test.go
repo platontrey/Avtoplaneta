@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	partsv1 "avtoplaneta/gen/parts/v1"
 	"parts-service/internal/catalog"
 	"parts-service/internal/config"
 	"parts-service/internal/domain"
@@ -70,6 +71,13 @@ func (m *mockPartRepository) BulkDelete(ctx context.Context, ids []int64) error 
 func (m *mockPartRepository) BulkUpdate(ctx context.Context, updates []map[string]interface{}) (int, error) {
 	args := m.Called(ctx, updates)
 	return args.Get(0).(int), args.Error(1)
+}
+func (m *mockPartRepository) BulkUpdateWithProto(ctx context.Context, req *partsv1.BulkUpdatePartsRequest, filterMap map[string]interface{}) ([]domain.Part, error) {
+	args := m.Called(ctx, req, filterMap)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.Part), args.Error(1)
 }
 func (m *mockPartRepository) DeleteZeroQuantityPartsBySupplier(ctx context.Context, supplierCode string) (int64, error) {
 	args := m.Called(ctx, supplierCode)

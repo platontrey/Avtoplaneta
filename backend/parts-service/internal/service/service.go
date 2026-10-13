@@ -15,6 +15,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 
+	partsv1 "avtoplaneta/gen/parts/v1"
 	"avtoplaneta/pkg/userdirectory"
 	"parts-service/internal/catalog"
 	"parts-service/internal/config"
@@ -47,7 +48,7 @@ type InventoryService interface {
 
 	// BulkDeleteParts Админ операции
 	BulkDeleteParts(ctx context.Context, ids []int64) error                                    // Массовое удаление запчастей
-	BulkUpdateParts(ctx context.Context, updates []map[string]interface{}) (int, error)        // Массовое обновление запчастей
+	BulkUpdateParts(ctx context.Context, req *partsv1.BulkUpdatePartsRequest) (int, error)     // Массовое обновление запчастей
 	DeleteZeroQuantityPartsBySupplier(ctx context.Context, supplierCode string) (int64, error) // Удаление по поставщику
 	GetSupplierCodes(ctx context.Context) ([]string, error)                                    // Получение кодов поставщиков
 	GetNextSupplierCode(ctx context.Context) (string, error)                                   // Получение следующего номера поставки
@@ -605,6 +606,19 @@ func (s *inventoryService) GetStatistics(ctx context.Context) (domain.Statistics
 		}
 	}
 
+	// Если индивидуальные динамики по складу не определены (равны 0), используем общую динамику продаж
+	if stats.EarningsGrowth != 0 {
+		if stats.PartsGrowth == 0 {
+			stats.PartsGrowth = stats.EarningsGrowth
+		}
+		if stats.QuantityGrowth == 0 {
+			stats.QuantityGrowth = stats.EarningsGrowth
+		}
+		if stats.ValueGrowth == 0 {
+			stats.ValueGrowth = stats.EarningsGrowth
+		}
+	}
+
 	// Кэшируем результат
 	if data, err := json.Marshal(stats); err == nil {
 		if err := s.redis.Set(ctx, statisticsCacheKey, data, statisticsCacheTTL).Err(); err != nil {
@@ -718,23 +732,122 @@ func (s *inventoryService) BulkDeleteParts(ctx context.Context, ids []int64) err
 	return nil
 }
 
-// BulkUpdateParts обновляет несколько запчастей
-func (s *inventoryService) BulkUpdateParts(ctx context.Context, updates []map[string]interface{}) (int, error) {
-	logrus.WithFields(logrus.Fields{
-		"updates": updates,
-		"count":   len(updates),
-	}).Info("InventoryService.BulkUpdateParts: Starting bulk update")
-
-	updatedCount, err := s.repo.BulkUpdate(ctx, updates)
-	if err != nil {
-		logrus.WithError(err).Error("InventoryService.BulkUpdateParts: Failed to bulk update")
-		return 0, err
+// BulkUpdateParts обновляет запчасти по Protobuf спецификации
+func (s *inventoryService) BulkUpdateParts(ctx context.Context, req *partsv1.BulkUpdatePartsRequest) (int, error) {
+	if req == nil {
+		return 0, nil
 	}
 
-	// Инвалидируем кэш статистики
-	s.invalidateStatisticsCache(ctx)
+	logrus.WithFields(logrus.Fields{
+		"has_scope":    req.Scope != nil,
+		"legacy_parts": len(req.Parts),
+	}).Info("InventoryService.BulkUpdateParts: Starting bulk update")
 
-	logrus.Info("InventoryService.BulkUpdateParts: Successfully completed bulk update")
+	var updatedParts []domain.Part
+	var updatedCount int
+
+	// Сценарий 1: Умный Scope (по IDs или по Filter)
+	if req.Scope != nil {
+		var filterMap map[string]interface{}
+		if req.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_FILTER && req.Scope.Filter != nil {
+			params := domain.InventoryQueryParams{
+				Search:             req.Scope.Filter.Search,
+				Category:           req.Scope.Filter.Category,
+				Brand:              req.Scope.Filter.Brand,
+				Model:              req.Scope.Filter.Model,
+				Location:           req.Scope.Filter.Location,
+				Address:            req.Scope.Filter.Address,
+				Salesman:           req.Scope.Filter.Salesman,
+				Status:             req.Scope.Filter.Status,
+				HasPhoto:           req.Scope.Filter.HasPhoto,
+				Number:             req.Scope.Filter.Number,
+				OEMCode:            req.Scope.Filter.OemCode,
+				VIN:                req.Scope.Filter.Vin,
+				BodyBrand:          req.Scope.Filter.BodyBrand,
+				EngineBrand:        req.Scope.Filter.EngineBrand,
+				CarReleaseDate:     req.Scope.Filter.CarReleaseDate,
+				CarReleasePeriod:   req.Scope.Filter.CarReleasePeriod,
+				Transmission:       req.Scope.Filter.Transmission,
+				Drive:              req.Scope.Filter.Drive,
+				Condition:          req.Scope.Filter.Condition,
+				Manufacturer:       req.Scope.Filter.Manufacturer,
+				Defect:             req.Scope.Filter.Defect,
+				Color:              req.Scope.Filter.Color,
+				MinPrice:           req.Scope.Filter.MinPrice,
+				MaxPrice:           req.Scope.Filter.MaxPrice,
+				MinQuantity:        req.Scope.Filter.MinQuantity,
+				MaxQuantity:        req.Scope.Filter.MaxQuantity,
+				FrontRear:          req.Scope.Filter.FrontRear,
+				LeftRight:          req.Scope.Filter.LeftRight,
+				TopBottom:          req.Scope.Filter.TopBottom,
+				ManufacturerCode:   req.Scope.Filter.ManufacturerCode,
+				SupplierCode:       req.Scope.Filter.SupplierCode,
+				TransmissionModel:  req.Scope.Filter.TransmissionModel,
+				WearPercentage:     req.Scope.Filter.WearPercentage,
+				Season:             req.Scope.Filter.Season,
+				Diameter:           req.Scope.Filter.Diameter,
+				Width:              req.Scope.Filter.Width,
+				Profile:            req.Scope.Filter.Profile,
+				TireQuantity:       req.Scope.Filter.TireQuantity,
+				Drilling:           req.Scope.Filter.Drilling,
+				Offset:             req.Scope.Filter.Offset,
+				CenterHoleDiameter: req.Scope.Filter.CenterHoleDiameter,
+				TireModel:          req.Scope.Filter.TireModel,
+			}
+			filterMap = s.buildDatabaseFilters(params)
+			filterMap["to_delete_at_is_null"] = true
+			filterMap["quantity_gte"] = 0
+		}
+
+		parts, err := s.repo.BulkUpdateWithProto(ctx, req, filterMap)
+		if err != nil {
+			logrus.WithError(err).Error("InventoryService.BulkUpdateParts: Failed to update with proto scope")
+			return 0, err
+		}
+		updatedParts = parts
+		updatedCount = len(parts)
+	} else if len(req.Parts) > 0 {
+		// Сценарий 2: Обратная совместимость с массивом parts: [{id, fields}]
+		updates := make([]map[string]interface{}, len(req.Parts))
+		ids := make([]int64, len(req.Parts))
+		for i, p := range req.Parts {
+			m := make(map[string]interface{})
+			m["id"] = int64(p.Id)
+			ids[i] = int64(p.Id)
+			for k, v := range p.Fields {
+				m[k] = v
+			}
+			updates[i] = m
+		}
+		count, err := s.repo.BulkUpdate(ctx, updates)
+		if err != nil {
+			logrus.WithError(err).Error("InventoryService.BulkUpdateParts: Failed legacy bulk update")
+			return 0, err
+		}
+		updatedCount = count
+		// Получаем обновленные запчасти для синхронизации с ES
+		if len(ids) > 0 {
+			if parts, err := s.repo.FindWithFilters(ctx, map[string]interface{}{"ids_in": ids}, 0, 0); err == nil {
+				updatedParts = parts
+			}
+		}
+	}
+
+	// 1. Elasticsearch Bulk Indexing (синхронизация полнотекстового индекса)
+	if len(updatedParts) > 0 {
+		if err := search.BulkIndexParts(ctx, updatedParts); err != nil {
+			logrus.WithError(err).Warn("InventoryService.BulkUpdateParts: Failed to sync parts with Elasticsearch")
+		}
+	}
+
+	// 2. Сброс Redis-кэша инвентаря и статистики
+	if s.redis != nil {
+		s.redis.Del(ctx, inventoryCacheKey)
+		s.redis.Del(ctx, inventoryCacheKeyWithoutPhotos)
+		s.invalidateStatisticsCache(ctx)
+	}
+
+	logrus.WithField("updated_count", updatedCount).Info("InventoryService.BulkUpdateParts: Successfully completed bulk update")
 	return updatedCount, nil
 }
 

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
+	partsv1 "avtoplaneta/gen/parts/v1"
 	"parts-service/internal/catalog"
 	"parts-service/internal/config"
 	"parts-service/internal/domain"
@@ -100,6 +101,14 @@ func (m *MockPartRepository) BulkDelete(ctx context.Context, ids []int64) error 
 func (m *MockPartRepository) BulkUpdate(ctx context.Context, updates []map[string]interface{}) (int, error) {
 	args := m.Called(ctx, updates)
 	return args.Int(0), args.Error(1)
+}
+
+func (m *MockPartRepository) BulkUpdateWithProto(ctx context.Context, req *partsv1.BulkUpdatePartsRequest, filterMap map[string]interface{}) ([]domain.Part, error) {
+	args := m.Called(ctx, req, filterMap)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.Part), args.Error(1)
 }
 
 func (m *MockPartRepository) DeleteZeroQuantityPartsBySupplier(ctx context.Context, supplierCode string) (int64, error) {
@@ -344,17 +353,22 @@ func (suite *ServiceTestSuite) TestBulkDeleteParts() {
 
 // TestBulkUpdateParts - тест массового обновления
 func (suite *ServiceTestSuite) TestBulkUpdateParts() {
-	updates := []map[string]interface{}{
-		{
-			"id":       suite.testPart.ID,
-			"name":     "Bulk Updated",
-			"quantity": 99,
+	req := &partsv1.BulkUpdatePartsRequest{
+		Scope: &partsv1.BulkUpdateScope{
+			Type: partsv1.BulkScopeType_BULK_SCOPE_TYPE_IDS,
+			Ids:  []uint32{uint32(suite.testPart.ID)},
+		},
+		Operations: &partsv1.BulkFieldOperations{
+			Price: &partsv1.BulkPriceOperation{
+				Mode:  partsv1.PriceOperationMode_PRICE_OPERATION_MODE_PERCENT,
+				Value: 10,
+			},
 		},
 	}
 
-	suite.mockRepo.On("BulkUpdate", mock.Anything, updates).Return(1, nil)
+	suite.mockRepo.On("BulkUpdateWithProto", mock.Anything, req, mock.Anything).Return([]domain.Part{*suite.testPart}, nil)
 
-	count, err := suite.service.BulkUpdateParts(context.Background(), updates)
+	count, err := suite.service.BulkUpdateParts(context.Background(), req)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), 1, count)
 }

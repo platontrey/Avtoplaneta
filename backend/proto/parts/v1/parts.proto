@@ -540,6 +540,39 @@ message BulkDeletePartsResponse {
   int32 deleted_count = 1;
 }
 
+enum PriceOperationMode {
+  PRICE_OPERATION_MODE_UNSPECIFIED = 0;
+  PRICE_OPERATION_MODE_SET = 1;
+  PRICE_OPERATION_MODE_PERCENT = 2;
+  PRICE_OPERATION_MODE_OFFSET = 3;
+}
+
+message BulkPriceOperation {
+  PriceOperationMode mode = 1;
+  double value = 2;
+}
+
+message BulkFieldOperations {
+  BulkPriceOperation price = 1;
+  optional string category = 2;
+  optional string location = 3;
+  optional string address = 4;
+  optional string salesman = 5;
+  optional bool status = 6;
+}
+
+enum BulkScopeType {
+  BULK_SCOPE_TYPE_UNSPECIFIED = 0;
+  BULK_SCOPE_TYPE_IDS = 1;
+  BULK_SCOPE_TYPE_FILTER = 2;
+}
+
+message BulkUpdateScope {
+  BulkScopeType type = 1;
+  repeated uint32 ids = 2;
+  GetInventoryRequest filter = 3;
+}
+
 message BulkUpdatePartData {
   uint32 id = 1;
   map<string, string> fields = 2;
@@ -547,6 +580,8 @@ message BulkUpdatePartData {
 
 message BulkUpdatePartsRequest {
   repeated BulkUpdatePartData parts = 1;
+  BulkUpdateScope scope = 2;
+  BulkFieldOperations operations = 3;
 }
 
 message BulkUpdatePartsResponse {

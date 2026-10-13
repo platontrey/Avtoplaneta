@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
 
+	partsv1 "avtoplaneta/gen/parts/v1"
 	"parts-service/db/sqlc"
 	"parts-service/internal/catalog"
 	"parts-service/internal/domain"
@@ -43,6 +44,7 @@ type PartRepository interface {
 	RenameSeller(ctx context.Context, sellerID int64, name string) ([]domain.Part, error)
 	BulkDelete(ctx context.Context, ids []int64) error
 	BulkUpdate(ctx context.Context, updates []map[string]interface{}) (int, error)
+	BulkUpdateWithProto(ctx context.Context, req *partsv1.BulkUpdatePartsRequest, filterMap map[string]interface{}) ([]domain.Part, error)
 
 	DeleteZeroQuantityPartsBySupplier(ctx context.Context, supplierCode string) (int64, error)
 	GetSupplierCodes(ctx context.Context) ([]string, error)
@@ -499,19 +501,19 @@ func (r *partRepository) Delete(ctx context.Context, id int64) error {
 
 // ─── FindWithFilters (Squirrel dynamic query) ───────────────────────────────
 
-func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string]interface{}, offset, limit int) ([]domain.Part, error) {
-	builder := r.psq.Select(partColumns).From("parts").Where("deleted_at IS NULL")
+func (r *partRepository) buildFilterPredicates(filters map[string]interface{}) []squirrel.Sqlizer {
+	var preds []squirrel.Sqlizer
 
 	for key, value := range filters {
 		switch key {
 		case "ids_in":
-			builder = builder.Where(squirrel.Eq{"id": value})
+			preds = append(preds, squirrel.Eq{"id": value})
 		case "to_delete_at_is_null":
 			if value.(bool) {
-				builder = builder.Where("to_delete_at IS NULL")
+				preds = append(preds, squirrel.Expr("to_delete_at IS NULL"))
 			}
 		case "quantity_gte":
-			builder = builder.Where(squirrel.GtOrEq{"quantity": value})
+			preds = append(preds, squirrel.GtOrEq{"quantity": value})
 		case "category_ilike":
 			if variants, ok := value.([]string); ok {
 				conds := make([]squirrel.Sqlizer, 0, len(variants))
@@ -521,63 +523,63 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 					}
 				}
 				if len(conds) > 0 {
-					builder = builder.Where(squirrel.Or(conds))
+					preds = append(preds, squirrel.Or(conds))
 				}
 			} else if str, ok := value.(string); ok && strings.TrimSpace(str) != "" {
-				builder = builder.Where("category ILIKE ?", "%"+str+"%")
+				preds = append(preds, squirrel.Expr("category ILIKE ?", "%"+str+"%"))
 			}
 		case "brand_ilike":
-			builder = builder.Where("brand ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("brand ILIKE ?", "%"+value.(string)+"%"))
 		case "model_ilike":
-			builder = builder.Where("model ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("model ILIKE ?", "%"+value.(string)+"%"))
 		case "location_ilike":
-			builder = builder.Where("location ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("location ILIKE ?", "%"+value.(string)+"%"))
 		case "address_ilike":
-			builder = builder.Where("address ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("address ILIKE ?", "%"+value.(string)+"%"))
 		case "salesman_ilike":
-			builder = builder.Where("salesman ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("salesman ILIKE ?", "%"+value.(string)+"%"))
 		case "status":
-			builder = builder.Where(squirrel.Eq{"status": value})
+			preds = append(preds, squirrel.Eq{"status": value})
 		case "has_photo":
 			if value.(bool) {
-				builder = builder.Where("photos IS NOT NULL AND CASE WHEN jsonb_typeof(photos) = 'array' THEN jsonb_array_length(photos) > 0 ELSE false END")
+				preds = append(preds, squirrel.Expr("photos IS NOT NULL AND CASE WHEN jsonb_typeof(photos) = 'array' THEN jsonb_array_length(photos) > 0 ELSE false END"))
 			} else {
-				builder = builder.Where("(photos IS NULL OR CASE WHEN jsonb_typeof(photos) = 'array' THEN jsonb_array_length(photos) = 0 ELSE true END)")
+				preds = append(preds, squirrel.Expr("(photos IS NULL OR CASE WHEN jsonb_typeof(photos) = 'array' THEN jsonb_array_length(photos) = 0 ELSE true END)"))
 			}
 		case "number_ilike":
-			builder = builder.Where("number ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("number ILIKE ?", "%"+value.(string)+"%"))
 		case "oem_code_ilike":
-			builder = builder.Where("oem_code ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("oem_code ILIKE ?", "%"+value.(string)+"%"))
 		case "vin_ilike":
-			builder = builder.Where("vin ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("vin ILIKE ?", "%"+value.(string)+"%"))
 		case "body_brand_ilike":
-			builder = builder.Where("body_brand ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("body_brand ILIKE ?", "%"+value.(string)+"%"))
 		case "engine_brand_ilike":
-			builder = builder.Where("engine_brand ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("engine_brand ILIKE ?", "%"+value.(string)+"%"))
 		case "car_release_date_ilike":
-			builder = builder.Where("car_release_date ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("car_release_date ILIKE ?", "%"+value.(string)+"%"))
 		case "car_release_period_ilike":
-			builder = builder.Where("car_release_period ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("car_release_period ILIKE ?", "%"+value.(string)+"%"))
 		case "transmission_ilike":
-			builder = builder.Where("transmission ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("transmission ILIKE ?", "%"+value.(string)+"%"))
 		case "drive_ilike":
-			builder = builder.Where("drive ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("drive ILIKE ?", "%"+value.(string)+"%"))
 		case "condition_ilike":
-			builder = builder.Where("condition ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("condition ILIKE ?", "%"+value.(string)+"%"))
 		case "manufacturer_ilike":
-			builder = builder.Where("manufacturer ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("manufacturer ILIKE ?", "%"+value.(string)+"%"))
 		case "defect_ilike":
-			builder = builder.Where("defect ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("defect ILIKE ?", "%"+value.(string)+"%"))
 		case "color_ilike":
-			builder = builder.Where("color ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("color ILIKE ?", "%"+value.(string)+"%"))
 		case "min_price":
-			builder = builder.Where(squirrel.GtOrEq{"price": value})
+			preds = append(preds, squirrel.GtOrEq{"price": value})
 		case "max_price":
-			builder = builder.Where(squirrel.LtOrEq{"price": value})
+			preds = append(preds, squirrel.LtOrEq{"price": value})
 		case "min_quantity":
-			builder = builder.Where(squirrel.GtOrEq{"quantity": value})
+			preds = append(preds, squirrel.GtOrEq{"quantity": value})
 		case "max_quantity":
-			builder = builder.Where(squirrel.LtOrEq{"quantity": value})
+			preds = append(preds, squirrel.LtOrEq{"quantity": value})
 		case "front_rear_ilike":
 			synonyms := catalog.ExpandFrontRearSynonyms(value.(string))
 			conds := make([]squirrel.Sqlizer, 0, len(synonyms))
@@ -588,7 +590,7 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 					conds = append(conds, squirrel.Expr("front_rear ILIKE ?", "%"+syn+"%"))
 				}
 			}
-			builder = builder.Where(squirrel.Or(conds))
+			preds = append(preds, squirrel.Or(conds))
 		case "left_right_ilike":
 			synonyms := catalog.ExpandLeftRightSynonyms(value.(string))
 			conds := make([]squirrel.Sqlizer, 0, len(synonyms))
@@ -599,7 +601,7 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 					conds = append(conds, squirrel.Expr("left_right ILIKE ?", "%"+syn+"%"))
 				}
 			}
-			builder = builder.Where(squirrel.Or(conds))
+			preds = append(preds, squirrel.Or(conds))
 		case "top_bottom_ilike":
 			synonyms := catalog.ExpandTopBottomSynonyms(value.(string))
 			conds := make([]squirrel.Sqlizer, 0, len(synonyms))
@@ -610,33 +612,33 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 					conds = append(conds, squirrel.Expr("top_bottom ILIKE ?", "%"+syn+"%"))
 				}
 			}
-			builder = builder.Where(squirrel.Or(conds))
+			preds = append(preds, squirrel.Or(conds))
 		case "manufacturer_code_ilike":
-			builder = builder.Where("manufacturer_code ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("manufacturer_code ILIKE ?", "%"+value.(string)+"%"))
 		case "supplier_code_ilike":
-			builder = builder.Where("supplier_code ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("supplier_code ILIKE ?", "%"+value.(string)+"%"))
 		case "transmission_model_ilike":
-			builder = builder.Where("transmission_model ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("transmission_model ILIKE ?", "%"+value.(string)+"%"))
 		case "wear_percentage_ilike":
-			builder = builder.Where("wear_percentage ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("wear_percentage ILIKE ?", "%"+value.(string)+"%"))
 		case "season_ilike":
-			builder = builder.Where("season ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("season ILIKE ?", "%"+value.(string)+"%"))
 		case "diameter_ilike":
-			builder = builder.Where("diameter ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("diameter ILIKE ?", "%"+value.(string)+"%"))
 		case "width_ilike":
-			builder = builder.Where("width ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("width ILIKE ?", "%"+value.(string)+"%"))
 		case "profile_ilike":
-			builder = builder.Where("profile ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("profile ILIKE ?", "%"+value.(string)+"%"))
 		case "tire_quantity_ilike":
-			builder = builder.Where("tire_quantity ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("tire_quantity ILIKE ?", "%"+value.(string)+"%"))
 		case "drilling_ilike":
-			builder = builder.Where("drilling ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("drilling ILIKE ?", "%"+value.(string)+"%"))
 		case "offset_ilike":
-			builder = builder.Where("\"offset\" ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("\"offset\" ILIKE ?", "%"+value.(string)+"%"))
 		case "center_hole_diameter_ilike":
-			builder = builder.Where("center_hole_diameter ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("center_hole_diameter ILIKE ?", "%"+value.(string)+"%"))
 		case "tire_model_ilike":
-			builder = builder.Where("tire_model ILIKE ?", "%"+value.(string)+"%")
+			preds = append(preds, squirrel.Expr("tire_model ILIKE ?", "%"+value.(string)+"%"))
 		case "search":
 			searchStr := strings.TrimSpace(value.(string))
 			if searchStr != "" {
@@ -683,17 +685,26 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 						}
 					}
 					if len(orPreds) > 0 {
-						builder = builder.Where(squirrel.Or(orPreds))
+						preds = append(preds, squirrel.Or(orPreds))
 					}
 				} else if len(fragments) == 1 {
 					for _, term := range strings.Fields(fragments[0]) {
 						if strings.TrimSpace(term) != "" {
-							builder = builder.Where(buildTermSqlizer(term))
+							preds = append(preds, buildTermSqlizer(term))
 						}
 					}
 				}
 			}
 		}
+	}
+	return preds
+}
+
+func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string]interface{}, offset, limit int) ([]domain.Part, error) {
+	builder := r.psq.Select(partColumns).From("parts").Where("deleted_at IS NULL")
+
+	for _, pred := range r.buildFilterPredicates(filters) {
+		builder = builder.Where(pred)
 	}
 
 	builder = builder.OrderBy("id DESC")
@@ -713,6 +724,123 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 	}
 	defer rows.Close()
 	return scanParts(rows)
+}
+
+// BulkUpdateWithProto выполняет массовое обновление по спецификации Protobuf
+func (r *partRepository) BulkUpdateWithProto(ctx context.Context, req *partsv1.BulkUpdatePartsRequest, filterMap map[string]interface{}) ([]domain.Part, error) {
+	if req == nil {
+		return nil, nil
+	}
+
+	// 1. Если указан scope по IDs (или просто непустой список IDs) - используем sqlc
+	if req.Scope != nil && (req.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_IDS || (req.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_UNSPECIFIED && len(req.Scope.Ids) > 0)) {
+		if len(req.Scope.Ids) == 0 {
+			return []domain.Part{}, nil
+		}
+		ids := make([]int64, len(req.Scope.Ids))
+		for i, id := range req.Scope.Ids {
+			ids[i] = int64(id)
+		}
+
+		priceMode := "set"
+		hasPrice := false
+		priceVal := 0.0
+		if req.Operations != nil && req.Operations.Price != nil {
+			hasPrice = true
+			priceVal = req.Operations.Price.Value
+			switch req.Operations.Price.Mode {
+			case partsv1.PriceOperationMode_PRICE_OPERATION_MODE_PERCENT:
+				priceMode = "percent"
+			case partsv1.PriceOperationMode_PRICE_OPERATION_MODE_OFFSET:
+				priceMode = "offset"
+			default:
+				priceMode = "set"
+			}
+		}
+
+		sqlcParts, err := r.queries.BulkUpdateFieldsByIDs(ctx, sqlc.BulkUpdateFieldsByIDsParams{
+			HasPrice:    hasPrice,
+			PriceMode:   priceMode,
+			PriceVal:    priceVal,
+			HasCategory: req.Operations != nil && req.Operations.Category != nil,
+			Category:    req.Operations.GetCategory(),
+			HasLocation: req.Operations != nil && req.Operations.Location != nil,
+			Location:    req.Operations.GetLocation(),
+			HasAddress:  req.Operations != nil && req.Operations.Address != nil,
+			Address:     req.Operations.GetAddress(),
+			HasSalesman: req.Operations != nil && req.Operations.Salesman != nil,
+			Salesman:    req.Operations.GetSalesman(),
+			HasStatus:   req.Operations != nil && req.Operations.Status != nil,
+			Status:      req.Operations.GetStatus(),
+			Ids:         ids,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to bulk update by IDs: %w", err)
+		}
+
+		result := make([]domain.Part, len(sqlcParts))
+		for i, p := range sqlcParts {
+			result[i] = *sqlcPartToDomain(p)
+		}
+		return result, nil
+	}
+
+	// 2. Если указан scope по фильтру (условиям)
+	if req.Scope != nil && req.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_FILTER {
+		updateBuilder := r.psq.Update("parts").
+			Where("deleted_at IS NULL").
+			Where(squirrel.GtOrEq{"quantity": 0})
+
+		if filterMap != nil {
+			for _, pred := range r.buildFilterPredicates(filterMap) {
+				updateBuilder = updateBuilder.Where(pred)
+			}
+		}
+
+		if req.Operations != nil && req.Operations.Price != nil {
+			switch req.Operations.Price.Mode {
+			case partsv1.PriceOperationMode_PRICE_OPERATION_MODE_PERCENT:
+				updateBuilder = updateBuilder.Set("price", squirrel.Expr("ROUND((price * (1.0 + ? / 100.0))::numeric, 2)::double precision", req.Operations.Price.Value))
+			case partsv1.PriceOperationMode_PRICE_OPERATION_MODE_OFFSET:
+				updateBuilder = updateBuilder.Set("price", squirrel.Expr("GREATEST(0.0, price + ?)", req.Operations.Price.Value))
+			default:
+				updateBuilder = updateBuilder.Set("price", req.Operations.Price.Value)
+			}
+		}
+		if req.Operations != nil && req.Operations.Category != nil {
+			updateBuilder = updateBuilder.Set("category", req.Operations.GetCategory())
+		}
+		if req.Operations != nil && req.Operations.Location != nil {
+			updateBuilder = updateBuilder.Set("location", req.Operations.GetLocation())
+		}
+		if req.Operations != nil && req.Operations.Address != nil {
+			updateBuilder = updateBuilder.Set("address", req.Operations.GetAddress())
+		}
+		if req.Operations != nil && req.Operations.Salesman != nil {
+			updateBuilder = updateBuilder.Set("salesman", req.Operations.GetSalesman())
+		}
+		if req.Operations != nil && req.Operations.Status != nil {
+			updateBuilder = updateBuilder.Set("status", req.Operations.GetStatus())
+		}
+
+		updateBuilder = updateBuilder.Set("updated_at", squirrel.Expr("NOW()"))
+		updateBuilder = updateBuilder.Suffix("RETURNING " + partColumns)
+
+		sqlStr, args, err := updateBuilder.ToSql()
+		if err != nil {
+			return nil, fmt.Errorf("failed to build bulk update query: %w", err)
+		}
+
+		rows, err := r.pool.Query(ctx, sqlStr, args...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to execute bulk update by filter: %w", err)
+		}
+		defer rows.Close()
+
+		return scanParts(rows)
+	}
+
+	return []domain.Part{}, nil
 }
 
 // ─── Specific operations ────────────────────────────────────────────────────

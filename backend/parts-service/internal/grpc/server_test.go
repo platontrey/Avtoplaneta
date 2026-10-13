@@ -56,7 +56,7 @@ func (s *inventoryParamsCaptureService) InventoryVersion(context.Context) (strin
 func (s *inventoryParamsCaptureService) RenameSeller(context.Context, int64, string) ([]domain.Part, error) { return nil, nil }
 func (s *inventoryParamsCaptureService) PartsForExport(context.Context) ([]domain.Part, error) { return nil, nil }
 func (s *inventoryParamsCaptureService) BulkDeleteParts(context.Context, []int64) error { return nil }
-func (s *inventoryParamsCaptureService) BulkUpdateParts(context.Context, []map[string]interface{}) (int, error) { return 0, nil }
+func (s *inventoryParamsCaptureService) BulkUpdateParts(context.Context, *partsv1.BulkUpdatePartsRequest) (int, error) { return 0, nil }
 func (s *inventoryParamsCaptureService) DeleteZeroQuantityPartsBySupplier(context.Context, string) (int64, error) { return 0, nil }
 func (s *inventoryParamsCaptureService) GetSupplierCodes(context.Context) ([]string, error) { return nil, nil }
 func (s *inventoryParamsCaptureService) GetNextSupplierCode(context.Context) (string, error) { return "1", nil }

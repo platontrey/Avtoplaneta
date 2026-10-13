@@ -653,17 +653,7 @@ func (s *partsGRPCServer) BulkDeleteParts(ctx context.Context, req *partsv1.Bulk
 
 // BulkUpdateParts массовое обновление
 func (s *partsGRPCServer) BulkUpdateParts(ctx context.Context, req *partsv1.BulkUpdatePartsRequest) (*partsv1.BulkUpdatePartsResponse, error) {
-	updates := make([]map[string]interface{}, len(req.Parts))
-	for i, p := range req.Parts {
-		m := make(map[string]interface{})
-		m["id"] = p.Id
-		for k, v := range p.Fields {
-			m[k] = v
-		}
-		updates[i] = m
-	}
-
-	count, err := s.service.BulkUpdateParts(ctx, updates)
+	count, err := s.service.BulkUpdateParts(ctx, req)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось массово обновить запчасти: %v", err)
 	}

@@ -264,10 +264,7 @@ function Statistics() {
      fill: ['#059669', '#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#34d399', '#10b981', '#059669', '#047857', '#065f46', '#064e3b', '#022c22'][index % 12]
   })) || [];
 
-  // Individual growth metrics for each card
-  const partsGrowth = data?.partsGrowth ?? 0;
-  const quantityGrowth = data?.quantityGrowth ?? 0;
-  const valueGrowth = data?.valueGrowth ?? 0;
+  // Individual growth metrics for each card with fallback to overall sales dynamics when 0 or missing
   const earningsGrowth = data?.earningsGrowth ?? (() => {
     if (!data?.monthlySales || data.monthlySales.length < 2) return 0;
     const sorted = [...data.monthlySales].sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
@@ -276,6 +273,16 @@ function Statistics() {
     if (prev === 0) return 0;
     return ((last - prev) / prev) * 100;
   })();
+
+  const partsGrowth = (data?.partsGrowth !== undefined && Math.abs(data.partsGrowth) >= 0.05)
+    ? data.partsGrowth
+    : earningsGrowth;
+  const quantityGrowth = (data?.quantityGrowth !== undefined && Math.abs(data.quantityGrowth) >= 0.05)
+    ? data.quantityGrowth
+    : earningsGrowth;
+  const valueGrowth = (data?.valueGrowth !== undefined && Math.abs(data.valueGrowth) >= 0.05)
+    ? data.valueGrowth
+    : earningsGrowth;
 
   const summaryData = [
     { name: 'Всего запчастей', value: data?.totalParts || 0, color: '#6b7280' },

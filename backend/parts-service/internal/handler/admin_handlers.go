@@ -2,13 +2,17 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/encoding/protojson"
 
+	partsv1 "avtoplaneta/gen/parts/v1"
 	"parts-service/internal/domain"
 )
 
@@ -45,30 +49,55 @@ func (h *Handler) BulkDeletePartsHandler(c *gin.Context) {
 
 // BulkUpdatePartsHandler обновляет несколько запчастей
 func (h *Handler) BulkUpdatePartsHandler(c *gin.Context) {
-	var updates []map[string]interface{}
-	if err := c.ShouldBindJSON(&updates); err != nil {
-		logrus.WithError(err).Error("BulkUpdatePartsHandler: Failed to bind JSON")
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный формат данных"})
+	bodyBytes, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		logrus.WithError(err).Error("BulkUpdatePartsHandler: Failed to read request body")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Не удалось прочитать тело запроса"})
 		return
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"updates": updates,
-		"count":   len(updates),
-	}).Info("BulkUpdatePartsHandler: Received request")
+	var protoReq partsv1.BulkUpdatePartsRequest
+	unmarshaler := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err := unmarshaler.Unmarshal(bodyBytes, &protoReq); err != nil {
+		var legacyUpdates []map[string]interface{}
+		if errLegacy := json.Unmarshal(bodyBytes, &legacyUpdates); errLegacy == nil && len(legacyUpdates) > 0 {
+			for _, item := range legacyUpdates {
+				partData := &partsv1.BulkUpdatePartData{
+					Fields: make(map[string]string),
+				}
+				for k, v := range item {
+					if k == "id" {
+						if idFloat, ok := v.(float64); ok {
+							partData.Id = uint32(idFloat)
+						}
+					} else {
+						partData.Fields[k] = fmt.Sprintf("%v", v)
+					}
+				}
+				protoReq.Parts = append(protoReq.Parts, partData)
+			}
+		} else {
+			logrus.WithError(err).Warn("BulkUpdatePartsHandler: Invalid Protobuf request payload")
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный формат данных"})
+			return
+		}
+	}
+
+	if protoReq.Scope == nil && len(protoReq.Parts) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Не указана область выборки (scope) для обновления"})
+		return
+	}
 
 	ctx := c.Request.Context()
-	updatedCount, err := h.inventoryService.BulkUpdateParts(ctx, updates)
+	updatedCount, err := h.inventoryService.BulkUpdateParts(ctx, &protoReq)
 	if err != nil {
 		logrus.WithError(err).Error("BulkUpdatePartsHandler: Failed to bulk update parts")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось обновить запчасти"})
 		return
 	}
 
-	// Логируем массовое обновление
 	h.logUserActivity(c, "bulk_update_parts", "part", fmt.Sprintf("Bulk updated %d parts", updatedCount), nil)
-
-	logrus.Info("BulkUpdatePartsHandler: Successfully updated parts")
+	logrus.WithField("updated_count", updatedCount).Info("BulkUpdatePartsHandler: Successfully updated parts")
 	c.JSON(http.StatusOK, gin.H{
 		"message":       "Запчасти обновлены успешно",
 		"updated_count": updatedCount,

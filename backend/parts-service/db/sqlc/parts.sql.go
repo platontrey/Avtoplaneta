@@ -20,6 +20,128 @@ func (q *Queries) BulkDeleteByIDs(ctx context.Context, dollar_1 []int64) error {
 	return err
 }
 
+const BulkUpdateFieldsByIDs = `-- name: BulkUpdateFieldsByIDs :many
+UPDATE parts
+SET
+    price = CASE
+        WHEN $1::boolean AND $2::text = 'percent'
+            THEN ROUND((price * (1.0 + $3::float8 / 100.0))::numeric, 2)::double precision
+        WHEN $1::boolean AND $2::text = 'offset'
+            THEN GREATEST(0.0, price + $3::float8)
+        WHEN $1::boolean AND $2::text = 'set'
+            THEN $3::float8
+        ELSE price
+    END,
+    category = CASE WHEN $4::boolean THEN $5::text ELSE category END,
+    location = CASE WHEN $6::boolean THEN $7::text ELSE location END,
+    address = CASE WHEN $8::boolean THEN $9::text ELSE address END,
+    salesman = CASE WHEN $10::boolean THEN $11::text ELSE salesman END,
+    status = CASE WHEN $12::boolean THEN $13::boolean ELSE status END,
+    updated_at = NOW()
+WHERE id = ANY($14::bigint[]) AND deleted_at IS NULL AND quantity >= 0
+RETURNING id, name, quantity, description, category, price, salesman, location, address, status, brand, model, photos, seller_id, to_delete_at, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, created_at, updated_at, deleted_at, car_release_period
+`
+
+type BulkUpdateFieldsByIDsParams struct {
+	HasPrice    bool    `json:"has_price"`
+	PriceMode   string  `json:"price_mode"`
+	PriceVal    float64 `json:"price_val"`
+	HasCategory bool    `json:"has_category"`
+	Category    string  `json:"category"`
+	HasLocation bool    `json:"has_location"`
+	Location    string  `json:"location"`
+	HasAddress  bool    `json:"has_address"`
+	Address     string  `json:"address"`
+	HasSalesman bool    `json:"has_salesman"`
+	Salesman    string  `json:"salesman"`
+	HasStatus   bool    `json:"has_status"`
+	Status      bool    `json:"status"`
+	Ids         []int64 `json:"ids"`
+}
+
+func (q *Queries) BulkUpdateFieldsByIDs(ctx context.Context, arg BulkUpdateFieldsByIDsParams) ([]Part, error) {
+	rows, err := q.db.Query(ctx, BulkUpdateFieldsByIDs,
+		arg.HasPrice,
+		arg.PriceMode,
+		arg.PriceVal,
+		arg.HasCategory,
+		arg.Category,
+		arg.HasLocation,
+		arg.Location,
+		arg.HasAddress,
+		arg.Address,
+		arg.HasSalesman,
+		arg.Salesman,
+		arg.HasStatus,
+		arg.Status,
+		arg.Ids,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Part{}
+	for rows.Next() {
+		var i Part
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Quantity,
+			&i.Description,
+			&i.Category,
+			&i.Price,
+			&i.Salesman,
+			&i.Location,
+			&i.Address,
+			&i.Status,
+			&i.Brand,
+			&i.Model,
+			&i.Photos,
+			&i.SellerID,
+			&i.ToDeleteAt,
+			&i.Vin,
+			&i.BodyBrand,
+			&i.EngineBrand,
+			&i.CarReleaseDate,
+			&i.FrontRear,
+			&i.LeftRight,
+			&i.TopBottom,
+			&i.Number,
+			&i.Manufacturer,
+			&i.ManufacturerCode,
+			&i.OemCode,
+			&i.Color,
+			&i.Condition,
+			&i.SupplierCode,
+			&i.Defect,
+			&i.Transmission,
+			&i.TransmissionModel,
+			&i.Drive,
+			&i.WearPercentage,
+			&i.Season,
+			&i.Diameter,
+			&i.Width,
+			&i.Profile,
+			&i.TireQuantity,
+			&i.Drilling,
+			&i.Offset,
+			&i.CenterHoleDiameter,
+			&i.TireModel,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.CarReleasePeriod,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const CountZeroQuantityBySupplier = `-- name: CountZeroQuantityBySupplier :one
 SELECT COUNT(*)::bigint FROM parts
 WHERE supplier_code = $1 AND quantity = 0 AND to_delete_at IS NULL AND deleted_at IS NULL

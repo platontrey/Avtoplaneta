@@ -8,6 +8,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 
+	partsv1 "avtoplaneta/gen/parts/v1"
 	"parts-service/internal/domain"
 )
 
@@ -44,7 +45,7 @@ func (m *mockInventoryService) PartsForExport(context.Context) ([]domain.Part, e
 	return nil, nil
 }
 func (m *mockInventoryService) BulkDeleteParts(context.Context, []int64) error { return nil }
-func (m *mockInventoryService) BulkUpdateParts(context.Context, []map[string]interface{}) (int, error) {
+func (m *mockInventoryService) BulkUpdateParts(context.Context, *partsv1.BulkUpdatePartsRequest) (int, error) {
 	return 0, nil
 }
 func (m *mockInventoryService) DeleteZeroQuantityPartsBySupplier(context.Context, string) (int64, error) {
