@@ -36,6 +36,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   Timer? _debounce;
   final Set<int> _selectedPartIds = {};
   bool _selectionMode = false;
+  bool _selectAllByQuery = false;
 
   List<Part> _infiniteParts = [];
   int _nextInfinitePage = 2;
@@ -119,13 +120,17 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     setState(() {
       _selectionMode = true;
       if (!_selectedPartIds.add(part.id)) _selectedPartIds.remove(part.id);
-      if (_selectedPartIds.isEmpty) _selectionMode = false;
+      if (_selectedPartIds.isEmpty) {
+        _selectionMode = false;
+        _selectAllByQuery = false;
+      }
     });
   }
 
   void _clearSelection() {
     setState(() {
       _selectionMode = false;
+      _selectAllByQuery = false;
       _selectedPartIds.clear();
     });
   }
@@ -212,6 +217,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final selectedParts = displayParts
         .where((part) => _selectedPartIds.contains(part.id))
         .toList();
+    final totalCount = inventoryAsync.valueOrNull?.total ?? displayParts.length;
 
     return Scaffold(
       appBar: AppBar(
@@ -223,31 +229,38 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               )
             : null,
         title: Text(
-          _selectionMode ? 'Выбрано: ${_selectedPartIds.length}' : 'Инвентарь',
+          _selectionMode
+              ? (_selectAllByQuery
+                  ? 'Все в поиске ($totalCount)'
+                  : 'Выбрано: ${_selectedPartIds.length}')
+              : 'Инвентарь',
         ),
         actions: [
           if (_selectionMode) ...[
             IconButton(
-              tooltip: 'Выбрать по критерию',
-              icon: const Icon(LucideIcons.list_filter),
-              onPressed: () async {
-                final messenger = ScaffoldMessenger.of(context);
-                final result = await showSelectByCriteriaSheet(
-                  context,
-                  categories: categories,
-                );
-                if (result != null && mounted) {
-                  final matched = displayParts.where(result.matches).map((p) => p.id);
-                  setState(() {
-                    _selectedPartIds.addAll(matched);
-                  });
-                  HapticFeedback.mediumImpact();
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text('Выделено ${matched.length} запчастей по критерию'),
+              tooltip: _selectAllByQuery
+                  ? 'Снять выбор всех в поиске'
+                  : 'Выбрать все запчасти в поиске ($totalCount)',
+              icon: Icon(
+                _selectAllByQuery ? LucideIcons.layers : LucideIcons.library,
+              ),
+              onPressed: () {
+                setState(() {
+                  _selectAllByQuery = !_selectAllByQuery;
+                  if (_selectAllByQuery) {
+                    _selectedPartIds.addAll(displayParts.map((p) => p.id));
+                  }
+                });
+                HapticFeedback.mediumImpact();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      _selectAllByQuery
+                          ? 'Выбраны все запчасти по запросу ($totalCount шт.)'
+                          : 'Режим выбора всего запроса отключен',
                     ),
-                  );
-                }
+                  ),
+                );
               },
             ),
             IconButton(
@@ -263,6 +276,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 setState(() {
                   if (_selectedPartIds.length == displayParts.length) {
                     _selectedPartIds.clear();
+                    _selectAllByQuery = false;
                     _selectionMode = false;
                   } else {
                     _selectedPartIds.addAll(
@@ -275,34 +289,20 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           ],
           if (!_selectionMode) ...[
             IconButton(
-              tooltip: 'Выбрать по критерию',
-              icon: const Icon(LucideIcons.list_filter),
-              onPressed: () async {
-                final messenger = ScaffoldMessenger.of(context);
-                final result = await showSelectByCriteriaSheet(
-                  context,
-                  categories: categories,
+              tooltip: 'Выбрать все в поиске ($totalCount)',
+              icon: const Icon(LucideIcons.check_check),
+              onPressed: () {
+                setState(() {
+                  _selectionMode = true;
+                  _selectAllByQuery = true;
+                  _selectedPartIds.addAll(displayParts.map((p) => p.id));
+                });
+                HapticFeedback.mediumImpact();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Выбраны все запчасти по запросу ($totalCount шт.)'),
+                  ),
                 );
-                if (result != null && mounted) {
-                  final matched = displayParts.where(result.matches).map((p) => p.id).toList();
-                  if (matched.isEmpty) {
-                    messenger.showSnackBar(
-                      const SnackBar(content: Text('По заданному критерию деталей не найдено')),
-                    );
-                    return;
-                  }
-                  setState(() {
-                    _selectionMode = true;
-                    _selectedPartIds.clear();
-                    _selectedPartIds.addAll(matched);
-                  });
-                  HapticFeedback.mediumImpact();
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text('Выделено ${matched.length} запчастей по критерию'),
-                    ),
-                  );
-                }
               },
             ),
             IconButton(
@@ -590,8 +590,20 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       bottomNavigationBar: _selectionMode
           ? _BulkActionBar(
               count: _selectedPartIds.length,
-              enabled: !isOffline && selectedParts.isNotEmpty,
+              totalCount: totalCount,
+              isAllMatching: _selectAllByQuery,
+              enabled: !isOffline && (_selectAllByQuery || selectedParts.isNotEmpty),
               onOrder: () async {
+                if (_selectAllByQuery) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Оформление заказа доступно только для конкретных выбранных запчастей на экране',
+                      ),
+                    ),
+                  );
+                  return;
+                }
                 if (selectedParts.any((part) => part.quantity <= 0)) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -621,7 +633,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   ref,
                   parts: selectedParts,
                   categories: categories,
-                  activeFilter: filter.activeFilterCount > 0 ? filter : null,
+                  activeFilter: filter,
+                  initialSelectAllByQuery: _selectAllByQuery,
+                  totalMatchingCount: totalCount,
                 );
                 if (!context.mounted) return;
                 if (changed) {
@@ -635,7 +649,10 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 final deleted = await confirmBulkDelete(
                   context,
                   ref,
-                  selectedParts,
+                  parts: selectedParts,
+                  selectAllByQuery: _selectAllByQuery,
+                  activeFilter: filter,
+                  totalMatchingCount: totalCount,
                 );
                 if (!context.mounted) return;
                 if (deleted) {
@@ -2234,6 +2251,8 @@ class _PartCard extends StatelessWidget {
 
 class _BulkActionBar extends StatelessWidget {
   final int count;
+  final int? totalCount;
+  final bool isAllMatching;
   final bool enabled;
   final VoidCallback onOrder;
   final VoidCallback onEdit;
@@ -2241,6 +2260,8 @@ class _BulkActionBar extends StatelessWidget {
 
   const _BulkActionBar({
     required this.count,
+    this.totalCount,
+    this.isAllMatching = false,
     required this.enabled,
     required this.onOrder,
     required this.onEdit,
@@ -2255,24 +2276,25 @@ class _BulkActionBar extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
         child: Row(
           children: [
-            Expanded(
-              child: _action(
-                LucideIcons.shopping_cart,
-                'Заказать ($count)',
-                enabled ? onOrder : null,
+            if (!isAllMatching)
+              Expanded(
+                child: _action(
+                  LucideIcons.shopping_cart,
+                  'Заказать ($count)',
+                  enabled ? onOrder : null,
+                ),
               ),
-            ),
             Expanded(
               child: _action(
                 LucideIcons.pencil,
-                'Изменить',
+                isAllMatching ? 'Изменить все (${totalCount ?? count})' : 'Изменить',
                 enabled ? onEdit : null,
               ),
             ),
             Expanded(
               child: _action(
                 LucideIcons.trash,
-                'Удалить',
+                isAllMatching ? 'Удалить все (${totalCount ?? count})' : 'Удалить',
                 enabled ? onDelete : null,
                 danger: true,
               ),
