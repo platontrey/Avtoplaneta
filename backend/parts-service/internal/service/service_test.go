@@ -242,6 +242,49 @@ func (suite *ServiceTestSuite) TestAddPart() {
 	assert.Equal(suite.T(), "New Part", result.Name)
 }
 
+// TestDuplicatePart - тест дублирования запчасти без фото
+func (suite *ServiceTestSuite) TestDuplicatePart() {
+	sourcePart := &domain.Part{
+		PartCore: domain.PartCore{
+			ID:       10,
+			Name:     "Existing Part",
+			Quantity: 2,
+			Price:    100.0,
+			Brand:    "Toyota",
+			Model:    "Camry",
+			Photos:   domain.StringArray{"photo1.jpg", "photo2.jpg"},
+			Photo:    "photo1.jpg",
+		},
+	}
+
+	suite.mockRepo.On("FindByID", mock.Anything, int64(10)).Return(sourcePart, nil)
+	suite.mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(p *domain.Part) bool {
+		return p.Name == "Existing Part" && len(p.Photos) == 0 && p.Photo == "" && p.ID == 0
+	})).Return(nil).Run(func(args mock.Arguments) {
+		p := args.Get(1).(*domain.Part)
+		p.ID = 11
+	})
+	duplicatedResult := &domain.Part{
+		PartCore: domain.PartCore{
+			ID:       11,
+			Name:     "Existing Part",
+			Quantity: 2,
+			Price:    100.0,
+			Brand:    "Toyota",
+			Model:    "Camry",
+			Photos:   domain.StringArray{},
+		},
+	}
+	suite.mockRepo.On("FindByID", mock.Anything, int64(11)).Return(duplicatedResult, nil)
+
+	res, err := suite.service.DuplicatePart(context.Background(), 10)
+	assert.NoError(suite.T(), err)
+	assert.NotNil(suite.T(), res)
+	assert.Equal(suite.T(), int64(11), res.ID)
+	assert.Empty(suite.T(), res.Photos)
+	assert.Empty(suite.T(), res.Photo)
+}
+
 // TestAddPart_InvalidData - тест добавления с невалидными данными
 func (suite *ServiceTestSuite) TestAddPart_InvalidData() {
 	invalidPart := &domain.Part{
@@ -343,12 +386,45 @@ func (suite *ServiceTestSuite) TestBulkDeleteParts() {
 	part2 := &domain.Part{PartCore: domain.PartCore{ID: 2, Name: "Part 2", Quantity: 5}}
 	ids := []int64{suite.testPart.ID, part2.ID}
 
-	suite.mockRepo.On("FindByID", mock.Anything, suite.testPart.ID).Return(suite.testPart, nil)
-	suite.mockRepo.On("FindByID", mock.Anything, part2.ID).Return(part2, nil)
+	suite.mockRepo.On("FindWithFilters", mock.Anything, map[string]interface{}{"ids_in": ids}, 0, 2).Return([]domain.Part{*suite.testPart, *part2}, nil)
 	suite.mockRepo.On("BulkDelete", mock.Anything, ids).Return(nil)
 
 	err := suite.service.BulkDeleteParts(context.Background(), ids)
 	assert.NoError(suite.T(), err)
+}
+
+// TestBulkDeletePartsWithProto_FilterScope - тест массового удаления по фильтру с защитой
+func (suite *ServiceTestSuite) TestBulkDeletePartsWithProto_FilterScope() {
+	// 1. Попытка удалить весь каталог без подтверждения должна завершаться ошибкой
+	reqEmpty := &partsv1.BulkDeletePartsRequest{
+		Scope: &partsv1.BulkUpdateScope{
+			Type:   partsv1.BulkScopeType_BULK_SCOPE_TYPE_FILTER,
+			Filter: &partsv1.GetInventoryRequest{},
+		},
+		ConfirmEntireCatalog: false,
+	}
+	count, err := suite.service.BulkDeletePartsWithProto(context.Background(), reqEmpty)
+	assert.Error(suite.T(), err)
+	assert.Contains(suite.T(), err.Error(), "confirm_entire_catalog")
+	assert.Equal(suite.T(), 0, count)
+
+	// 2. Успешное удаление по фильтру с параметрами
+	reqFilter := &partsv1.BulkDeletePartsRequest{
+		Scope: &partsv1.BulkUpdateScope{
+			Type: partsv1.BulkScopeType_BULK_SCOPE_TYPE_FILTER,
+			Filter: &partsv1.GetInventoryRequest{
+				Category: "Бамперы",
+			},
+		},
+	}
+	esPartMatched := search.ElasticsearchPart{ID: 55, Name: "Бампер"}
+	suite.mockES.On("SearchParts", mock.Anything, 0, 10000).Return([]search.ElasticsearchPart{esPartMatched}, int64(1), nil)
+	suite.mockRepo.On("FindWithFilters", mock.Anything, map[string]interface{}{"ids_in": []int64{55}}, 0, 1).Return([]domain.Part{{PartCore: domain.PartCore{ID: 55, Name: "Бампер"}}}, nil)
+	suite.mockRepo.On("BulkDelete", mock.Anything, []int64{55}).Return(nil)
+
+	deleted, err := suite.service.BulkDeletePartsWithProto(context.Background(), reqFilter)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), 1, deleted)
 }
 
 // TestBulkUpdateParts - тест массового обновления

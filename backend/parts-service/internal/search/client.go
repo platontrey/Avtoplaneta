@@ -766,6 +766,9 @@ func partToESPart(part *domain.Part) ElasticsearchPart {
 
 // IndexPart indexes a single part in Elasticsearch
 func IndexPart(part *domain.Part) error {
+	if esClient == nil || part == nil {
+		return nil
+	}
 	esPart := partToESPart(part)
 
 	body, err := json.Marshal(esPart)
@@ -914,6 +917,9 @@ func RefreshPartsIndex(ctx context.Context) error {
 
 // DeletePartFromIndex removes a part from the Elasticsearch index
 func DeletePartFromIndex(partID int64) error {
+	if esClient == nil {
+		return nil
+	}
 	req := esapi.DeleteRequest{
 		Index:      "parts",
 		DocumentID: fmt.Sprintf("%d", partID),

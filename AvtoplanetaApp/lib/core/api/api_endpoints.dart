@@ -17,6 +17,7 @@ abstract class ApiEndpoints {
   static const String parts = '/api/v1/parts';
   static String partById(int id) => '/api/v1/parts/$id';
   static String partItem(int id) => '/api/v1/parts/item/$id';
+  static String duplicatePart(int id) => '/api/v1/parts/$id/duplicate';
   static const String partCatalog = '/api/part-catalog';
   static const String vehicleCatalog = '/api/vehicle-catalog';
   static const String defectReports = '/api/defect-reports';

@@ -92,3 +92,20 @@ export function useUploadPartPhoto() {
     },
   });
 }
+
+// Duplicate part mutation
+export function useDuplicatePart() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => partsApi.duplicate(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: partsKeys.lists() });
+      queryClient.refetchQueries({ queryKey: partsKeys.lists() });
+    },
+    onError: (error) => {
+      console.error('useDuplicatePart: onError called:', error);
+    },
+  });
+}
+

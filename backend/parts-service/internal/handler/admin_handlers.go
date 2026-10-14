@@ -18,33 +18,49 @@ import (
 
 // BulkDeletePartsHandler удаляет несколько запчастей
 func (h *Handler) BulkDeletePartsHandler(c *gin.Context) {
-	var requestData struct {
-		IDs []int64 `json:"ids"`
-	}
-
-	if err := c.ShouldBindJSON(&requestData); err != nil {
-		logrus.WithError(err).Error("BulkDeletePartsHandler: Failed to bind JSON")
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный формат данных"})
+	bodyBytes, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		logrus.WithError(err).Error("BulkDeletePartsHandler: Failed to read request body")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Не удалось прочитать тело запроса"})
 		return
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"ids":   requestData.IDs,
-		"count": len(requestData.IDs),
-	}).Info("BulkDeletePartsHandler: Received request")
+	var protoReq partsv1.BulkDeletePartsRequest
+	unmarshaler := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err := unmarshaler.Unmarshal(bodyBytes, &protoReq); err != nil {
+		var requestData struct {
+			IDs                  []int64 `json:"ids"`
+			ConfirmEntireCatalog bool    `json:"confirm_entire_catalog"`
+		}
+		if errLegacy := json.Unmarshal(bodyBytes, &requestData); errLegacy == nil && len(requestData.IDs) > 0 {
+			protoReq.ConfirmEntireCatalog = requestData.ConfirmEntireCatalog
+			protoReq.Ids = make([]uint32, len(requestData.IDs))
+			for i, id := range requestData.IDs {
+				protoReq.Ids[i] = uint32(id)
+			}
+		} else {
+			logrus.WithError(err).Error("BulkDeletePartsHandler: Failed to unmarshal request")
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный формат данных"})
+			return
+		}
+	}
 
 	ctx := c.Request.Context()
-	if err := h.inventoryService.BulkDeleteParts(ctx, requestData.IDs); err != nil {
+	deletedCount, err := h.inventoryService.BulkDeletePartsWithProto(ctx, &protoReq)
+	if err != nil {
 		logrus.WithError(err).Error("BulkDeletePartsHandler: Failed to bulk delete parts")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось удалить запчасти"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Логируем массовое удаление
-	h.logUserActivity(c, "bulk_delete_parts", "part", fmt.Sprintf("Bulk deleted %d parts", len(requestData.IDs)), nil)
+	h.logUserActivity(c, "bulk_delete_parts", "part", fmt.Sprintf("Bulk deleted %d parts", deletedCount), nil)
 
-	logrus.Info("BulkDeletePartsHandler: Successfully deleted parts")
-	c.JSON(http.StatusOK, gin.H{"message": "Запчасти удалены успешно"})
+	logrus.WithField("deleted_count", deletedCount).Info("BulkDeletePartsHandler: Successfully deleted parts")
+	c.JSON(http.StatusOK, gin.H{
+		"message":       "Запчасти удалены успешно",
+		"deleted_count": deletedCount,
+	})
 }
 
 // BulkUpdatePartsHandler обновляет несколько запчастей

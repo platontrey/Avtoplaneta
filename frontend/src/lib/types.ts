@@ -95,6 +95,7 @@ export type UserActivityAction =
     | 'login'
     | 'logout'
     | 'create_part'
+    | 'duplicate_part'
     | 'update_part'
     | 'delete_part'
     | 'bulk_update_parts'

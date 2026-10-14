@@ -36,6 +36,20 @@ func (s *inventoryParamsCaptureService) AddPart(_ context.Context, part *domain.
 	return &copyOfPart, nil
 }
 
+func (s *inventoryParamsCaptureService) DuplicatePart(_ context.Context, id int64) (*domain.Part, error) {
+	for _, p := range s.parts {
+		if p.ID == id {
+			dup := p
+			dup.ID = int64(len(s.parts) + 1)
+			dup.Photos = []string{}
+			dup.Photo = ""
+			s.parts = append(s.parts, dup)
+			return &dup, nil
+		}
+	}
+	return nil, nil
+}
+
 func (s *inventoryParamsCaptureService) snapshot() []domain.Part {
 	return append([]domain.Part(nil), s.parts...)
 }
@@ -56,6 +70,7 @@ func (s *inventoryParamsCaptureService) InventoryVersion(context.Context) (strin
 func (s *inventoryParamsCaptureService) RenameSeller(context.Context, int64, string) ([]domain.Part, error) { return nil, nil }
 func (s *inventoryParamsCaptureService) PartsForExport(context.Context) ([]domain.Part, error) { return nil, nil }
 func (s *inventoryParamsCaptureService) BulkDeleteParts(context.Context, []int64) error { return nil }
+func (s *inventoryParamsCaptureService) BulkDeletePartsWithProto(context.Context, *partsv1.BulkDeletePartsRequest) (int, error) { return 0, nil }
 func (s *inventoryParamsCaptureService) BulkUpdateParts(context.Context, *partsv1.BulkUpdatePartsRequest) (int, error) { return 0, nil }
 func (s *inventoryParamsCaptureService) DeleteZeroQuantityPartsBySupplier(context.Context, string) (int64, error) { return 0, nil }
 func (s *inventoryParamsCaptureService) GetSupplierCodes(context.Context) ([]string, error) { return nil, nil }
@@ -242,4 +257,24 @@ func TestPartsGRPCServerQueuesPreparedDefectReport(t *testing.T) {
 	require.Equal(t, "АКПП", part.Transmission)
 	require.Equal(t, "U660E", part.TransmissionModel)
 	require.Equal(t, "Передний", part.Drive)
+}
+
+func TestPartsGRPCServerDuplicatePart(t *testing.T) {
+	svc := &inventoryParamsCaptureService{}
+	server := NewPartsGRPCServer(svc, nil)
+
+	created, err := server.AddPart(context.Background(), &partsv1.AddPartRequest{
+		Name:  "Test duplicate part",
+		Brand: "Toyota",
+		Model: "Camry",
+	})
+	require.NoError(t, err)
+
+	dup, err := server.DuplicatePart(context.Background(), &partsv1.DuplicatePartRequest{
+		Id: created.Id,
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, created.Id, dup.Id)
+	require.Equal(t, created.Name, dup.Name)
+	require.Empty(t, dup.Photos)
 }

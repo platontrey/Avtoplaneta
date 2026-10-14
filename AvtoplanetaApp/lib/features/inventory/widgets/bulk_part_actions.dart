@@ -3,6 +3,7 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/theme.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/part.dart';
 import '../providers/inventory_provider.dart';
@@ -21,6 +22,7 @@ Map<String, dynamic> buildBulkUpdatePayload({
   required Iterable<int> ids,
   String scopeType = 'BULK_SCOPE_TYPE_IDS',
   Map<String, dynamic>? filterQuery,
+  bool confirmEntireCatalog = false,
   PriceMode? priceMode,
   double? priceValue,
   String? category,
@@ -53,52 +55,24 @@ Map<String, dynamic> buildBulkUpdatePayload({
   };
   if (scopeType == 'BULK_SCOPE_TYPE_FILTER') {
     if (filterQuery != null) {
-      scope['filter'] = filterQuery;
+      final cleanFilter = Map<String, dynamic>.from(filterQuery)
+        ..remove('page')
+        ..remove('limit');
+      scope['filter'] = cleanFilter;
     }
   } else {
     scope['ids'] = ids.toList();
   }
 
-  return {
+  final payload = <String, dynamic>{
     'scope': scope,
     'operations': operations,
   };
-}
-
-class CriteriaSelectionResult {
-  final double? minPrice;
-  final double? maxPrice;
-  final String? category;
-  final bool? status;
-
-  const CriteriaSelectionResult({
-    this.minPrice,
-    this.maxPrice,
-    this.category,
-    this.status,
-  });
-
-  bool matches(Part part) {
-    if (minPrice != null && part.price < minPrice!) return false;
-    if (maxPrice != null && part.price > maxPrice!) return false;
-    if (category != null && category!.isNotEmpty && part.category != category) {
-      return false;
-    }
-    if (status != null && part.status != status) return false;
-    return true;
+  if (confirmEntireCatalog) {
+    payload['confirm_entire_catalog'] = true;
   }
-}
 
-Future<CriteriaSelectionResult?> showSelectByCriteriaSheet(
-  BuildContext context, {
-  required List<String> categories,
-}) async {
-  return showModalBottomSheet<CriteriaSelectionResult>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    builder: (_) => _SelectByCriteriaSheet(categories: categories),
-  );
+  return payload;
 }
 
 Future<bool> showBulkEditSheet(
@@ -107,6 +81,8 @@ Future<bool> showBulkEditSheet(
   required List<Part> parts,
   required List<String> categories,
   InventoryFilter? activeFilter,
+  bool initialSelectAllByQuery = false,
+  int? totalMatchingCount,
 }) async {
   final changed = await showModalBottomSheet<bool>(
     context: context,
@@ -116,6 +92,8 @@ Future<bool> showBulkEditSheet(
       parts: parts,
       categories: categories,
       activeFilter: activeFilter,
+      initialSelectAllByQuery: initialSelectAllByQuery,
+      totalMatchingCount: totalMatchingCount,
     ),
   );
   if (changed == true) {
@@ -129,35 +107,143 @@ Future<bool> showBulkEditSheet(
 
 Future<bool> confirmBulkDelete(
   BuildContext context,
-  WidgetRef ref,
-  List<Part> parts,
-) async {
+  WidgetRef ref, {
+  required List<Part> parts,
+  bool selectAllByQuery = false,
+  InventoryFilter? activeFilter,
+  int? totalMatchingCount,
+}) async {
+  // Проверяем пустой ли фильтр
+  final cleanFilter = activeFilter != null
+      ? (Map<String, dynamic>.from(activeFilter.toQueryParameters())
+          ..remove('page')
+          ..remove('limit')
+          ..remove('hasPhoto'))
+      : <String, dynamic>{};
+  final isFilterEmpty = selectAllByQuery && cleanFilter.isEmpty;
+
   final confirmed = await showDialog<bool>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: const Text('Удалить запчасти?'),
-      content: Text(
-        'Будут безвозвратно удалены ${parts.length} выбранных запчастей.',
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext, false),
-          child: const Text('Отмена'),
-        ),
-        FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: Colors.red),
-          onPressed: () => Navigator.pop(dialogContext, true),
-          child: const Text('Удалить'),
-        ),
-      ],
-    ),
+    builder: (dialogContext) {
+      bool confirmEntire = false;
+      return StatefulBuilder(
+        builder: (ctx, setState) {
+          return AlertDialog(
+            title: Row(
+              children: [
+                Icon(
+                  LucideIcons.triangle_alert,
+                  color: isFilterEmpty ? AppTheme.dangerColor : Colors.amber.shade700,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    selectAllByQuery
+                        ? (isFilterEmpty
+                            ? 'УДАЛЕНИЕ ВСЕГО СКЛАДА!'
+                            : 'Удалить все по запросу?')
+                        : 'Удалить запчасти?',
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (selectAllByQuery) ...[
+                  if (isFilterEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.dangerColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppTheme.dangerColor),
+                      ),
+                      child: const Text(
+                        'Внимание! Поисковый запрос и фильтры пусты. Это действие удалит ВСЕ запчасти из базы данных склада без возможности восстановления!',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.dangerColor,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text(
+                        'Я подтверждаю безвозвратное удаление ВСЕГО склада',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                      value: confirmEntire,
+                      onChanged: (val) => setState(() => confirmEntire = val ?? false),
+                    ),
+                  ] else ...[
+                    Text(
+                      'Будут безвозвратно удалены все запчасти, соответствующие текущему поисковому запросу / фильтрам'
+                      '${totalMatchingCount != null ? ' (найдено: $totalMatchingCount)' : ''}.',
+                    ),
+                  ],
+                ] else ...[
+                  Text(
+                    'Будут безвозвратно удалены ${parts.length} выбранных запчастей.',
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Отмена'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: AppTheme.dangerColor),
+                onPressed: (isFilterEmpty && !confirmEntire)
+                    ? null
+                    : () => Navigator.pop(dialogContext, true),
+                child: Text(
+                  selectAllByQuery ? 'Удалить всё' : 'Удалить',
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    },
   );
+
   if (confirmed != true || !context.mounted) return false;
 
   try {
+    final Map<String, dynamic> body;
+    if (selectAllByQuery) {
+      final query = activeFilter != null
+          ? (Map<String, dynamic>.from(activeFilter.toQueryParameters())
+              ..remove('page')
+              ..remove('limit'))
+          : <String, dynamic>{};
+      body = {
+        'scope': {
+          'type': 'BULK_SCOPE_TYPE_FILTER',
+          'filter': query,
+        },
+        if (isFilterEmpty) 'confirm_entire_catalog': true,
+      };
+    } else {
+      final idsList = parts.map((part) => part.id).toList();
+      body = {
+        'scope': {
+          'type': 'BULK_SCOPE_TYPE_IDS',
+          'ids': idsList,
+        },
+        'ids': idsList,
+      };
+    }
+
     await apiClient.dio.post(
       '/api/v1/admin/parts/bulk-delete',
-      data: {'ids': parts.map((part) => part.id).toList()},
+      data: body,
     );
     ref.invalidate(inventoryProvider);
     return true;
@@ -171,173 +257,19 @@ Future<bool> confirmBulkDelete(
   }
 }
 
-class _SelectByCriteriaSheet extends StatefulWidget {
-  final List<String> categories;
-
-  const _SelectByCriteriaSheet({required this.categories});
-
-  @override
-  State<_SelectByCriteriaSheet> createState() => _SelectByCriteriaSheetState();
-}
-
-class _SelectByCriteriaSheetState extends State<_SelectByCriteriaSheet> {
-  final _minPriceCtrl = TextEditingController();
-  final _maxPriceCtrl = TextEditingController();
-  String? _category;
-  String _statusOption = 'all';
-
-  @override
-  void dispose() {
-    _minPriceCtrl.dispose();
-    _maxPriceCtrl.dispose();
-    super.dispose();
-  }
-
-  void _apply() {
-    final minPrice = double.tryParse(_minPriceCtrl.text.trim().replaceAll(',', '.'));
-    final maxPrice = double.tryParse(_maxPriceCtrl.text.trim().replaceAll(',', '.'));
-    bool? status;
-    if (_statusOption == 'active') status = true;
-    if (_statusOption == 'inactive') status = false;
-
-    Navigator.pop(
-      context,
-      CriteriaSelectionResult(
-        minPrice: minPrice,
-        maxPrice: maxPrice,
-        category: _category,
-        status: status,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20, 16, 20, bottomInset + 20),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(LucideIcons.list_filter, size: 22),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Выбрать по критерию',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(LucideIcons.x),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Text(
-              'Диапазон цен (₽)',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _minPriceCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                    ],
-                    decoration: const InputDecoration(
-                      labelText: 'От (₽)',
-                      isDense: true,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _maxPriceCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                    ],
-                    decoration: const InputDecoration(
-                      labelText: 'До (₽)',
-                      isDense: true,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Категория',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: 6),
-            DropdownButtonFormField<String>(
-              initialValue: _category,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Все категории',
-                isDense: true,
-              ),
-              items: [
-                const DropdownMenuItem<String>(
-                  value: null,
-                  child: Text('Все категории'),
-                ),
-                ...widget.categories.map(
-                  (val) => DropdownMenuItem(value: val, child: Text(val)),
-                ),
-              ],
-              onChanged: (val) => setState(() => _category = val),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Статус активности',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: 6),
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'all', label: Text('Все')),
-                ButtonSegment(value: 'active', label: Text('Активные')),
-                ButtonSegment(value: 'inactive', label: Text('Неактивные')),
-              ],
-              selected: {_statusOption},
-              onSelectionChanged: (val) => setState(() => _statusOption = val.first),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _apply,
-                icon: const Icon(LucideIcons.check),
-                label: const Text('Выделить подходящие'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _BulkEditSheet extends StatefulWidget {
   final List<Part> parts;
   final List<String> categories;
   final InventoryFilter? activeFilter;
+  final bool initialSelectAllByQuery;
+  final int? totalMatchingCount;
 
   const _BulkEditSheet({
     required this.parts,
     required this.categories,
     this.activeFilter,
+    this.initialSelectAllByQuery = false,
+    this.totalMatchingCount,
   });
 
   @override
@@ -351,14 +283,25 @@ class _BulkEditSheetState extends State<_BulkEditSheet> {
   final _salesman = TextEditingController();
   final Set<String> _enabled = {};
   PriceMode _priceMode = PriceMode.set;
-  String _scopeMode = 'ids';
+  late String _scopeMode;
+  bool _confirmEntireCatalog = false;
   String? _category;
   bool _status = true;
   bool _submitting = false;
 
+  bool get _isFilterEmpty {
+    if (widget.activeFilter == null) return true;
+    final clean = Map<String, dynamic>.from(widget.activeFilter!.toQueryParameters())
+      ..remove('page')
+      ..remove('limit')
+      ..remove('hasPhoto');
+    return clean.isEmpty;
+  }
+
   @override
   void initState() {
     super.initState();
+    _scopeMode = widget.initialSelectAllByQuery ? 'filter' : 'ids';
     _price.addListener(() => setState(() {}));
   }
 
@@ -379,6 +322,16 @@ class _BulkEditSheetState extends State<_BulkEditSheet> {
     }
     if (!_formKey.currentState!.validate()) return;
 
+    final isFilterScope = _scopeMode == 'filter';
+    if (isFilterScope && _isFilterEmpty && !_confirmEntireCatalog) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Необходимо подтвердить массовое изменение всего склада'),
+        ),
+      );
+      return;
+    }
+
     double? priceVal;
     if (_enabled.contains('price')) {
       priceVal = double.tryParse(_price.text.trim().replaceAll(',', '.'));
@@ -392,11 +345,11 @@ class _BulkEditSheetState extends State<_BulkEditSheet> {
 
     setState(() => _submitting = true);
     try {
-      final isFilterScope = _scopeMode == 'filter' && widget.activeFilter != null;
       final payload = buildBulkUpdatePayload(
         ids: widget.parts.map((part) => part.id),
         scopeType: isFilterScope ? 'BULK_SCOPE_TYPE_FILTER' : 'BULK_SCOPE_TYPE_IDS',
-        filterQuery: isFilterScope ? widget.activeFilter!.toQueryParameters() : null,
+        filterQuery: isFilterScope ? widget.activeFilter?.toQueryParameters() : null,
+        confirmEntireCatalog: isFilterScope && _isFilterEmpty && _confirmEntireCatalog,
         priceMode: _enabled.contains('price') ? _priceMode : null,
         priceValue: priceVal,
         category: _enabled.contains('category') ? _category : null,
@@ -453,6 +406,7 @@ class _BulkEditSheetState extends State<_BulkEditSheet> {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     final pricePreviews = _calculatePricePreview();
+    final filterEmpty = _isFilterEmpty;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 12, 20, bottomInset + 20),
@@ -468,7 +422,9 @@ class _BulkEditSheetState extends State<_BulkEditSheet> {
                   Expanded(
                     child: Text(
                       _scopeMode == 'filter'
-                          ? 'Изменить по фильтру'
+                          ? (widget.totalMatchingCount != null
+                              ? 'Изменить все по запросу (${widget.totalMatchingCount})'
+                              : 'Изменить все по запросу')
                           : 'Изменить ${widget.parts.length} запчастей',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
@@ -479,21 +435,58 @@ class _BulkEditSheetState extends State<_BulkEditSheet> {
                   ),
                 ],
               ),
-              if (widget.activeFilter != null && widget.activeFilter!.activeFilterCount > 0) ...[
-                const SizedBox(height: 8),
-                SegmentedButton<String>(
-                  segments: [
-                    ButtonSegment(
-                      value: 'ids',
-                      label: Text('Выбранные (${widget.parts.length})'),
+              const SizedBox(height: 8),
+              SegmentedButton<String>(
+                segments: [
+                  ButtonSegment(
+                    value: 'ids',
+                    label: Text('Выбранные (${widget.parts.length})'),
+                  ),
+                  ButtonSegment(
+                    value: 'filter',
+                    label: Text(
+                      widget.totalMatchingCount != null
+                          ? 'Все по запросу (${widget.totalMatchingCount})'
+                          : 'Все по запросу',
                     ),
-                    const ButtonSegment(
-                      value: 'filter',
-                      label: Text('Все по фильтру'),
-                    ),
-                  ],
-                  selected: {_scopeMode},
-                  onSelectionChanged: (val) => setState(() => _scopeMode = val.first),
+                  ),
+                ],
+                selected: {_scopeMode},
+                onSelectionChanged: (val) => setState(() => _scopeMode = val.first),
+              ),
+              const SizedBox(height: 8),
+
+              if (_scopeMode == 'filter' && filterEmpty) ...[
+                Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.amber.shade700),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(LucideIcons.triangle_alert, color: Colors.amber.shade800, size: 20),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Внимание! Поисковый запрос и фильтры пусты. Изменения затронут ВСЕ запчасти на складе.',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text(
+                    'Подтверждаю массовое изменение всего каталога',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  value: _confirmEntireCatalog,
+                  onChanged: (val) => setState(() => _confirmEntireCatalog = val ?? false),
                 ),
                 const SizedBox(height: 8),
               ],
@@ -651,7 +644,9 @@ class _BulkEditSheetState extends State<_BulkEditSheet> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
-                  onPressed: _submitting ? null : _submit,
+                  onPressed: (_submitting || (_scopeMode == 'filter' && filterEmpty && !_confirmEntireCatalog))
+                      ? null
+                      : _submit,
                   icon: _submitting
                       ? const SizedBox(
                           width: 18,

@@ -59,6 +59,9 @@ export default function BulkEditDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [users, setUsers] = useState<{ id: number; name: string; email: string }[]>([]);
   const [scopeType, setScopeType] = useState<'ids' | 'filter'>(initialScopeType || 'ids');
+  const [confirmEntireCatalog, setConfirmEntireCatalog] = useState(false);
+
+  const isBlankFilter = scopeType === 'filter' && (!activeFilters || Object.keys(activeFilters).length === 0);
 
   const [form, setForm] = useState<BulkEditForm>({
     category: '',
@@ -194,6 +197,7 @@ export default function BulkEditDialog({
       const payload = {
         scope,
         operations,
+        confirm_entire_catalog: confirmEntireCatalog,
       };
 
       const response = await fetch(`${API_BASE_URL}/api/v1/admin/parts/bulk-update`, {
@@ -494,11 +498,35 @@ export default function BulkEditDialog({
             )}
           </div>
 
+          {isBlankFilter && (
+            <div className="p-3 border border-orange-400 bg-orange-100/90 dark:bg-orange-950/60 rounded-lg">
+              <p className="text-xs font-bold text-orange-900 dark:text-orange-200 uppercase mb-1">
+                ⚠️ Внимание: Фильтры поиска не заданы!
+              </p>
+              <p className="text-xs text-orange-800 dark:text-orange-300 mb-2.5 leading-relaxed">
+                Поскольку фильтры не применены, изменения будут применены ко <strong>всему складу целиком</strong>.
+              </p>
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-orange-900 dark:text-orange-100 select-none">
+                <input
+                  type="checkbox"
+                  checked={confirmEntireCatalog}
+                  onChange={(e) => setConfirmEntireCatalog(e.target.checked)}
+                  className="rounded text-orange-600 focus:ring-orange-500 h-4 w-4"
+                />
+                <span>Я подтверждаю массовое изменение всего склада</span>
+              </label>
+            </div>
+          )}
+
           <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
               Отмена
             </Button>
-            <Button type="submit" disabled={isLoading} className="gap-2">
+            <Button
+              type="submit"
+              disabled={isLoading || (isBlankFilter && !confirmEntireCatalog)}
+              className="gap-2"
+            >
               {isLoading ? (
                 'Применение...'
               ) : (

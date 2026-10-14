@@ -7,6 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/api/api_client.dart';
+import '../../../core/api/api_endpoints.dart';
 import '../../../core/utils/qr_signer.dart';
 import '../widgets/photo_viewer_dialog.dart';
 import 'package:share_plus/share_plus.dart';
@@ -87,6 +88,20 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
               icon: const Icon(LucideIcons.copy),
               tooltip: 'Скопировать информацию о запчасти',
               onPressed: () => _copyPartDetails(part),
+            ),
+            orElse: () => const SizedBox.shrink(),
+          ),
+          partAsync.maybeWhen(
+            data: (part) => IconButton(
+              icon: const Icon(LucideIcons.copy_plus),
+              tooltip: 'Дублировать запчасть (без фото)',
+              onPressed: isOffline
+                  ? () => ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('В оффлайн-режиме дублирование недоступно'),
+                      ),
+                    )
+                  : () => _confirmAndDuplicatePart(part),
             ),
             orElse: () => const SizedBox.shrink(),
           ),
@@ -501,6 +516,23 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                     ),
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: isOffline
+                          ? () => ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('В оффлайн-режиме дублирование недоступно'),
+                              ),
+                            )
+                          : () => _confirmAndDuplicatePart(part),
+                      icon: const Icon(LucideIcons.copy_plus, size: 18),
+                      label: const Text('Дублировать запчасть (без фото)'),
+                    ),
+                  ),
+                ),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
@@ -609,6 +641,86 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
+    }
+  }
+
+  Future<void> _confirmAndDuplicatePart(Part part) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Дублировать запчасть?'),
+        content: Text(
+          'Будет создана новая запись для детали "${part.name}" со всеми характеристиками, но без фотографий.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton.icon(
+            icon: const Icon(LucideIcons.copy_plus, size: 16),
+            onPressed: () => Navigator.pop(ctx, true),
+            label: const Text('Дублировать'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      final response = await apiClient.dio.post(
+        ApiEndpoints.duplicatePart(part.id),
+      );
+
+      if (mounted) {
+        Navigator.pop(context); // закрыть диалог загрузки
+      }
+
+      final newPartData = response.data;
+      final newId = newPartData is Map<String, dynamic> ? newPartData['id'] as int? : null;
+
+      // Сбрасываем кэш инвентаря
+      ref.invalidate(inventoryProvider);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              newId != null
+                  ? 'Запчасть успешно продублирована (ID: $newId)'
+                  : 'Запчасть успешно продублирована',
+            ),
+            duration: const Duration(seconds: 3),
+            action: newId != null
+                ? SnackBarAction(
+                    label: 'Открыть',
+                    onPressed: () {
+                      context.push('/inventory/part/$newId');
+                    },
+                  )
+                : null,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // закрыть диалог загрузки, если открыт
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка при дублировании запчасти: $e'),
+            backgroundColor: AppTheme.dangerColor,
+          ),
+        );
+      }
     }
   }
 

@@ -287,3 +287,23 @@ export function useUploadPartPhoto() {
     },
   });
 }
+
+/**
+ * Хук для дублирования запчасти (создание копии без фото)
+ * @returns Мутационный объект для дублирования запчасти
+ */
+export function useDuplicatePart() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => partsApi.duplicate(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: partsKeys.lists() });
+      void queryClient.refetchQueries({ queryKey: partsKeys.lists() });
+    },
+    onError: (error) => {
+      console.error('useDuplicatePart: onError called:', error);
+    },
+  });
+}
+

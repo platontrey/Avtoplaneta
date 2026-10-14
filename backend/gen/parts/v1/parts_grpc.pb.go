@@ -25,6 +25,7 @@ const (
 	PartsService_DeletePart_FullMethodName              = "/parts.v1.PartsService/DeletePart"
 	PartsService_MarkPartForDeletion_FullMethodName     = "/parts.v1.PartsService/MarkPartForDeletion"
 	PartsService_GetPart_FullMethodName                 = "/parts.v1.PartsService/GetPart"
+	PartsService_DuplicatePart_FullMethodName           = "/parts.v1.PartsService/DuplicatePart"
 	PartsService_DecreasePartQuantity_FullMethodName    = "/parts.v1.PartsService/DecreasePartQuantity"
 	PartsService_IncreasePartQuantity_FullMethodName    = "/parts.v1.PartsService/IncreasePartQuantity"
 	PartsService_UploadPartPhoto_FullMethodName         = "/parts.v1.PartsService/UploadPartPhoto"
@@ -52,6 +53,7 @@ type PartsServiceClient interface {
 	DeletePart(ctx context.Context, in *DeletePartRequest, opts ...grpc.CallOption) (*DeletePartResponse, error)
 	MarkPartForDeletion(ctx context.Context, in *MarkPartForDeletionRequest, opts ...grpc.CallOption) (*Part, error)
 	GetPart(ctx context.Context, in *GetPartRequest, opts ...grpc.CallOption) (*Part, error)
+	DuplicatePart(ctx context.Context, in *DuplicatePartRequest, opts ...grpc.CallOption) (*Part, error)
 	// Изменение количества
 	DecreasePartQuantity(ctx context.Context, in *ChangePartQuantityRequest, opts ...grpc.CallOption) (*ChangePartQuantityResponse, error)
 	IncreasePartQuantity(ctx context.Context, in *ChangePartQuantityRequest, opts ...grpc.CallOption) (*ChangePartQuantityResponse, error)
@@ -148,6 +150,16 @@ func (c *partsServiceClient) GetPart(ctx context.Context, in *GetPartRequest, op
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(Part)
 	err := c.cc.Invoke(ctx, PartsService_GetPart_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *partsServiceClient) DuplicatePart(ctx context.Context, in *DuplicatePartRequest, opts ...grpc.CallOption) (*Part, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Part)
+	err := c.cc.Invoke(ctx, PartsService_DuplicatePart_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -317,6 +329,7 @@ type PartsServiceServer interface {
 	DeletePart(context.Context, *DeletePartRequest) (*DeletePartResponse, error)
 	MarkPartForDeletion(context.Context, *MarkPartForDeletionRequest) (*Part, error)
 	GetPart(context.Context, *GetPartRequest) (*Part, error)
+	DuplicatePart(context.Context, *DuplicatePartRequest) (*Part, error)
 	// Изменение количества
 	DecreasePartQuantity(context.Context, *ChangePartQuantityRequest) (*ChangePartQuantityResponse, error)
 	IncreasePartQuantity(context.Context, *ChangePartQuantityRequest) (*ChangePartQuantityResponse, error)
@@ -376,6 +389,9 @@ func (UnimplementedPartsServiceServer) MarkPartForDeletion(context.Context, *Mar
 }
 func (UnimplementedPartsServiceServer) GetPart(context.Context, *GetPartRequest) (*Part, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetPart not implemented")
+}
+func (UnimplementedPartsServiceServer) DuplicatePart(context.Context, *DuplicatePartRequest) (*Part, error) {
+	return nil, status.Error(codes.Unimplemented, "method DuplicatePart not implemented")
 }
 func (UnimplementedPartsServiceServer) DecreasePartQuantity(context.Context, *ChangePartQuantityRequest) (*ChangePartQuantityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DecreasePartQuantity not implemented")
@@ -544,6 +560,24 @@ func _PartsService_GetPart_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(PartsServiceServer).GetPart(ctx, req.(*GetPartRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PartsService_DuplicatePart_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DuplicatePartRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PartsServiceServer).DuplicatePart(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PartsService_DuplicatePart_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PartsServiceServer).DuplicatePart(ctx, req.(*DuplicatePartRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -812,6 +846,10 @@ var PartsService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetPart",
 			Handler:    _PartsService_GetPart_Handler,
+		},
+		{
+			MethodName: "DuplicatePart",
+			Handler:    _PartsService_DuplicatePart_Handler,
 		},
 		{
 			MethodName: "DecreasePartQuantity",

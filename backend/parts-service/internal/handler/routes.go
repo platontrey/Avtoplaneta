@@ -51,6 +51,11 @@ func SetupRoutes(r *gin.Engine, handler *Handler) {
 		r.POST(path, handler.MarkPartForDeletionHandler)
 	}
 
+	// v1 и legacy маршруты дублирования деталей
+	for _, path := range []string{"/api/v1/parts/:id/duplicate", "/api/parts/:id/duplicate"} {
+		r.POST(path, handler.DuplicatePartHandler)
+	}
+
 	// v1 и legacy маршруты загрузки фото
 	for _, path := range []string{"/api/v1/uploadpartphoto/:id", "/api/v1/parts/:id/photos", "/api/uploadpartphoto/:id"} {
 		r.POST(path, handler.UploadPartPhotoHandler)

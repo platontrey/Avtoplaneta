@@ -31,8 +31,10 @@ export default function BulkDeleteDialog({
 }: BulkDeleteDialogProps) {
   const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
+  const [confirmEntireCatalog, setConfirmEntireCatalog] = useState(false);
 
   const isFilterScope = scopeType === 'filter';
+  const isBlankFilter = isFilterScope && (!activeFilters || Object.keys(activeFilters).length === 0);
 
   const handleDelete = async () => {
     setIsLoading(true);
@@ -44,6 +46,7 @@ export default function BulkDeleteDialog({
               type: 'BULK_SCOPE_TYPE_FILTER',
               filter: activeFilters || {},
             },
+            confirm_entire_catalog: confirmEntireCatalog,
           }
         : {
             scope: {
@@ -134,6 +137,26 @@ export default function BulkDeleteDialog({
               )}
             </p>
           </div>
+
+          {isBlankFilter && (
+            <div className="mt-3 p-3 border border-red-400 bg-red-100/90 dark:bg-red-950/60 rounded-lg">
+              <p className="text-xs font-bold text-red-900 dark:text-red-200 uppercase mb-1">
+                ⚠️ Внимание: Фильтры поиска не заданы!
+              </p>
+              <p className="text-xs text-red-800 dark:text-red-300 mb-2.5 leading-relaxed">
+                Поскольку фильтры не применены, операция затронет <strong>весь склад целиком</strong>.
+              </p>
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-red-900 dark:text-red-100 select-none">
+                <input
+                  type="checkbox"
+                  checked={confirmEntireCatalog}
+                  onChange={(e) => setConfirmEntireCatalog(e.target.checked)}
+                  className="rounded text-red-600 focus:ring-red-500 h-4 w-4"
+                />
+                <span>Я подтверждаю удаление всего склада</span>
+              </label>
+            </div>
+          )}
         </div>
 
         <AlertDialogFooter>
@@ -144,7 +167,7 @@ export default function BulkDeleteDialog({
             type="button"
             variant="destructive"
             onClick={handleDelete}
-            disabled={isLoading}
+            disabled={isLoading || (isBlankFilter && !confirmEntireCatalog)}
           >
             {isLoading
               ? 'Удаление...'

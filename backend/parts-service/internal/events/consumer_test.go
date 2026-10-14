@@ -45,6 +45,12 @@ func (m *mockInventoryService) PartsForExport(context.Context) ([]domain.Part, e
 	return nil, nil
 }
 func (m *mockInventoryService) BulkDeleteParts(context.Context, []int64) error { return nil }
+func (m *mockInventoryService) BulkDeletePartsWithProto(context.Context, *partsv1.BulkDeletePartsRequest) (int, error) {
+	return 0, nil
+}
+func (m *mockInventoryService) DuplicatePart(context.Context, int64) (*domain.Part, error) {
+	return nil, nil
+}
 func (m *mockInventoryService) BulkUpdateParts(context.Context, *partsv1.BulkUpdatePartsRequest) (int, error) {
 	return 0, nil
 }

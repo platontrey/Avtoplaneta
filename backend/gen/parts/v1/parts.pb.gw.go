@@ -265,6 +265,45 @@ func local_request_PartsService_GetPart_0(ctx context.Context, marshaler runtime
 	return msg, metadata, err
 }
 
+func request_PartsService_DuplicatePart_0(ctx context.Context, marshaler runtime.Marshaler, client PartsServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq DuplicatePartRequest
+		metadata runtime.ServerMetadata
+		err      error
+	)
+	val, ok := pathParams["id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id")
+	}
+	protoReq.Id, err = runtime.Uint32(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id", err)
+	}
+	if req.Body != nil {
+		_, _ = io.Copy(io.Discard, req.Body)
+	}
+	msg, err := client.DuplicatePart(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+}
+
+func local_request_PartsService_DuplicatePart_0(ctx context.Context, marshaler runtime.Marshaler, server PartsServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq DuplicatePartRequest
+		metadata runtime.ServerMetadata
+		err      error
+	)
+	val, ok := pathParams["id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id")
+	}
+	protoReq.Id, err = runtime.Uint32(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id", err)
+	}
+	msg, err := server.DuplicatePart(ctx, &protoReq)
+	return msg, metadata, err
+}
+
 func request_PartsService_DecreasePartQuantity_0(ctx context.Context, marshaler runtime.Marshaler, client PartsServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
 		protoReq ChangePartQuantityRequest
@@ -829,6 +868,26 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 		}
 		forward_PartsService_GetPart_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
+	mux.Handle(http.MethodPost, pattern_PartsService_DuplicatePart_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/parts.v1.PartsService/DuplicatePart", runtime.WithHTTPPathPattern("/api/v1/parts/{id}/duplicate"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_PartsService_DuplicatePart_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_PartsService_DuplicatePart_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
 	mux.Handle(http.MethodPost, pattern_PartsService_DecreasePartQuantity_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -1225,6 +1284,23 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 		}
 		forward_PartsService_GetPart_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
+	mux.Handle(http.MethodPost, pattern_PartsService_DuplicatePart_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/parts.v1.PartsService/DuplicatePart", runtime.WithHTTPPathPattern("/api/v1/parts/{id}/duplicate"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_PartsService_DuplicatePart_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_PartsService_DuplicatePart_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
 	mux.Handle(http.MethodPost, pattern_PartsService_DecreasePartQuantity_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -1473,6 +1549,7 @@ var (
 	pattern_PartsService_DeletePart_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "parts", "id"}, ""))
 	pattern_PartsService_MarkPartForDeletion_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "parts", "id", "mark-deletion"}, ""))
 	pattern_PartsService_GetPart_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"api", "v1", "parts", "item", "id"}, ""))
+	pattern_PartsService_DuplicatePart_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "parts", "id", "duplicate"}, ""))
 	pattern_PartsService_DecreasePartQuantity_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "parts", "id", "decrease"}, ""))
 	pattern_PartsService_IncreasePartQuantity_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "parts", "id", "increase"}, ""))
 	pattern_PartsService_UploadPartPhoto_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"parts.v1.PartsService", "UploadPartPhoto"}, ""))
@@ -1496,6 +1573,7 @@ var (
 	forward_PartsService_DeletePart_0              = runtime.ForwardResponseMessage
 	forward_PartsService_MarkPartForDeletion_0     = runtime.ForwardResponseMessage
 	forward_PartsService_GetPart_0                 = runtime.ForwardResponseMessage
+	forward_PartsService_DuplicatePart_0           = runtime.ForwardResponseMessage
 	forward_PartsService_DecreasePartQuantity_0    = runtime.ForwardResponseMessage
 	forward_PartsService_IncreasePartQuantity_0    = runtime.ForwardResponseMessage
 	forward_PartsService_UploadPartPhoto_0         = runtime.ForwardResponseMessage

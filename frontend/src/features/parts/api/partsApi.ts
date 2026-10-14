@@ -265,4 +265,32 @@ export const partsApi = {
     }
     return allPhotos;
   },
+
+  // Duplicate part (creates an exact copy without photos)
+  duplicate: async (id: number): Promise<Part> => {
+    console.log(`partsApi.duplicate: Duplicating part with id ${id}`);
+    const response = await fetch(`${API_BASE_URL}/api/v1/parts/${id}/duplicate`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`partsApi.duplicate: Failed to duplicate part: ${errorText}`);
+      throw new Error(`Failed to duplicate part: ${errorText}`);
+    }
+
+    const result = await response.json();
+
+    // Логируем дублирование запчасти
+    logUserActivity({
+      action: 'duplicate_part',
+      resource_type: 'part',
+      resource_id: result.id,
+      details: `Дублирована запчасть ID: ${id} -> новая ID: ${result.id} "${result.name}"`,
+    }).catch(console.warn);
+
+    return result;
+  },
 };

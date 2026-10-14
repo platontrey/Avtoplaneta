@@ -61,6 +61,19 @@ func (m *MockInventoryService) BulkDeleteParts(ctx context.Context, ids []int64)
 	return args.Error(0)
 }
 
+func (m *MockInventoryService) BulkDeletePartsWithProto(ctx context.Context, req *partsv1.BulkDeletePartsRequest) (int, error) {
+	args := m.Called(ctx, req)
+	return args.Get(0).(int), args.Error(1)
+}
+
+func (m *MockInventoryService) DuplicatePart(ctx context.Context, id int64) (*domain.Part, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Part), args.Error(1)
+}
+
 func (m *MockInventoryService) BulkUpdateParts(ctx context.Context, req *partsv1.BulkUpdatePartsRequest) (int, error) {
 	args := m.Called(ctx, req)
 	return args.Get(0).(int), args.Error(1)
@@ -362,7 +375,7 @@ func (suite *HandlersTestSuite) TestGetStatisticsHandler() {
 func (suite *HandlersTestSuite) TestBulkDeletePartsHandler() {
 	ids := []int64{1, 2, 3}
 
-	suite.mockService.On("BulkDeleteParts", mock.Anything, ids).Return(nil)
+	suite.mockService.On("BulkDeletePartsWithProto", mock.Anything, mock.Anything).Return(len(ids), nil)
 
 	requestData := map[string]interface{}{"ids": ids}
 	jsonData, _ := json.Marshal(requestData)

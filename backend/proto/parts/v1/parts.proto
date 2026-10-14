@@ -40,6 +40,11 @@ service PartsService {
       get: "/api/v1/parts/item/{id}"
     };
   }
+  rpc DuplicatePart(DuplicatePartRequest) returns (Part) {
+    option (google.api.http) = {
+      post: "/api/v1/parts/{id}/duplicate"
+    };
+  }
 
   // Изменение количества
   rpc DecreasePartQuantity(ChangePartQuantityRequest) returns (ChangePartQuantityResponse) {
@@ -249,6 +254,10 @@ message InventoryResponse {
 }
 
 message GetPartRequest {
+  uint32 id = 1;
+}
+
+message DuplicatePartRequest {
   uint32 id = 1;
 }
 
@@ -534,6 +543,8 @@ message InventoryVersionResponse {
 
 message BulkDeletePartsRequest {
   repeated uint32 ids = 1;
+  BulkUpdateScope scope = 2;
+  bool confirm_entire_catalog = 3;
 }
 
 message BulkDeletePartsResponse {
@@ -582,6 +593,7 @@ message BulkUpdatePartsRequest {
   repeated BulkUpdatePartData parts = 1;
   BulkUpdateScope scope = 2;
   BulkFieldOperations operations = 3;
+  bool confirm_entire_catalog = 4;
 }
 
 message BulkUpdatePartsResponse {

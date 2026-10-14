@@ -1031,6 +1031,50 @@ func (x *GetPartRequest) GetId() uint32 {
 	return 0
 }
 
+type DuplicatePartRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DuplicatePartRequest) Reset() {
+	*x = DuplicatePartRequest{}
+	mi := &file_parts_v1_parts_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DuplicatePartRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DuplicatePartRequest) ProtoMessage() {}
+
+func (x *DuplicatePartRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_parts_v1_parts_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DuplicatePartRequest.ProtoReflect.Descriptor instead.
+func (*DuplicatePartRequest) Descriptor() ([]byte, []int) {
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *DuplicatePartRequest) GetId() uint32 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
 type ChangePartQuantityRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -1042,7 +1086,7 @@ type ChangePartQuantityRequest struct {
 
 func (x *ChangePartQuantityRequest) Reset() {
 	*x = ChangePartQuantityRequest{}
-	mi := &file_parts_v1_parts_proto_msgTypes[4]
+	mi := &file_parts_v1_parts_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1054,7 +1098,7 @@ func (x *ChangePartQuantityRequest) String() string {
 func (*ChangePartQuantityRequest) ProtoMessage() {}
 
 func (x *ChangePartQuantityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[4]
+	mi := &file_parts_v1_parts_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1067,7 +1111,7 @@ func (x *ChangePartQuantityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChangePartQuantityRequest.ProtoReflect.Descriptor instead.
 func (*ChangePartQuantityRequest) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{4}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ChangePartQuantityRequest) GetId() uint32 {
@@ -1101,7 +1145,7 @@ type ChangePartQuantityResponse struct {
 
 func (x *ChangePartQuantityResponse) Reset() {
 	*x = ChangePartQuantityResponse{}
-	mi := &file_parts_v1_parts_proto_msgTypes[5]
+	mi := &file_parts_v1_parts_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1113,7 +1157,7 @@ func (x *ChangePartQuantityResponse) String() string {
 func (*ChangePartQuantityResponse) ProtoMessage() {}
 
 func (x *ChangePartQuantityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[5]
+	mi := &file_parts_v1_parts_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1126,7 +1170,7 @@ func (x *ChangePartQuantityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChangePartQuantityResponse.ProtoReflect.Descriptor instead.
 func (*ChangePartQuantityResponse) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{5}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ChangePartQuantityResponse) GetSuccess() bool {
@@ -1194,7 +1238,7 @@ type AddPartRequest struct {
 
 func (x *AddPartRequest) Reset() {
 	*x = AddPartRequest{}
-	mi := &file_parts_v1_parts_proto_msgTypes[6]
+	mi := &file_parts_v1_parts_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1206,7 +1250,7 @@ func (x *AddPartRequest) String() string {
 func (*AddPartRequest) ProtoMessage() {}
 
 func (x *AddPartRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[6]
+	mi := &file_parts_v1_parts_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1219,7 +1263,7 @@ func (x *AddPartRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddPartRequest.ProtoReflect.Descriptor instead.
 func (*AddPartRequest) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{6}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *AddPartRequest) GetName() string {
@@ -1560,7 +1604,7 @@ type UpdatePartRequest struct {
 
 func (x *UpdatePartRequest) Reset() {
 	*x = UpdatePartRequest{}
-	mi := &file_parts_v1_parts_proto_msgTypes[7]
+	mi := &file_parts_v1_parts_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1572,7 +1616,7 @@ func (x *UpdatePartRequest) String() string {
 func (*UpdatePartRequest) ProtoMessage() {}
 
 func (x *UpdatePartRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[7]
+	mi := &file_parts_v1_parts_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1585,7 +1629,7 @@ func (x *UpdatePartRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatePartRequest.ProtoReflect.Descriptor instead.
 func (*UpdatePartRequest) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{7}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *UpdatePartRequest) GetId() uint32 {
@@ -1891,7 +1935,7 @@ type DeletePartRequest struct {
 
 func (x *DeletePartRequest) Reset() {
 	*x = DeletePartRequest{}
-	mi := &file_parts_v1_parts_proto_msgTypes[8]
+	mi := &file_parts_v1_parts_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1903,7 +1947,7 @@ func (x *DeletePartRequest) String() string {
 func (*DeletePartRequest) ProtoMessage() {}
 
 func (x *DeletePartRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[8]
+	mi := &file_parts_v1_parts_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1916,7 +1960,7 @@ func (x *DeletePartRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeletePartRequest.ProtoReflect.Descriptor instead.
 func (*DeletePartRequest) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{8}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *DeletePartRequest) GetId() uint32 {
@@ -1934,7 +1978,7 @@ type DeletePartResponse struct {
 
 func (x *DeletePartResponse) Reset() {
 	*x = DeletePartResponse{}
-	mi := &file_parts_v1_parts_proto_msgTypes[9]
+	mi := &file_parts_v1_parts_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1946,7 +1990,7 @@ func (x *DeletePartResponse) String() string {
 func (*DeletePartResponse) ProtoMessage() {}
 
 func (x *DeletePartResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[9]
+	mi := &file_parts_v1_parts_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1959,7 +2003,7 @@ func (x *DeletePartResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeletePartResponse.ProtoReflect.Descriptor instead.
 func (*DeletePartResponse) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{9}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{10}
 }
 
 type MarkPartForDeletionRequest struct {
@@ -1971,7 +2015,7 @@ type MarkPartForDeletionRequest struct {
 
 func (x *MarkPartForDeletionRequest) Reset() {
 	*x = MarkPartForDeletionRequest{}
-	mi := &file_parts_v1_parts_proto_msgTypes[10]
+	mi := &file_parts_v1_parts_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1983,7 +2027,7 @@ func (x *MarkPartForDeletionRequest) String() string {
 func (*MarkPartForDeletionRequest) ProtoMessage() {}
 
 func (x *MarkPartForDeletionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[10]
+	mi := &file_parts_v1_parts_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1996,7 +2040,7 @@ func (x *MarkPartForDeletionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkPartForDeletionRequest.ProtoReflect.Descriptor instead.
 func (*MarkPartForDeletionRequest) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{10}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *MarkPartForDeletionRequest) GetId() uint32 {
@@ -2018,7 +2062,7 @@ type UploadPartPhotoChunk struct {
 
 func (x *UploadPartPhotoChunk) Reset() {
 	*x = UploadPartPhotoChunk{}
-	mi := &file_parts_v1_parts_proto_msgTypes[11]
+	mi := &file_parts_v1_parts_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2030,7 +2074,7 @@ func (x *UploadPartPhotoChunk) String() string {
 func (*UploadPartPhotoChunk) ProtoMessage() {}
 
 func (x *UploadPartPhotoChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[11]
+	mi := &file_parts_v1_parts_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2043,7 +2087,7 @@ func (x *UploadPartPhotoChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadPartPhotoChunk.ProtoReflect.Descriptor instead.
 func (*UploadPartPhotoChunk) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{11}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *UploadPartPhotoChunk) GetPartId() uint32 {
@@ -2084,7 +2128,7 @@ type UploadPartPhotoResponse struct {
 
 func (x *UploadPartPhotoResponse) Reset() {
 	*x = UploadPartPhotoResponse{}
-	mi := &file_parts_v1_parts_proto_msgTypes[12]
+	mi := &file_parts_v1_parts_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2096,7 +2140,7 @@ func (x *UploadPartPhotoResponse) String() string {
 func (*UploadPartPhotoResponse) ProtoMessage() {}
 
 func (x *UploadPartPhotoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[12]
+	mi := &file_parts_v1_parts_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2109,7 +2153,7 @@ func (x *UploadPartPhotoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadPartPhotoResponse.ProtoReflect.Descriptor instead.
 func (*UploadPartPhotoResponse) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{12}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *UploadPartPhotoResponse) GetPhotoUrl() string {
@@ -2136,7 +2180,7 @@ type DeletePartPhotoRequest struct {
 
 func (x *DeletePartPhotoRequest) Reset() {
 	*x = DeletePartPhotoRequest{}
-	mi := &file_parts_v1_parts_proto_msgTypes[13]
+	mi := &file_parts_v1_parts_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2148,7 +2192,7 @@ func (x *DeletePartPhotoRequest) String() string {
 func (*DeletePartPhotoRequest) ProtoMessage() {}
 
 func (x *DeletePartPhotoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[13]
+	mi := &file_parts_v1_parts_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2161,7 +2205,7 @@ func (x *DeletePartPhotoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeletePartPhotoRequest.ProtoReflect.Descriptor instead.
 func (*DeletePartPhotoRequest) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{13}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *DeletePartPhotoRequest) GetPartId() uint32 {
@@ -2186,7 +2230,7 @@ type DeletePartPhotoResponse struct {
 
 func (x *DeletePartPhotoResponse) Reset() {
 	*x = DeletePartPhotoResponse{}
-	mi := &file_parts_v1_parts_proto_msgTypes[14]
+	mi := &file_parts_v1_parts_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2198,7 +2242,7 @@ func (x *DeletePartPhotoResponse) String() string {
 func (*DeletePartPhotoResponse) ProtoMessage() {}
 
 func (x *DeletePartPhotoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[14]
+	mi := &file_parts_v1_parts_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2211,7 +2255,7 @@ func (x *DeletePartPhotoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeletePartPhotoResponse.ProtoReflect.Descriptor instead.
 func (*DeletePartPhotoResponse) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{14}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{15}
 }
 
 type GetStatisticsRequest struct {
@@ -2222,7 +2266,7 @@ type GetStatisticsRequest struct {
 
 func (x *GetStatisticsRequest) Reset() {
 	*x = GetStatisticsRequest{}
-	mi := &file_parts_v1_parts_proto_msgTypes[15]
+	mi := &file_parts_v1_parts_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2234,7 +2278,7 @@ func (x *GetStatisticsRequest) String() string {
 func (*GetStatisticsRequest) ProtoMessage() {}
 
 func (x *GetStatisticsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[15]
+	mi := &file_parts_v1_parts_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2247,7 +2291,7 @@ func (x *GetStatisticsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStatisticsRequest.ProtoReflect.Descriptor instead.
 func (*GetStatisticsRequest) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{15}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{16}
 }
 
 type CategoryCount struct {
@@ -2260,7 +2304,7 @@ type CategoryCount struct {
 
 func (x *CategoryCount) Reset() {
 	*x = CategoryCount{}
-	mi := &file_parts_v1_parts_proto_msgTypes[16]
+	mi := &file_parts_v1_parts_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2272,7 +2316,7 @@ func (x *CategoryCount) String() string {
 func (*CategoryCount) ProtoMessage() {}
 
 func (x *CategoryCount) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[16]
+	mi := &file_parts_v1_parts_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2285,7 +2329,7 @@ func (x *CategoryCount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CategoryCount.ProtoReflect.Descriptor instead.
 func (*CategoryCount) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{16}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CategoryCount) GetName() string {
@@ -2312,7 +2356,7 @@ type MonthlySales struct {
 
 func (x *MonthlySales) Reset() {
 	*x = MonthlySales{}
-	mi := &file_parts_v1_parts_proto_msgTypes[17]
+	mi := &file_parts_v1_parts_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2324,7 +2368,7 @@ func (x *MonthlySales) String() string {
 func (*MonthlySales) ProtoMessage() {}
 
 func (x *MonthlySales) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[17]
+	mi := &file_parts_v1_parts_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2337,7 +2381,7 @@ func (x *MonthlySales) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MonthlySales.ProtoReflect.Descriptor instead.
 func (*MonthlySales) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{17}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *MonthlySales) GetMonth() string {
@@ -2372,7 +2416,7 @@ type StatisticsResponse struct {
 
 func (x *StatisticsResponse) Reset() {
 	*x = StatisticsResponse{}
-	mi := &file_parts_v1_parts_proto_msgTypes[18]
+	mi := &file_parts_v1_parts_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2384,7 +2428,7 @@ func (x *StatisticsResponse) String() string {
 func (*StatisticsResponse) ProtoMessage() {}
 
 func (x *StatisticsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[18]
+	mi := &file_parts_v1_parts_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2397,7 +2441,7 @@ func (x *StatisticsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatisticsResponse.ProtoReflect.Descriptor instead.
 func (*StatisticsResponse) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{18}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *StatisticsResponse) GetTotalParts() int32 {
@@ -2479,7 +2523,7 @@ type UpdateEarningsRequest struct {
 
 func (x *UpdateEarningsRequest) Reset() {
 	*x = UpdateEarningsRequest{}
-	mi := &file_parts_v1_parts_proto_msgTypes[19]
+	mi := &file_parts_v1_parts_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2491,7 +2535,7 @@ func (x *UpdateEarningsRequest) String() string {
 func (*UpdateEarningsRequest) ProtoMessage() {}
 
 func (x *UpdateEarningsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[19]
+	mi := &file_parts_v1_parts_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2504,7 +2548,7 @@ func (x *UpdateEarningsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateEarningsRequest.ProtoReflect.Descriptor instead.
 func (*UpdateEarningsRequest) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{19}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *UpdateEarningsRequest) GetAmount() float64 {
@@ -2523,7 +2567,7 @@ type UpdateEarningsResponse struct {
 
 func (x *UpdateEarningsResponse) Reset() {
 	*x = UpdateEarningsResponse{}
-	mi := &file_parts_v1_parts_proto_msgTypes[20]
+	mi := &file_parts_v1_parts_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2535,7 +2579,7 @@ func (x *UpdateEarningsResponse) String() string {
 func (*UpdateEarningsResponse) ProtoMessage() {}
 
 func (x *UpdateEarningsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[20]
+	mi := &file_parts_v1_parts_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2548,7 +2592,7 @@ func (x *UpdateEarningsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateEarningsResponse.ProtoReflect.Descriptor instead.
 func (*UpdateEarningsResponse) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{20}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *UpdateEarningsResponse) GetTotalEarnings() float64 {
@@ -2602,7 +2646,7 @@ type DefectReportPart struct {
 
 func (x *DefectReportPart) Reset() {
 	*x = DefectReportPart{}
-	mi := &file_parts_v1_parts_proto_msgTypes[21]
+	mi := &file_parts_v1_parts_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2614,7 +2658,7 @@ func (x *DefectReportPart) String() string {
 func (*DefectReportPart) ProtoMessage() {}
 
 func (x *DefectReportPart) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[21]
+	mi := &file_parts_v1_parts_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2627,7 +2671,7 @@ func (x *DefectReportPart) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DefectReportPart.ProtoReflect.Descriptor instead.
 func (*DefectReportPart) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{21}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *DefectReportPart) GetName() string {
@@ -2908,7 +2952,7 @@ type CreateDefectReportRequest struct {
 
 func (x *CreateDefectReportRequest) Reset() {
 	*x = CreateDefectReportRequest{}
-	mi := &file_parts_v1_parts_proto_msgTypes[22]
+	mi := &file_parts_v1_parts_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2920,7 +2964,7 @@ func (x *CreateDefectReportRequest) String() string {
 func (*CreateDefectReportRequest) ProtoMessage() {}
 
 func (x *CreateDefectReportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[22]
+	mi := &file_parts_v1_parts_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2933,7 +2977,7 @@ func (x *CreateDefectReportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateDefectReportRequest.ProtoReflect.Descriptor instead.
 func (*CreateDefectReportRequest) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{22}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *CreateDefectReportRequest) GetBrand() string {
@@ -3085,7 +3129,7 @@ type PreviewDefectReportRequest struct {
 
 func (x *PreviewDefectReportRequest) Reset() {
 	*x = PreviewDefectReportRequest{}
-	mi := &file_parts_v1_parts_proto_msgTypes[23]
+	mi := &file_parts_v1_parts_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3097,7 +3141,7 @@ func (x *PreviewDefectReportRequest) String() string {
 func (*PreviewDefectReportRequest) ProtoMessage() {}
 
 func (x *PreviewDefectReportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[23]
+	mi := &file_parts_v1_parts_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3110,7 +3154,7 @@ func (x *PreviewDefectReportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewDefectReportRequest.ProtoReflect.Descriptor instead.
 func (*PreviewDefectReportRequest) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{23}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *PreviewDefectReportRequest) GetBrand() string {
@@ -3229,7 +3273,7 @@ type PreviewDefectReportResponse struct {
 
 func (x *PreviewDefectReportResponse) Reset() {
 	*x = PreviewDefectReportResponse{}
-	mi := &file_parts_v1_parts_proto_msgTypes[24]
+	mi := &file_parts_v1_parts_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3241,7 +3285,7 @@ func (x *PreviewDefectReportResponse) String() string {
 func (*PreviewDefectReportResponse) ProtoMessage() {}
 
 func (x *PreviewDefectReportResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[24]
+	mi := &file_parts_v1_parts_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3254,7 +3298,7 @@ func (x *PreviewDefectReportResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewDefectReportResponse.ProtoReflect.Descriptor instead.
 func (*PreviewDefectReportResponse) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{24}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *PreviewDefectReportResponse) GetCatalogVersion() string {
@@ -3292,7 +3336,7 @@ type CreateDefectReportResponse struct {
 
 func (x *CreateDefectReportResponse) Reset() {
 	*x = CreateDefectReportResponse{}
-	mi := &file_parts_v1_parts_proto_msgTypes[25]
+	mi := &file_parts_v1_parts_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3304,7 +3348,7 @@ func (x *CreateDefectReportResponse) String() string {
 func (*CreateDefectReportResponse) ProtoMessage() {}
 
 func (x *CreateDefectReportResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[25]
+	mi := &file_parts_v1_parts_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3317,7 +3361,7 @@ func (x *CreateDefectReportResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateDefectReportResponse.ProtoReflect.Descriptor instead.
 func (*CreateDefectReportResponse) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{25}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{26}
 }
 
 // Deprecated: Marked as deprecated in parts/v1/parts.proto.
@@ -3358,7 +3402,7 @@ type ListPartsForExportRequest struct {
 
 func (x *ListPartsForExportRequest) Reset() {
 	*x = ListPartsForExportRequest{}
-	mi := &file_parts_v1_parts_proto_msgTypes[26]
+	mi := &file_parts_v1_parts_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3370,7 +3414,7 @@ func (x *ListPartsForExportRequest) String() string {
 func (*ListPartsForExportRequest) ProtoMessage() {}
 
 func (x *ListPartsForExportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[26]
+	mi := &file_parts_v1_parts_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3383,7 +3427,7 @@ func (x *ListPartsForExportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPartsForExportRequest.ProtoReflect.Descriptor instead.
 func (*ListPartsForExportRequest) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{26}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{27}
 }
 
 type InventoryVersionRequest struct {
@@ -3394,7 +3438,7 @@ type InventoryVersionRequest struct {
 
 func (x *InventoryVersionRequest) Reset() {
 	*x = InventoryVersionRequest{}
-	mi := &file_parts_v1_parts_proto_msgTypes[27]
+	mi := &file_parts_v1_parts_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3406,7 +3450,7 @@ func (x *InventoryVersionRequest) String() string {
 func (*InventoryVersionRequest) ProtoMessage() {}
 
 func (x *InventoryVersionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[27]
+	mi := &file_parts_v1_parts_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3419,7 +3463,7 @@ func (x *InventoryVersionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InventoryVersionRequest.ProtoReflect.Descriptor instead.
 func (*InventoryVersionRequest) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{27}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{28}
 }
 
 type InventoryVersionResponse struct {
@@ -3431,7 +3475,7 @@ type InventoryVersionResponse struct {
 
 func (x *InventoryVersionResponse) Reset() {
 	*x = InventoryVersionResponse{}
-	mi := &file_parts_v1_parts_proto_msgTypes[28]
+	mi := &file_parts_v1_parts_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3443,7 +3487,7 @@ func (x *InventoryVersionResponse) String() string {
 func (*InventoryVersionResponse) ProtoMessage() {}
 
 func (x *InventoryVersionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[28]
+	mi := &file_parts_v1_parts_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3456,7 +3500,7 @@ func (x *InventoryVersionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InventoryVersionResponse.ProtoReflect.Descriptor instead.
 func (*InventoryVersionResponse) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{28}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *InventoryVersionResponse) GetVersion() string {
@@ -3467,15 +3511,17 @@ func (x *InventoryVersionResponse) GetVersion() string {
 }
 
 type BulkDeletePartsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Ids           []uint32               `protobuf:"varint,1,rep,packed,name=ids,proto3" json:"ids,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Ids                  []uint32               `protobuf:"varint,1,rep,packed,name=ids,proto3" json:"ids,omitempty"`
+	Scope                *BulkUpdateScope       `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
+	ConfirmEntireCatalog bool                   `protobuf:"varint,3,opt,name=confirm_entire_catalog,json=confirmEntireCatalog,proto3" json:"confirm_entire_catalog,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *BulkDeletePartsRequest) Reset() {
 	*x = BulkDeletePartsRequest{}
-	mi := &file_parts_v1_parts_proto_msgTypes[29]
+	mi := &file_parts_v1_parts_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3487,7 +3533,7 @@ func (x *BulkDeletePartsRequest) String() string {
 func (*BulkDeletePartsRequest) ProtoMessage() {}
 
 func (x *BulkDeletePartsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[29]
+	mi := &file_parts_v1_parts_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3500,7 +3546,7 @@ func (x *BulkDeletePartsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BulkDeletePartsRequest.ProtoReflect.Descriptor instead.
 func (*BulkDeletePartsRequest) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{29}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *BulkDeletePartsRequest) GetIds() []uint32 {
@@ -3508,6 +3554,20 @@ func (x *BulkDeletePartsRequest) GetIds() []uint32 {
 		return x.Ids
 	}
 	return nil
+}
+
+func (x *BulkDeletePartsRequest) GetScope() *BulkUpdateScope {
+	if x != nil {
+		return x.Scope
+	}
+	return nil
+}
+
+func (x *BulkDeletePartsRequest) GetConfirmEntireCatalog() bool {
+	if x != nil {
+		return x.ConfirmEntireCatalog
+	}
+	return false
 }
 
 type BulkDeletePartsResponse struct {
@@ -3519,7 +3579,7 @@ type BulkDeletePartsResponse struct {
 
 func (x *BulkDeletePartsResponse) Reset() {
 	*x = BulkDeletePartsResponse{}
-	mi := &file_parts_v1_parts_proto_msgTypes[30]
+	mi := &file_parts_v1_parts_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3531,7 +3591,7 @@ func (x *BulkDeletePartsResponse) String() string {
 func (*BulkDeletePartsResponse) ProtoMessage() {}
 
 func (x *BulkDeletePartsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[30]
+	mi := &file_parts_v1_parts_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3544,7 +3604,7 @@ func (x *BulkDeletePartsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BulkDeletePartsResponse.ProtoReflect.Descriptor instead.
 func (*BulkDeletePartsResponse) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{30}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *BulkDeletePartsResponse) GetDeletedCount() int32 {
@@ -3564,7 +3624,7 @@ type BulkPriceOperation struct {
 
 func (x *BulkPriceOperation) Reset() {
 	*x = BulkPriceOperation{}
-	mi := &file_parts_v1_parts_proto_msgTypes[31]
+	mi := &file_parts_v1_parts_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3576,7 +3636,7 @@ func (x *BulkPriceOperation) String() string {
 func (*BulkPriceOperation) ProtoMessage() {}
 
 func (x *BulkPriceOperation) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[31]
+	mi := &file_parts_v1_parts_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3589,7 +3649,7 @@ func (x *BulkPriceOperation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BulkPriceOperation.ProtoReflect.Descriptor instead.
 func (*BulkPriceOperation) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{31}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *BulkPriceOperation) GetMode() PriceOperationMode {
@@ -3620,7 +3680,7 @@ type BulkFieldOperations struct {
 
 func (x *BulkFieldOperations) Reset() {
 	*x = BulkFieldOperations{}
-	mi := &file_parts_v1_parts_proto_msgTypes[32]
+	mi := &file_parts_v1_parts_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3632,7 +3692,7 @@ func (x *BulkFieldOperations) String() string {
 func (*BulkFieldOperations) ProtoMessage() {}
 
 func (x *BulkFieldOperations) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[32]
+	mi := &file_parts_v1_parts_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3645,7 +3705,7 @@ func (x *BulkFieldOperations) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BulkFieldOperations.ProtoReflect.Descriptor instead.
 func (*BulkFieldOperations) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{32}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *BulkFieldOperations) GetPrice() *BulkPriceOperation {
@@ -3701,7 +3761,7 @@ type BulkUpdateScope struct {
 
 func (x *BulkUpdateScope) Reset() {
 	*x = BulkUpdateScope{}
-	mi := &file_parts_v1_parts_proto_msgTypes[33]
+	mi := &file_parts_v1_parts_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3713,7 +3773,7 @@ func (x *BulkUpdateScope) String() string {
 func (*BulkUpdateScope) ProtoMessage() {}
 
 func (x *BulkUpdateScope) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[33]
+	mi := &file_parts_v1_parts_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3726,7 +3786,7 @@ func (x *BulkUpdateScope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BulkUpdateScope.ProtoReflect.Descriptor instead.
 func (*BulkUpdateScope) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{33}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *BulkUpdateScope) GetType() BulkScopeType {
@@ -3760,7 +3820,7 @@ type BulkUpdatePartData struct {
 
 func (x *BulkUpdatePartData) Reset() {
 	*x = BulkUpdatePartData{}
-	mi := &file_parts_v1_parts_proto_msgTypes[34]
+	mi := &file_parts_v1_parts_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3772,7 +3832,7 @@ func (x *BulkUpdatePartData) String() string {
 func (*BulkUpdatePartData) ProtoMessage() {}
 
 func (x *BulkUpdatePartData) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[34]
+	mi := &file_parts_v1_parts_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3785,7 +3845,7 @@ func (x *BulkUpdatePartData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BulkUpdatePartData.ProtoReflect.Descriptor instead.
 func (*BulkUpdatePartData) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{34}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *BulkUpdatePartData) GetId() uint32 {
@@ -3803,17 +3863,18 @@ func (x *BulkUpdatePartData) GetFields() map[string]string {
 }
 
 type BulkUpdatePartsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Parts         []*BulkUpdatePartData  `protobuf:"bytes,1,rep,name=parts,proto3" json:"parts,omitempty"`
-	Scope         *BulkUpdateScope       `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
-	Operations    *BulkFieldOperations   `protobuf:"bytes,3,opt,name=operations,proto3" json:"operations,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Parts                []*BulkUpdatePartData  `protobuf:"bytes,1,rep,name=parts,proto3" json:"parts,omitempty"`
+	Scope                *BulkUpdateScope       `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
+	Operations           *BulkFieldOperations   `protobuf:"bytes,3,opt,name=operations,proto3" json:"operations,omitempty"`
+	ConfirmEntireCatalog bool                   `protobuf:"varint,4,opt,name=confirm_entire_catalog,json=confirmEntireCatalog,proto3" json:"confirm_entire_catalog,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *BulkUpdatePartsRequest) Reset() {
 	*x = BulkUpdatePartsRequest{}
-	mi := &file_parts_v1_parts_proto_msgTypes[35]
+	mi := &file_parts_v1_parts_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3825,7 +3886,7 @@ func (x *BulkUpdatePartsRequest) String() string {
 func (*BulkUpdatePartsRequest) ProtoMessage() {}
 
 func (x *BulkUpdatePartsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[35]
+	mi := &file_parts_v1_parts_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3838,7 +3899,7 @@ func (x *BulkUpdatePartsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BulkUpdatePartsRequest.ProtoReflect.Descriptor instead.
 func (*BulkUpdatePartsRequest) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{35}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *BulkUpdatePartsRequest) GetParts() []*BulkUpdatePartData {
@@ -3862,6 +3923,13 @@ func (x *BulkUpdatePartsRequest) GetOperations() *BulkFieldOperations {
 	return nil
 }
 
+func (x *BulkUpdatePartsRequest) GetConfirmEntireCatalog() bool {
+	if x != nil {
+		return x.ConfirmEntireCatalog
+	}
+	return false
+}
+
 type BulkUpdatePartsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UpdatedCount  int32                  `protobuf:"varint,1,opt,name=updated_count,json=updatedCount,proto3" json:"updated_count,omitempty"`
@@ -3871,7 +3939,7 @@ type BulkUpdatePartsResponse struct {
 
 func (x *BulkUpdatePartsResponse) Reset() {
 	*x = BulkUpdatePartsResponse{}
-	mi := &file_parts_v1_parts_proto_msgTypes[36]
+	mi := &file_parts_v1_parts_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3883,7 +3951,7 @@ func (x *BulkUpdatePartsResponse) String() string {
 func (*BulkUpdatePartsResponse) ProtoMessage() {}
 
 func (x *BulkUpdatePartsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[36]
+	mi := &file_parts_v1_parts_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3896,7 +3964,7 @@ func (x *BulkUpdatePartsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BulkUpdatePartsResponse.ProtoReflect.Descriptor instead.
 func (*BulkUpdatePartsResponse) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{36}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *BulkUpdatePartsResponse) GetUpdatedCount() int32 {
@@ -3914,7 +3982,7 @@ type GetSupplierCodesRequest struct {
 
 func (x *GetSupplierCodesRequest) Reset() {
 	*x = GetSupplierCodesRequest{}
-	mi := &file_parts_v1_parts_proto_msgTypes[37]
+	mi := &file_parts_v1_parts_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3926,7 +3994,7 @@ func (x *GetSupplierCodesRequest) String() string {
 func (*GetSupplierCodesRequest) ProtoMessage() {}
 
 func (x *GetSupplierCodesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[37]
+	mi := &file_parts_v1_parts_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3939,7 +4007,7 @@ func (x *GetSupplierCodesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSupplierCodesRequest.ProtoReflect.Descriptor instead.
 func (*GetSupplierCodesRequest) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{37}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{38}
 }
 
 type SupplierCodesResponse struct {
@@ -3951,7 +4019,7 @@ type SupplierCodesResponse struct {
 
 func (x *SupplierCodesResponse) Reset() {
 	*x = SupplierCodesResponse{}
-	mi := &file_parts_v1_parts_proto_msgTypes[38]
+	mi := &file_parts_v1_parts_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3963,7 +4031,7 @@ func (x *SupplierCodesResponse) String() string {
 func (*SupplierCodesResponse) ProtoMessage() {}
 
 func (x *SupplierCodesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[38]
+	mi := &file_parts_v1_parts_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3976,7 +4044,7 @@ func (x *SupplierCodesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SupplierCodesResponse.ProtoReflect.Descriptor instead.
 func (*SupplierCodesResponse) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{38}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *SupplierCodesResponse) GetCodes() []string {
@@ -3995,7 +4063,7 @@ type DeleteZeroQuantityPartsRequest struct {
 
 func (x *DeleteZeroQuantityPartsRequest) Reset() {
 	*x = DeleteZeroQuantityPartsRequest{}
-	mi := &file_parts_v1_parts_proto_msgTypes[39]
+	mi := &file_parts_v1_parts_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4007,7 +4075,7 @@ func (x *DeleteZeroQuantityPartsRequest) String() string {
 func (*DeleteZeroQuantityPartsRequest) ProtoMessage() {}
 
 func (x *DeleteZeroQuantityPartsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[39]
+	mi := &file_parts_v1_parts_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4020,7 +4088,7 @@ func (x *DeleteZeroQuantityPartsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteZeroQuantityPartsRequest.ProtoReflect.Descriptor instead.
 func (*DeleteZeroQuantityPartsRequest) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{39}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *DeleteZeroQuantityPartsRequest) GetSupplierCode() string {
@@ -4039,7 +4107,7 @@ type DeleteZeroQuantityPartsResponse struct {
 
 func (x *DeleteZeroQuantityPartsResponse) Reset() {
 	*x = DeleteZeroQuantityPartsResponse{}
-	mi := &file_parts_v1_parts_proto_msgTypes[40]
+	mi := &file_parts_v1_parts_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4051,7 +4119,7 @@ func (x *DeleteZeroQuantityPartsResponse) String() string {
 func (*DeleteZeroQuantityPartsResponse) ProtoMessage() {}
 
 func (x *DeleteZeroQuantityPartsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_parts_v1_parts_proto_msgTypes[40]
+	mi := &file_parts_v1_parts_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4064,7 +4132,7 @@ func (x *DeleteZeroQuantityPartsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteZeroQuantityPartsResponse.ProtoReflect.Descriptor instead.
 func (*DeleteZeroQuantityPartsResponse) Descriptor() ([]byte, []int) {
-	return file_parts_v1_parts_proto_rawDescGZIP(), []int{40}
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *DeleteZeroQuantityPartsResponse) GetDeletedCount() int32 {
@@ -4191,6 +4259,8 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x04page\x18\x03 \x01(\x05R\x04page\x12\x14\n" +
 	"\x05limit\x18\x04 \x01(\x05R\x05limit\" \n" +
 	"\x0eGetPartRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\rR\x02id\"&\n" +
+	"\x14DuplicatePartRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\"f\n" +
 	"\x19ChangePartQuantityRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x16\n" +
@@ -4482,9 +4552,11 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x19ListPartsForExportRequest\"\x19\n" +
 	"\x17InventoryVersionRequest\"4\n" +
 	"\x18InventoryVersionResponse\x12\x18\n" +
-	"\aversion\x18\x01 \x01(\tR\aversion\"*\n" +
+	"\aversion\x18\x01 \x01(\tR\aversion\"\x91\x01\n" +
 	"\x16BulkDeletePartsRequest\x12\x10\n" +
-	"\x03ids\x18\x01 \x03(\rR\x03ids\">\n" +
+	"\x03ids\x18\x01 \x03(\rR\x03ids\x12/\n" +
+	"\x05scope\x18\x02 \x01(\v2\x19.parts.v1.BulkUpdateScopeR\x05scope\x124\n" +
+	"\x16confirm_entire_catalog\x18\x03 \x01(\bR\x14confirmEntireCatalog\">\n" +
 	"\x17BulkDeletePartsResponse\x12#\n" +
 	"\rdeleted_count\x18\x01 \x01(\x05R\fdeletedCount\"\\\n" +
 	"\x12BulkPriceOperation\x120\n" +
@@ -4512,13 +4584,14 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x06fields\x18\x02 \x03(\v2(.parts.v1.BulkUpdatePartData.FieldsEntryR\x06fields\x1a9\n" +
 	"\vFieldsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xbc\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xf2\x01\n" +
 	"\x16BulkUpdatePartsRequest\x122\n" +
 	"\x05parts\x18\x01 \x03(\v2\x1c.parts.v1.BulkUpdatePartDataR\x05parts\x12/\n" +
 	"\x05scope\x18\x02 \x01(\v2\x19.parts.v1.BulkUpdateScopeR\x05scope\x12=\n" +
 	"\n" +
 	"operations\x18\x03 \x01(\v2\x1d.parts.v1.BulkFieldOperationsR\n" +
-	"operations\">\n" +
+	"operations\x124\n" +
+	"\x16confirm_entire_catalog\x18\x04 \x01(\bR\x14confirmEntireCatalog\">\n" +
 	"\x17BulkUpdatePartsResponse\x12#\n" +
 	"\rupdated_count\x18\x01 \x01(\x05R\fupdatedCount\"\x19\n" +
 	"\x17GetSupplierCodesRequest\"-\n" +
@@ -4536,7 +4609,7 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\rBulkScopeType\x12\x1f\n" +
 	"\x1bBULK_SCOPE_TYPE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13BULK_SCOPE_TYPE_IDS\x10\x01\x12\x1a\n" +
-	"\x16BULK_SCOPE_TYPE_FILTER\x10\x022\x94\x12\n" +
+	"\x16BULK_SCOPE_TYPE_FILTER\x10\x022\xfb\x12\n" +
 	"\fPartsService\x12e\n" +
 	"\fGetInventory\x12\x1d.parts.v1.GetInventoryRequest\x1a\x1b.parts.v1.InventoryResponse\"\x19\x82\xd3\xe4\x93\x02\x13\x12\x11/api/v1/inventory\x12M\n" +
 	"\aAddPart\x12\x18.parts.v1.AddPartRequest\x1a\x0e.parts.v1.Part\"\x18\x82\xd3\xe4\x93\x02\x12:\x01*\"\r/api/v1/parts\x12X\n" +
@@ -4545,7 +4618,8 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\n" +
 	"DeletePart\x12\x1b.parts.v1.DeletePartRequest\x1a\x1c.parts.v1.DeletePartResponse\"\x1a\x82\xd3\xe4\x93\x02\x14*\x12/api/v1/parts/{id}\x12x\n" +
 	"\x13MarkPartForDeletion\x12$.parts.v1.MarkPartForDeletionRequest\x1a\x0e.parts.v1.Part\"+\x82\xd3\xe4\x93\x02%:\x01*\" /api/v1/parts/{id}/mark-deletion\x12T\n" +
-	"\aGetPart\x12\x18.parts.v1.GetPartRequest\x1a\x0e.parts.v1.Part\"\x1f\x82\xd3\xe4\x93\x02\x19\x12\x17/api/v1/parts/item/{id}\x12\x89\x01\n" +
+	"\aGetPart\x12\x18.parts.v1.GetPartRequest\x1a\x0e.parts.v1.Part\"\x1f\x82\xd3\xe4\x93\x02\x19\x12\x17/api/v1/parts/item/{id}\x12e\n" +
+	"\rDuplicatePart\x12\x1e.parts.v1.DuplicatePartRequest\x1a\x0e.parts.v1.Part\"$\x82\xd3\xe4\x93\x02\x1e\"\x1c/api/v1/parts/{id}/duplicate\x12\x89\x01\n" +
 	"\x14DecreasePartQuantity\x12#.parts.v1.ChangePartQuantityRequest\x1a$.parts.v1.ChangePartQuantityResponse\"&\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/api/v1/parts/{id}/decrease\x12\x89\x01\n" +
 	"\x14IncreasePartQuantity\x12#.parts.v1.ChangePartQuantityRequest\x1a$.parts.v1.ChangePartQuantityResponse\"&\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/api/v1/parts/{id}/increase\x12X\n" +
 	"\x0fUploadPartPhoto\x12\x1e.parts.v1.UploadPartPhotoChunk\x1a!.parts.v1.UploadPartPhotoResponse\"\x00(\x01\x12}\n" +
@@ -4574,7 +4648,7 @@ func file_parts_v1_parts_proto_rawDescGZIP() []byte {
 }
 
 var file_parts_v1_parts_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_parts_v1_parts_proto_msgTypes = make([]protoimpl.MessageInfo, 42)
+var file_parts_v1_parts_proto_msgTypes = make([]protoimpl.MessageInfo, 43)
 var file_parts_v1_parts_proto_goTypes = []any{
 	(PriceOperationMode)(0),                 // 0: parts.v1.PriceOperationMode
 	(BulkScopeType)(0),                      // 1: parts.v1.BulkScopeType
@@ -4582,108 +4656,112 @@ var file_parts_v1_parts_proto_goTypes = []any{
 	(*GetInventoryRequest)(nil),             // 3: parts.v1.GetInventoryRequest
 	(*InventoryResponse)(nil),               // 4: parts.v1.InventoryResponse
 	(*GetPartRequest)(nil),                  // 5: parts.v1.GetPartRequest
-	(*ChangePartQuantityRequest)(nil),       // 6: parts.v1.ChangePartQuantityRequest
-	(*ChangePartQuantityResponse)(nil),      // 7: parts.v1.ChangePartQuantityResponse
-	(*AddPartRequest)(nil),                  // 8: parts.v1.AddPartRequest
-	(*UpdatePartRequest)(nil),               // 9: parts.v1.UpdatePartRequest
-	(*DeletePartRequest)(nil),               // 10: parts.v1.DeletePartRequest
-	(*DeletePartResponse)(nil),              // 11: parts.v1.DeletePartResponse
-	(*MarkPartForDeletionRequest)(nil),      // 12: parts.v1.MarkPartForDeletionRequest
-	(*UploadPartPhotoChunk)(nil),            // 13: parts.v1.UploadPartPhotoChunk
-	(*UploadPartPhotoResponse)(nil),         // 14: parts.v1.UploadPartPhotoResponse
-	(*DeletePartPhotoRequest)(nil),          // 15: parts.v1.DeletePartPhotoRequest
-	(*DeletePartPhotoResponse)(nil),         // 16: parts.v1.DeletePartPhotoResponse
-	(*GetStatisticsRequest)(nil),            // 17: parts.v1.GetStatisticsRequest
-	(*CategoryCount)(nil),                   // 18: parts.v1.CategoryCount
-	(*MonthlySales)(nil),                    // 19: parts.v1.MonthlySales
-	(*StatisticsResponse)(nil),              // 20: parts.v1.StatisticsResponse
-	(*UpdateEarningsRequest)(nil),           // 21: parts.v1.UpdateEarningsRequest
-	(*UpdateEarningsResponse)(nil),          // 22: parts.v1.UpdateEarningsResponse
-	(*DefectReportPart)(nil),                // 23: parts.v1.DefectReportPart
-	(*CreateDefectReportRequest)(nil),       // 24: parts.v1.CreateDefectReportRequest
-	(*PreviewDefectReportRequest)(nil),      // 25: parts.v1.PreviewDefectReportRequest
-	(*PreviewDefectReportResponse)(nil),     // 26: parts.v1.PreviewDefectReportResponse
-	(*CreateDefectReportResponse)(nil),      // 27: parts.v1.CreateDefectReportResponse
-	(*ListPartsForExportRequest)(nil),       // 28: parts.v1.ListPartsForExportRequest
-	(*InventoryVersionRequest)(nil),         // 29: parts.v1.InventoryVersionRequest
-	(*InventoryVersionResponse)(nil),        // 30: parts.v1.InventoryVersionResponse
-	(*BulkDeletePartsRequest)(nil),          // 31: parts.v1.BulkDeletePartsRequest
-	(*BulkDeletePartsResponse)(nil),         // 32: parts.v1.BulkDeletePartsResponse
-	(*BulkPriceOperation)(nil),              // 33: parts.v1.BulkPriceOperation
-	(*BulkFieldOperations)(nil),             // 34: parts.v1.BulkFieldOperations
-	(*BulkUpdateScope)(nil),                 // 35: parts.v1.BulkUpdateScope
-	(*BulkUpdatePartData)(nil),              // 36: parts.v1.BulkUpdatePartData
-	(*BulkUpdatePartsRequest)(nil),          // 37: parts.v1.BulkUpdatePartsRequest
-	(*BulkUpdatePartsResponse)(nil),         // 38: parts.v1.BulkUpdatePartsResponse
-	(*GetSupplierCodesRequest)(nil),         // 39: parts.v1.GetSupplierCodesRequest
-	(*SupplierCodesResponse)(nil),           // 40: parts.v1.SupplierCodesResponse
-	(*DeleteZeroQuantityPartsRequest)(nil),  // 41: parts.v1.DeleteZeroQuantityPartsRequest
-	(*DeleteZeroQuantityPartsResponse)(nil), // 42: parts.v1.DeleteZeroQuantityPartsResponse
-	nil,                                     // 43: parts.v1.BulkUpdatePartData.FieldsEntry
-	(*timestamppb.Timestamp)(nil),           // 44: google.protobuf.Timestamp
+	(*DuplicatePartRequest)(nil),            // 6: parts.v1.DuplicatePartRequest
+	(*ChangePartQuantityRequest)(nil),       // 7: parts.v1.ChangePartQuantityRequest
+	(*ChangePartQuantityResponse)(nil),      // 8: parts.v1.ChangePartQuantityResponse
+	(*AddPartRequest)(nil),                  // 9: parts.v1.AddPartRequest
+	(*UpdatePartRequest)(nil),               // 10: parts.v1.UpdatePartRequest
+	(*DeletePartRequest)(nil),               // 11: parts.v1.DeletePartRequest
+	(*DeletePartResponse)(nil),              // 12: parts.v1.DeletePartResponse
+	(*MarkPartForDeletionRequest)(nil),      // 13: parts.v1.MarkPartForDeletionRequest
+	(*UploadPartPhotoChunk)(nil),            // 14: parts.v1.UploadPartPhotoChunk
+	(*UploadPartPhotoResponse)(nil),         // 15: parts.v1.UploadPartPhotoResponse
+	(*DeletePartPhotoRequest)(nil),          // 16: parts.v1.DeletePartPhotoRequest
+	(*DeletePartPhotoResponse)(nil),         // 17: parts.v1.DeletePartPhotoResponse
+	(*GetStatisticsRequest)(nil),            // 18: parts.v1.GetStatisticsRequest
+	(*CategoryCount)(nil),                   // 19: parts.v1.CategoryCount
+	(*MonthlySales)(nil),                    // 20: parts.v1.MonthlySales
+	(*StatisticsResponse)(nil),              // 21: parts.v1.StatisticsResponse
+	(*UpdateEarningsRequest)(nil),           // 22: parts.v1.UpdateEarningsRequest
+	(*UpdateEarningsResponse)(nil),          // 23: parts.v1.UpdateEarningsResponse
+	(*DefectReportPart)(nil),                // 24: parts.v1.DefectReportPart
+	(*CreateDefectReportRequest)(nil),       // 25: parts.v1.CreateDefectReportRequest
+	(*PreviewDefectReportRequest)(nil),      // 26: parts.v1.PreviewDefectReportRequest
+	(*PreviewDefectReportResponse)(nil),     // 27: parts.v1.PreviewDefectReportResponse
+	(*CreateDefectReportResponse)(nil),      // 28: parts.v1.CreateDefectReportResponse
+	(*ListPartsForExportRequest)(nil),       // 29: parts.v1.ListPartsForExportRequest
+	(*InventoryVersionRequest)(nil),         // 30: parts.v1.InventoryVersionRequest
+	(*InventoryVersionResponse)(nil),        // 31: parts.v1.InventoryVersionResponse
+	(*BulkDeletePartsRequest)(nil),          // 32: parts.v1.BulkDeletePartsRequest
+	(*BulkDeletePartsResponse)(nil),         // 33: parts.v1.BulkDeletePartsResponse
+	(*BulkPriceOperation)(nil),              // 34: parts.v1.BulkPriceOperation
+	(*BulkFieldOperations)(nil),             // 35: parts.v1.BulkFieldOperations
+	(*BulkUpdateScope)(nil),                 // 36: parts.v1.BulkUpdateScope
+	(*BulkUpdatePartData)(nil),              // 37: parts.v1.BulkUpdatePartData
+	(*BulkUpdatePartsRequest)(nil),          // 38: parts.v1.BulkUpdatePartsRequest
+	(*BulkUpdatePartsResponse)(nil),         // 39: parts.v1.BulkUpdatePartsResponse
+	(*GetSupplierCodesRequest)(nil),         // 40: parts.v1.GetSupplierCodesRequest
+	(*SupplierCodesResponse)(nil),           // 41: parts.v1.SupplierCodesResponse
+	(*DeleteZeroQuantityPartsRequest)(nil),  // 42: parts.v1.DeleteZeroQuantityPartsRequest
+	(*DeleteZeroQuantityPartsResponse)(nil), // 43: parts.v1.DeleteZeroQuantityPartsResponse
+	nil,                                     // 44: parts.v1.BulkUpdatePartData.FieldsEntry
+	(*timestamppb.Timestamp)(nil),           // 45: google.protobuf.Timestamp
 }
 var file_parts_v1_parts_proto_depIdxs = []int32{
-	44, // 0: parts.v1.Part.to_delete_at:type_name -> google.protobuf.Timestamp
+	45, // 0: parts.v1.Part.to_delete_at:type_name -> google.protobuf.Timestamp
 	2,  // 1: parts.v1.InventoryResponse.parts:type_name -> parts.v1.Part
 	2,  // 2: parts.v1.UploadPartPhotoResponse.part:type_name -> parts.v1.Part
-	18, // 3: parts.v1.StatisticsResponse.categories:type_name -> parts.v1.CategoryCount
-	19, // 4: parts.v1.StatisticsResponse.monthly_sales:type_name -> parts.v1.MonthlySales
-	23, // 5: parts.v1.CreateDefectReportRequest.selected_parts:type_name -> parts.v1.DefectReportPart
-	23, // 6: parts.v1.PreviewDefectReportResponse.parts:type_name -> parts.v1.DefectReportPart
+	19, // 3: parts.v1.StatisticsResponse.categories:type_name -> parts.v1.CategoryCount
+	20, // 4: parts.v1.StatisticsResponse.monthly_sales:type_name -> parts.v1.MonthlySales
+	24, // 5: parts.v1.CreateDefectReportRequest.selected_parts:type_name -> parts.v1.DefectReportPart
+	24, // 6: parts.v1.PreviewDefectReportResponse.parts:type_name -> parts.v1.DefectReportPart
 	2,  // 7: parts.v1.CreateDefectReportResponse.parts:type_name -> parts.v1.Part
-	0,  // 8: parts.v1.BulkPriceOperation.mode:type_name -> parts.v1.PriceOperationMode
-	33, // 9: parts.v1.BulkFieldOperations.price:type_name -> parts.v1.BulkPriceOperation
-	1,  // 10: parts.v1.BulkUpdateScope.type:type_name -> parts.v1.BulkScopeType
-	3,  // 11: parts.v1.BulkUpdateScope.filter:type_name -> parts.v1.GetInventoryRequest
-	43, // 12: parts.v1.BulkUpdatePartData.fields:type_name -> parts.v1.BulkUpdatePartData.FieldsEntry
-	36, // 13: parts.v1.BulkUpdatePartsRequest.parts:type_name -> parts.v1.BulkUpdatePartData
-	35, // 14: parts.v1.BulkUpdatePartsRequest.scope:type_name -> parts.v1.BulkUpdateScope
-	34, // 15: parts.v1.BulkUpdatePartsRequest.operations:type_name -> parts.v1.BulkFieldOperations
-	3,  // 16: parts.v1.PartsService.GetInventory:input_type -> parts.v1.GetInventoryRequest
-	8,  // 17: parts.v1.PartsService.AddPart:input_type -> parts.v1.AddPartRequest
-	9,  // 18: parts.v1.PartsService.UpdatePart:input_type -> parts.v1.UpdatePartRequest
-	10, // 19: parts.v1.PartsService.DeletePart:input_type -> parts.v1.DeletePartRequest
-	12, // 20: parts.v1.PartsService.MarkPartForDeletion:input_type -> parts.v1.MarkPartForDeletionRequest
-	5,  // 21: parts.v1.PartsService.GetPart:input_type -> parts.v1.GetPartRequest
-	6,  // 22: parts.v1.PartsService.DecreasePartQuantity:input_type -> parts.v1.ChangePartQuantityRequest
-	6,  // 23: parts.v1.PartsService.IncreasePartQuantity:input_type -> parts.v1.ChangePartQuantityRequest
-	13, // 24: parts.v1.PartsService.UploadPartPhoto:input_type -> parts.v1.UploadPartPhotoChunk
-	15, // 25: parts.v1.PartsService.DeletePartPhoto:input_type -> parts.v1.DeletePartPhotoRequest
-	17, // 26: parts.v1.PartsService.GetStatistics:input_type -> parts.v1.GetStatisticsRequest
-	21, // 27: parts.v1.PartsService.UpdateEarnings:input_type -> parts.v1.UpdateEarningsRequest
-	24, // 28: parts.v1.PartsService.CreateDefectReport:input_type -> parts.v1.CreateDefectReportRequest
-	25, // 29: parts.v1.PartsService.PreviewDefectReport:input_type -> parts.v1.PreviewDefectReportRequest
-	28, // 30: parts.v1.PartsService.ListPartsForExport:input_type -> parts.v1.ListPartsForExportRequest
-	29, // 31: parts.v1.PartsService.InventoryVersion:input_type -> parts.v1.InventoryVersionRequest
-	31, // 32: parts.v1.PartsService.BulkDeleteParts:input_type -> parts.v1.BulkDeletePartsRequest
-	37, // 33: parts.v1.PartsService.BulkUpdateParts:input_type -> parts.v1.BulkUpdatePartsRequest
-	39, // 34: parts.v1.PartsService.GetSupplierCodes:input_type -> parts.v1.GetSupplierCodesRequest
-	41, // 35: parts.v1.PartsService.DeleteZeroQuantityParts:input_type -> parts.v1.DeleteZeroQuantityPartsRequest
-	4,  // 36: parts.v1.PartsService.GetInventory:output_type -> parts.v1.InventoryResponse
-	2,  // 37: parts.v1.PartsService.AddPart:output_type -> parts.v1.Part
-	2,  // 38: parts.v1.PartsService.UpdatePart:output_type -> parts.v1.Part
-	11, // 39: parts.v1.PartsService.DeletePart:output_type -> parts.v1.DeletePartResponse
-	2,  // 40: parts.v1.PartsService.MarkPartForDeletion:output_type -> parts.v1.Part
-	2,  // 41: parts.v1.PartsService.GetPart:output_type -> parts.v1.Part
-	7,  // 42: parts.v1.PartsService.DecreasePartQuantity:output_type -> parts.v1.ChangePartQuantityResponse
-	7,  // 43: parts.v1.PartsService.IncreasePartQuantity:output_type -> parts.v1.ChangePartQuantityResponse
-	14, // 44: parts.v1.PartsService.UploadPartPhoto:output_type -> parts.v1.UploadPartPhotoResponse
-	16, // 45: parts.v1.PartsService.DeletePartPhoto:output_type -> parts.v1.DeletePartPhotoResponse
-	20, // 46: parts.v1.PartsService.GetStatistics:output_type -> parts.v1.StatisticsResponse
-	22, // 47: parts.v1.PartsService.UpdateEarnings:output_type -> parts.v1.UpdateEarningsResponse
-	27, // 48: parts.v1.PartsService.CreateDefectReport:output_type -> parts.v1.CreateDefectReportResponse
-	26, // 49: parts.v1.PartsService.PreviewDefectReport:output_type -> parts.v1.PreviewDefectReportResponse
-	2,  // 50: parts.v1.PartsService.ListPartsForExport:output_type -> parts.v1.Part
-	30, // 51: parts.v1.PartsService.InventoryVersion:output_type -> parts.v1.InventoryVersionResponse
-	32, // 52: parts.v1.PartsService.BulkDeleteParts:output_type -> parts.v1.BulkDeletePartsResponse
-	38, // 53: parts.v1.PartsService.BulkUpdateParts:output_type -> parts.v1.BulkUpdatePartsResponse
-	40, // 54: parts.v1.PartsService.GetSupplierCodes:output_type -> parts.v1.SupplierCodesResponse
-	42, // 55: parts.v1.PartsService.DeleteZeroQuantityParts:output_type -> parts.v1.DeleteZeroQuantityPartsResponse
-	36, // [36:56] is the sub-list for method output_type
-	16, // [16:36] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	36, // 8: parts.v1.BulkDeletePartsRequest.scope:type_name -> parts.v1.BulkUpdateScope
+	0,  // 9: parts.v1.BulkPriceOperation.mode:type_name -> parts.v1.PriceOperationMode
+	34, // 10: parts.v1.BulkFieldOperations.price:type_name -> parts.v1.BulkPriceOperation
+	1,  // 11: parts.v1.BulkUpdateScope.type:type_name -> parts.v1.BulkScopeType
+	3,  // 12: parts.v1.BulkUpdateScope.filter:type_name -> parts.v1.GetInventoryRequest
+	44, // 13: parts.v1.BulkUpdatePartData.fields:type_name -> parts.v1.BulkUpdatePartData.FieldsEntry
+	37, // 14: parts.v1.BulkUpdatePartsRequest.parts:type_name -> parts.v1.BulkUpdatePartData
+	36, // 15: parts.v1.BulkUpdatePartsRequest.scope:type_name -> parts.v1.BulkUpdateScope
+	35, // 16: parts.v1.BulkUpdatePartsRequest.operations:type_name -> parts.v1.BulkFieldOperations
+	3,  // 17: parts.v1.PartsService.GetInventory:input_type -> parts.v1.GetInventoryRequest
+	9,  // 18: parts.v1.PartsService.AddPart:input_type -> parts.v1.AddPartRequest
+	10, // 19: parts.v1.PartsService.UpdatePart:input_type -> parts.v1.UpdatePartRequest
+	11, // 20: parts.v1.PartsService.DeletePart:input_type -> parts.v1.DeletePartRequest
+	13, // 21: parts.v1.PartsService.MarkPartForDeletion:input_type -> parts.v1.MarkPartForDeletionRequest
+	5,  // 22: parts.v1.PartsService.GetPart:input_type -> parts.v1.GetPartRequest
+	6,  // 23: parts.v1.PartsService.DuplicatePart:input_type -> parts.v1.DuplicatePartRequest
+	7,  // 24: parts.v1.PartsService.DecreasePartQuantity:input_type -> parts.v1.ChangePartQuantityRequest
+	7,  // 25: parts.v1.PartsService.IncreasePartQuantity:input_type -> parts.v1.ChangePartQuantityRequest
+	14, // 26: parts.v1.PartsService.UploadPartPhoto:input_type -> parts.v1.UploadPartPhotoChunk
+	16, // 27: parts.v1.PartsService.DeletePartPhoto:input_type -> parts.v1.DeletePartPhotoRequest
+	18, // 28: parts.v1.PartsService.GetStatistics:input_type -> parts.v1.GetStatisticsRequest
+	22, // 29: parts.v1.PartsService.UpdateEarnings:input_type -> parts.v1.UpdateEarningsRequest
+	25, // 30: parts.v1.PartsService.CreateDefectReport:input_type -> parts.v1.CreateDefectReportRequest
+	26, // 31: parts.v1.PartsService.PreviewDefectReport:input_type -> parts.v1.PreviewDefectReportRequest
+	29, // 32: parts.v1.PartsService.ListPartsForExport:input_type -> parts.v1.ListPartsForExportRequest
+	30, // 33: parts.v1.PartsService.InventoryVersion:input_type -> parts.v1.InventoryVersionRequest
+	32, // 34: parts.v1.PartsService.BulkDeleteParts:input_type -> parts.v1.BulkDeletePartsRequest
+	38, // 35: parts.v1.PartsService.BulkUpdateParts:input_type -> parts.v1.BulkUpdatePartsRequest
+	40, // 36: parts.v1.PartsService.GetSupplierCodes:input_type -> parts.v1.GetSupplierCodesRequest
+	42, // 37: parts.v1.PartsService.DeleteZeroQuantityParts:input_type -> parts.v1.DeleteZeroQuantityPartsRequest
+	4,  // 38: parts.v1.PartsService.GetInventory:output_type -> parts.v1.InventoryResponse
+	2,  // 39: parts.v1.PartsService.AddPart:output_type -> parts.v1.Part
+	2,  // 40: parts.v1.PartsService.UpdatePart:output_type -> parts.v1.Part
+	12, // 41: parts.v1.PartsService.DeletePart:output_type -> parts.v1.DeletePartResponse
+	2,  // 42: parts.v1.PartsService.MarkPartForDeletion:output_type -> parts.v1.Part
+	2,  // 43: parts.v1.PartsService.GetPart:output_type -> parts.v1.Part
+	2,  // 44: parts.v1.PartsService.DuplicatePart:output_type -> parts.v1.Part
+	8,  // 45: parts.v1.PartsService.DecreasePartQuantity:output_type -> parts.v1.ChangePartQuantityResponse
+	8,  // 46: parts.v1.PartsService.IncreasePartQuantity:output_type -> parts.v1.ChangePartQuantityResponse
+	15, // 47: parts.v1.PartsService.UploadPartPhoto:output_type -> parts.v1.UploadPartPhotoResponse
+	17, // 48: parts.v1.PartsService.DeletePartPhoto:output_type -> parts.v1.DeletePartPhotoResponse
+	21, // 49: parts.v1.PartsService.GetStatistics:output_type -> parts.v1.StatisticsResponse
+	23, // 50: parts.v1.PartsService.UpdateEarnings:output_type -> parts.v1.UpdateEarningsResponse
+	28, // 51: parts.v1.PartsService.CreateDefectReport:output_type -> parts.v1.CreateDefectReportResponse
+	27, // 52: parts.v1.PartsService.PreviewDefectReport:output_type -> parts.v1.PreviewDefectReportResponse
+	2,  // 53: parts.v1.PartsService.ListPartsForExport:output_type -> parts.v1.Part
+	31, // 54: parts.v1.PartsService.InventoryVersion:output_type -> parts.v1.InventoryVersionResponse
+	33, // 55: parts.v1.PartsService.BulkDeleteParts:output_type -> parts.v1.BulkDeletePartsResponse
+	39, // 56: parts.v1.PartsService.BulkUpdateParts:output_type -> parts.v1.BulkUpdatePartsResponse
+	41, // 57: parts.v1.PartsService.GetSupplierCodes:output_type -> parts.v1.SupplierCodesResponse
+	43, // 58: parts.v1.PartsService.DeleteZeroQuantityParts:output_type -> parts.v1.DeleteZeroQuantityPartsResponse
+	38, // [38:59] is the sub-list for method output_type
+	17, // [17:38] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_parts_v1_parts_proto_init() }
@@ -4691,15 +4769,15 @@ func file_parts_v1_parts_proto_init() {
 	if File_parts_v1_parts_proto != nil {
 		return
 	}
-	file_parts_v1_parts_proto_msgTypes[7].OneofWrappers = []any{}
-	file_parts_v1_parts_proto_msgTypes[32].OneofWrappers = []any{}
+	file_parts_v1_parts_proto_msgTypes[8].OneofWrappers = []any{}
+	file_parts_v1_parts_proto_msgTypes[33].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_parts_v1_parts_proto_rawDesc), len(file_parts_v1_parts_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   42,
+			NumMessages:   43,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -867,6 +867,37 @@
         ]
       }
     },
+    "/api/v1/parts/{id}/duplicate": {
+      "post": {
+        "operationId": "PartsService_DuplicatePart",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Part"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
     "/api/v1/parts/{id}/increase": {
       "post": {
         "operationId": "PartsService_IncreasePartQuantity",
@@ -1596,6 +1627,12 @@
             "type": "integer",
             "format": "int64"
           }
+        },
+        "scope": {
+          "$ref": "#/definitions/v1BulkUpdateScope"
+        },
+        "confirmEntireCatalog": {
+          "type": "boolean"
         }
       }
     },
@@ -1682,6 +1719,9 @@
         },
         "operations": {
           "$ref": "#/definitions/v1BulkFieldOperations"
+        },
+        "confirmEntireCatalog": {
+          "type": "boolean"
         }
       }
     },

@@ -5,7 +5,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Trash2, Edit, ShoppingCart, Plus, X, Crop, Copy, Check } from "lucide-react";
+import { Trash2, Edit, ShoppingCart, Plus, X, Crop, Copy, CopyPlus, Check } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { usePartEdit } from "@/hooks/usePartEdit";
-import { useDeletePart, partsKeys } from "@/hooks/useParts";
+import { useDeletePart, useDuplicatePart, partsKeys } from "@/hooks/useParts";
 import { useAuth } from "@/hooks/useAuth";
 import { partsApi } from "@/features/parts/api/partsApi";
 import PartOrderDialog from "./PartOrderDialog";
@@ -80,6 +80,8 @@ function PartBlock({
 
     const [copiedPhotoPath, setCopiedPhotoPath] = useState<string | null>(null);
     const [isPartCopied, setIsPartCopied] = useState(false);
+    const [isPartDuplicated, setIsPartDuplicated] = useState(false);
+    const [isDuplicating, setIsDuplicating] = useState(false);
 
     const handleCopyPhoto = async (photoPath: string, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -111,6 +113,23 @@ function PartBlock({
         initialPart: part,
     });
     const deletePartMutation = useDeletePart();
+    const duplicatePartMutation = useDuplicatePart();
+
+    const handleDuplicatePart = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (isDuplicating) return;
+        setIsDuplicating(true);
+        try {
+            await duplicatePartMutation.mutateAsync(part.id);
+            setIsPartDuplicated(true);
+            setTimeout(() => setIsPartDuplicated(false), 2000);
+        } catch (err) {
+            console.error('Ошибка дублирования детали:', err);
+            alert('Не удалось дублировать деталь');
+        } finally {
+            setIsDuplicating(false);
+        }
+    };
 
     // Обработчики долгого нажатия
     const handlePointerDown = (e: React.PointerEvent) => {
@@ -504,6 +523,28 @@ function PartBlock({
                             transition={{ duration: 0.1 }}
                         >
                             {isPartCopied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                        </motion.div>
+
+                        {/* Кнопка дублирования запчасти (создание копии без фото) */}
+                        <motion.div
+                            className={`w-8 h-8 flex items-center justify-center rounded hover:bg-accent cursor-pointer transition-colors ${
+                                isPartDuplicated
+                                    ? 'text-emerald-500 bg-emerald-500/10'
+                                    : isDuplicating
+                                    ? 'text-muted-foreground animate-pulse'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                            onClick={handleDuplicatePart}
+                            title={isPartDuplicated ? "Запчасть успешно продублирована!" : isDuplicating ? "Создание дубликата без фото..." : "Дублировать запчасть (без фото)"}
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            transition={{ duration: 0.1 }}
+                        >
+                            {isPartDuplicated ? (
+                                <Check className="h-4 w-4 text-emerald-500" />
+                            ) : (
+                                <CopyPlus className="h-4 w-4" />
+                            )}
                         </motion.div>
 
                         {/* Кнопка добавления в заказ */}

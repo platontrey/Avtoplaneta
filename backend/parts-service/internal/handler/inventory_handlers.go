@@ -112,6 +112,29 @@ func (h *Handler) AddPartHandler(c *gin.Context) {
 	})
 }
 
+// DuplicatePartHandler дублирует запчасть по ID без фото
+func (h *Handler) DuplicatePartHandler(c *gin.Context) {
+	partIDStr := c.Param("id")
+	partID, err := strconv.ParseInt(partIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный ID части"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	duplicatedPart, err := h.inventoryService.DuplicatePart(ctx, partID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось продублировать часть: " + err.Error()})
+		return
+	}
+
+	// Логируем дублирование запчасти
+	newID := duplicatedPart.ID
+	h.logUserActivity(c, "duplicate_part", "part", fmt.Sprintf("Duplicated part from ID %d to new ID %d: %s", partID, newID, duplicatedPart.Name), &newID)
+
+	c.JSON(http.StatusCreated, duplicatedPart)
+}
+
 // UpdatePartHandler обновляет запчасть по ID
 func (h *Handler) UpdatePartHandler(c *gin.Context) {
 	partIDStr := c.Param("id")

@@ -122,6 +122,15 @@ func (s *partsGRPCServer) GetPart(ctx context.Context, req *partsv1.GetPartReque
 	return partToProto(part), nil
 }
 
+// DuplicatePart дублирует существующую запчасть без фото
+func (s *partsGRPCServer) DuplicatePart(ctx context.Context, req *partsv1.DuplicatePartRequest) (*partsv1.Part, error) {
+	part, err := s.service.DuplicatePart(ctx, int64(req.Id))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "ошибка дублирования запчасти: %v", err)
+	}
+	return partToProto(part), nil
+}
+
 // DecreasePartQuantity уменьшает количество запчастей
 func (s *partsGRPCServer) DecreasePartQuantity(ctx context.Context, req *partsv1.ChangePartQuantityRequest) (*partsv1.ChangePartQuantityResponse, error) {
 	err := s.service.DecreasePartQuantity(ctx, int64(req.Id), int(req.Amount), req.OperationId)
@@ -639,16 +648,12 @@ func (s *partsGRPCServer) CreateDefectReport(ctx context.Context, req *partsv1.C
 
 // BulkDeleteParts массовое удаление
 func (s *partsGRPCServer) BulkDeleteParts(ctx context.Context, req *partsv1.BulkDeletePartsRequest) (*partsv1.BulkDeletePartsResponse, error) {
-	ids := make([]int64, len(req.Ids))
-	for i, id := range req.Ids {
-		ids[i] = int64(id)
-	}
-
-	if err := s.service.BulkDeleteParts(ctx, ids); err != nil {
+	deletedCount, err := s.service.BulkDeletePartsWithProto(ctx, req)
+	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось массово удалить запчасти: %v", err)
 	}
 
-	return &partsv1.BulkDeletePartsResponse{DeletedCount: int32(len(ids))}, nil
+	return &partsv1.BulkDeletePartsResponse{DeletedCount: int32(deletedCount)}, nil
 }
 
 // BulkUpdateParts массовое обновление

@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"runtime"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -38,6 +38,7 @@ type InventoryService interface {
 	// GetInventory Основные операции с запчастями
 	GetInventory(ctx context.Context, params domain.InventoryQueryParams) ([]domain.Part, error)  // Получает список запчастей с фильтрами
 	AddPart(ctx context.Context, part *domain.Part) (*domain.Part, error)                         // Добавляет новую запчасть
+	DuplicatePart(ctx context.Context, id int64) (*domain.Part, error)                           // Дублирует существующую запчасть без фото
 	UpdatePart(ctx context.Context, id int64, updates map[string]interface{}) error // Обновляет существующую запчасть
 	DeletePart(ctx context.Context, id int64) error                                 // Удаляет запчасть
 	MarkPartForDeletion(ctx context.Context, id int64) error                        // Отмечает запчасть для отложенного удаления
@@ -48,6 +49,7 @@ type InventoryService interface {
 
 	// BulkDeleteParts Админ операции
 	BulkDeleteParts(ctx context.Context, ids []int64) error                                    // Массовое удаление запчастей
+	BulkDeletePartsWithProto(ctx context.Context, req *partsv1.BulkDeletePartsRequest) (int, error) // Массовое удаление запчастей по Protobuf спецификации
 	BulkUpdateParts(ctx context.Context, req *partsv1.BulkUpdatePartsRequest) (int, error)     // Массовое обновление запчастей
 	DeleteZeroQuantityPartsBySupplier(ctx context.Context, supplierCode string) (int64, error) // Удаление по поставщику
 	GetSupplierCodes(ctx context.Context) ([]string, error)                                    // Получение кодов поставщиков
@@ -449,6 +451,46 @@ func (s *inventoryService) AddPart(ctx context.Context, part *domain.Part) (*dom
 	return createdPart, nil
 }
 
+// DuplicatePart создает дубликат существующей запчасти без фото
+func (s *inventoryService) DuplicatePart(ctx context.Context, id int64) (*domain.Part, error) {
+	source, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("запчасть не найдена: %w", err)
+	}
+
+	clone := *source
+	clone.ID = 0
+	clone.Photos = domain.StringArray{}
+	clone.Photo = ""
+	clone.ToDeleteAt = nil
+	if clone.Quantity < 0 {
+		clone.Quantity = 1
+	}
+
+	if err := s.repo.Create(ctx, &clone); err != nil {
+		return nil, fmt.Errorf("не удалось создать дубликат запчасти: %w", err)
+	}
+
+	created, err := s.repo.FindByID(ctx, clone.ID)
+	if err != nil {
+		return &clone, nil
+	}
+
+	// Индексируем в ES
+	if err := search.IndexPart(created); err != nil {
+		logrus.WithError(err).Warn("DuplicatePart: failed to index duplicated part in Elasticsearch")
+	}
+
+	// Сброс кэша
+	if s.redis != nil {
+		s.redis.Del(ctx, inventoryCacheKey)
+		s.redis.Del(ctx, inventoryCacheKeyWithoutPhotos)
+		s.invalidateStatisticsCache(ctx)
+	}
+
+	return created, nil
+}
+
 // AddPartsBatch пакетно валидирует, создает и индексирует запчасти (для дефектных ведомостей)
 func (s *inventoryService) AddPartsBatch(ctx context.Context, parts []domain.Part) ([]domain.Part, error) {
 	if len(parts) == 0 {
@@ -659,77 +701,216 @@ func (s *inventoryService) invalidateStatisticsCache(ctx context.Context) {
 	}
 }
 
+func isFilterEmpty(f *partsv1.GetInventoryRequest) bool {
+	if f == nil {
+		return true
+	}
+	return f.Search == "" && f.Category == "" && f.Brand == "" && f.Model == "" &&
+		f.Location == "" && f.Salesman == "" && f.Status == "" && f.Address == "" &&
+		f.Number == "" && f.OemCode == "" && f.Vin == "" && f.BodyBrand == "" &&
+		f.EngineBrand == "" && f.CarReleaseDate == "" && f.CarReleasePeriod == "" &&
+		f.Transmission == "" && f.Drive == "" && f.Condition == "" &&
+		f.Manufacturer == "" && f.Defect == "" && f.Color == "" &&
+		f.MinPrice == "" && f.MaxPrice == "" && f.MinQuantity == "" && f.MaxQuantity == "" &&
+		f.FrontRear == "" && f.LeftRight == "" && f.TopBottom == "" &&
+		f.ManufacturerCode == "" && f.SupplierCode == "" && f.TransmissionModel == "" &&
+		f.WearPercentage == "" && f.Season == "" && f.Diameter == "" &&
+		f.Width == "" && f.Profile == "" && f.TireQuantity == "" && f.Drilling == "" &&
+		f.Offset == "" && f.CenterHoleDiameter == "" && f.TireModel == ""
+}
+
+func inventoryQueryParamsFromProtoFilter(f *partsv1.GetInventoryRequest) domain.InventoryQueryParams {
+	if f == nil {
+		return domain.InventoryQueryParams{}
+	}
+	return domain.InventoryQueryParams{
+		Search:             f.Search,
+		Category:           f.Category,
+		Brand:              f.Brand,
+		Model:              f.Model,
+		Location:           f.Location,
+		Address:            f.Address,
+		Salesman:           f.Salesman,
+		Status:             f.Status,
+		HasPhoto:           f.HasPhoto,
+		Number:             f.Number,
+		OEMCode:            f.OemCode,
+		VIN:                f.Vin,
+		BodyBrand:          f.BodyBrand,
+		EngineBrand:        f.EngineBrand,
+		CarReleaseDate:     f.CarReleaseDate,
+		CarReleasePeriod:   f.CarReleasePeriod,
+		Transmission:       f.Transmission,
+		Drive:              f.Drive,
+		Condition:          f.Condition,
+		Manufacturer:       f.Manufacturer,
+		Defect:             f.Defect,
+		Color:              f.Color,
+		MinPrice:           f.MinPrice,
+		MaxPrice:           f.MaxPrice,
+		MinQuantity:        f.MinQuantity,
+		MaxQuantity:        f.MaxQuantity,
+		FrontRear:          f.FrontRear,
+		LeftRight:          f.LeftRight,
+		TopBottom:          f.TopBottom,
+		ManufacturerCode:   f.ManufacturerCode,
+		SupplierCode:       f.SupplierCode,
+		TransmissionModel:  f.TransmissionModel,
+		WearPercentage:     f.WearPercentage,
+		Season:             f.Season,
+		Diameter:           f.Diameter,
+		Width:              f.Width,
+		Profile:            f.Profile,
+		TireQuantity:       f.TireQuantity,
+		Drilling:           f.Drilling,
+		Offset:             f.Offset,
+		CenterHoleDiameter: f.CenterHoleDiameter,
+		TireModel:          f.TireModel,
+		Limit:              10000,
+		Page:               1,
+	}
+}
+
+func (s *inventoryService) resolvePartIDsFromFilter(ctx context.Context, f *partsv1.GetInventoryRequest) ([]int64, error) {
+	params := inventoryQueryParamsFromProtoFilter(f)
+
+	if s.shouldUseElasticsearch(params) {
+		esQuery := s.buildElasticsearchQuery(params)
+		esParts, _, err := s.es.SearchParts(esQuery, 0, 10000)
+		if err != nil {
+			logrus.WithError(err).Warn("resolvePartIDsFromFilter: Failed to search via Elasticsearch, falling back to database")
+		} else {
+			ids := make([]int64, len(esParts))
+			for i, p := range esParts {
+				ids[i] = p.ID
+			}
+			return ids, nil
+		}
+	}
+
+	filterMap := s.buildDatabaseFilters(params)
+	filterMap["to_delete_at_is_null"] = true
+	filterMap["quantity_gte"] = 0
+
+	dbParts, err := s.repo.FindWithFilters(ctx, filterMap, 0, 10000)
+	if err != nil {
+		return nil, fmt.Errorf("resolvePartIDsFromFilter: database query failed: %w", err)
+	}
+	ids := make([]int64, len(dbParts))
+	for i, p := range dbParts {
+		ids[i] = p.ID
+	}
+	return ids, nil
+}
+
 // BulkDeleteParts удаляет несколько запчастей с использованием worker pool для параллельной обработки
 func (s *inventoryService) BulkDeleteParts(ctx context.Context, ids []int64) error {
+	protoIds := make([]uint32, len(ids))
+	for i, id := range ids {
+		protoIds[i] = uint32(id)
+	}
+	_, err := s.BulkDeletePartsWithProto(ctx, &partsv1.BulkDeletePartsRequest{
+		Ids: protoIds,
+	})
+	return err
+}
+
+// BulkDeletePartsWithProto выполняет массовое удаление запчастей по Protobuf спецификации
+func (s *inventoryService) BulkDeletePartsWithProto(ctx context.Context, req *partsv1.BulkDeletePartsRequest) (int, error) {
+	if req == nil {
+		return 0, nil
+	}
+
+	var ids []int64
+
+	if req.Scope != nil && req.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_FILTER {
+		if isFilterEmpty(req.Scope.Filter) && !req.ConfirmEntireCatalog {
+			return 0, fmt.Errorf("массовое удаление всего каталога требует явного подтверждения (confirm_entire_catalog)")
+		}
+		resolved, err := s.resolvePartIDsFromFilter(ctx, req.Scope.Filter)
+		if err != nil {
+			return 0, fmt.Errorf("ошибка выборки запчастей для удаления: %w", err)
+		}
+		ids = resolved
+	} else if req.Scope != nil && (req.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_IDS || len(req.Scope.Ids) > 0) {
+		ids = make([]int64, len(req.Scope.Ids))
+		for i, id := range req.Scope.Ids {
+			ids[i] = int64(id)
+		}
+	} else if len(req.Ids) > 0 {
+		ids = make([]int64, len(req.Ids))
+		for i, id := range req.Ids {
+			ids[i] = int64(id)
+		}
+	}
+
+	if len(ids) == 0 {
+		return 0, nil
+	}
+
 	logrus.WithFields(logrus.Fields{
-		"ids":   ids,
 		"count": len(ids),
-	}).Info("InventoryService.BulkDeleteParts: Starting bulk delete")
+	}).Info("InventoryService.BulkDeletePartsWithProto: Starting bulk delete")
 
-	// Worker pool для параллельной обработки удаления фото и ES индекса
-	numWorkers := runtime.NumCPU() // Используем все доступные ядра
-	jobs := make(chan int64, len(ids))
-	var wg sync.WaitGroup
-
-	// Запуск воркеров
-	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for id := range jobs {
-				part, err := s.repo.FindByID(ctx, id)
-				if err != nil {
-					logrus.WithError(err).WithField("id", id).Warn("InventoryService.BulkDeleteParts: Failed to find part for photo deletion")
-					continue
-				}
-
-				// Удаляем все фото если есть
-				for _, photoPath := range part.Photos {
-					if photoPath != "" {
-						if err := DeletePhotoFile(photoPath); err != nil {
-							logrus.WithError(err).WithFields(logrus.Fields{
-								"id":        id,
-								"photoPath": photoPath,
-							}).Warn("InventoryService.BulkDeleteParts: Failed to delete photo file")
-						}
-					}
-				}
-
-				// Отправляем событие удаления из индекса в Redis Stream
-				err = s.redis.XAdd(ctx, &redis.XAddArgs{
-					Stream: "events:orders",
-					Values: map[string]interface{}{
-						"type":    "part_delete_requested",
-						"part_id": fmt.Sprintf("%d", id),
-					},
-				}).Err()
-				if err != nil {
-					logrus.WithError(err).WithField("id", id).Warn("Failed to publish part_delete_requested to Redis")
+	// 1. Считываем фотографии для последующего фонового удаления файлов с диска
+	partsToDelete, err := s.repo.FindWithFilters(ctx, map[string]interface{}{"ids_in": ids}, 0, len(ids))
+	var photosToDelete []string
+	if err == nil {
+		for _, p := range partsToDelete {
+			for _, photo := range p.Photos {
+				if strings.TrimSpace(photo) != "" {
+					photosToDelete = append(photosToDelete, photo)
 				}
 			}
-		}()
+		}
 	}
 
-	// Отправка заданий
-	for _, id := range ids {
-		jobs <- id
-	}
-	close(jobs)
-
-	// Ожидание завершения воркеров
-	wg.Wait()
-
-	err := s.repo.BulkDelete(ctx, ids)
-	if err != nil {
-		logrus.WithError(err).Error("InventoryService.BulkDeleteParts: Failed to bulk delete")
-		return err
+	// 2. Мгновенное удаление записей в PostgreSQL (транзакция 50-150 мс)
+	if err := s.repo.BulkDelete(ctx, ids); err != nil {
+		logrus.WithError(err).Error("InventoryService.BulkDeletePartsWithProto: Failed to bulk delete in database")
+		return 0, err
 	}
 
-	// Инвалидируем кэш статистики
-	s.invalidateStatisticsCache(ctx)
+	// 3. Пакетное удаление из Elasticsearch
+	if err := search.BulkDeletePartsFromIndex(ctx, ids); err != nil {
+		logrus.WithError(err).Warn("InventoryService.BulkDeletePartsWithProto: Failed to bulk delete from Elasticsearch")
+	}
 
-	logrus.Info("InventoryService.BulkDeleteParts: Successfully completed bulk delete")
-	return nil
+	// 4. Сброс Redis-кэша инвентаря и статистики
+	if s.redis != nil {
+		s.redis.Del(ctx, inventoryCacheKey)
+		s.redis.Del(ctx, inventoryCacheKeyWithoutPhotos)
+		s.invalidateStatisticsCache(ctx)
+	}
+
+	// 5. Фоновая зачистка физических файлов фото с диска и отправка событий в Redis Streams
+	if len(photosToDelete) > 0 || len(ids) > 0 {
+		go func(photos []string, deletedIDs []int64) {
+			bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+			defer cancel()
+
+			for _, photo := range photos {
+				if err := DeletePhotoFile(photo); err != nil {
+					logrus.WithError(err).WithField("photo", photo).Warn("Failed to delete photo file in background")
+				}
+			}
+
+			if s.redis != nil {
+				for _, id := range deletedIDs {
+					_ = s.redis.XAdd(bgCtx, &redis.XAddArgs{
+						Stream: "events:orders",
+						Values: map[string]interface{}{
+							"type":    "part_delete_requested",
+							"part_id": fmt.Sprintf("%d", id),
+						},
+					}).Err()
+				}
+			}
+		}(photosToDelete, ids)
+	}
+
+	logrus.WithField("deleted_count", len(ids)).Info("InventoryService.BulkDeletePartsWithProto: Successfully deleted parts")
+	return len(ids), nil
 }
 
 // BulkUpdateParts обновляет запчасти по Protobuf спецификации
@@ -748,52 +929,31 @@ func (s *inventoryService) BulkUpdateParts(ctx context.Context, req *partsv1.Bul
 
 	// Сценарий 1: Умный Scope (по IDs или по Filter)
 	if req.Scope != nil {
+		if req.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_FILTER {
+			if isFilterEmpty(req.Scope.Filter) && !req.ConfirmEntireCatalog {
+				return 0, fmt.Errorf("массовая операция над всем каталогом требует явного подтверждения (confirm_entire_catalog)")
+			}
+
+			params := inventoryQueryParamsFromProtoFilter(req.Scope.Filter)
+			if s.shouldUseElasticsearch(params) {
+				resolvedIDs, err := s.resolvePartIDsFromFilter(ctx, req.Scope.Filter)
+				if err != nil {
+					return 0, fmt.Errorf("ошибка разрешения списка запчастей: %w", err)
+				}
+				if len(resolvedIDs) == 0 {
+					return 0, nil
+				}
+				req.Scope.Type = partsv1.BulkScopeType_BULK_SCOPE_TYPE_IDS
+				req.Scope.Ids = make([]uint32, len(resolvedIDs))
+				for i, id := range resolvedIDs {
+					req.Scope.Ids[i] = uint32(id)
+				}
+			}
+		}
+
 		var filterMap map[string]interface{}
 		if req.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_FILTER && req.Scope.Filter != nil {
-			params := domain.InventoryQueryParams{
-				Search:             req.Scope.Filter.Search,
-				Category:           req.Scope.Filter.Category,
-				Brand:              req.Scope.Filter.Brand,
-				Model:              req.Scope.Filter.Model,
-				Location:           req.Scope.Filter.Location,
-				Address:            req.Scope.Filter.Address,
-				Salesman:           req.Scope.Filter.Salesman,
-				Status:             req.Scope.Filter.Status,
-				HasPhoto:           req.Scope.Filter.HasPhoto,
-				Number:             req.Scope.Filter.Number,
-				OEMCode:            req.Scope.Filter.OemCode,
-				VIN:                req.Scope.Filter.Vin,
-				BodyBrand:          req.Scope.Filter.BodyBrand,
-				EngineBrand:        req.Scope.Filter.EngineBrand,
-				CarReleaseDate:     req.Scope.Filter.CarReleaseDate,
-				CarReleasePeriod:   req.Scope.Filter.CarReleasePeriod,
-				Transmission:       req.Scope.Filter.Transmission,
-				Drive:              req.Scope.Filter.Drive,
-				Condition:          req.Scope.Filter.Condition,
-				Manufacturer:       req.Scope.Filter.Manufacturer,
-				Defect:             req.Scope.Filter.Defect,
-				Color:              req.Scope.Filter.Color,
-				MinPrice:           req.Scope.Filter.MinPrice,
-				MaxPrice:           req.Scope.Filter.MaxPrice,
-				MinQuantity:        req.Scope.Filter.MinQuantity,
-				MaxQuantity:        req.Scope.Filter.MaxQuantity,
-				FrontRear:          req.Scope.Filter.FrontRear,
-				LeftRight:          req.Scope.Filter.LeftRight,
-				TopBottom:          req.Scope.Filter.TopBottom,
-				ManufacturerCode:   req.Scope.Filter.ManufacturerCode,
-				SupplierCode:       req.Scope.Filter.SupplierCode,
-				TransmissionModel:  req.Scope.Filter.TransmissionModel,
-				WearPercentage:     req.Scope.Filter.WearPercentage,
-				Season:             req.Scope.Filter.Season,
-				Diameter:           req.Scope.Filter.Diameter,
-				Width:              req.Scope.Filter.Width,
-				Profile:            req.Scope.Filter.Profile,
-				TireQuantity:       req.Scope.Filter.TireQuantity,
-				Drilling:           req.Scope.Filter.Drilling,
-				Offset:             req.Scope.Filter.Offset,
-				CenterHoleDiameter: req.Scope.Filter.CenterHoleDiameter,
-				TireModel:          req.Scope.Filter.TireModel,
-			}
+			params := inventoryQueryParamsFromProtoFilter(req.Scope.Filter)
 			filterMap = s.buildDatabaseFilters(params)
 			filterMap["to_delete_at_is_null"] = true
 			filterMap["quantity_gte"] = 0
