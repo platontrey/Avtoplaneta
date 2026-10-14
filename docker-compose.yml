@@ -237,7 +237,7 @@ services:
       - "traefik.enable=true"
       # Публичный прайс-лист XML
       - "traefik.http.routers.export-pricelist.rule=(Host(`${PUBLIC_DOMAIN:-backend-server.ru}`) || Host(`www.${PUBLIC_DOMAIN:-backend-server.ru}`)) && Path(`/uploads/pricelist.xml`)"
-      - "traefik.http.routers.export-pricelist.priority=100"
+      - "traefik.http.routers.export-pricelist.priority=1000"
       - "traefik.http.routers.export-pricelist.entrypoints=websecure"
       - "traefik.http.routers.export-pricelist.tls=true"
       - "traefik.http.routers.export-pricelist.tls.certresolver=letsencrypt"

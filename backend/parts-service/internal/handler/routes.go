@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -125,7 +127,11 @@ func CORSMiddleware() gin.HandlerFunc {
 // uploadsCacheControl проставляет политику кэширования для файлов из /uploads.
 func uploadsCacheControl() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		if strings.HasSuffix(c.Request.URL.Path, "pricelist.xml") {
+			c.Header("Cache-Control", "no-cache")
+		} else {
+			c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		}
 		c.Next()
 	}
 }
