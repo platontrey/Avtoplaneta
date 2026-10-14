@@ -373,7 +373,7 @@ function PartBlock({
     if (isLoading) {
         return (
             <motion.div
-                className="border rounded-lg mb-2 p-4 part-card-virtual"
+                className="border rounded-lg mb-2 p-4"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
@@ -417,15 +417,13 @@ function PartBlock({
 
     return (
         <motion.div
-            className="bg-card border border-border rounded-lg mb-4 relative group hover:shadow-md transition-shadow p-4 part-card-virtual"
-            initial={{ opacity: 0, y: 20 }}
+            className="bg-card border border-border rounded-lg mb-4 relative group hover:shadow-md transition-shadow p-4"
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
-                duration: 1.0,
+                duration: 0.25,
                 ease: [0.25, 0.46, 0.45, 0.94],
-                delay: 0.1
             }}
-            layout
             onClick={(e) => e.stopPropagation()}
             onPointerDown={handlePointerDown}
             onPointerUp={handlePointerUp}
@@ -627,30 +625,12 @@ function PartBlock({
 
                 {/* Развёрнутый контент с деталями детали */}
                 <AccordionContent>
-                    <motion.div
-                        className="hover:bg-accent/50 border-t border-border pt-3 px-4"
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.3, ease: "easeInOut" }}
-                    >
-                        <motion.div
-                            className="space-y-1"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1, duration: 0.3 }}
-                        >
+                    <div className="hover:bg-accent/50 border-t border-border pt-3 px-4">
+                        <div className="space-y-1">
                             {/* Отображение фото в развёрнутом виде */}
                             {(part.photos && part.photos.length > 0) && (
-                                <AnimatePresence>
-                                    <motion.div
-                                        className="mb-3"
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -20 }}
-                                        transition={{ duration: 1.0, delay: 0.1 }}
-                                    >
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                <div className="mb-3">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                                              {part.photos.map((photoPath, index) => (
                                                 <div key={index} className="relative group">
                                                     <button
@@ -731,12 +711,7 @@ function PartBlock({
 
                                         {/* Кнопка добавления фото */}
                                         {user?.role === 'admin' && (
-                                            <motion.div
-                                                className="mt-3"
-                                                initial={{ opacity: 0, y: 20 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                transition={{ duration: 0.3, delay: 0.2 }}
-                                            >
+                                            <div className="mt-3">
                                                 <label className="inline-block">
                                                     <input
                                                         type="file"
@@ -756,10 +731,9 @@ function PartBlock({
                                                         </span>
                                                     </Button>
                                                 </label>
-                                            </motion.div>
+                                            </div>
                                         )}
-                                    </motion.div>
-                                </AnimatePresence>
+                                    </div>
                             )}
                             <div className="w-full space-y-4 pt-2">
                                 <h4 className="font-semibold text-xs tracking-wider uppercase text-muted-foreground flex items-center gap-2">
@@ -770,36 +744,26 @@ function PartBlock({
 
                                 {/* Описание запчасти */}
                                 {part.description && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ duration: 0.2 }}
-                                        className="bg-muted/40 border border-border/60 rounded-xl p-3 text-sm"
-                                    >
+                                    <div className="bg-muted/40 border border-border/60 rounded-xl p-3 text-sm">
                                         <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                                             Описание
                                         </div>
                                         <div className="text-foreground whitespace-pre-line leading-relaxed">
                                             {part.description}
                                         </div>
-                                    </motion.div>
+                                    </div>
                                 )}
 
                                 {/* Информация о дефекте */}
                                 {(part.category !== 'Автохимия и масла' && part.category !== 'Аксессуары и тюннинг') && part.defect && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ duration: 0.2 }}
-                                        className="bg-amber-500/10 border border-amber-500/25 text-amber-950 dark:text-amber-200 rounded-xl p-3 text-sm flex items-start gap-2.5"
-                                    >
+                                    <div className="bg-amber-500/10 border border-amber-500/25 text-amber-950 dark:text-amber-200 rounded-xl p-3 text-sm flex items-start gap-2.5">
                                         <div className="flex-1">
                                             <div className="text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-0.5">
                                                 Дефект
                                             </div>
                                             <div className="font-medium">{part.defect}</div>
                                         </div>
-                                    </motion.div>
+                                    </div>
                                 )}
 
                                 {/* Адаптивная сетка карточек характеристик */}
@@ -858,11 +822,8 @@ function PartBlock({
                                                 return true;
                                             })
                                             .map((item, idx) => (
-                                                <motion.div
+                                                <div
                                                     key={idx}
-                                                    initial={{ opacity: 0, y: 10 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    transition={{ delay: Math.min(idx * 0.03, 0.4), duration: 0.2 }}
                                                     className="bg-muted/40 hover:bg-muted/70 border border-border/60 rounded-xl p-2.5 flex flex-col justify-between transition-colors min-h-[58px]"
                                                 >
                                                     <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground truncate" title={item.label}>
@@ -871,13 +832,13 @@ function PartBlock({
                                                     <span className="text-sm font-semibold text-foreground break-words mt-0.5 line-clamp-2" title={String(item.value)}>
                                                         {item.value}
                                                     </span>
-                                                </motion.div>
+                                                </div>
                                             ));
                                     })()}
                                 </div>
                             </div>
-                        </motion.div>
-                    </motion.div>
+                        </div>
+                    </div>
                 </AccordionContent>
             </AccordionItem>
 
