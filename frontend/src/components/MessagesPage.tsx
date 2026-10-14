@@ -3,7 +3,7 @@
 */
 
 import { useState, useEffect } from 'react';
-import { MessageCircle, RefreshCw, Settings, ArrowLeft, ExternalLink, Tag } from 'lucide-react';
+import { MessageCircle, RefreshCw, Settings, ArrowLeft, ExternalLink, Tag, KeyRound } from 'lucide-react';
 import type { Conversation, DromDialog, DromMessage } from '../features/messaging/types';
 import { useAuth } from '../features/auth/hooks/useAuth';
 import { messagingApi } from '../features/messaging/api/messagingApi';
@@ -11,6 +11,7 @@ import ChatList from './ChatList';
 import ChatWindow from './ChatWindow';
 import CreateChatDialog from './CreateChatDialog';
 import ChatSettings, { type ChatSettingsData } from './ChatSettings';
+import DromAuthDialog from './DromAuthDialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { sanitizeHtml } from '@/lib/security';
@@ -20,6 +21,7 @@ export default function MessagesPage() {
     const [activeTab, setActiveTab] = useState<'messages' | 'drom' | 'settings'>('messages');
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
     const [isCreateChatOpen, setIsCreateChatOpen] = useState(false);
+    const [isDromAuthOpen, setIsDromAuthOpen] = useState(false);
     const [chatSettings, setChatSettings] = useState<ChatSettingsData>({
       enableAutoRefresh: true,
       refreshInterval: 30,
@@ -313,14 +315,28 @@ export default function MessagesPage() {
                 <div className="p-4 border-b border-border">
                   <div className="flex items-center justify-between">
                     <h3 className="font-medium">Drom диалоги</h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleFetchDromMessages}
-                      disabled={dromFetching}
-                    >
-                      <RefreshCw className={`w-4 h-4 ${dromFetching ? 'animate-spin' : ''}`} />
-                    </Button>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsDromAuthOpen(true)}
+                        title="Авторизация на Drom.ru"
+                        className="h-8 px-2 text-xs gap-1.5"
+                      >
+                        <KeyRound className="w-4 h-4 text-primary" />
+                        <span className="hidden sm:inline">Аккаунт</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleFetchDromMessages}
+                        disabled={dromFetching}
+                        title="Обновить список диалогов"
+                        className="h-8 w-8 p-0"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${dromFetching ? 'animate-spin' : ''}`} />
+                      </Button>
+                    </div>
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto">
@@ -378,8 +394,22 @@ export default function MessagesPage() {
                       </div>
                     ))
                   ) : (
-                    <div className="p-4 text-center text-muted-foreground">
-                      Нет диалогов. Нажмите обновить для загрузки.
+                    <div className="p-6 text-center text-muted-foreground flex flex-col items-center justify-center gap-3">
+                      <KeyRound className="w-8 h-8 text-muted-foreground/50" />
+                      <div>
+                        <p className="font-medium text-foreground text-sm">Нет загруженных диалогов</p>
+                        <p className="text-xs text-muted-foreground mt-1">Проверьте авторизацию на Drom.ru или обновите список сообщений</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2 justify-center mt-1">
+                        <Button variant="outline" size="sm" onClick={() => setIsDromAuthOpen(true)} className="gap-1.5 text-xs">
+                          <KeyRound className="w-3.5 h-3.5 text-primary" />
+                          Авторизация Drom
+                        </Button>
+                        <Button variant="default" size="sm" onClick={handleFetchDromMessages} disabled={dromFetching} className="gap-1.5 text-xs">
+                          <RefreshCw className={`w-3.5 h-3.5 ${dromFetching ? 'animate-spin' : ''}`} />
+                          Обновить
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -520,6 +550,14 @@ export default function MessagesPage() {
         onClose={() => setIsCreateChatOpen(false)}
         onSuccess={handleCreateChatSuccess}
         currentUser={currentUser}
+      />
+
+      <DromAuthDialog
+        isOpen={isDromAuthOpen}
+        onClose={() => setIsDromAuthOpen(false)}
+        onSuccess={() => {
+          handleFetchDromMessages();
+        }}
       />
     </div>
   );

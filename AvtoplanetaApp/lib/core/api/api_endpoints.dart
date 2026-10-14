@@ -42,4 +42,9 @@ abstract class ApiEndpoints {
   // Messaging
   static const String conversations = '/api/messaging/conversations';
   static const String messagingUsers = '/api/messaging/users';
+  static const String dromDialogs = '/api/messaging/drom/dialogs';
+  static const String dromMessages = '/api/messaging/drom/messages';
+  static const String dromAuthStatus = '/api/messaging/drom/auth/status';
+  static const String dromAuthLogin = '/api/messaging/drom/auth/login';
+  static const String dromAuthSession = '/api/messaging/drom/auth/session';
 }

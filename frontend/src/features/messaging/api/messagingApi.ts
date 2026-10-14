@@ -240,6 +240,43 @@ class MessagingApi {
     return this.getDromDialogs();
   }
 
+  async getDromAuthStatus(): Promise<{ authenticated: boolean; dialogs_count?: number; checked_at?: string; error?: string }> {
+    const response = await fetch(`${MESSAGING_BASE_URL}/drom/auth/status`, {
+      headers: this.getHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to fetch Drom auth status');
+    return response.json();
+  }
+
+  async loginDrom(login: string, password: string, code?: string): Promise<{ success: boolean; need_code?: boolean; message?: string; error?: string }> {
+    const response = await fetch(`${MESSAGING_BASE_URL}/drom/auth/login`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ login, password, code }),
+    });
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error || 'Ошибка авторизации на Drom');
+    }
+    return response.json();
+  }
+
+  async saveDromSession(sessionData: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    const response = await fetch(`${MESSAGING_BASE_URL}/drom/auth/session`, {
+      method: 'POST',
+      headers: {
+        ...this.getHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: sessionData,
+    });
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error || 'Ошибка сохранения сессии');
+    }
+    return response.json();
+  }
+
 }
 
 export const messagingApi = new MessagingApi();

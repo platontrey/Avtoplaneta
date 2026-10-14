@@ -121,6 +121,9 @@ func registerMessagingEndpoints(api *gin.RouterGroup) {
 	api.GET("/drom/dialogs", getDromDialogs)
 	api.GET("/drom/messages", getDromMessages)
 	api.POST("/drom/messages", sendDromMessage)
+	api.GET("/drom/auth/status", getDromAuthStatus)
+	api.POST("/drom/auth/login", loginDrom)
+	api.POST("/drom/auth/session", saveDromSession)
 }
 
 func metricsMiddleware() gin.HandlerFunc {
