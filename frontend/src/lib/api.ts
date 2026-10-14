@@ -38,7 +38,14 @@ export async function safeFetchJson<T = unknown>(
       throw new Error(`Ошибка сервера (${response.status}): получен HTML вместо JSON ответа API.`);
     }
     const errorText = await response.text();
-    throw new Error(`Ошибка запроса (${response.status}): ${errorText || response.statusText}`);
+    let message = errorText;
+    try {
+      const parsed = JSON.parse(errorText);
+      message = parsed.error || parsed.details || parsed.message || errorText;
+    } catch {
+      // не JSON
+    }
+    throw new Error(message || `Ошибка запроса (${response.status}): ${response.statusText}`);
   }
 
   if (contentType.includes('text/html')) {

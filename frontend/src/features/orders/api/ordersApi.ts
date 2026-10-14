@@ -1,4 +1,9 @@
+/*
+ * Copyright (c) 2025 Avtoplaneta. All rights reserved.
+ */
+
 import { getAuthHeaders } from '@/lib/csrf';
+import { safeFetchJson } from '@/lib/api';
 import type { Order } from '@/lib/types';
 import { logUserActivity } from '../../admin/api/adminApi';
 
@@ -40,102 +45,54 @@ export interface UpdateOrderDetailsPayload {
   discount?: number;
 }
 
-export const getOrders = async (): Promise<Order[]> => {
-  const response = await fetch(`${ORDERS_API_URL}/api/v1/orders`, {
-    credentials: 'include',
-    headers: getAuthHeaders(),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch orders: ${response.status}`);
-  }
-
-  return response.json();
-};
-
-export const getCompletedOrders = async (): Promise<Order[]> => {
-  const response = await fetch(`${ORDERS_API_URL}/api/v1/orders?state=completed`, {
-    credentials: 'include',
-    headers: getAuthHeaders(),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch completed orders: ${response.status}`);
-  }
-
-  return response.json();
-};
-
-export const updateOrderStatus = async (orderId: number, status: string) => {
-  const response = await fetch(`${ORDERS_API_URL}/api/v1/orders/${orderId}/status`, {
-    method: 'PUT',
-    headers: getAuthHeaders(),
-    credentials: 'include',
-    body: JSON.stringify({ status }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to update order status: ${errorText}`);
-  }
-
-  return response.json();
-};
-
-export const updateOrderDetails = async (orderId: number, payload: UpdateOrderDetailsPayload): Promise<Order> => {
-  const response = await fetch(`${ORDERS_API_URL}/api/v1/orders/${orderId}`, {
-    method: 'PATCH',
-    headers: getAuthHeaders(),
-    credentials: 'include',
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to update order details: ${errorText}`);
-  }
-
-  return response.json();
-};
-
 export interface AddOrderItemPayload {
   part_id: number;
   quantity: number;
   price?: number;
 }
 
-async function getErrorMessage(response: Response, fallback: string): Promise<string> {
-  try {
-    const text = await response.text();
-    if (!text) return fallback;
-    try {
-      const data = JSON.parse(text);
-      return data.error || data.details || data.message || text;
-    } catch {
-      return text;
-    }
-  } catch {
-    return fallback;
-  }
-}
+export const getOrders = async (): Promise<Order[]> => {
+  return safeFetchJson<Order[]>(`${ORDERS_API_URL}/api/v1/orders`, {
+    credentials: 'include',
+    headers: getAuthHeaders(),
+  });
+};
+
+export const getCompletedOrders = async (): Promise<Order[]> => {
+  return safeFetchJson<Order[]>(`${ORDERS_API_URL}/api/v1/orders?state=completed`, {
+    credentials: 'include',
+    headers: getAuthHeaders(),
+  });
+};
+
+export const updateOrderStatus = async (orderId: number, status: string) => {
+  return safeFetchJson(`${ORDERS_API_URL}/api/v1/orders/${orderId}/status`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ status }),
+  });
+};
+
+export const updateOrderDetails = async (orderId: number, payload: UpdateOrderDetailsPayload): Promise<Order> => {
+  return safeFetchJson<Order>(`${ORDERS_API_URL}/api/v1/orders/${orderId}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+};
 
 export const addOrderItem = async (
   orderId: number,
   payload: AddOrderItemPayload
 ) => {
-  const response = await fetch(`${ORDERS_API_URL}/api/v1/orders/${orderId}/items`, {
+  return safeFetchJson(`${ORDERS_API_URL}/api/v1/orders/${orderId}/items`, {
     method: 'POST',
     headers: getAuthHeaders(),
     credentials: 'include',
     body: JSON.stringify(payload),
   });
-
-  if (!response.ok) {
-    const errorMsg = await getErrorMessage(response, `Не удалось добавить деталь в заказ: HTTP ${response.status}`);
-    throw new Error(errorMsg);
-  }
-
-  return response.json();
 };
 
 export const updateOrderItem = async (
@@ -143,68 +100,40 @@ export const updateOrderItem = async (
   itemId: number,
   payload: { quantity?: number; price?: number }
 ) => {
-  const response = await fetch(`${ORDERS_API_URL}/api/v1/orders/${orderId}/items/${itemId}`, {
+  return safeFetchJson(`${ORDERS_API_URL}/api/v1/orders/${orderId}/items/${itemId}`, {
     method: 'PATCH',
     headers: getAuthHeaders(),
     credentials: 'include',
     body: JSON.stringify(payload),
   });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to update order item: ${errorText}`);
-  }
-
-  return response.json();
 };
 
 export const deleteOrderItem = async (orderId: number, itemId: number) => {
-  const response = await fetch(`${ORDERS_API_URL}/api/v1/orders/${orderId}/items/${itemId}`, {
+  return safeFetchJson(`${ORDERS_API_URL}/api/v1/orders/${orderId}/items/${itemId}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
     credentials: 'include',
   });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to delete order item: ${errorText}`);
-  }
-
-  return response.json();
 };
 
 export const deleteOrder = async (orderId: number) => {
-  const response = await fetch(`${ORDERS_API_URL}/api/v1/orders/${orderId}`, {
+  return safeFetchJson(`${ORDERS_API_URL}/api/v1/orders/${orderId}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
     credentials: 'include',
   });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to delete order: ${errorText}`);
-  }
-
-  return response.json();
 };
 
 export const completeOrder = async (orderId: number) => {
-  const response = await fetch(`${ORDERS_API_URL}/api/v1/orders/${orderId}/complete`, {
+  return safeFetchJson(`${ORDERS_API_URL}/api/v1/orders/${orderId}/complete`, {
     method: 'PUT',
     headers: getAuthHeaders(),
     credentials: 'include',
   });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to complete order: ${errorText}`);
-  }
-
-  return response.json();
 };
 
 export const createOrder = async (orderData: CreateOrderPayload): Promise<Order> => {
-  const response = await fetch(`${ORDERS_API_URL}/api/v1/orders`, {
+  const result = await safeFetchJson<Order>(`${ORDERS_API_URL}/api/v1/orders`, {
     method: 'POST',
     headers: getAuthHeaders(),
     credentials: 'include',
@@ -213,13 +142,6 @@ export const createOrder = async (orderData: CreateOrderPayload): Promise<Order>
       ...orderData,
     }),
   });
-
-  if (!response.ok) {
-    const errorMsg = await getErrorMessage(response, `Не удалось оформить заказ: HTTP ${response.status}`);
-    throw new Error(errorMsg);
-  }
-
-  const result = await response.json();
 
   logUserActivity({
     action: 'create_order',
