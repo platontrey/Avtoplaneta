@@ -7,11 +7,12 @@ import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { Accordion } from "@/components/ui/accordion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Loader2, Check, X, Edit, Trash2 } from "lucide-react";
+import { Loader2, Check, X, Edit, Trash2, Filter } from "lucide-react";
 import PartBlock from './PartBlock';
 import BulkEditDialog from './BulkEditDialog';
 import BulkDeleteDialog from './BulkDeleteDialog';
 import BulkOrderDialog from './BulkOrderDialog';
+import SelectByCriteriaDialog from './SelectByCriteriaDialog';
 import { useSwipeGesture } from '@/hooks/useSwipeGesture';
 import { useOrders } from '@/hooks/useOrders';
 import type { Part } from '@/lib/types';
@@ -43,6 +44,7 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
     const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
     const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
     const [isBulkOrderOpen, setIsBulkOrderOpen] = useState(false);
+    const [isCriteriaDialogOpen, setIsCriteriaDialogOpen] = useState(false);
     const [openAccordionValue, setOpenAccordionValue] = useState<string>(
         defaultOpenPartId ? `part-${defaultOpenPartId}` : ''
     );
@@ -124,6 +126,15 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
 
     const deselectAll = () => {
         setSelectedParts(new Set());
+    };
+
+    const handleSelectMatching = (matchedIds: number[]) => {
+        setIsSelectionMode(true);
+        setSelectedParts((prev) => {
+            const next = new Set(prev);
+            matchedIds.forEach((id) => next.add(id));
+            return next;
+        });
     };
 
     useEffect(() => {
@@ -223,6 +234,15 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
                                 >
                                     {selectedParts.size === parts.length ? 'Снять все' : 'Выбрать все на странице'}
                                 </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setIsCriteriaDialogOpen(true)}
+                                    className="text-xs sm:text-sm"
+                                >
+                                    <Filter className="h-3.5 w-3.5 mr-1" />
+                                    По критерию...
+                                </Button>
                             </div>
                         </div>
                         <Button
@@ -271,6 +291,19 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
             )}
 
             {/* Список запчастей с виртуализацией */}
+            {!isSelectionMode && parts.length > 0 && (
+                <div className="flex justify-end items-center gap-2 mb-1">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsCriteriaDialogOpen(true)}
+                        className="text-xs text-muted-foreground hover:text-foreground h-8"
+                    >
+                        <Filter className="h-3.5 w-3.5 mr-1.5" />
+                        Выбрать по критерию...
+                    </Button>
+                </div>
+            )}
             <div ref={listRef} className="w-full">
                 <Accordion
                     type="single"
@@ -354,10 +387,18 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
                 isOpen={isBulkEditOpen}
                 onClose={() => setIsBulkEditOpen(false)}
                 selectedPartIds={Array.from(selectedParts)}
+                selectedParts={selectedPartObjects}
                 onSuccess={() => {
                     setIsBulkEditOpen(false);
                     exitSelectionMode();
                 }}
+            />
+
+            <SelectByCriteriaDialog
+                isOpen={isCriteriaDialogOpen}
+                onClose={() => setIsCriteriaDialogOpen(false)}
+                parts={parts}
+                onSelectMatching={handleSelectMatching}
             />
 
             <BulkDeleteDialog

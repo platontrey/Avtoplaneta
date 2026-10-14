@@ -71,31 +71,35 @@ class StatisticsScreen extends ConsumerWidget {
                   mainAxisSpacing: 10,
                   childAspectRatio: MediaQuery.sizeOf(context).width >= 600
                       ? 1.15
-                      : 1.08,
+                      : 1.05,
                   children: [
                     _StatCard(
                       label: 'Всего позиций',
                       value: data.totalParts.toString(),
                       icon: LucideIcons.package,
                       color: AppTheme.primaryColor,
+                      growth: data.effectivePartsGrowth,
                     ),
                     _StatCard(
                       label: 'Общее количество',
                       value: data.totalQuantity.toString(),
                       icon: LucideIcons.boxes,
                       color: const Color(0xFF7C3AED),
+                      growth: data.effectiveQuantityGrowth,
                     ),
                     _StatCard(
                       label: 'Общая стоимость',
                       value: currency.format(data.totalValue),
                       icon: LucideIcons.wallet,
                       color: const Color(0xFFEA580C),
+                      growth: data.effectiveValueGrowth,
                     ),
                     _StatCard(
                       label: 'Общий заработок',
                       value: currency.format(data.totalEarnings),
                       icon: LucideIcons.trending_up,
                       color: AppTheme.successColor,
+                      growth: data.effectiveEarningsGrowth,
                     ),
                   ],
                 ),
@@ -224,12 +228,14 @@ class _StatCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
+  final double? growth;
 
   const _StatCard({
     required this.label,
     required this.value,
     required this.icon,
     required this.color,
+    this.growth,
   });
 
   @override
@@ -240,14 +246,22 @@ class _StatCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: color, size: 21),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: color, size: 21),
+                ),
+                if (growth != null)
+                  _GrowthBadge(growth: growth!),
+              ],
             ),
             const Spacer(),
             FittedBox(
@@ -272,6 +286,51 @@ class _StatCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _GrowthBadge extends StatelessWidget {
+  final double growth;
+
+  const _GrowthBadge({required this.growth});
+
+  @override
+  Widget build(BuildContext context) {
+    final isZero = growth.abs() < 0.05;
+    final isPositive = growth > 0;
+    final badgeColor = isZero
+        ? AppTheme.mutedColor
+        : (isPositive ? AppTheme.successColor : const Color(0xFFEF4444));
+    final sign = isPositive ? '+' : '';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!isZero) ...[
+            Icon(
+              isPositive ? LucideIcons.trending_up : LucideIcons.trending_down,
+              color: badgeColor,
+              size: 13,
+            ),
+            const SizedBox(width: 3),
+          ],
+          Text(
+            '$sign${growth.toStringAsFixed(1)}%',
+            style: TextStyle(
+              color: badgeColor,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }

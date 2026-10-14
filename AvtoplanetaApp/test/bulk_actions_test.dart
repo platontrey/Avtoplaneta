@@ -2,23 +2,28 @@ import 'package:avtoplaneta_app/features/inventory/widgets/bulk_part_actions.dar
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('bulk update payload follows the API contract', () {
+  test('bulk update payload follows the Protobuf API contract', () {
     expect(
       buildBulkUpdatePayload(
-        [12, 34],
-        {'category': 'Трансмиссия', 'status': 'true'},
+        ids: [12, 34],
+        category: 'Трансмиссия',
+        status: true,
+        priceMode: PriceMode.percent,
+        priceValue: 10.0,
       ),
       {
-        'parts': [
-          {
-            'id': 12,
-            'fields': {'category': 'Трансмиссия', 'status': 'true'},
+        'scope': {
+          'type': 'BULK_SCOPE_TYPE_IDS',
+          'ids': [12, 34],
+        },
+        'operations': {
+          'price': {
+            'mode': 'PRICE_OPERATION_MODE_PERCENT',
+            'value': 10.0,
           },
-          {
-            'id': 34,
-            'fields': {'category': 'Трансмиссия', 'status': 'true'},
-          },
-        ],
+          'category': 'Трансмиссия',
+          'status': true,
+        },
       },
     );
   });

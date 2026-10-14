@@ -208,6 +208,57 @@ void main() {
       expect(statistics.totalValue, 1000.25);
     });
 
+    test('statistics calculates growth and falls back to earnings growth when zero', () {
+      final statsWithFallback = StatisticsData.fromJson({
+        'total_parts': 100,
+        'total_quantity': 200,
+        'total_value': 500000.0,
+        'total_earnings': 150000.0,
+        'parts_growth': 0.0,
+        'quantity_growth': 0.0,
+        'value_growth': 0.0,
+        'earnings_growth': 15.5,
+      });
+
+      expect(statsWithFallback.earningsGrowth, 15.5);
+      expect(statsWithFallback.effectiveEarningsGrowth, 15.5);
+      expect(statsWithFallback.effectivePartsGrowth, 15.5);
+      expect(statsWithFallback.effectiveQuantityGrowth, 15.5);
+      expect(statsWithFallback.effectiveValueGrowth, 15.5);
+
+      final statsWithMonthly = StatisticsData.fromJson({
+        'total_parts': 100,
+        'total_quantity': 200,
+        'total_value': 500000.0,
+        'total_earnings': 150000.0,
+        'monthly_sales': [
+          {'month': '2026-08', 'sales': 100000.0},
+          {'month': '2026-09', 'sales': 120000.0},
+        ],
+      });
+
+      expect(statsWithMonthly.effectiveEarningsGrowth, 20.0);
+      expect(statsWithMonthly.effectivePartsGrowth, 20.0);
+      expect(statsWithMonthly.effectiveQuantityGrowth, 20.0);
+      expect(statsWithMonthly.effectiveValueGrowth, 20.0);
+
+      final statsWithIndividual = StatisticsData.fromJson({
+        'total_parts': 100,
+        'total_quantity': 200,
+        'total_value': 500000.0,
+        'total_earnings': 150000.0,
+        'parts_growth': 5.2,
+        'quantity_growth': -3.1,
+        'value_growth': 8.0,
+        'earnings_growth': 15.5,
+      });
+
+      expect(statsWithIndividual.effectivePartsGrowth, 5.2);
+      expect(statsWithIndividual.effectiveQuantityGrowth, -3.1);
+      expect(statsWithIndividual.effectiveValueGrowth, 8.0);
+      expect(statsWithIndividual.effectiveEarningsGrowth, 15.5);
+    });
+
     test('orders use the same field names as the website', () {
       final order = Order.fromJson({
         'id': 11,

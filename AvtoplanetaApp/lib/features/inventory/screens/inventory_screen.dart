@@ -226,7 +226,30 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           _selectionMode ? 'Выбрано: ${_selectedPartIds.length}' : 'Инвентарь',
         ),
         actions: [
-          if (_selectionMode)
+          if (_selectionMode) ...[
+            IconButton(
+              tooltip: 'Выбрать по критерию',
+              icon: const Icon(LucideIcons.list_filter),
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                final result = await showSelectByCriteriaSheet(
+                  context,
+                  categories: categories,
+                );
+                if (result != null && mounted) {
+                  final matched = displayParts.where(result.matches).map((p) => p.id);
+                  setState(() {
+                    _selectedPartIds.addAll(matched);
+                  });
+                  HapticFeedback.mediumImpact();
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text('Выделено ${matched.length} запчастей по критерию'),
+                    ),
+                  );
+                }
+              },
+            ),
             IconButton(
               tooltip: _selectedPartIds.length == displayParts.length
                   ? 'Снять выбор со всех'
@@ -249,7 +272,39 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 });
               },
             ),
+          ],
           if (!_selectionMode) ...[
+            IconButton(
+              tooltip: 'Выбрать по критерию',
+              icon: const Icon(LucideIcons.list_filter),
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                final result = await showSelectByCriteriaSheet(
+                  context,
+                  categories: categories,
+                );
+                if (result != null && mounted) {
+                  final matched = displayParts.where(result.matches).map((p) => p.id).toList();
+                  if (matched.isEmpty) {
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('По заданному критерию деталей не найдено')),
+                    );
+                    return;
+                  }
+                  setState(() {
+                    _selectionMode = true;
+                    _selectedPartIds.clear();
+                    _selectedPartIds.addAll(matched);
+                  });
+                  HapticFeedback.mediumImpact();
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text('Выделено ${matched.length} запчастей по критерию'),
+                    ),
+                  );
+                }
+              },
+            ),
             IconButton(
               tooltip: 'Сканировать код',
               icon: const Icon(LucideIcons.qr_code),
