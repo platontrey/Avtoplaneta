@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+#
+# Git pre-commit hook для автоматической генерации Protobuf и Swagger
+# Проверяет наличие изменений в backend/proto/*.proto перед созданием коммита.
+#
+
+# Добавляем стандартные пути Go bin в PATH
+export PATH="$PATH:$(go env GOPATH 2>/dev/null)/bin:$HOME/go/bin:/usr/local/go/bin"
+
+# Проверяем файлы, добавленные в индекс (staged)
+STAGED_PROTO_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^backend/proto/.*\.proto$')
+
+if [ -z "$STAGED_PROTO_FILES" ]; then
+    exit 0
+fi
+
+echo "================================================================="
+echo "⚡ [pre-commit] Обнаружены изменения в Protobuf контрактах:"
+echo "$STAGED_PROTO_FILES"
+echo "-----------------------------------------------------------------"
+echo "🔄 Автоматическая генерация Go-кода и OpenAPI (Swagger)..."
+
+# Проверка наличия buf
+if ! command -v buf &> /dev/null; then
+    echo "❌ [pre-commit] Ошибка: утилита 'buf' не найдена."
+    echo "Убедитесь, что buf установлен (go install github.com/bufbuild/buf/cmd/buf@latest)"
+    exit 1
+fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT/backend/proto" || exit 1
+
+# Генерация Go protobuf и gRPC кода
+if ! buf generate; then
+    echo "❌ [pre-commit] Ошибка компиляции protobuf (buf generate)!"
+    exit 1
+fi
+
+# Генерация OpenAPI Swagger спецификации
+if ! buf generate --template buf.gen.swagger.yaml; then
+    echo "❌ [pre-commit] Ошибка компиляции Swagger (buf generate --template buf.gen.swagger.yaml)!"
+    exit 1
+fi
+
+cd "$REPO_ROOT" || exit 1
+
+# Синхронизация swagger.json во фронтенд
+SWAGGER_SRC="backend/gen/swagger/api.swagger.json"
+SWAGGER_DEST="frontend/src/data/swagger.json"
+if [ -f "$SWAGGER_SRC" ]; then
+    mkdir -p "$(dirname "$SWAGGER_DEST")"
+    cp "$SWAGGER_SRC" "$SWAGGER_DEST"
+fi
+
+# Добавляем сгенерированные файлы в текущий коммит
+git add backend/gen/ "$SWAGGER_DEST"
+
+echo "✅ [pre-commit] Protobuf и Swagger успешно сгенерированы и добавлены в коммит!"
+echo "================================================================="
+exit 0

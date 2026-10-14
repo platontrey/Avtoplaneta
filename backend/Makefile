@@ -1,11 +1,21 @@
-.PHONY: proto proto-lint proto-clean proto-deps proto-rebuild build-all build-services start-dev test test-integration vehicle-catalog
+export PATH := $(PATH):$(HOME)/go/bin:$(shell go env GOPATH 2>/dev/null)/bin
 
-# Генерация Go-кода из proto-файлов
+.PHONY: proto proto-lint proto-clean proto-deps proto-rebuild build-all build-services start-dev test test-integration vehicle-catalog setup-hooks
+
+# Генерация Go-кода из proto-файлов и синхронизация OpenAPI спецификации
 proto:
 	@echo "Generating protobuf code..."
 	cd proto && buf generate
 	cd proto && buf generate --template buf.gen.swagger.yaml
-	@echo "Done."
+	@mkdir -p ../frontend/src/data
+	cp gen/swagger/api.swagger.json ../frontend/src/data/swagger.json
+	@echo "Protobuf and OpenAPI specification generated and synced to frontend."
+
+# Настройка git hooks для автоматической генерации при коммитах
+setup-hooks:
+	git config core.hooksPath .githooks
+	chmod +x ../.githooks/* 2>/dev/null || true
+	@echo "Git hooks configured successfully (.githooks)."
 
 # Обновление справочника марок и моделей с drom.ru.
 # Ходит в сеть, поэтому запускается руками (или отдельной job в CI), а не сервисом:

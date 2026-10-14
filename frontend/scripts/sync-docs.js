@@ -44,3 +44,20 @@ if (copiedCount > 0) {
 } else {
   console.log('[sync-docs] Root files not accessible (container environment), using existing docs.');
 }
+
+// Синхронизация OpenAPI спецификации swagger.json из генератора бэкенда
+const swaggerSource = path.resolve(projectRoot, 'backend/gen/swagger/api.swagger.json');
+const swaggerTarget = path.resolve(__dirname, '../src/data/swagger.json');
+
+if (fs.existsSync(swaggerSource)) {
+  try {
+    const swaggerTargetDir = path.dirname(swaggerTarget);
+    if (!fs.existsSync(swaggerTargetDir)) {
+      fs.mkdirSync(swaggerTargetDir, { recursive: true });
+    }
+    fs.copyFileSync(swaggerSource, swaggerTarget);
+    console.log(`[sync-docs] Synchronized swagger.json to ${swaggerTarget}`);
+  } catch (err) {
+    console.warn('[sync-docs] Could not copy swagger.json:', err.message);
+  }
+}
