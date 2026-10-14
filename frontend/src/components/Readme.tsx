@@ -6,18 +6,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { User } from '../features/auth/types';
 import MarkdownViewer from './MarkdownViewer';
-import swaggerSpec from '../data/swagger.json';
-
-// Прямой импорт оригинальных .md файлов репозитория через Vite (Single Source of Truth)
-import operatorMd from '../docs/operator-instructions.md?raw';
-import managerMd from '../docs/manager-instructions.md?raw';
-import archMd from '../docs/ARCHITECTURE.md?raw';
-import traefikMd from '../docs/TRAEFIK-README.md?raw';
-import monitoringMd from '../docs/MONITORING-README.md?raw';
-import mobileMd from '../docs/mobile-README.md?raw';
-import frontendMd from '../docs/frontend-README.md?raw';
-import migrationMd from '../docs/migration-README.md?raw';
-import rootReadmeMd from '../docs/root-README.md?raw';
+import { REPO_DOCS, archMd, type RepoDocument } from '../features/docs/repoDocs';
+import { getParsedEndpoints, swaggerSpec, type ApiEndpoint } from '../features/docs/apiExplorerData';
 
 import {
   Code2,
@@ -33,11 +23,8 @@ import {
   Package,
   ShoppingCart,
   BookOpen,
-  Smartphone,
   FileCode,
   ExternalLink,
-  Database,
-  Activity,
   FileText
 } from 'lucide-react';
 
@@ -46,137 +33,11 @@ interface ReadmeProps {
   defaultTab?: 'guides' | 'api' | 'architecture' | 'roles' | 'faq' | 'operator' | 'manager';
 }
 
-// Документ из репозитория
-interface RepoDocument {
-  id: string;
-  title: string;
-  category: 'Инструкции персонала' | 'Архитектура и бэкенд' | 'Инфраструктура и DevOps' | 'Клиенты и приложения' | 'Общие сведения';
-  filePath: string;
-  icon: React.ElementType;
-  summary: string;
-  badge: string;
-  content: string;
-}
-
-// Эндпоинт API
-interface ApiEndpoint {
-  id: string;
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
-  path: string;
-  service: 'AuthService' | 'PartsService' | 'OrdersService' | 'MessagingService' | 'ExportService';
-  title: string;
-  description: string;
-  authRequired: boolean;
-  requiredRole?: 'admin' | 'manager' | 'operator' | 'any';
-  parameters?: Array<{
-    name: string;
-    in: 'path' | 'query' | 'body' | 'header';
-    type: string;
-    required: boolean;
-    description: string;
-  }>;
-  requestBodyExample?: string;
-  responseExample?: string;
-}
-
 export default function Readme({ defaultTab = 'guides' }: ReadmeProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get('tab');
   const urlDoc = searchParams.get('doc');
 
-  // Каталог оригинальных .md файлов репозитория
-  const REPO_DOCS: RepoDocument[] = useMemo(() => [
-    {
-      id: 'operator',
-      title: 'Инструкция оператора склада',
-      category: 'Инструкции персонала',
-      filePath: 'operator-instructions.md',
-      icon: Package,
-      summary: 'Приемка деталей, фотографирование, складская адресация, оформление дефектных ведомостей.',
-      badge: 'Оператор',
-      content: operatorMd,
-    },
-    {
-      id: 'manager',
-      title: 'Инструкция менеджера по продажам',
-      category: 'Инструкции персонала',
-      filePath: 'manager-instructions.md',
-      icon: ShoppingCart,
-      summary: 'Работа с заказами, цветовые статусы, списание деталей со склада, CRM клиенты и ТК.',
-      badge: 'Менеджер',
-      content: managerMd,
-    },
-    {
-      id: 'architecture',
-      title: 'Архитектура микросервисов бэкенда',
-      category: 'Архитектура и бэкенд',
-      filePath: 'backend/ARCHITECTURE.md',
-      icon: Server,
-      summary: 'Архитектура сервисов (Auth, Parts, Orders, Messaging, Export), gRPC, Traefik, PostgreSQL, Redis Streams, Elasticsearch.',
-      badge: 'Бэкенд',
-      content: archMd,
-    },
-    {
-      id: 'traefik',
-      title: 'Traefik Ingress, TLS и ForwardAuth',
-      category: 'Инфраструктура и DevOps',
-      filePath: 'TRAEFIK-README.md',
-      icon: Shield,
-      summary: 'Маршрутизация HTTP трафика, SSL сертификаты Let\'s Encrypt, валидация сессий через ForwardAuth.',
-      badge: 'DevOps',
-      content: traefikMd,
-    },
-    {
-      id: 'monitoring',
-      title: 'Мониторинг (Prometheus & Grafana)',
-      category: 'Инфраструктура и DevOps',
-      filePath: 'MONITORING-README.md',
-      icon: Activity,
-      summary: 'Сбор метрик со всех сервисов, дашборды Grafana, cAdvisor, Node Exporter и мониторинг latency.',
-      badge: 'DevOps',
-      content: monitoringMd,
-    },
-    {
-      id: 'mobile',
-      title: 'Мобильное приложение (Flutter)',
-      category: 'Клиенты и приложения',
-      filePath: 'AvtoplanetaApp/README.md',
-      icon: Smartphone,
-      summary: 'Клиент для Android и iOS: кроссплатформенная сборка, переменные окружения, работа со складом и Google Auth.',
-      badge: 'Mobile',
-      content: mobileMd,
-    },
-    {
-      id: 'frontend',
-      title: 'Веб-клиент (React + TypeScript)',
-      category: 'Клиенты и приложения',
-      filePath: 'frontend/README.md',
-      icon: Code2,
-      summary: 'SPA клиент, Vite, PWA, Tailwind CSS v4, TanStack Query, Radix UI и ролевые экраны.',
-      badge: 'Frontend',
-      content: frontendMd,
-    },
-    {
-      id: 'migration',
-      title: 'Миграция каталога JoomShopping',
-      category: 'Архитектура и бэкенд',
-      filePath: 'scripts/migration/README.md',
-      icon: Database,
-      summary: 'Скрипты импорта товаров из legacy MySQL Joomla/JoomShopping в PostgreSQL склада.',
-      badge: 'База данных',
-      content: migrationMd,
-    },
-    {
-      id: 'root-readme',
-      title: 'Главный обзор проекта Avtoplaneta',
-      category: 'Общие сведения',
-      filePath: 'README.md',
-      icon: BookOpen,
-      summary: 'Обзор всей экосистемы проекта, Docker Compose запуск одной командой и порты сервисов.',
-      badge: 'Обзор',
-      content: rootReadmeMd,
-    },
-  ], []);
 
   // Первоначальный выбор вкладки
   const initialTab = useMemo<'guides' | 'api' | 'architecture' | 'roles' | 'faq'>(() => {
@@ -279,192 +140,7 @@ export default function Readme({ defaultTab = 'guides' }: ReadmeProps) {
   // ---------------------------------------------------------------------------
   // ДИНАМИЧЕСКИЙ РЕЕСТР API (Парсинг OpenAPI swagger.json + дополнительные HTTP роуты)
   // ---------------------------------------------------------------------------
-  const parsedEndpoints: ApiEndpoint[] = useMemo(() => {
-    const endpoints: ApiEndpoint[] = [];
-
-    // 1. Динамический парсинг путей из swagger.json
-    if (swaggerSpec && swaggerSpec.paths) {
-      for (const [pathKey, methods] of Object.entries(swaggerSpec.paths)) {
-        for (const [methodKey, opAny] of Object.entries(methods as Record<string, unknown>)) {
-          const method = methodKey.toUpperCase() as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
-          const op = opAny as {
-            operationId?: string;
-            summary?: string;
-            description?: string;
-            tags?: string[];
-            parameters?: Array<{
-              name: string;
-              in: 'path' | 'query' | 'body' | 'header';
-              type?: string;
-              required?: boolean;
-              description?: string;
-              schema?: unknown;
-            }>;
-            responses?: Record<string, unknown>;
-          };
-
-          const rawService = (op.tags && op.tags[0]) || 'PartsService';
-          let service: ApiEndpoint['service'] = 'PartsService';
-          if (rawService.includes('Auth')) service = 'AuthService';
-          else if (rawService.includes('Orders')) service = 'OrdersService';
-          else if (rawService.includes('Messaging')) service = 'MessagingService';
-          else if (rawService.includes('Export')) service = 'ExportService';
-
-          const params: ApiEndpoint['parameters'] = (op.parameters || []).map((p) => ({
-            name: p.name,
-            in: p.in,
-            type: p.type || (p.schema ? 'object' : 'string'),
-            required: !!p.required,
-            description: p.description || '',
-          }));
-
-          endpoints.push({
-            id: op.operationId || `${method}-${pathKey}`,
-            method,
-            path: pathKey,
-            service,
-            title: op.summary || `${method} ${pathKey}`,
-            description: op.description || (op.summary ? `${op.summary} эндпоинт микросервиса ${service}.` : `HTTP эндпоинт ${pathKey}`),
-            authRequired: !pathKey.includes('/auth/login') && !pathKey.includes('/validate'),
-            parameters: params,
-          });
-        }
-      }
-    }
-
-    // 2. Дополнительные нативные HTTP роуты OrdersService, MessagingService, ExportService
-    const supplementaryRoutes: ApiEndpoint[] = [
-      // Orders
-      {
-        id: 'orders-list-native',
-        method: 'GET',
-        path: '/orders',
-        service: 'OrdersService',
-        title: 'Список активных заказов',
-        description: 'Возвращает текущие заказы с цветовыми статусами (красный/коричневый/желтый), данными покупателя и позициями.',
-        authRequired: true,
-        requiredRole: 'manager',
-      },
-      {
-        id: 'orders-create-native',
-        method: 'POST',
-        path: '/orders',
-        service: 'OrdersService',
-        title: 'Создание заказа покупателя',
-        description: 'Создает заказ, автоматически привязывает клиента по номеру телефона, резервирует детали и публикует событие в Redis Streams.',
-        authRequired: true,
-        requiredRole: 'manager',
-        requestBodyExample: '{\n  "buyer_number": "+79528094032 Иванов Иван",\n  "transport_company": "СДЭК",\n  "notes": "Отправить до пятницы",\n  "items": [{ "part_id": 1042, "quantity": 1, "price": 28000 }]\n}',
-      },
-      {
-        id: 'orders-complete-native',
-        method: 'PUT',
-        path: '/orders/{id}/complete',
-        service: 'OrdersService',
-        title: 'Завершение заказа со списанием',
-        description: 'Переводит заказ в green (Завершен), вызывает gRPC PartsService для списания остатков (выставляя quantity = -1 для полностью проданных).',
-        authRequired: true,
-        requiredRole: 'manager',
-      },
-      {
-        id: 'orders-customers-list-native',
-        method: 'GET',
-        path: '/orders/customers',
-        service: 'OrdersService',
-        title: 'Клиентская база CRM с LTV',
-        description: 'Возвращает список клиентов с количеством заказов, суммарным LTV покупок, накопительной скидкой и любимой ТК.',
-        authRequired: true,
-        requiredRole: 'manager',
-      },
-      {
-        id: 'orders-customers-create-native',
-        method: 'POST',
-        path: '/orders/customers',
-        service: 'OrdersService',
-        title: 'Создание карточки клиента',
-        description: 'Добавляет клиента с уникальным номером телефона (+7XXXXXXXXXX). Защита от дублей вернет 409 Conflict при повторе.',
-        authRequired: true,
-        requiredRole: 'manager',
-      },
-      // Messaging
-      {
-        id: 'messaging-conversations',
-        method: 'GET',
-        path: '/api/messaging/conversations',
-        service: 'MessagingService',
-        title: 'Список диалогов и чатов',
-        description: 'Возвращает цепочки переписки команды, диалоги по заказам и обращениям клиентов.',
-        authRequired: true,
-      },
-      {
-        id: 'messaging-send-message',
-        method: 'POST',
-        path: '/api/messaging/conversations/{id}/messages',
-        service: 'MessagingService',
-        title: 'Отправка сообщения в диалог',
-        description: 'Публикует сообщение в тред и рассылает real-time push через WebSocket.',
-        authRequired: true,
-        requestBodyExample: '{\n  "content": "Деталь упакована, трек-номер СДЭК: 1234567890"\n}',
-      },
-      {
-        id: 'messaging-drom-dialogs',
-        method: 'GET',
-        path: '/api/messaging/drom/dialogs',
-        service: 'MessagingService',
-        title: 'Диалоги покупателей с Drom.ru',
-        description: 'Интеграция с личным кабинетом Дрома: получение входящих сообщений от покупателей.',
-        authRequired: true,
-        requiredRole: 'manager',
-      },
-      // Export
-      {
-        id: 'export-drom-pricelist',
-        method: 'GET',
-        path: '/uploads/pricelist.xml',
-        service: 'ExportService',
-        title: 'XML фид прайс-листа для Drom.ru',
-        description: 'Публичный XML каталог для автовыгрузки на Дром. Включает детали в наличии (quantity > 0) и дефектные запчасти (quantity = 0). Проданные (quantity = -1) исключаются.',
-        authRequired: false,
-      },
-      {
-        id: 'export-drom-live',
-        method: 'GET',
-        path: '/api/export/drom.xml',
-        service: 'ExportService',
-        title: 'Потоковая генерация XML фида Дром',
-        description: 'Генерирует свежий XML фид через gRPC запрос к PartsService с фильтрацией quantity >= 0.',
-        authRequired: false,
-      },
-      {
-        id: 'export-avito-xml',
-        method: 'GET',
-        path: '/api/export/avito.xml',
-        service: 'ExportService',
-        title: 'XML выгрузка для Avito Авто',
-        description: 'Генерирует фид в стандарте Avito с категориями запчастей, фотографиями и характеристиками.',
-        authRequired: false,
-      },
-      {
-        id: 'export-rebuild-force',
-        method: 'POST',
-        path: '/api/export/rebuild',
-        service: 'ExportService',
-        title: 'Принудительная пересборка XML фидов',
-        description: 'Сбрасывает кэш отпечатка склада InventoryVersion и заново формирует файлы выгрузок.',
-        authRequired: true,
-        requiredRole: 'admin',
-      },
-    ];
-
-    // Добавляем дополнительные маршруты, если они не были в OpenAPI
-    for (const r of supplementaryRoutes) {
-      if (!endpoints.some((e) => e.path === r.path && e.method === r.method)) {
-        endpoints.push(r);
-      }
-    }
-
-    return endpoints;
-  }, []);
+  const parsedEndpoints: ApiEndpoint[] = useMemo(() => getParsedEndpoints(), []);
 
   // Фильтрация API
   const filteredEndpoints = useMemo(() => {
