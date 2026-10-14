@@ -1,5 +1,13 @@
 /backend/elasticsearch-9.2.3
+# Environment files (exclude secrets, keep templates)
 .env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!.env.*.example
+!**/.env.example
+!**/.env.*.example
 
 # Traefik
 traefik/acme.json

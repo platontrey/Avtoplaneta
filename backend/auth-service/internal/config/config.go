@@ -36,7 +36,7 @@ func LoadConfig() *Config {
 		cfg.PartsServiceURL = "http://localhost:8081"
 	}
 	if cfg.DatabaseURL == "" {
-		cfg.DatabaseURL = "host=localhost user=postgres password=qewret123 dbname=autoplanet port=5432 sslmode=disable"
+		cfg.DatabaseURL = "host=localhost user=postgres password=postgres dbname=avtoplaneta port=5432 sslmode=disable"
 	}
 	if cfg.SessionSecret == "" {
 		cfg.SessionSecret = "CHANGE_THIS_IN_PRODUCTION_TO_A_SECURE_RANDOM_KEY_32_CHARS_MIN"

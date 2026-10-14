@@ -5,6 +5,7 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
+	"os"
 	"sort"
 	"time"
 
@@ -99,15 +100,31 @@ func CreateDefaultUser(ctx context.Context, repo UserRepository) {
 		return
 	}
 
-	hashedPassword, err := security.HashPassword("qewret123")
+	adminPassword := os.Getenv("DEFAULT_ADMIN_PASSWORD")
+	if adminPassword == "" {
+		logrus.Warn("DEFAULT_ADMIN_PASSWORD не задан. Автоматическое создание администратора по умолчанию пропущено в целях безопасности.")
+		return
+	}
+
+	adminEmail := os.Getenv("DEFAULT_ADMIN_EMAIL")
+	if adminEmail == "" {
+		adminEmail = "admin@example.com"
+	}
+
+	adminName := os.Getenv("DEFAULT_ADMIN_NAME")
+	if adminName == "" {
+		adminName = "Administrator"
+	}
+
+	hashedPassword, err := security.HashPassword(adminPassword)
 	if err != nil {
 		logrus.WithError(err).Error("Не удалось хэшировать пароль для default пользователя")
 		return
 	}
 
 	defaultUser := &domain.User{
-		Email:    "bibidatrbib@gmail.com",
-		Name:     "Test User",
+		Email:    adminEmail,
+		Name:     adminName,
 		Provider: "local",
 		Role:     "admin",
 		Password: hashedPassword,
@@ -118,5 +135,5 @@ func CreateDefaultUser(ctx context.Context, repo UserRepository) {
 		return
 	}
 
-	logrus.Info("Default пользователь создан: bibidatrbib@gmail.com / qewret123")
+	logrus.Infof("Default администратор успешно создан (%s). Пароль установлен из переменной окружения DEFAULT_ADMIN_PASSWORD.", adminEmail)
 }

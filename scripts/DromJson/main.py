@@ -14,8 +14,8 @@ except NameError:
 AUTH_FILE = os.path.join(SCRIPT_DIR, 'drom_session.json')
 
 # --- НАСТРОЙКИ ВХОДА ---
-LOGIN = '79521847448'
-PASSWORD = 'qewret123'
+LOGIN = os.getenv('DROM_LOGIN', '')
+PASSWORD = os.getenv('DROM_PASSWORD', '')
 
 LIST_URL = 'https://my.drom.ru/personal/messaging-modal?switchPosition=dialogs'
 MAX_SCROLLS = 5
