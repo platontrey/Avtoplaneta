@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/xml"
+	"os"
 	"testing"
 	"time"
 )
@@ -103,3 +104,317 @@ func mustGenerate(t *testing.T, parts []Part) []byte {
 	}
 	return data
 }
+
+// Проверка наличия XML заголовка UTF-8 и корневого элемента offers
+func TestGenerateXMLPriceListHeaderAndRoot(t *testing.T) {
+	parts := []Part{
+		{Name: "Тестовая запчасть", Status: true, Quantity: 1, Price: 1500},
+	}
+	data, err := GenerateXMLPriceList(parts, nil)
+	if err != nil {
+		t.Fatalf("GenerateXMLPriceList: %v", err)
+	}
+
+	xmlStr := string(data)
+	if len(xmlStr) < len(xml.Header) || xmlStr[:len(xml.Header)] != xml.Header {
+		t.Fatalf("отсутствует корректный заголовок xml.Header, получено: %s", xmlStr[:38])
+	}
+
+	offers := parse(t, data)
+	if len(offers.Offers) != 1 {
+		t.Fatalf("ожидалось 1 предложение в <offers>, получено: %d", len(offers.Offers))
+	}
+}
+
+// Пустой склад формирует корректный XML без предложений
+func TestGenerateXMLPriceListEmpty(t *testing.T) {
+	data, err := GenerateXMLPriceList([]Part{}, nil)
+	if err != nil {
+		t.Fatalf("GenerateXMLPriceList: %v", err)
+	}
+
+	offers := parse(t, data)
+	if len(offers.Offers) != 0 {
+		t.Fatalf("ожидался пустой список offers, получено: %d", len(offers.Offers))
+	}
+}
+
+// Проверка маппинга всех полей запчасти на структуру Offer площадки Drom
+func TestGenerateXMLPriceListAllFieldsMapping(t *testing.T) {
+	sellerINNs := map[int64]string{
+		42: "7017123456",
+	}
+
+	part := Part{
+		Name:           "Фара правая светодиодная",
+		Quantity:       3,
+		Description:    "Оригинал в отличном состоянии, все крепления целые",
+		Price:          18500.50,
+		Salesman:       "Автопланета Север",
+		Location:       "Склад №2, ряд 4, полка 12",
+		Status:         true,
+		Brand:          "Toyota",
+		Model:          "Camry",
+		Photos:         []string{"/uploads/parts/camry_light_1.jpg", "/uploads/parts/camry_light_2.jpg"},
+		SellerID:       42,
+		BodyBrand:      "XV70",
+		EngineBrand:    "2AR-FE",
+		CarReleaseDate: "2019",
+		FrontRear:      "перед",
+		LeftRight:      "право",
+		TopBottom:      "верх",
+		Manufacturer:   "Koito",
+		OEMCode:        "81110-33D30",
+		Color:          "Черный",
+		Condition:      "Б/у",
+		SupplierCode:   "AP-778899",
+	}
+
+	data, err := GenerateXMLPriceList([]Part{part}, sellerINNs)
+	if err != nil {
+		t.Fatalf("GenerateXMLPriceList: %v", err)
+	}
+
+	offers := parse(t, data)
+	if len(offers.Offers) != 1 {
+		t.Fatalf("ожидалось 1 предложение, получено %d", len(offers.Offers))
+	}
+
+	o := offers.Offers[0]
+	if o.Name != "Фара правая светодиодная" {
+		t.Errorf("Name: got %q, want %q", o.Name, "Фара правая светодиодная")
+	}
+	if !o.Available {
+		t.Errorf("Available: got %v, want true", o.Available)
+	}
+	if o.Description != "Оригинал в отличном состоянии, все крепления целые" {
+		t.Errorf("Description: got %q, want %q", o.Description, "Оригинал в отличном состоянии, все крепления целые")
+	}
+	if o.Price != 18500.50 {
+		t.Errorf("Price: got %v, want 18500.50", o.Price)
+	}
+	if o.CurrencyId != "RUR" {
+		t.Errorf("CurrencyId: got %q, want RUR", o.CurrencyId)
+	}
+	if o.Picture != "https://avtoplaneta70.ru/uploads/parts/camry_light_1.jpg" {
+		t.Errorf("Picture: got %q, want https://avtoplaneta70.ru/uploads/parts/camry_light_1.jpg", o.Picture)
+	}
+	if o.Store != "Автопланета Север" {
+		t.Errorf("Store: got %q, want %q", o.Store, "Автопланета Север")
+	}
+	if o.Quantity != 3 {
+		t.Errorf("Quantity: got %d, want 3", o.Quantity)
+	}
+	if o.OemNumber != "81110-33D30" {
+		t.Errorf("OemNumber: got %q, want %q", o.OemNumber, "81110-33D30")
+	}
+	if o.Manufacturer != "Koito" {
+		t.Errorf("Manufacturer: got %q, want %q", o.Manufacturer, "Koito")
+	}
+	if o.Ordercode != "AP-778899" {
+		t.Errorf("Ordercode: got %q, want %q", o.Ordercode, "AP-778899")
+	}
+	if o.Condition != "Б/у" {
+		t.Errorf("Condition: got %q, want %q", o.Condition, "Б/у")
+	}
+	if o.Brandcars != "Toyota" {
+		t.Errorf("Brandcars: got %q, want %q", o.Brandcars, "Toyota")
+	}
+	if o.Modelcars != "Camry" {
+		t.Errorf("Modelcars: got %q, want %q", o.Modelcars, "Camry")
+	}
+	if o.Bodycars != "XV70" {
+		t.Errorf("Bodycars: got %q, want %q", o.Bodycars, "XV70")
+	}
+	if o.Engine != "2AR-FE" {
+		t.Errorf("Engine: got %q, want %q", o.Engine, "2AR-FE")
+	}
+	if o.Year != "2019" {
+		t.Errorf("Year: got %q, want %q", o.Year, "2019")
+	}
+	if o.Lr != "право" {
+		t.Errorf("Lr: got %q, want %q", o.Lr, "право")
+	}
+	if o.Fr != "перед" {
+		t.Errorf("Fr: got %q, want %q", o.Fr, "перед")
+	}
+	if o.Ud != "верх" {
+		t.Errorf("Ud: got %q, want %q", o.Ud, "верх")
+	}
+	if o.Color != "Черный" {
+		t.Errorf("Color: got %q, want %q", o.Color, "Черный")
+	}
+	if o.Supplier != "Автопланета Север" {
+		t.Errorf("Supplier: got %q, want %q", o.Supplier, "Автопланета Север")
+	}
+	if o.SupplierInn != "7017123456" {
+		t.Errorf("SupplierInn: got %q, want %q", o.SupplierInn, "7017123456")
+	}
+	if o.Sklad != "Склад №2, ряд 4, полка 12" {
+		t.Errorf("Sklad: got %q, want %q", o.Sklad, "Склад №2, ряд 4, полка 12")
+	}
+	if o.SupplierArt != "AP-778899" {
+		t.Errorf("SupplierArt: got %q, want %q", o.SupplierArt, "AP-778899")
+	}
+}
+
+// Проверка критического доменного инварианта quantity:
+// quantity > 0  -> available: true
+// quantity == 0 -> available: true (дефектная ведомость должна оставаться доступной)
+// quantity == -1 -> available: false (продана)
+// status == false -> available: false
+func TestGenerateXMLPriceListQuantitySemantics(t *testing.T) {
+	parts := []Part{
+		{Name: "В наличии", Status: true, Quantity: 2},
+		{Name: "Дефектовка (ноль)", Status: true, Quantity: 0},
+		{Name: "Проданная (-1)", Status: true, Quantity: -1},
+		{Name: "Неактивная", Status: false, Quantity: 5},
+	}
+
+	offers := parse(t, mustGenerate(t, parts))
+	if len(offers.Offers) != 4 {
+		t.Fatalf("ожидалось 4 предложения, получено %d", len(offers.Offers))
+	}
+
+	// 1. Обычная запчасть
+	if !offers.Offers[0].Available {
+		t.Errorf("запчасть в наличии должна иметь available=true")
+	}
+	// 2. Дефектовочная ведомость (quantity == 0) ОБЯЗАНА быть available=true
+	if !offers.Offers[1].Available {
+		t.Errorf("дефектовка с quantity=0 обязана иметь available=true")
+	}
+	// 3. Проданная деталь (quantity == -1)
+	if offers.Offers[2].Available {
+		t.Errorf("проданная деталь с quantity=-1 должна иметь available=false")
+	}
+	// 4. Неактивная деталь (status == false)
+	if offers.Offers[3].Available {
+		t.Errorf("деталь со status=false должна иметь available=false")
+	}
+}
+
+// Проверка корректного экранирования спецсимволов XML в тексте
+func TestGenerateXMLPriceListEscaping(t *testing.T) {
+	parts := []Part{
+		{
+			Name:        "Фара левая <Хрусталь> & \"Линза\" 2.0",
+			Description: "Состояние: 100% OK & проверено > без трещин; цена < 5000",
+			OEMCode:     "81150-12<34>&56",
+			Status:      true,
+			Quantity:    1,
+		},
+	}
+
+	data, err := GenerateXMLPriceList(parts, nil)
+	if err != nil {
+		t.Fatalf("GenerateXMLPriceList с ошибкой: %v", err)
+	}
+
+	// Убедимся, что сгенерированный XML корректно распарсивается обратно
+	offers := parse(t, data)
+	if len(offers.Offers) != 1 {
+		t.Fatalf("ожидалось 1 предложение, получено %d", len(offers.Offers))
+	}
+
+	o := offers.Offers[0]
+	if o.Name != "Фара левая <Хрусталь> & \"Линза\" 2.0" {
+		t.Errorf("спецсимволы в Name искажены: got %q", o.Name)
+	}
+	if o.Description != "Состояние: 100% OK & проверено > без трещин; цена < 5000" {
+		t.Errorf("спецсимволы в Description искажены: got %q", o.Description)
+	}
+	if o.OemNumber != "81150-12<34>&56" {
+		t.Errorf("спецсимволы в OEMCode искажены: got %q", o.OemNumber)
+	}
+}
+
+// Тест генерирует файл sample_drom.xml с типовыми деталями для визуальной проверки и валидации на Drom
+func TestGenerateSampleXMLFile(t *testing.T) {
+	sellerINNs := map[int64]string{
+		10: "7017998877",
+		20: "7017665544",
+	}
+
+	parts := []Part{
+		{
+			Name:           "Фара правая LED",
+			Quantity:       2,
+			Description:    "Оригинал, идеальное состояние. Без пробега по РФ.",
+			Price:          25000,
+			Salesman:       "Автопланета Томск",
+			Location:       "Склад №1, Секция А",
+			Status:         true,
+			Brand:          "Toyota",
+			Model:          "Camry",
+			Photos:         []string{"/uploads/parts/camry_light.jpg"},
+			SellerID:       10,
+			BodyBrand:      "XV70",
+			EngineBrand:    "2AR-FE",
+			CarReleaseDate: "2020",
+			FrontRear:      "перед",
+			LeftRight:      "право",
+			TopBottom:      "верх",
+			Manufacturer:   "Koito",
+			OEMCode:        "81110-33D30",
+			Color:          "Черный",
+			Condition:      "Б/у",
+			SupplierCode:   "AP-1001",
+		},
+		{
+			Name:           "Двигатель 1NZ-FE",
+			Quantity:       1,
+			Description:    "Контрактный ДВС в сборе с навесным оборудованием. Пробег 64 000 км по Японии. ГТД в комплекте.",
+			Price:          65000,
+			Salesman:       "Автопланета Север",
+			Location:       "Склад агрегатов №3",
+			Status:         true,
+			Brand:          "Toyota",
+			Model:          "Corolla",
+			Photos:         []string{"/uploads/parts/engine_1nz.jpg"},
+			SellerID:       20,
+			BodyBrand:      "NZE121",
+			EngineBrand:    "1NZ-FE",
+			CarReleaseDate: "2005",
+			Manufacturer:   "Toyota",
+			OEMCode:        "19000-21010",
+			Condition:      "Б/у",
+			SupplierCode:   "ENG-1NZ-092",
+		},
+		{
+			Name:           "Акт дефектовки: Бампер передний (трещина снизу)",
+			Quantity:       0, // Дефектовка с нулевым остатком - должна быть available=true
+			Description:    "Дефектная позиция: трещина 5 см на нижней губе под пайку. Крепления целые.",
+			Price:          7000,
+			Salesman:       "Автопланета Томск",
+			Location:       "Зона дефектовки",
+			Status:         true,
+			Brand:          "Honda",
+			Model:          "Civic",
+			Photos:         []string{"/uploads/parts/civic_bumper.jpg"},
+			SellerID:       10,
+			BodyBrand:      "FK7",
+			CarReleaseDate: "2018",
+			FrontRear:      "перед",
+			Condition:      "Б/у",
+			SupplierCode:   "DEF-CIVIC-01",
+		},
+	}
+
+	data, err := GenerateXMLPriceList(parts, sellerINNs)
+	if err != nil {
+		t.Fatalf("Ошибка генерации XML: %v", err)
+	}
+
+	outPath := "testdata/sample_drom.xml"
+	if err := os.WriteFile(outPath, data, 0o644); err != nil {
+		t.Fatalf("Не удалось записать sample_drom.xml: %v", err)
+	}
+
+	offers := parse(t, data)
+	if len(offers.Offers) != 3 {
+		t.Fatalf("Ожидалось 3 позиции, получено %d", len(offers.Offers))
+	}
+}
+
+

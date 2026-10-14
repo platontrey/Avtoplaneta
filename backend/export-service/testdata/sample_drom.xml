@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<offers>
+  <offer>
+    <name>Фара правая LED</name>
+    <available>true</available>
+    <description>Оригинал, идеальное состояние. Без пробега по РФ.</description>
+    <price>25000</price>
+    <currencyId>RUR</currencyId>
+    <picture>https://avtoplaneta70.ru/uploads/parts/camry_light.jpg</picture>
+    <store>Автопланета Томск</store>
+    <quantity>2</quantity>
+    <oem_number>81110-33D30</oem_number>
+    <manufacturer>Koito</manufacturer>
+    <ordercode>AP-1001</ordercode>
+    <condition>Б/у</condition>
+    <brandcars>Toyota</brandcars>
+    <modelcars>Camry</modelcars>
+    <bodycars>XV70</bodycars>
+    <engine>2AR-FE</engine>
+    <year>2020</year>
+    <lr>право</lr>
+    <fr>перед</fr>
+    <ud>верх</ud>
+    <color>Черный</color>
+    <supplier>Автопланета Томск</supplier>
+    <supplier_inn>7017998877</supplier_inn>
+    <sklad>Склад №1, Секция А</sklad>
+    <supplier_art>AP-1001</supplier_art>
+  </offer>
+  <offer>
+    <name>Двигатель 1NZ-FE</name>
+    <available>true</available>
+    <description>Контрактный ДВС в сборе с навесным оборудованием. Пробег 64 000 км по Японии. ГТД в комплекте.</description>
+    <price>65000</price>
+    <currencyId>RUR</currencyId>
+    <picture>https://avtoplaneta70.ru/uploads/parts/engine_1nz.jpg</picture>
+    <store>Автопланета Север</store>
+    <quantity>1</quantity>
+    <oem_number>19000-21010</oem_number>
+    <manufacturer>Toyota</manufacturer>
+    <ordercode>ENG-1NZ-092</ordercode>
+    <condition>Б/у</condition>
+    <brandcars>Toyota</brandcars>
+    <modelcars>Corolla</modelcars>
+    <bodycars>NZE121</bodycars>
+    <engine>1NZ-FE</engine>
+    <year>2005</year>
+    <supplier>Автопланета Север</supplier>
+    <supplier_inn>7017665544</supplier_inn>
+    <sklad>Склад агрегатов №3</sklad>
+    <supplier_art>ENG-1NZ-092</supplier_art>
+  </offer>
+  <offer>
+    <name>Акт дефектовки: Бампер передний (трещина снизу)</name>
+    <available>true</available>
+    <description>Дефектная позиция: трещина 5 см на нижней губе под пайку. Крепления целые.</description>
+    <price>7000</price>
+    <currencyId>RUR</currencyId>
+    <picture>https://avtoplaneta70.ru/uploads/parts/civic_bumper.jpg</picture>
+    <store>Автопланета Томск</store>
+    <ordercode>DEF-CIVIC-01</ordercode>
+    <condition>Б/у</condition>
+    <brandcars>Honda</brandcars>
+    <modelcars>Civic</modelcars>
+    <bodycars>FK7</bodycars>
+    <year>2018</year>
+    <fr>перед</fr>
+    <supplier>Автопланета Томск</supplier>
+    <supplier_inn>7017998877</supplier_inn>
+    <sklad>Зона дефектовки</sklad>
+    <supplier_art>DEF-CIVIC-01</supplier_art>
+  </offer>
+</offers>
