@@ -29,6 +29,8 @@ Map<String, dynamic> buildBulkUpdatePayload({
   String? location,
   String? salesman,
   bool? status,
+  String? bodyBrand,
+  String? engineBrand,
 }) {
   final operations = <String, dynamic>{};
   if (priceMode != null && priceValue != null) {
@@ -48,6 +50,12 @@ Map<String, dynamic> buildBulkUpdatePayload({
   }
   if (status != null) {
     operations['status'] = status;
+  }
+  if (bodyBrand != null) {
+    operations['body_brand'] = bodyBrand;
+  }
+  if (engineBrand != null) {
+    operations['engine_brand'] = engineBrand;
   }
 
   final scope = <String, dynamic>{
@@ -281,6 +289,8 @@ class _BulkEditSheetState extends State<_BulkEditSheet> {
   final _price = TextEditingController();
   final _location = TextEditingController();
   final _salesman = TextEditingController();
+  final _bodyBrand = TextEditingController();
+  final _engineBrand = TextEditingController();
   final Set<String> _enabled = {};
   PriceMode _priceMode = PriceMode.set;
   late String _scopeMode;
@@ -310,6 +320,8 @@ class _BulkEditSheetState extends State<_BulkEditSheet> {
     _price.dispose();
     _location.dispose();
     _salesman.dispose();
+    _bodyBrand.dispose();
+    _engineBrand.dispose();
     super.dispose();
   }
 
@@ -356,6 +368,8 @@ class _BulkEditSheetState extends State<_BulkEditSheet> {
         location: _enabled.contains('location') ? _location.text.trim() : null,
         salesman: _enabled.contains('salesman') ? _salesman.text.trim() : null,
         status: _enabled.contains('status') ? _status : null,
+        bodyBrand: _enabled.contains('body_brand') ? _bodyBrand.text.trim() : null,
+        engineBrand: _enabled.contains('engine_brand') ? _engineBrand.text.trim() : null,
       );
 
       await apiClient.dio.post(
@@ -637,6 +651,28 @@ class _BulkEditSheetState extends State<_BulkEditSheet> {
                     onSelectionChanged: (value) {
                       setState(() => _status = value.first);
                     },
+                  ),
+                ),
+
+              // Марка кузова
+              _fieldToggle('body_brand', 'Марка кузова'),
+              if (_enabled.contains('body_brand'))
+                TextFormField(
+                  controller: _bodyBrand,
+                  decoration: const InputDecoration(
+                    labelText: 'Марка кузова',
+                    hintText: 'Например: AE100, W204, E39',
+                  ),
+                ),
+
+              // Марка двигателя
+              _fieldToggle('engine_brand', 'Марка двигателя'),
+              if (_enabled.contains('engine_brand'))
+                TextFormField(
+                  controller: _engineBrand,
+                  decoration: const InputDecoration(
+                    labelText: 'Марка двигателя',
+                    hintText: 'Например: 1JZ-GTE, 2GR-FE, M54',
                   ),
                 ),
 

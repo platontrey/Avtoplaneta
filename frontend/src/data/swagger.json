@@ -867,6 +867,37 @@
         ]
       }
     },
+    "/api/v1/parts/{id}/duplicate": {
+      "post": {
+        "operationId": "PartsService_DuplicatePart",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Part"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
     "/api/v1/parts/{id}/increase": {
       "post": {
         "operationId": "PartsService_IncreasePartQuantity",
@@ -1596,6 +1627,12 @@
             "type": "integer",
             "format": "int64"
           }
+        },
+        "scope": {
+          "$ref": "#/definitions/v1BulkUpdateScope"
+        },
+        "confirmEntireCatalog": {
+          "type": "boolean"
         }
       }
     },
@@ -1607,6 +1644,56 @@
           "format": "int32"
         }
       }
+    },
+    "v1BulkFieldOperations": {
+      "type": "object",
+      "properties": {
+        "price": {
+          "$ref": "#/definitions/v1BulkPriceOperation"
+        },
+        "category": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "salesman": {
+          "type": "string"
+        },
+        "status": {
+          "type": "boolean"
+        },
+        "bodyBrand": {
+          "type": "string"
+        },
+        "engineBrand": {
+          "type": "string"
+        }
+      }
+    },
+    "v1BulkPriceOperation": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "$ref": "#/definitions/v1PriceOperationMode"
+        },
+        "value": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "v1BulkScopeType": {
+      "type": "string",
+      "enum": [
+        "BULK_SCOPE_TYPE_UNSPECIFIED",
+        "BULK_SCOPE_TYPE_IDS",
+        "BULK_SCOPE_TYPE_FILTER"
+      ],
+      "default": "BULK_SCOPE_TYPE_UNSPECIFIED"
     },
     "v1BulkUpdatePartData": {
       "type": "object",
@@ -1632,6 +1719,15 @@
             "type": "object",
             "$ref": "#/definitions/v1BulkUpdatePartData"
           }
+        },
+        "scope": {
+          "$ref": "#/definitions/v1BulkUpdateScope"
+        },
+        "operations": {
+          "$ref": "#/definitions/v1BulkFieldOperations"
+        },
+        "confirmEntireCatalog": {
+          "type": "boolean"
         }
       }
     },
@@ -1641,6 +1737,24 @@
         "updatedCount": {
           "type": "integer",
           "format": "int32"
+        }
+      }
+    },
+    "v1BulkUpdateScope": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "#/definitions/v1BulkScopeType"
+        },
+        "ids": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "filter": {
+          "$ref": "#/definitions/v1GetInventoryRequest"
         }
       }
     },
@@ -1916,6 +2030,145 @@
         "deletedCount": {
           "type": "integer",
           "format": "int32"
+        }
+      }
+    },
+    "v1GetInventoryRequest": {
+      "type": "object",
+      "properties": {
+        "search": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "brand": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "salesman": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "hasPhoto": {
+          "type": "string"
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "limit": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "address": {
+          "type": "string"
+        },
+        "number": {
+          "type": "string"
+        },
+        "oemCode": {
+          "type": "string"
+        },
+        "vin": {
+          "type": "string"
+        },
+        "bodyBrand": {
+          "type": "string"
+        },
+        "engineBrand": {
+          "type": "string"
+        },
+        "carReleaseDate": {
+          "type": "string"
+        },
+        "carReleasePeriod": {
+          "type": "string"
+        },
+        "transmission": {
+          "type": "string"
+        },
+        "drive": {
+          "type": "string"
+        },
+        "condition": {
+          "type": "string"
+        },
+        "manufacturer": {
+          "type": "string"
+        },
+        "defect": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "minPrice": {
+          "type": "string"
+        },
+        "maxPrice": {
+          "type": "string"
+        },
+        "minQuantity": {
+          "type": "string"
+        },
+        "maxQuantity": {
+          "type": "string"
+        },
+        "frontRear": {
+          "type": "string"
+        },
+        "leftRight": {
+          "type": "string"
+        },
+        "topBottom": {
+          "type": "string"
+        },
+        "manufacturerCode": {
+          "type": "string"
+        },
+        "supplierCode": {
+          "type": "string"
+        },
+        "transmissionModel": {
+          "type": "string"
+        },
+        "wearPercentage": {
+          "type": "string"
+        },
+        "season": {
+          "type": "string"
+        },
+        "diameter": {
+          "type": "string"
+        },
+        "width": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "tireQuantity": {
+          "type": "string"
+        },
+        "drilling": {
+          "type": "string"
+        },
+        "offset": {
+          "type": "string"
+        },
+        "centerHoleDiameter": {
+          "type": "string"
+        },
+        "tireModel": {
+          "type": "string"
         }
       }
     },
@@ -2215,6 +2468,16 @@
         }
       }
     },
+    "v1PriceOperationMode": {
+      "type": "string",
+      "enum": [
+        "PRICE_OPERATION_MODE_UNSPECIFIED",
+        "PRICE_OPERATION_MODE_SET",
+        "PRICE_OPERATION_MODE_PERCENT",
+        "PRICE_OPERATION_MODE_OFFSET"
+      ],
+      "default": "PRICE_OPERATION_MODE_UNSPECIFIED"
+    },
     "v1ServerLog": {
       "type": "object",
       "properties": {
@@ -2308,6 +2571,22 @@
             "type": "object",
             "$ref": "#/definitions/v1MonthlySales"
           }
+        },
+        "partsGrowth": {
+          "type": "number",
+          "format": "double"
+        },
+        "quantityGrowth": {
+          "type": "number",
+          "format": "double"
+        },
+        "valueGrowth": {
+          "type": "number",
+          "format": "double"
+        },
+        "earningsGrowth": {
+          "type": "number",
+          "format": "double"
         }
       }
     },

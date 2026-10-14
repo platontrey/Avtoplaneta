@@ -38,12 +38,16 @@ interface BulkEditForm {
   location?: string;
   status: boolean;
   salesman?: string;
+  bodyBrand?: string;
+  engineBrand?: string;
   // Флаги применения полей
   applyCategory: boolean;
   applyPrice: boolean;
   applyLocation: boolean;
   applyStatus: boolean;
   applySalesman: boolean;
+  applyBodyBrand: boolean;
+  applyEngineBrand: boolean;
 }
 
 export default function BulkEditDialog({
@@ -70,11 +74,15 @@ export default function BulkEditDialog({
     location: '',
     status: true,
     salesman: '',
+    bodyBrand: '',
+    engineBrand: '',
     applyCategory: false,
     applyPrice: false,
     applyLocation: false,
     applyStatus: false,
     applySalesman: false,
+    applyBodyBrand: false,
+    applyEngineBrand: false,
   });
 
   // Загружаем список пользователей при открытии
@@ -143,7 +151,9 @@ export default function BulkEditDialog({
         form.applyCategory ||
         form.applyLocation ||
         form.applyStatus ||
-        form.applySalesman;
+        form.applySalesman ||
+        form.applyBodyBrand ||
+        form.applyEngineBrand;
 
       if (!hasAnyField) {
         alert('Выберите хотя бы одно поле для изменения');
@@ -181,6 +191,14 @@ export default function BulkEditDialog({
 
       if (form.applyStatus) {
         operations.status = form.status;
+      }
+
+      if (form.applyBodyBrand) {
+        operations.body_brand = form.bodyBrand || '';
+      }
+
+      if (form.applyEngineBrand) {
+        operations.engine_brand = form.engineBrand || '';
       }
 
       // Формируем область применения (scope)
@@ -495,6 +513,48 @@ export default function BulkEditDialog({
                   ))}
                 </SelectContent>
               </Select>
+            )}
+          </div>
+
+          {/* Марка кузова */}
+          <div className="rounded-lg border p-3.5 space-y-2 bg-card shadow-xs">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="applyBodyBrand"
+                checked={form.applyBodyBrand}
+                onCheckedChange={(checked) => updateForm('applyBodyBrand', Boolean(checked))}
+              />
+              <Label htmlFor="applyBodyBrand" className="text-sm font-semibold cursor-pointer">
+                Марка кузова
+              </Label>
+            </div>
+            {form.applyBodyBrand && (
+              <Input
+                placeholder="Введите марку / номер кузова (например: AE100, W204, E39)"
+                value={form.bodyBrand || ''}
+                onChange={(e) => updateForm('bodyBrand', e.target.value)}
+              />
+            )}
+          </div>
+
+          {/* Марка двигателя */}
+          <div className="rounded-lg border p-3.5 space-y-2 bg-card shadow-xs">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="applyEngineBrand"
+                checked={form.applyEngineBrand}
+                onCheckedChange={(checked) => updateForm('applyEngineBrand', Boolean(checked))}
+              />
+              <Label htmlFor="applyEngineBrand" className="text-sm font-semibold cursor-pointer">
+                Марка двигателя
+              </Label>
+            </div>
+            {form.applyEngineBrand && (
+              <Input
+                placeholder="Введите марку / модель двигателя (например: 1JZ-GTE, 2GR-FE, M54)"
+                value={form.engineBrand || ''}
+                onChange={(e) => updateForm('engineBrand', e.target.value)}
+              />
             )}
           </div>
 

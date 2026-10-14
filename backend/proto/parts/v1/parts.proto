@@ -570,6 +570,8 @@ message BulkFieldOperations {
   optional string address = 4;
   optional string salesman = 5;
   optional bool status = 6;
+  optional string body_brand = 7;
+  optional string engine_brand = 8;
 }
 
 enum BulkScopeType {

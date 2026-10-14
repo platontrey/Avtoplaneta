@@ -78,5 +78,25 @@ void main() {
         },
       );
     });
+
+    test('includes body_brand and engine_brand in operations payload', () {
+      expect(
+        buildBulkUpdatePayload(
+          ids: [100],
+          bodyBrand: 'AE100',
+          engineBrand: '4A-GE',
+        ),
+        {
+          'scope': {
+            'type': 'BULK_SCOPE_TYPE_IDS',
+            'ids': [100],
+          },
+          'operations': {
+            'body_brand': 'AE100',
+            'engine_brand': '4A-GE',
+          },
+        },
+      );
+    });
   });
 }

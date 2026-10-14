@@ -768,11 +768,15 @@ func (r *partRepository) BulkUpdateWithProto(ctx context.Context, req *partsv1.B
 			Location:    req.Operations.GetLocation(),
 			HasAddress:  req.Operations != nil && req.Operations.Address != nil,
 			Address:     req.Operations.GetAddress(),
-			HasSalesman: req.Operations != nil && req.Operations.Salesman != nil,
-			Salesman:    req.Operations.GetSalesman(),
-			HasStatus:   req.Operations != nil && req.Operations.Status != nil,
-			Status:      req.Operations.GetStatus(),
-			Ids:         ids,
+			HasSalesman:    req.Operations != nil && req.Operations.Salesman != nil,
+			Salesman:       req.Operations.GetSalesman(),
+			HasStatus:      req.Operations != nil && req.Operations.Status != nil,
+			Status:         req.Operations.GetStatus(),
+			HasBodyBrand:   req.Operations != nil && req.Operations.BodyBrand != nil,
+			BodyBrand:      req.Operations.GetBodyBrand(),
+			HasEngineBrand: req.Operations != nil && req.Operations.EngineBrand != nil,
+			EngineBrand:    req.Operations.GetEngineBrand(),
+			Ids:            ids,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to bulk update by IDs: %w", err)
@@ -821,6 +825,12 @@ func (r *partRepository) BulkUpdateWithProto(ctx context.Context, req *partsv1.B
 		}
 		if req.Operations != nil && req.Operations.Status != nil {
 			updateBuilder = updateBuilder.Set("status", req.Operations.GetStatus())
+		}
+		if req.Operations != nil && req.Operations.BodyBrand != nil {
+			updateBuilder = updateBuilder.Set("body_brand", req.Operations.GetBodyBrand())
+		}
+		if req.Operations != nil && req.Operations.EngineBrand != nil {
+			updateBuilder = updateBuilder.Set("engine_brand", req.Operations.GetEngineBrand())
 		}
 
 		updateBuilder = updateBuilder.Set("updated_at", squirrel.Expr("NOW()"))

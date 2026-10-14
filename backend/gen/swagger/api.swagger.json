@@ -1665,6 +1665,12 @@
         },
         "status": {
           "type": "boolean"
+        },
+        "bodyBrand": {
+          "type": "string"
+        },
+        "engineBrand": {
+          "type": "string"
         }
       }
     },

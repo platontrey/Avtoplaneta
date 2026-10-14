@@ -3674,6 +3674,8 @@ type BulkFieldOperations struct {
 	Address       *string                `protobuf:"bytes,4,opt,name=address,proto3,oneof" json:"address,omitempty"`
 	Salesman      *string                `protobuf:"bytes,5,opt,name=salesman,proto3,oneof" json:"salesman,omitempty"`
 	Status        *bool                  `protobuf:"varint,6,opt,name=status,proto3,oneof" json:"status,omitempty"`
+	BodyBrand     *string                `protobuf:"bytes,7,opt,name=body_brand,json=bodyBrand,proto3,oneof" json:"body_brand,omitempty"`
+	EngineBrand   *string                `protobuf:"bytes,8,opt,name=engine_brand,json=engineBrand,proto3,oneof" json:"engine_brand,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3748,6 +3750,20 @@ func (x *BulkFieldOperations) GetStatus() bool {
 		return *x.Status
 	}
 	return false
+}
+
+func (x *BulkFieldOperations) GetBodyBrand() string {
+	if x != nil && x.BodyBrand != nil {
+		return *x.BodyBrand
+	}
+	return ""
+}
+
+func (x *BulkFieldOperations) GetEngineBrand() string {
+	if x != nil && x.EngineBrand != nil {
+		return *x.EngineBrand
+	}
+	return ""
 }
 
 type BulkUpdateScope struct {
@@ -4561,20 +4577,25 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\rdeleted_count\x18\x01 \x01(\x05R\fdeletedCount\"\\\n" +
 	"\x12BulkPriceOperation\x120\n" +
 	"\x04mode\x18\x01 \x01(\x0e2\x1c.parts.v1.PriceOperationModeR\x04mode\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x01R\x05value\"\xa6\x02\n" +
+	"\x05value\x18\x02 \x01(\x01R\x05value\"\x92\x03\n" +
 	"\x13BulkFieldOperations\x122\n" +
 	"\x05price\x18\x01 \x01(\v2\x1c.parts.v1.BulkPriceOperationR\x05price\x12\x1f\n" +
 	"\bcategory\x18\x02 \x01(\tH\x00R\bcategory\x88\x01\x01\x12\x1f\n" +
 	"\blocation\x18\x03 \x01(\tH\x01R\blocation\x88\x01\x01\x12\x1d\n" +
 	"\aaddress\x18\x04 \x01(\tH\x02R\aaddress\x88\x01\x01\x12\x1f\n" +
 	"\bsalesman\x18\x05 \x01(\tH\x03R\bsalesman\x88\x01\x01\x12\x1b\n" +
-	"\x06status\x18\x06 \x01(\bH\x04R\x06status\x88\x01\x01B\v\n" +
+	"\x06status\x18\x06 \x01(\bH\x04R\x06status\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"body_brand\x18\a \x01(\tH\x05R\tbodyBrand\x88\x01\x01\x12&\n" +
+	"\fengine_brand\x18\b \x01(\tH\x06R\vengineBrand\x88\x01\x01B\v\n" +
 	"\t_categoryB\v\n" +
 	"\t_locationB\n" +
 	"\n" +
 	"\b_addressB\v\n" +
 	"\t_salesmanB\t\n" +
-	"\a_status\"\x87\x01\n" +
+	"\a_statusB\r\n" +
+	"\v_body_brandB\x0f\n" +
+	"\r_engine_brand\"\x87\x01\n" +
 	"\x0fBulkUpdateScope\x12+\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x17.parts.v1.BulkScopeTypeR\x04type\x12\x10\n" +
 	"\x03ids\x18\x02 \x03(\rR\x03ids\x125\n" +

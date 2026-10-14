@@ -37,26 +37,32 @@ SET
     address = CASE WHEN $8::boolean THEN $9::text ELSE address END,
     salesman = CASE WHEN $10::boolean THEN $11::text ELSE salesman END,
     status = CASE WHEN $12::boolean THEN $13::boolean ELSE status END,
+    body_brand = CASE WHEN $14::boolean THEN $15::text ELSE body_brand END,
+    engine_brand = CASE WHEN $16::boolean THEN $17::text ELSE engine_brand END,
     updated_at = NOW()
-WHERE id = ANY($14::bigint[]) AND deleted_at IS NULL AND quantity >= 0
+WHERE id = ANY($18::bigint[]) AND deleted_at IS NULL AND quantity >= 0
 RETURNING id, name, quantity, description, category, price, salesman, location, address, status, brand, model, photos, seller_id, to_delete_at, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, created_at, updated_at, deleted_at, car_release_period
 `
 
 type BulkUpdateFieldsByIDsParams struct {
-	HasPrice    bool    `json:"has_price"`
-	PriceMode   string  `json:"price_mode"`
-	PriceVal    float64 `json:"price_val"`
-	HasCategory bool    `json:"has_category"`
-	Category    string  `json:"category"`
-	HasLocation bool    `json:"has_location"`
-	Location    string  `json:"location"`
-	HasAddress  bool    `json:"has_address"`
-	Address     string  `json:"address"`
-	HasSalesman bool    `json:"has_salesman"`
-	Salesman    string  `json:"salesman"`
-	HasStatus   bool    `json:"has_status"`
-	Status      bool    `json:"status"`
-	Ids         []int64 `json:"ids"`
+	HasPrice       bool    `json:"has_price"`
+	PriceMode      string  `json:"price_mode"`
+	PriceVal       float64 `json:"price_val"`
+	HasCategory    bool    `json:"has_category"`
+	Category       string  `json:"category"`
+	HasLocation    bool    `json:"has_location"`
+	Location       string  `json:"location"`
+	HasAddress     bool    `json:"has_address"`
+	Address        string  `json:"address"`
+	HasSalesman    bool    `json:"has_salesman"`
+	Salesman       string  `json:"salesman"`
+	HasStatus      bool    `json:"has_status"`
+	Status         bool    `json:"status"`
+	HasBodyBrand   bool    `json:"has_body_brand"`
+	BodyBrand      string  `json:"body_brand"`
+	HasEngineBrand bool    `json:"has_engine_brand"`
+	EngineBrand    string  `json:"engine_brand"`
+	Ids            []int64 `json:"ids"`
 }
 
 func (q *Queries) BulkUpdateFieldsByIDs(ctx context.Context, arg BulkUpdateFieldsByIDsParams) ([]Part, error) {
@@ -74,6 +80,10 @@ func (q *Queries) BulkUpdateFieldsByIDs(ctx context.Context, arg BulkUpdateField
 		arg.Salesman,
 		arg.HasStatus,
 		arg.Status,
+		arg.HasBodyBrand,
+		arg.BodyBrand,
+		arg.HasEngineBrand,
+		arg.EngineBrand,
 		arg.Ids,
 	)
 	if err != nil {
