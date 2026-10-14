@@ -16,18 +16,43 @@ interface BulkDeleteDialogProps {
   isOpen: boolean;
   onClose: () => void;
   selectedPartIds: number[];
+  scopeType?: 'ids' | 'filter';
+  activeFilters?: Record<string, string>;
   onSuccess: () => void;
 }
 
-export default function BulkDeleteDialog({ isOpen, onClose, selectedPartIds, onSuccess }: BulkDeleteDialogProps) {
+export default function BulkDeleteDialog({
+  isOpen,
+  onClose,
+  selectedPartIds,
+  scopeType = 'ids',
+  activeFilters,
+  onSuccess,
+}: BulkDeleteDialogProps) {
   const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
+
+  const isFilterScope = scopeType === 'filter';
 
   const handleDelete = async () => {
     setIsLoading(true);
 
     try {
-      // Отправляем запрос на массовое удаление
+      const payload = isFilterScope
+        ? {
+            scope: {
+              type: 'BULK_SCOPE_TYPE_FILTER',
+              filter: activeFilters || {},
+            },
+          }
+        : {
+            scope: {
+              type: 'BULK_SCOPE_TYPE_IDS',
+              ids: selectedPartIds,
+            },
+            ids: selectedPartIds,
+          };
+
       const response = await fetch(`${API_BASE_URL}/api/v1/admin/parts/bulk-delete`, {
         method: 'POST',
         headers: {
@@ -35,9 +60,7 @@ export default function BulkDeleteDialog({ isOpen, onClose, selectedPartIds, onS
           'X-CSRF-Token': getAuthHeaders()['X-CSRF-Token'] || '',
         },
         credentials: 'include',
-        body: JSON.stringify({
-          ids: selectedPartIds,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -47,12 +70,13 @@ export default function BulkDeleteDialog({ isOpen, onClose, selectedPartIds, onS
 
       const result = await response.json();
 
-      // Логируем массовое удаление
       try {
         await logUserActivity({
           action: 'bulk_delete_parts',
           resource_type: 'part',
-          details: `Массовое удаление ${selectedPartIds.length} запчастей (ID: ${selectedPartIds.join(', ')})`,
+          details: isFilterScope
+            ? `Массовое удаление запчастей по фильтру (${result.deleted_count || 0} шт.)`
+            : `Массовое удаление ${selectedPartIds.length} запчастей (ID: ${selectedPartIds.join(', ')})`,
         });
       } catch (logError) {
         console.warn('Failed to log bulk delete activity:', logError);
@@ -61,7 +85,7 @@ export default function BulkDeleteDialog({ isOpen, onClose, selectedPartIds, onS
       // Обновляем кэш
       queryClient.invalidateQueries({ queryKey: partsKeys.lists() });
 
-      alert(`Успешно удалено ${result.deleted_count} запчастей`);
+      alert(`Успешно удалено ${result.deleted_count ?? selectedPartIds.length} запчастей`);
       onSuccess();
     } catch (error) {
       console.error('Error bulk deleting parts:', error);
@@ -73,14 +97,24 @@ export default function BulkDeleteDialog({ isOpen, onClose, selectedPartIds, onS
 
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
-      <AlertDialogContent className="sm:max-w-[400px]">
+      <AlertDialogContent className="sm:max-w-[420px]">
         <AlertDialogHeader>
           <div className="flex items-center gap-3">
-            <AlertTriangle className="h-6 w-6 text-red-500" />
+            <AlertTriangle className="h-6 w-6 text-red-500 shrink-0" />
             <div>
-              <AlertDialogTitle className="text-red-600">Удалить запчасти</AlertDialogTitle>
+              <AlertDialogTitle className="text-red-600">
+                {isFilterScope ? 'Удалить запчасти по запросу' : 'Удалить запчасти'}
+              </AlertDialogTitle>
               <AlertDialogDescription className="mt-2">
-                Вы уверены, что хотите удалить {selectedPartIds.length} выбранных запчастей?
+                {isFilterScope ? (
+                  <>
+                    Вы уверены, что хотите удалить <strong>все запчасти</strong>, соответствующие текущему поисковому запросу и фильтрам?
+                  </>
+                ) : (
+                  <>
+                    Вы уверены, что хотите удалить {selectedPartIds.length} выбранных запчастей?
+                  </>
+                )}
                 <br />
                 <strong className="text-red-600">Это действие нельзя отменить.</strong>
               </AlertDialogDescription>
@@ -89,11 +123,15 @@ export default function BulkDeleteDialog({ isOpen, onClose, selectedPartIds, onS
         </AlertDialogHeader>
 
         <div className="py-4">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-sm text-red-800">
-              {selectedPartIds.length <= 6
-                ? `Будут удалены запчасти с ID: ${selectedPartIds.join(', ')}`
-                : `Будут удалены запчасти с ID: ${selectedPartIds.slice(0, 6).join(', ')} ... и ещё ${selectedPartIds.length - 6}`}
+          <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-lg p-3">
+            <p className="text-sm text-red-800 dark:text-red-300">
+              {isFilterScope ? (
+                'Операция удалит все детали по текущему поисковому фильтру на сервере без необходимости их загрузки.'
+              ) : selectedPartIds.length <= 6 ? (
+                `Будут удалены запчасти с ID: ${selectedPartIds.join(', ')}`
+              ) : (
+                `Будут удалены запчасти с ID: ${selectedPartIds.slice(0, 6).join(', ')} ... и ещё ${selectedPartIds.length - 6}`
+              )}
             </p>
           </div>
         </div>
@@ -108,7 +146,11 @@ export default function BulkDeleteDialog({ isOpen, onClose, selectedPartIds, onS
             onClick={handleDelete}
             disabled={isLoading}
           >
-            {isLoading ? 'Удаление...' : `Удалить ${selectedPartIds.length} запчастей`}
+            {isLoading
+              ? 'Удаление...'
+              : isFilterScope
+              ? 'Удалить всё по запросу'
+              : `Удалить ${selectedPartIds.length} запчастей`}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

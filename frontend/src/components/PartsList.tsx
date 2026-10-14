@@ -3,16 +3,14 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { Accordion } from "@/components/ui/accordion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Loader2, Check, X, Edit, Trash2, Filter } from "lucide-react";
+import { Loader2, Check, X, Edit, Trash2 } from "lucide-react";
 import PartBlock from './PartBlock';
 import BulkEditDialog from './BulkEditDialog';
 import BulkDeleteDialog from './BulkDeleteDialog';
 import BulkOrderDialog from './BulkOrderDialog';
-import SelectByCriteriaDialog from './SelectByCriteriaDialog';
 import { useSwipeGesture } from '@/hooks/useSwipeGesture';
 import { useOrders } from '@/hooks/useOrders';
 import type { Part } from '@/lib/types';
@@ -32,21 +30,12 @@ interface PartsListProps {
 function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScroll = false, defaultOpenPartId = null, activeFilters }: PartsListProps) {
     const loadMoreRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const listRef = useRef<HTMLDivElement>(null);
-
-    const virtualizer = useWindowVirtualizer({
-        count: parts.length,
-        estimateSize: () => 140,
-        overscan: 5,
-        scrollMargin: listRef.current?.offsetTop ?? 0,
-    });
     const [isSelectionMode, setIsSelectionMode] = useState(false);
     const [selectedParts, setSelectedParts] = useState<Set<number>>(new Set());
     const [selectedPartsCatalog, setSelectedPartsCatalog] = useState<Map<number, Part>>(new Map());
     const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
     const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
     const [isBulkOrderOpen, setIsBulkOrderOpen] = useState(false);
-    const [isCriteriaDialogOpen, setIsCriteriaDialogOpen] = useState(false);
     const [isAllMatchingFilterSelected, setIsAllMatchingFilterSelected] = useState(false);
     const [openAccordionValue, setOpenAccordionValue] = useState<string>(
         defaultOpenPartId ? `part-${defaultOpenPartId}` : ''
@@ -144,15 +133,6 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
         setIsAllMatchingFilterSelected(false);
     };
 
-    const handleSelectMatching = (matchedIds: number[]) => {
-        setIsSelectionMode(true);
-        setSelectedParts((prev) => {
-            const next = new Set(prev);
-            matchedIds.forEach((id) => next.add(id));
-            return next;
-        });
-    };
-
     useEffect(() => {
         if (!isInfiniteScroll || !onLoadMore || !hasMore || isLoading) return;
 
@@ -241,23 +221,29 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
                             <span className="font-medium text-blue-900 dark:text-blue-200 text-sm sm:text-base">
                                 В корзине выбора: {selectedParts.size} запч.
                             </span>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap items-center">
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={selectedParts.size === parts.length ? deselectAll : selectAll}
+                                    onClick={selectedParts.size === parts.length && !isAllMatchingFilterSelected ? deselectAll : selectAll}
                                     className="text-xs sm:text-sm"
                                 >
-                                    {selectedParts.size === parts.length ? 'Снять все' : 'Выбрать все на странице'}
+                                    {selectedParts.size === parts.length && !isAllMatchingFilterSelected ? 'Снять все' : 'Выбрать на странице'}
                                 </Button>
                                 <Button
-                                    variant="outline"
+                                    variant={isAllMatchingFilterSelected ? "default" : "outline"}
                                     size="sm"
-                                    onClick={() => setIsCriteriaDialogOpen(true)}
+                                    onClick={() => {
+                                        if (isAllMatchingFilterSelected) {
+                                            setIsAllMatchingFilterSelected(false);
+                                        } else {
+                                            selectAll();
+                                            setIsAllMatchingFilterSelected(true);
+                                        }
+                                    }}
                                     className="text-xs sm:text-sm"
                                 >
-                                    <Filter className="h-3.5 w-3.5 mr-1" />
-                                    По критерию...
+                                    {isAllMatchingFilterSelected ? 'Снять выбор "Все по запросу"' : 'Выбрать все запчасти в поиске'}
                                 </Button>
                             </div>
                         </div>
@@ -271,36 +257,36 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
                             Отмена
                         </Button>
                     </div>
-                    {cleanedFilters && selectedParts.size === parts.length && parts.length > 0 && (
-                        <div className="mt-2.5 py-1.5 px-3 bg-blue-100/80 dark:bg-blue-900/40 rounded text-xs text-blue-900 dark:text-blue-100 flex items-center justify-between">
+
+                    {isAllMatchingFilterSelected && (
+                        <div className="mt-2.5 py-2 px-3 bg-blue-100/90 dark:bg-blue-900/40 border border-blue-200 dark:border-blue-800 rounded-md text-xs text-blue-900 dark:text-blue-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
                             <span>
-                                {isAllMatchingFilterSelected
-                                    ? "Выбраны ВСЕ запчасти по активному фильтру каталога."
-                                    : `Выбраны все ${parts.length} запч. на этой странице.`}
+                                🎯 <strong>Выбраны ВСЕ запчасти по текущему запросу.</strong> Сервер применит изменения ко всем подходящим деталям без необходимости их загрузки на устройство.
                             </span>
                             <button
                                 type="button"
-                                className="text-xs text-blue-700 dark:text-blue-300 font-semibold underline hover:text-blue-900 dark:hover:text-white cursor-pointer ml-2"
-                                onClick={() => setIsAllMatchingFilterSelected((prev) => !prev)}
+                                className="text-xs text-blue-700 dark:text-blue-300 font-semibold underline hover:text-blue-900 dark:hover:text-white cursor-pointer self-start sm:self-auto"
+                                onClick={() => setIsAllMatchingFilterSelected(false)}
                             >
-                                {isAllMatchingFilterSelected
-                                    ? "Оставить только запчасти на странице"
-                                    : "Выбрать все запчасти по этому фильтру"}
+                                Оставить только запчасти на странице
                             </button>
                         </div>
                     )}
-                    {selectedParts.size > 0 && (
+
+                    {(selectedParts.size > 0 || isAllMatchingFilterSelected) && (
                         <div className="mt-3 flex flex-col sm:flex-row gap-2 flex-wrap">
-                            <Button
-                                size="sm"
-                                className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto text-xs sm:text-sm"
-                                onClick={() => setIsBulkOrderOpen(true)}
-                                title={hasOutOfStockSelected ? "Внимание: среди выбранных есть детали с количеством <= 0" : undefined}
-                            >
-                                <Check className="h-4 w-4 mr-1" />
-                                Оформить заказ ({selectedParts.size})
-                                {hasOutOfStockSelected && <span className="ml-1 text-xs">⚠️</span>}
-                            </Button>
+                            {!isAllMatchingFilterSelected && (
+                                <Button
+                                    size="sm"
+                                    className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto text-xs sm:text-sm"
+                                    onClick={() => setIsBulkOrderOpen(true)}
+                                    title={hasOutOfStockSelected ? "Внимание: среди выбранных есть детали с количеством <= 0" : undefined}
+                                >
+                                    <Check className="h-4 w-4 mr-1" />
+                                    Оформить заказ ({selectedParts.size})
+                                    {hasOutOfStockSelected && <span className="ml-1 text-xs">⚠️</span>}
+                                </Button>
+                            )}
                             <Button
                                 size="sm"
                                 variant="outline"
@@ -308,7 +294,7 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
                                 onClick={() => setIsBulkEditOpen(true)}
                             >
                                 <Edit className="h-4 w-4 mr-1" />
-                                Изменить выбранные ({selectedParts.size})
+                                {isAllMatchingFilterSelected ? 'Изменить все по запросу' : `Изменить выбранные (${selectedParts.size})`}
                             </Button>
                             <Button
                                 size="sm"
@@ -317,69 +303,48 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
                                 onClick={() => setIsBulkDeleteOpen(true)}
                             >
                                 <Trash2 className="h-4 w-4 mr-1" />
-                                Удалить выбранные ({selectedParts.size})
+                                {isAllMatchingFilterSelected ? 'Удалить все по запросу' : `Удалить выбранные (${selectedParts.size})`}
                             </Button>
                         </div>
                     )}
                 </div>
             )}
 
-            {/* Список запчастей с виртуализацией */}
+            {/* Кнопка входа в режим выбора */}
             {!isSelectionMode && parts.length > 0 && (
                 <div className="flex justify-end items-center gap-2 mb-1">
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setIsCriteriaDialogOpen(true)}
+                        onClick={() => setIsSelectionMode(true)}
                         className="text-xs text-muted-foreground hover:text-foreground h-8"
                     >
-                        <Filter className="h-3.5 w-3.5 mr-1.5" />
-                        Выбрать по критерию...
+                        <Check className="h-3.5 w-3.5 mr-1.5" />
+                        Выбрать запчасти
                     </Button>
                 </div>
             )}
-            <div ref={listRef} className="w-full">
-                <Accordion
-                    type="single"
-                    collapsible
-                    value={openAccordionValue}
-                    onValueChange={setOpenAccordionValue}
-                    className="w-full relative"
-                    style={{
-                        height: `${virtualizer.getTotalSize()}px`,
-                    }}
-                >
-                    {virtualizer.getVirtualItems().map((virtualRow) => {
-                        const part = parts[virtualRow.index];
-                        if (!part) return null;
-                        return (
-                            <div
-                                key={part.id}
-                                ref={virtualizer.measureElement}
-                                data-index={virtualRow.index}
-                                className="w-full"
-                                style={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    width: '100%',
-                                    transform: `translateY(${virtualRow.start - (virtualizer.options.scrollMargin || 0)}px)`,
-                                }}
-                            >
-                                <PartBlock
-                                    part={part}
-                                    isLoading={false}
-                                    isSelectionMode={isSelectionMode}
-                                    isSelected={selectedParts.has(part.id)}
-                                    activeOrderId={partToOrderMap.get(part.id)}
-                                    onLongPress={() => handleLongPress(part.id)}
-                                    onSelect={(isSelected) => handlePartSelect(part.id, isSelected)}
-                                />
-                            </div>
-                        );
-                    })}
-                </Accordion>
-            </div>
+            {/* Список запчастей */}
+            <Accordion
+                type="single"
+                collapsible
+                value={openAccordionValue}
+                onValueChange={setOpenAccordionValue}
+                className="w-full"
+            >
+                {parts.map((part) => (
+                    <PartBlock
+                        key={part.id}
+                        part={part}
+                        isLoading={false}
+                        isSelectionMode={isSelectionMode}
+                        isSelected={selectedParts.has(part.id)}
+                        activeOrderId={partToOrderMap.get(part.id)}
+                        onLongPress={() => handleLongPress(part.id)}
+                        onSelect={(isSelected) => handlePartSelect(part.id, isSelected)}
+                    />
+                ))}
+            </Accordion>
 
             {/* Триггер бесконечной прокрутки */}
             {isInfiniteScroll && (
@@ -430,17 +395,12 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
                 }}
             />
 
-            <SelectByCriteriaDialog
-                isOpen={isCriteriaDialogOpen}
-                onClose={() => setIsCriteriaDialogOpen(false)}
-                parts={parts}
-                onSelectMatching={handleSelectMatching}
-            />
-
             <BulkDeleteDialog
                 isOpen={isBulkDeleteOpen}
                 onClose={() => setIsBulkDeleteOpen(false)}
                 selectedPartIds={Array.from(selectedParts)}
+                scopeType={isAllMatchingFilterSelected ? 'filter' : 'ids'}
+                activeFilters={cleanedFilters}
                 onSuccess={() => {
                     setIsBulkDeleteOpen(false);
                     exitSelectionMode();
