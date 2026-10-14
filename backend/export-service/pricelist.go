@@ -116,7 +116,7 @@ func (b *PriceListBuilder) Generate(ctx context.Context) ([]byte, int, error) {
 		sellerINNs = map[int64]string{}
 	}
 
-	xmlData, err := GenerateXMLPriceList(parts, sellerINNs)
+	xmlData, err := GenerateXMLPriceList(parts, sellerINNs, b.config.BaseImageURL)
 	if err != nil {
 		return nil, 0, fmt.Errorf("сгенерировать XML: %w", err)
 	}

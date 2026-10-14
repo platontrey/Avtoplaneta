@@ -21,32 +21,32 @@ type Offers struct {
 }
 
 type Offer struct {
-	Name          string  `xml:"name"`
-	Available     bool    `xml:"available"`
-	Description   string  `xml:"description,omitempty"`
-	Price         float64 `xml:"price,omitempty"`
-	CurrencyId    string  `xml:"currencyId,omitempty"`
-	Picture       string  `xml:"picture,omitempty"`
-	Store         string  `xml:"store,omitempty"`
-	Quantity      int     `xml:"quantity,omitempty"`
-	OemNumber     string  `xml:"oem_number,omitempty"`
-	AnalogNumbers string  `xml:"analog_numbers,omitempty"`
-	Manufacturer  string  `xml:"manufacturer,omitempty"`
-	Ordercode     string  `xml:"ordercode,omitempty"`
-	Condition     string  `xml:"condition,omitempty"`
-	Brandcars     string  `xml:"brandcars,omitempty"`
-	Modelcars     string  `xml:"modelcars,omitempty"`
-	Bodycars      string  `xml:"bodycars,omitempty"`
-	Engine        string  `xml:"engine,omitempty"`
-	Year          string  `xml:"year,omitempty"`
-	Lr            string  `xml:"lr,omitempty"`
-	Fr            string  `xml:"fr,omitempty"`
-	Ud            string  `xml:"ud,omitempty"`
-	Color         string  `xml:"color,omitempty"`
-	Supplier      string  `xml:"supplier,omitempty"`
-	SupplierInn   string  `xml:"supplier_inn,omitempty"`
-	Sklad         string  `xml:"sklad,omitempty"`
-	SupplierArt   string  `xml:"supplier_art,omitempty"`
+	Name          string   `xml:"name"`
+	Available     bool     `xml:"available"`
+	Description   string   `xml:"description,omitempty"`
+	Price         float64  `xml:"price,omitempty"`
+	CurrencyId    string   `xml:"currencyId,omitempty"`
+	Pictures      []string `xml:"picture,omitempty"`
+	Store         string   `xml:"store,omitempty"`
+	Quantity      int      `xml:"quantity,omitempty"`
+	OemNumber     string   `xml:"oem_number,omitempty"`
+	AnalogNumbers string   `xml:"analog_numbers,omitempty"`
+	Manufacturer  string   `xml:"manufacturer,omitempty"`
+	Ordercode     string   `xml:"ordercode,omitempty"`
+	Condition     string   `xml:"condition,omitempty"`
+	Brandcars     string   `xml:"brandcars,omitempty"`
+	Modelcars     string   `xml:"modelcars,omitempty"`
+	Bodycars      string   `xml:"bodycars,omitempty"`
+	Engine        string   `xml:"engine,omitempty"`
+	Year          string   `xml:"year,omitempty"`
+	Lr            string   `xml:"lr,omitempty"`
+	Fr            string   `xml:"fr,omitempty"`
+	Ud            string   `xml:"ud,omitempty"`
+	Color         string   `xml:"color,omitempty"`
+	Supplier      string   `xml:"supplier,omitempty"`
+	SupplierInn   string   `xml:"supplier_inn,omitempty"`
+	Sklad         string   `xml:"sklad,omitempty"`
+	SupplierArt   string   `xml:"supplier_art,omitempty"`
 }
 
 // GenerateXMLPriceList собирает XML прайс-лист Drom из уже полученных данных.
@@ -54,7 +54,12 @@ type Offer struct {
 // Функция ничего не запрашивает сама: и запчасти, и ИНН продавцов передаются
 // аргументами. Так её можно проверить тестом без сети, а поход за данными
 // остаётся в одном месте — в Clients.
-func GenerateXMLPriceList(parts []Part, sellerINNs map[int64]string) ([]byte, error) {
+func GenerateXMLPriceList(parts []Part, sellerINNs map[int64]string, baseImageURL string) ([]byte, error) {
+	if baseImageURL == "" {
+		baseImageURL = resolveBaseImageURL()
+	}
+	baseImageURL = strings.TrimRight(baseImageURL, "/")
+
 	offers := Offers{
 		Offers: make([]Offer, 0, len(parts)),
 	}
@@ -65,10 +70,19 @@ func GenerateXMLPriceList(parts []Part, sellerINNs map[int64]string) ([]byte, er
 			continue
 		}
 
-		// Формируем полный URL для фотографии (используем первое фото из массива)
-		pictureURL := ""
-		if len(part.Photos) > 0 && part.Photos[0] != "" {
-			pictureURL = "https://avtoplaneta70.ru" + part.Photos[0]
+		// Формируем полные URL для всех фотографий детали
+		pictures := make([]string, 0, len(part.Photos))
+		for _, photo := range part.Photos {
+			trimmed := strings.TrimSpace(photo)
+			if trimmed == "" {
+				continue
+			}
+			if strings.HasPrefix(trimmed, "http://") || strings.HasPrefix(trimmed, "https://") {
+				pictures = append(pictures, trimmed)
+			} else {
+				photoPath := "/" + strings.TrimPrefix(trimmed, "/")
+				pictures = append(pictures, baseImageURL+photoPath)
+			}
 		}
 
 		// Устанавливаем condition по умолчанию "Б/у" если не указано
@@ -83,7 +97,7 @@ func GenerateXMLPriceList(parts []Part, sellerINNs map[int64]string) ([]byte, er
 			Description:   strings.TrimSpace(part.Description),
 			Price:         part.Price,
 			CurrencyId:    "RUR",
-			Picture:       pictureURL,
+			Pictures:      pictures,
 			Store:         strings.TrimSpace(part.Salesman),
 			Quantity:      part.Quantity,
 			OemNumber:     strings.TrimSpace(part.OEMCode),

@@ -17,6 +17,7 @@ func parse(t *testing.T, data []byte) Offers {
 }
 
 // Запчасть, помеченную на удаление, площадка видеть не должна: её вот-вот не
+// Запчасть, помеченную на удаление, площадка видеть не должна: её вот-вот не
 // станет, а заказ по ней уже не выполнить.
 func TestGenerateXMLPriceListSkipsPartsMarkedForDeletion(t *testing.T) {
 	deleteAt := time.Now().Add(24 * time.Hour)
@@ -25,7 +26,7 @@ func TestGenerateXMLPriceListSkipsPartsMarkedForDeletion(t *testing.T) {
 		{Name: "Удаляется", Status: true, ToDeleteAt: &deleteAt},
 	}
 
-	data, err := GenerateXMLPriceList(parts, nil)
+	data, err := GenerateXMLPriceList(parts, nil, "")
 	if err != nil {
 		t.Fatalf("GenerateXMLPriceList: %v", err)
 	}
@@ -47,7 +48,7 @@ func TestGenerateXMLPriceListFillsSupplierINN(t *testing.T) {
 		{Name: "Без реквизитов", SellerID: 9, Status: true},
 	}
 
-	data, err := GenerateXMLPriceList(parts, map[int64]string{7: "700123456789"})
+	data, err := GenerateXMLPriceList(parts, map[int64]string{7: "700123456789"}, "")
 	if err != nil {
 		t.Fatalf("GenerateXMLPriceList: %v", err)
 	}
@@ -79,26 +80,40 @@ func TestGenerateXMLPriceListDefaultsCondition(t *testing.T) {
 	}
 }
 
-// Фотографии лежат относительными путями, а Drom ходит за ними снаружи.
+// Все фотографии детали попадают в выгрузку в виде отдельных тегов <picture>,
+// а относительные пути преобразуются в абсолютные по baseImageURL.
 func TestGenerateXMLPriceListMakesAbsolutePictureURL(t *testing.T) {
 	parts := []Part{
 		{Name: "С фото", Status: true, Photos: []string{"/uploads/12_1700000000.jpg", "/uploads/12_1700000001.jpg"}},
 		{Name: "Без фото", Status: true},
 	}
 
-	offers := parse(t, mustGenerate(t, parts))
-	want := "https://avtoplaneta70.ru/uploads/12_1700000000.jpg"
-	if got := offers.Offers[0].Picture; got != want {
-		t.Fatalf("ожидался адрес %q, получен %q", want, got)
+	base := "https://custom-domain.ru"
+	data, err := GenerateXMLPriceList(parts, nil, base)
+	if err != nil {
+		t.Fatalf("GenerateXMLPriceList: %v", err)
 	}
-	if got := offers.Offers[1].Picture; got != "" {
-		t.Fatalf("у запчасти без фото появился адрес %q", got)
+
+	offers := parse(t, data)
+	if len(offers.Offers[0].Pictures) != 2 {
+		t.Fatalf("ожидалось 2 фотографии в выгрузке, получено %d", len(offers.Offers[0].Pictures))
+	}
+	want1 := "https://custom-domain.ru/uploads/12_1700000000.jpg"
+	want2 := "https://custom-domain.ru/uploads/12_1700000001.jpg"
+	if got := offers.Offers[0].Pictures[0]; got != want1 {
+		t.Fatalf("фото 1: ожидался адрес %q, получен %q", want1, got)
+	}
+	if got := offers.Offers[0].Pictures[1]; got != want2 {
+		t.Fatalf("фото 2: ожидался адрес %q, получен %q", want2, got)
+	}
+	if len(offers.Offers[1].Pictures) != 0 {
+		t.Fatalf("у запчасти без фото появились адреса: %v", offers.Offers[1].Pictures)
 	}
 }
 
 func mustGenerate(t *testing.T, parts []Part) []byte {
 	t.Helper()
-	data, err := GenerateXMLPriceList(parts, nil)
+	data, err := GenerateXMLPriceList(parts, nil, "")
 	if err != nil {
 		t.Fatalf("GenerateXMLPriceList: %v", err)
 	}
@@ -110,7 +125,7 @@ func TestGenerateXMLPriceListHeaderAndRoot(t *testing.T) {
 	parts := []Part{
 		{Name: "Тестовая запчасть", Status: true, Quantity: 1, Price: 1500},
 	}
-	data, err := GenerateXMLPriceList(parts, nil)
+	data, err := GenerateXMLPriceList(parts, nil, "")
 	if err != nil {
 		t.Fatalf("GenerateXMLPriceList: %v", err)
 	}
@@ -128,7 +143,7 @@ func TestGenerateXMLPriceListHeaderAndRoot(t *testing.T) {
 
 // Пустой склад формирует корректный XML без предложений
 func TestGenerateXMLPriceListEmpty(t *testing.T) {
-	data, err := GenerateXMLPriceList([]Part{}, nil)
+	data, err := GenerateXMLPriceList([]Part{}, nil, "")
 	if err != nil {
 		t.Fatalf("GenerateXMLPriceList: %v", err)
 	}
@@ -170,7 +185,8 @@ func TestGenerateXMLPriceListAllFieldsMapping(t *testing.T) {
 		SupplierCode:   "AP-778899",
 	}
 
-	data, err := GenerateXMLPriceList([]Part{part}, sellerINNs)
+	base := "https://backend-server.ru"
+	data, err := GenerateXMLPriceList([]Part{part}, sellerINNs, base)
 	if err != nil {
 		t.Fatalf("GenerateXMLPriceList: %v", err)
 	}
@@ -196,8 +212,14 @@ func TestGenerateXMLPriceListAllFieldsMapping(t *testing.T) {
 	if o.CurrencyId != "RUR" {
 		t.Errorf("CurrencyId: got %q, want RUR", o.CurrencyId)
 	}
-	if o.Picture != "https://avtoplaneta70.ru/uploads/parts/camry_light_1.jpg" {
-		t.Errorf("Picture: got %q, want https://avtoplaneta70.ru/uploads/parts/camry_light_1.jpg", o.Picture)
+	if len(o.Pictures) != 2 {
+		t.Fatalf("Pictures: ожидалось 2 фото, получено %d", len(o.Pictures))
+	}
+	if o.Pictures[0] != "https://backend-server.ru/uploads/parts/camry_light_1.jpg" {
+		t.Errorf("Pictures[0]: got %q, want https://backend-server.ru/uploads/parts/camry_light_1.jpg", o.Pictures[0])
+	}
+	if o.Pictures[1] != "https://backend-server.ru/uploads/parts/camry_light_2.jpg" {
+		t.Errorf("Pictures[1]: got %q, want https://backend-server.ru/uploads/parts/camry_light_2.jpg", o.Pictures[1])
 	}
 	if o.Store != "Автопланета Север" {
 		t.Errorf("Store: got %q, want %q", o.Store, "Автопланета Север")
@@ -306,7 +328,7 @@ func TestGenerateXMLPriceListEscaping(t *testing.T) {
 		},
 	}
 
-	data, err := GenerateXMLPriceList(parts, nil)
+	data, err := GenerateXMLPriceList(parts, nil, "")
 	if err != nil {
 		t.Fatalf("GenerateXMLPriceList с ошибкой: %v", err)
 	}
@@ -347,7 +369,7 @@ func TestGenerateSampleXMLFile(t *testing.T) {
 			Status:         true,
 			Brand:          "Toyota",
 			Model:          "Camry",
-			Photos:         []string{"/uploads/parts/camry_light.jpg"},
+			Photos:         []string{"/uploads/parts/camry_light_front.jpg", "/uploads/parts/camry_light_back.jpg"},
 			SellerID:       10,
 			BodyBrand:      "XV70",
 			EngineBrand:    "2AR-FE",
@@ -401,7 +423,7 @@ func TestGenerateSampleXMLFile(t *testing.T) {
 		},
 	}
 
-	data, err := GenerateXMLPriceList(parts, sellerINNs)
+	data, err := GenerateXMLPriceList(parts, sellerINNs, "")
 	if err != nil {
 		t.Fatalf("Ошибка генерации XML: %v", err)
 	}
@@ -414,6 +436,9 @@ func TestGenerateSampleXMLFile(t *testing.T) {
 	offers := parse(t, data)
 	if len(offers.Offers) != 3 {
 		t.Fatalf("Ожидалось 3 позиции, получено %d", len(offers.Offers))
+	}
+	if len(offers.Offers[0].Pictures) != 2 {
+		t.Fatalf("Ожидалось 2 фото у первой детали, получено %d", len(offers.Offers[0].Pictures))
 	}
 }
 

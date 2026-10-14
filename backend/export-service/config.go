@@ -1,6 +1,9 @@
 package main
 
-import "os"
+import (
+	"os"
+	"strings"
+)
 
 // Config описывает всё, что нужно сервису выгрузки: где брать запчасти,
 // где брать реквизиты продавцов и куда складывать готовый прайс-лист.
@@ -13,6 +16,8 @@ type Config struct {
 	DromAPIURL   string
 	DromAPIKey   string
 	DromPacketID string
+
+	BaseImageURL string
 }
 
 func LoadConfig() *Config {
@@ -24,6 +29,7 @@ func LoadConfig() *Config {
 		DromAPIURL:       os.Getenv("DROM_API_URL"),
 		DromAPIKey:       os.Getenv("DROM_API_KEY"),
 		DromPacketID:     os.Getenv("DROM_PACKET_ID"),
+		BaseImageURL:     resolveBaseImageURL(),
 	}
 
 	if config.Port == "" {
@@ -45,4 +51,23 @@ func LoadConfig() *Config {
 	}
 
 	return config
+}
+
+func resolveBaseImageURL() string {
+	raw := os.Getenv("BASE_IMAGE_URL")
+	if raw == "" {
+		raw = os.Getenv("PUBLIC_DOMAIN")
+	}
+	if raw == "" {
+		raw = os.Getenv("DOMAIN")
+	}
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "https://backend-server.ru"
+	}
+
+	if !strings.HasPrefix(raw, "http://") && !strings.HasPrefix(raw, "https://") {
+		raw = "https://" + raw
+	}
+	return strings.TrimRight(raw, "/")
 }
