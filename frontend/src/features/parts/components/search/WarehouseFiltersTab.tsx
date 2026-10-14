@@ -5,39 +5,16 @@
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import type { SearchFiltersState } from './searchTypes';
 
-interface WarehouseFiltersTabProps {
-  location: string;
-  setLocation: (val: string) => void;
-  address: string;
-  setAddress: (val: string) => void;
-  salesman: string;
-  setSalesman: (val: string) => void;
-  manufacturer: string;
-  setManufacturer: (val: string) => void;
-  manufacturerCode: string;
-  setManufacturerCode: (val: string) => void;
-  supplierCode: string;
-  setSupplierCode: (val: string) => void;
-  wearPercentage: string;
-  setWearPercentage: (val: string) => void;
+export interface WarehouseFiltersTabProps {
+  filters: SearchFiltersState;
+  onChange: <K extends keyof SearchFiltersState>(key: K, val: SearchFiltersState[K]) => void;
 }
 
 export const WarehouseFiltersTab: React.FC<WarehouseFiltersTabProps> = ({
-  location,
-  setLocation,
-  address,
-  setAddress,
-  salesman,
-  setSalesman,
-  manufacturer,
-  setManufacturer,
-  manufacturerCode,
-  setManufacturerCode,
-  supplierCode,
-  setSupplierCode,
-  wearPercentage,
-  setWearPercentage,
+  filters,
+  onChange,
 }) => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -47,8 +24,8 @@ export const WarehouseFiltersTab: React.FC<WarehouseFiltersTabProps> = ({
         <Input
           id="location-filter"
           type="text"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
+          value={filters.location}
+          onChange={(e) => onChange('location', e.target.value)}
           placeholder="Shelf A-12..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />
@@ -60,8 +37,8 @@ export const WarehouseFiltersTab: React.FC<WarehouseFiltersTabProps> = ({
         <Input
           id="address-filter"
           type="text"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
+          value={filters.address}
+          onChange={(e) => onChange('address', e.target.value)}
           placeholder="Профсоюзная 2/11..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />
@@ -73,8 +50,8 @@ export const WarehouseFiltersTab: React.FC<WarehouseFiltersTabProps> = ({
         <Input
           id="salesman-filter"
           type="text"
-          value={salesman}
-          onChange={(e) => setSalesman(e.target.value)}
+          value={filters.salesman}
+          onChange={(e) => onChange('salesman', e.target.value)}
           placeholder="Имя продавца..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />
@@ -86,8 +63,8 @@ export const WarehouseFiltersTab: React.FC<WarehouseFiltersTabProps> = ({
         <Input
           id="manufacturer-filter"
           type="text"
-          value={manufacturer}
-          onChange={(e) => setManufacturer(e.target.value)}
+          value={filters.manufacturer}
+          onChange={(e) => onChange('manufacturer', e.target.value)}
           placeholder="Denso, Bosch, Brembo..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />
@@ -99,8 +76,8 @@ export const WarehouseFiltersTab: React.FC<WarehouseFiltersTabProps> = ({
         <Input
           id="manufacturer-code-filter"
           type="text"
-          value={manufacturerCode}
-          onChange={(e) => setManufacturerCode(e.target.value)}
+          value={filters.manufacturerCode}
+          onChange={(e) => onChange('manufacturerCode', e.target.value)}
           placeholder="Код производителя..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />
@@ -112,8 +89,8 @@ export const WarehouseFiltersTab: React.FC<WarehouseFiltersTabProps> = ({
         <Input
           id="supplier-code-filter"
           type="text"
-          value={supplierCode}
-          onChange={(e) => setSupplierCode(e.target.value)}
+          value={filters.supplierCode}
+          onChange={(e) => onChange('supplierCode', e.target.value)}
           placeholder="Код поставщика..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />
@@ -125,8 +102,8 @@ export const WarehouseFiltersTab: React.FC<WarehouseFiltersTabProps> = ({
         <Input
           id="wear-percentage-filter"
           type="text"
-          value={wearPercentage}
-          onChange={(e) => setWearPercentage(e.target.value)}
+          value={filters.wearPercentage}
+          onChange={(e) => onChange('wearPercentage', e.target.value)}
           placeholder="5%, 10%..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />

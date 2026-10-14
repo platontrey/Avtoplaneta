@@ -8,5 +8,6 @@ export * from './BodyEngineFiltersTab';
 export * from './TransmissionFiltersTab';
 export * from './WarehouseFiltersTab';
 export * from './WheelsFiltersTab';
+export * from './searchTypes';
 export { PartsSearch, default } from './PartsSearch';
 export type { PartsSearchProps } from './PartsSearch';

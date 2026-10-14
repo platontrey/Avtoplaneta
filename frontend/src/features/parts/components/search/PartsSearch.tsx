@@ -18,7 +18,6 @@ import { API_BASE_URL } from '@/lib/api';
 import { useVehicleOptions } from '@/features/vehicles/useVehicleCatalog';
 import { usePartCatalog } from '@/features/catalog/usePartCatalog';
 import type { PartFilters } from '@/hooks/useParts';
-import { formatCarReleasePeriod } from '@/lib/utils';
 
 import { ActiveFilterBadges, type ActiveFilterItem } from './ActiveFilterBadges';
 import { GeneralFiltersTab } from './GeneralFiltersTab';
@@ -26,6 +25,20 @@ import { BodyEngineFiltersTab } from './BodyEngineFiltersTab';
 import { TransmissionFiltersTab } from './TransmissionFiltersTab';
 import { WarehouseFiltersTab } from './WarehouseFiltersTab';
 import { WheelsFiltersTab } from './WheelsFiltersTab';
+import {
+  type SearchFiltersState,
+  initialSearchFiltersState,
+  statusOptions,
+  photoOptions,
+  transmissionOptions,
+  driveOptions,
+  frontRearOptions,
+  leftRightOptions,
+  topBottomOptions,
+  seasonOptions,
+  FILTER_DESCRIPTORS,
+  toPartFilters,
+} from './searchTypes';
 
 // Web Speech API Types
 declare global {
@@ -89,56 +102,21 @@ export interface PartsSearchProps {
   currentDisplayLimit?: number | undefined;
 }
 
+const MIN_SEARCH_LENGTH = 2;
+const SEARCH_DEBOUNCE_DELAY = 500;
+const FILTER_DEBOUNCE_DELAY = 300;
+
 export const PartsSearch: React.FC<PartsSearchProps> = ({
   onFiltersChange,
   onDisplayLimitChange,
   currentDisplayLimit,
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [category, setCategory] = useState('');
-  const [brand, setBrand] = useState('');
-  const [model, setModel] = useState('');
+  const [filters, setFilters] = useState<SearchFiltersState>(initialSearchFiltersState);
 
-  const { brandOptions, modelOptions, bodyOptions, engineOptions } = useVehicleOptions(brand, model);
-
-  const [location, setLocation] = useState('');
-  const [address, setAddress] = useState('');
-  const [status, setStatus] = useState('');
-  const [hasPhoto, setHasPhoto] = useState('with');
-  const [number, setNumber] = useState('');
-  const [oemCode, setOemCode] = useState('');
-  const [vin, setVin] = useState('');
-  const [carReleasePeriod, setCarReleasePeriod] = useState('');
-  const [bodyBrand, setBodyBrand] = useState('');
-  const [engineBrand, setEngineBrand] = useState('');
-  const [carReleaseDate, setCarReleaseDate] = useState('');
-  const [transmission, setTransmission] = useState('');
-  const [drive, setDrive] = useState('');
-  const [condition, setCondition] = useState('');
-  const [manufacturer, setManufacturer] = useState('');
-  const [defect, setDefect] = useState('');
-  const [color, setColor] = useState('');
-  const [salesman, setSalesman] = useState('');
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
-  const [minQuantity, setMinQuantity] = useState('');
-  const [maxQuantity, setMaxQuantity] = useState('');
-  const [frontRear, setFrontRear] = useState('');
-  const [leftRight, setLeftRight] = useState('');
-  const [topBottom, setTopBottom] = useState('');
-  const [manufacturerCode, setManufacturerCode] = useState('');
-  const [supplierCode, setSupplierCode] = useState('');
-  const [transmissionModel, setTransmissionModel] = useState('');
-  const [wearPercentage, setWearPercentage] = useState('');
-  const [season, setSeason] = useState('');
-  const [diameter, setDiameter] = useState('');
-  const [width, setWidth] = useState('');
-  const [profile, setProfile] = useState('');
-  const [tireQuantity, setTireQuantity] = useState('');
-  const [drilling, setDrilling] = useState('');
-  const [offset, setOffset] = useState('');
-  const [centerHoleDiameter, setCenterHoleDiameter] = useState('');
-  const [tireModel, setTireModel] = useState('');
+  const { brandOptions, modelOptions, bodyOptions, engineOptions } = useVehicleOptions(
+    filters.brand,
+    filters.model,
+  );
 
   const [isSearching, setIsSearching] = useState(false);
   const [isResultsVisible, setIsResultsVisible] = useState(false);
@@ -152,10 +130,6 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
   const abortControllerRef = useRef<AbortController | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const prevResultsRef = useRef<Part[]>([]);
-
-  const MIN_SEARCH_LENGTH = 2;
-  const SEARCH_DEBOUNCE_DELAY = 500;
-  const FILTER_DEBOUNCE_DELAY = 300;
 
   const { data: partCatalog } = usePartCatalog();
 
@@ -202,51 +176,12 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
     return allCategories.map((cat) => ({ value: cat, label: cat }));
   }, [partCatalog]);
 
-  const statusOptions: SelectOption[] = [
-    { value: 'true', label: 'Доступно' },
-    { value: 'false', label: 'Недоступно' },
-  ];
-
-  const photoOptions: SelectOption[] = [
-    { value: 'all', label: 'Все' },
-    { value: 'with', label: 'С фото' },
-    { value: 'without', label: 'Без фото' },
-  ];
-
-  const transmissionOptions: SelectOption[] = [
-    { value: 'АКПП', label: 'АКПП' },
-    { value: 'МКПП', label: 'МКПП' },
-    { value: 'Вариатор', label: 'Вариатор' },
-    { value: 'Роботизированная', label: 'Роботизированная' },
-  ];
-
-  const driveOptions: SelectOption[] = [
-    { value: 'Передний', label: 'Передний' },
-    { value: 'Задний', label: 'Задний' },
-    { value: 'Полный', label: 'Полный' },
-  ];
-
-  const frontRearOptions: SelectOption[] = [
-    { value: 'F', label: 'F (Перед)' },
-    { value: 'R', label: 'R (Зад)' },
-  ];
-
-  const leftRightOptions: SelectOption[] = [
-    { value: 'L', label: 'L (Лево)' },
-    { value: 'R', label: 'R (Право)' },
-  ];
-
-  const topBottomOptions: SelectOption[] = [
-    { value: 'Верх', label: 'Верх' },
-    { value: 'Низ', label: 'Низ' },
-    { value: 'Середина', label: 'Середина' },
-  ];
-
-  const seasonOptions: SelectOption[] = [
-    { value: 'Лето', label: 'Лето' },
-    { value: 'Зима', label: 'Зима' },
-    { value: 'Всесезонная', label: 'Всесезонная' },
-  ];
+  const updateFilter = useCallback(
+    <K extends keyof SearchFiltersState>(key: K, val: SearchFiltersState[K]) => {
+      setFilters((prev) => (prev[key] === val ? prev : { ...prev, [key]: val }));
+    },
+    []
+  );
 
   const clearResults = useCallback(() => {
     setResults([]);
@@ -255,113 +190,15 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
   }, []);
 
   const clearSearchQuery = useCallback(() => {
-    setSearchQuery('');
+    updateFilter('searchQuery', '');
     clearResults();
     setVoiceSearchError(null);
-  }, [clearResults]);
+  }, [updateFilter, clearResults]);
 
-  const clearFilters = () => {
-    setSearchQuery('');
-    setCategory('');
-    setBrand('');
-    setModel('');
-    setLocation('');
-    setAddress('');
-    setStatus('');
-    setHasPhoto('with');
-    setNumber('');
-    setOemCode('');
-    setVin('');
-    setCarReleasePeriod('');
-    setBodyBrand('');
-    setEngineBrand('');
-    setCarReleaseDate('');
-    setTransmission('');
-    setDrive('');
-    setCondition('');
-    setManufacturer('');
-    setDefect('');
-    setColor('');
-    setSalesman('');
-    setMinPrice('');
-    setMaxPrice('');
-    setMinQuantity('');
-    setMaxQuantity('');
-    setFrontRear('');
-    setLeftRight('');
-    setTopBottom('');
-    setManufacturerCode('');
-    setSupplierCode('');
-    setTransmissionModel('');
-    setWearPercentage('');
-    setSeason('');
-    setDiameter('');
-    setWidth('');
-    setProfile('');
-    setTireQuantity('');
-    setDrilling('');
-    setOffset('');
-    setCenterHoleDiameter('');
-    setTireModel('');
+  const clearFilters = useCallback(() => {
+    setFilters(initialSearchFiltersState);
     clearResults();
-  };
-
-  const applyFilters = useCallback(() => {
-    if (onFiltersChange) {
-      onFiltersChange({
-        search: searchQuery,
-        category,
-        brand,
-        model,
-        location,
-        address,
-        salesman,
-        status,
-        hasPhoto: hasPhoto === 'all' ? '' : hasPhoto,
-        number,
-        oem_code: oemCode,
-        vin,
-        car_release_period: carReleasePeriod,
-        body_brand: bodyBrand,
-        engine_brand: engineBrand,
-        car_release_date: carReleaseDate,
-        transmission,
-        drive,
-        condition,
-        manufacturer,
-        defect,
-        color,
-        min_price: minPrice,
-        max_price: maxPrice,
-        min_quantity: minQuantity,
-        max_quantity: maxQuantity,
-        front_rear: frontRear,
-        left_right: leftRight,
-        top_bottom: topBottom,
-        manufacturer_code: manufacturerCode,
-        supplier_code: supplierCode,
-        transmission_model: transmissionModel,
-        wear_percentage: wearPercentage,
-        season,
-        diameter,
-        width,
-        profile,
-        tire_quantity: tireQuantity,
-        drilling,
-        offset,
-        center_hole_diameter: centerHoleDiameter,
-        tire_model: tireModel,
-      });
-    }
-  }, [
-    searchQuery, category, brand, model, location, address, salesman, status, hasPhoto,
-    number, oemCode, vin, carReleasePeriod, bodyBrand, engineBrand, carReleaseDate,
-    transmission, drive, condition, manufacturer, defect, color,
-    minPrice, maxPrice, minQuantity, maxQuantity,
-    frontRear, leftRight, topBottom, manufacturerCode, supplierCode, transmissionModel, wearPercentage,
-    season, diameter, width, profile, tireQuantity, drilling, offset, centerHoleDiameter, tireModel,
-    onFiltersChange,
-  ]);
+  }, [clearResults]);
 
   const performSearch = useCallback(async (query: string) => {
     if (query.length < MIN_SEARCH_LENGTH) {
@@ -414,19 +251,21 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      performSearch(searchQuery);
+      performSearch(filters.searchQuery);
     }, SEARCH_DEBOUNCE_DELAY);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, performSearch]);
+  }, [filters.searchQuery, performSearch]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      applyFilters();
+      if (onFiltersChange) {
+        onFiltersChange(toPartFilters(filters));
+      }
     }, FILTER_DEBOUNCE_DELAY);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, category, brand, model, location, address, status, hasPhoto, applyFilters]);
+  }, [filters, onFiltersChange]);
 
   useEffect(() => {
     return () => {
@@ -463,7 +302,7 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
 
     recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
       const transcript = event.results[0][0].transcript;
-      setSearchQuery(transcript);
+      updateFilter('searchQuery', transcript);
       setIsListening(false);
     };
 
@@ -482,7 +321,7 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
       setVoiceSearchError('Не удалось начать распознавание речи');
       setIsListening(false);
     }
-  }, []);
+  }, [updateFilter]);
 
   const stopVoiceSearch = useCallback(() => {
     if (recognitionRef.current) {
@@ -492,11 +331,11 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
   }, []);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-  }, []);
+    updateFilter('searchQuery', e.target.value);
+  }, [updateFilter]);
 
   const handleResultClick = (result: Part) => {
-    setSearchQuery(result.name);
+    updateFilter('searchQuery', result.name);
     setIsResultsVisible(false);
     setResults([]);
   };
@@ -520,68 +359,125 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
   }, []);
 
   // Подсчет активных фильтров
-  const activeFiltersCount = useMemo(
-    () =>
-      [
-        category, brand, model, location, address, status,
-        hasPhoto && hasPhoto !== 'with' ? hasPhoto : '',
-        number, oemCode, vin, carReleasePeriod, bodyBrand, engineBrand, carReleaseDate,
-        transmission, drive, condition, manufacturer, defect, color,
-        salesman, minPrice, maxPrice, minQuantity, maxQuantity,
-        frontRear, leftRight, topBottom, manufacturerCode, supplierCode,
-        transmissionModel, wearPercentage, season, diameter, width,
-        profile, tireQuantity, drilling, offset, centerHoleDiameter, tireModel,
-      ].filter(Boolean).length,
-    [
-      category, brand, model, location, address, status, hasPhoto,
-      number, oemCode, vin, carReleasePeriod, bodyBrand, engineBrand, carReleaseDate,
-      transmission, drive, condition, manufacturer, defect, color,
-      salesman, minPrice, maxPrice, minQuantity, maxQuantity,
-      frontRear, leftRight, topBottom, manufacturerCode, supplierCode,
-      transmissionModel, wearPercentage, season, diameter, width,
-      profile, tireQuantity, drilling, offset, centerHoleDiameter, tireModel,
-    ]
-  );
+  const activeFiltersCount = useMemo(() => {
+    return [
+      filters.category,
+      filters.brand,
+      filters.model,
+      filters.location,
+      filters.address,
+      filters.status,
+      filters.hasPhoto && filters.hasPhoto !== 'with' ? filters.hasPhoto : '',
+      filters.number,
+      filters.oemCode,
+      filters.vin,
+      filters.carReleasePeriod,
+      filters.bodyBrand,
+      filters.engineBrand,
+      filters.carReleaseDate,
+      filters.transmission,
+      filters.drive,
+      filters.condition,
+      filters.manufacturer,
+      filters.defect,
+      filters.color,
+      filters.salesman,
+      filters.minPrice,
+      filters.maxPrice,
+      filters.minQuantity,
+      filters.maxQuantity,
+      filters.frontRear,
+      filters.leftRight,
+      filters.topBottom,
+      filters.manufacturerCode,
+      filters.supplierCode,
+      filters.transmissionModel,
+      filters.wearPercentage,
+      filters.season,
+      filters.diameter,
+      filters.width,
+      filters.profile,
+      filters.tireQuantity,
+      filters.drilling,
+      filters.offset,
+      filters.centerHoleDiameter,
+      filters.tireModel,
+    ].filter(Boolean).length;
+  }, [filters]);
 
-  const mainFiltersCount = useMemo(
-    () =>
-      [
-        category, brand, model, carReleaseDate, condition,
-        minPrice, maxPrice, minQuantity, maxQuantity, status,
-        hasPhoto && hasPhoto !== 'with' ? hasPhoto : '',
-      ].filter(Boolean).length,
-    [category, brand, model, carReleaseDate, condition, minPrice, maxPrice, minQuantity, maxQuantity, status, hasPhoto]
-  );
+  const mainFiltersCount = useMemo(() => {
+    return [
+      filters.category,
+      filters.brand,
+      filters.model,
+      filters.carReleaseDate,
+      filters.condition,
+      filters.minPrice,
+      filters.maxPrice,
+      filters.minQuantity,
+      filters.maxQuantity,
+      filters.status,
+      filters.hasPhoto && filters.hasPhoto !== 'with' ? filters.hasPhoto : '',
+    ].filter(Boolean).length;
+  }, [filters]);
 
-  const bodyEngineFiltersCount = useMemo(
-    () =>
-      [bodyBrand, engineBrand, vin, carReleasePeriod, number, oemCode, defect, color].filter(Boolean).length,
-    [bodyBrand, engineBrand, vin, carReleasePeriod, number, oemCode, defect, color]
-  );
+  const bodyEngineFiltersCount = useMemo(() => {
+    return [
+      filters.bodyBrand,
+      filters.engineBrand,
+      filters.vin,
+      filters.carReleasePeriod,
+      filters.number,
+      filters.oemCode,
+      filters.defect,
+      filters.color,
+    ].filter(Boolean).length;
+  }, [filters]);
 
-  const transmissionFiltersCount = useMemo(
-    () =>
-      [transmission, transmissionModel, drive, frontRear, leftRight, topBottom].filter(Boolean).length,
-    [transmission, transmissionModel, drive, frontRear, leftRight, topBottom]
-  );
+  const transmissionFiltersCount = useMemo(() => {
+    return [
+      filters.transmission,
+      filters.transmissionModel,
+      filters.drive,
+      filters.frontRear,
+      filters.leftRight,
+      filters.topBottom,
+    ].filter(Boolean).length;
+  }, [filters]);
 
-  const warehouseFiltersCount = useMemo(
-    () =>
-      [location, address, salesman, manufacturer, manufacturerCode, supplierCode, wearPercentage].filter(Boolean).length,
-    [location, address, salesman, manufacturer, manufacturerCode, supplierCode, wearPercentage]
-  );
+  const warehouseFiltersCount = useMemo(() => {
+    return [
+      filters.location,
+      filters.address,
+      filters.salesman,
+      filters.manufacturer,
+      filters.manufacturerCode,
+      filters.supplierCode,
+      filters.wearPercentage,
+    ].filter(Boolean).length;
+  }, [filters]);
 
-  const wheelsFiltersCount = useMemo(
-    () =>
-      [season, diameter, width, profile, tireQuantity, drilling, offset, centerHoleDiameter, tireModel].filter(Boolean).length,
-    [season, diameter, width, profile, tireQuantity, drilling, offset, centerHoleDiameter, tireModel]
-  );
+  const wheelsFiltersCount = useMemo(() => {
+    return [
+      filters.season,
+      filters.diameter,
+      filters.width,
+      filters.profile,
+      filters.tireQuantity,
+      filters.drilling,
+      filters.offset,
+      filters.centerHoleDiameter,
+      filters.tireModel,
+    ].filter(Boolean).length;
+  }, [filters]);
 
   // Формирование активных фильтров для бейджей
   const activeFilterItems = useMemo<ActiveFilterItem[]>(() => {
     const items: ActiveFilterItem[] = [];
-    if (searchQuery.trim()) {
-      const multiTerms = searchQuery
+    const query = filters.searchQuery.trim();
+
+    if (query) {
+      const multiTerms = query
         .split(/(?:\s+(?:или|or)\s+|[,\n\r;|]+)/i)
         .map((t) => t.trim())
         .filter(Boolean);
@@ -593,70 +489,27 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
             label: `Поиск: ${term}`,
             onClear: () => {
               const remaining = multiTerms.filter((_, i) => i !== index);
-              setSearchQuery(remaining.join(', '));
+              updateFilter('searchQuery', remaining.join(', '));
             },
           });
         });
       } else {
-        items.push({ id: 'search', label: `Поиск: ${searchQuery}`, onClear: clearSearchQuery });
+        items.push({ id: 'search', label: `Поиск: ${query}`, onClear: clearSearchQuery });
       }
     }
-    if (address) items.push({ id: 'address', label: `Адрес склада: ${address}`, onClear: () => setAddress('') });
-    if (bodyBrand) items.push({ id: 'bodyBrand', label: `Марка кузова: ${bodyBrand}`, onClear: () => setBodyBrand('') });
-    if (brand) items.push({ id: 'brand', label: `Марка авто: ${brand}`, onClear: () => setBrand('') });
-    if (carReleaseDate) items.push({ id: 'carReleaseDate', label: `Год выпуска: ${carReleaseDate}`, onClear: () => setCarReleaseDate('') });
-    if (carReleasePeriod) items.push({ id: 'carReleasePeriod', label: `Период выпуска: ${formatCarReleasePeriod(carReleasePeriod)}`, onClear: () => setCarReleasePeriod('') });
-    if (category) items.push({ id: 'category', label: `Категория: ${category}`, onClear: () => setCategory('') });
-    if (centerHoleDiameter) items.push({ id: 'centerHoleDiameter', label: `Диаметр ЦО: ${centerHoleDiameter} мм`, onClear: () => setCenterHoleDiameter('') });
-    if (color) items.push({ id: 'color', label: `Цвет: ${color}`, onClear: () => setColor('') });
-    if (condition) items.push({ id: 'condition', label: `Состояние: ${condition}`, onClear: () => setCondition('') });
-    if (defect) items.push({ id: 'defect', label: `Дефект: ${defect}`, onClear: () => setDefect('') });
-    if (diameter) items.push({ id: 'diameter', label: `Диаметр: R${diameter}`, onClear: () => setDiameter('') });
-    if (drilling) items.push({ id: 'drilling', label: `Сверловка: ${drilling}`, onClear: () => setDrilling('') });
-    if (drive) items.push({ id: 'drive', label: `Привод: ${drive}`, onClear: () => setDrive('') });
-    if (engineBrand) items.push({ id: 'engineBrand', label: `Марка двигателя: ${engineBrand}`, onClear: () => setEngineBrand('') });
-    if (frontRear) {
-      const frLabel = frontRear === 'F' ? 'F (Перед)' : frontRear === 'R' ? 'R (Зад)' : frontRear;
-      items.push({ id: 'frontRear', label: `Расположение: ${frLabel}`, onClear: () => setFrontRear('') });
+
+    for (const desc of FILTER_DESCRIPTORS) {
+      const val = filters[desc.key];
+      if (!val || (desc.key === 'hasPhoto' && val === 'all')) continue;
+      items.push({
+        id: desc.key,
+        label: desc.getLabel(val),
+        onClear: () => updateFilter(desc.key, desc.clearVal ?? ''),
+      });
     }
-    if (hasPhoto && hasPhoto !== 'all') items.push({ id: 'hasPhoto', label: `Фото: ${hasPhoto === 'with' ? 'С фото' : 'Без фото'}`, onClear: () => setHasPhoto('all') });
-    if (leftRight) {
-      const lrLabel = leftRight === 'L' ? 'L (Лево)' : leftRight === 'R' ? 'R (Право)' : leftRight;
-      items.push({ id: 'leftRight', label: `Сторона: ${lrLabel}`, onClear: () => setLeftRight('') });
-    }
-    if (location) items.push({ id: 'location', label: `Местоположение: ${location}`, onClear: () => setLocation('') });
-    if (manufacturer) items.push({ id: 'manufacturer', label: `Производитель: ${manufacturer}`, onClear: () => setManufacturer('') });
-    if (manufacturerCode) items.push({ id: 'manufacturerCode', label: `Код производителя: ${manufacturerCode}`, onClear: () => setManufacturerCode('') });
-    if (maxPrice) items.push({ id: 'maxPrice', label: `Цена до: ${maxPrice} ₽`, onClear: () => setMaxPrice('') });
-    if (maxQuantity) items.push({ id: 'maxQuantity', label: `Количество до: ${maxQuantity} шт`, onClear: () => setMaxQuantity('') });
-    if (minPrice) items.push({ id: 'minPrice', label: `Цена от: ${minPrice} ₽`, onClear: () => setMinPrice('') });
-    if (minQuantity) items.push({ id: 'minQuantity', label: `Количество от: ${minQuantity} шт`, onClear: () => setMinQuantity('') });
-    if (model) items.push({ id: 'model', label: `Модель: ${model}`, onClear: () => setModel('') });
-    if (number) items.push({ id: 'number', label: `Номер детали: ${number}`, onClear: () => setNumber('') });
-    if (oemCode) items.push({ id: 'oemCode', label: `OEM номер: ${oemCode}`, onClear: () => setOemCode('') });
-    if (offset) items.push({ id: 'offset', label: `Вылет (ET): ${offset} мм`, onClear: () => setOffset('') });
-    if (profile) items.push({ id: 'profile', label: `Профиль шины: ${profile}%`, onClear: () => setProfile('') });
-    if (salesman) items.push({ id: 'salesman', label: `Продавец: ${salesman}`, onClear: () => setSalesman('') });
-    if (season) items.push({ id: 'season', label: `Сезонность: ${season}`, onClear: () => setSeason('') });
-    if (status) items.push({ id: 'status', label: `Статус: ${status === 'true' ? 'Доступно' : 'Недоступно'}`, onClear: () => setStatus('') });
-    if (supplierCode) items.push({ id: 'supplierCode', label: `Код поставщика: ${supplierCode}`, onClear: () => setSupplierCode('') });
-    if (tireQuantity) items.push({ id: 'tireQuantity', label: `Количество шин: ${tireQuantity} шт`, onClear: () => setTireQuantity('') });
-    if (topBottom) items.push({ id: 'topBottom', label: `Положение: ${topBottom}`, onClear: () => setTopBottom('') });
-    if (transmission) items.push({ id: 'transmission', label: `КПП: ${transmission}`, onClear: () => setTransmission('') });
-    if (transmissionModel) items.push({ id: 'transmissionModel', label: `Модель КПП: ${transmissionModel}`, onClear: () => setTransmissionModel('') });
-    if (vin) items.push({ id: 'vin', label: `VIN: ${vin}`, onClear: () => setVin('') });
-    if (wearPercentage) items.push({ id: 'wearPercentage', label: `Износ: ${wearPercentage}%`, onClear: () => setWearPercentage('') });
-    if (width) items.push({ id: 'width', label: `Ширина: ${width} мм`, onClear: () => setWidth('') });
-    if (tireModel) items.push({ id: 'tireModel', label: `Модель шины: ${tireModel}`, onClear: () => setTireModel('') });
+
     return items;
-  }, [
-    searchQuery, clearSearchQuery, address, bodyBrand, brand, carReleaseDate, carReleasePeriod, category,
-    centerHoleDiameter, color, condition, defect, diameter, drilling, drive, engineBrand,
-    frontRear, hasPhoto, leftRight, location, manufacturer, manufacturerCode, maxPrice,
-    maxQuantity, minPrice, minQuantity, model, number, oemCode, offset, profile, salesman,
-    season, status, supplierCode, tireQuantity, topBottom, transmission, transmissionModel,
-    vin, wearPercentage, width, tireModel,
-  ]);
+  }, [filters, updateFilter, clearSearchQuery]);
 
   const handleDisplayLimitChange = (value: string) => {
     const limit = parseInt(value) || 0;
@@ -702,7 +555,7 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
                   ref={searchInputRef}
                   id="search"
                   type="text"
-                  value={searchQuery}
+                  value={filters.searchQuery}
                   onChange={handleInputChange}
                   onFocus={() => results.length > 0 && setIsResultsVisible(true)}
                   placeholder="Поиск по названию, номеру (можно через запятую: фара, крыло)..."
@@ -755,7 +608,7 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
                   </AnimatePresence>
                 )}
                 <AnimatePresence>
-                  {searchQuery && (
+                  {filters.searchQuery && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
@@ -779,7 +632,7 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
 
                 {/* Сообщения под поисковой строкой */}
                 <AnimatePresence mode="wait">
-                  {searchQuery.length > 0 && searchQuery.length < MIN_SEARCH_LENGTH && (
+                  {filters.searchQuery.length > 0 && filters.searchQuery.length < MIN_SEARCH_LENGTH && (
                     <motion.p
                       key="min-length"
                       initial={{ opacity: 0, y: -5 }}
@@ -1021,28 +874,8 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
 
                         <TabsContent value="main" className="mt-4">
                           <GeneralFiltersTab
-                            brand={brand}
-                            setBrand={setBrand}
-                            model={model}
-                            setModel={setModel}
-                            category={category}
-                            setCategory={setCategory}
-                            carReleaseDate={carReleaseDate}
-                            setCarReleaseDate={setCarReleaseDate}
-                            condition={condition}
-                            setCondition={setCondition}
-                            minPrice={minPrice}
-                            setMinPrice={setMinPrice}
-                            maxPrice={maxPrice}
-                            setMaxPrice={setMaxPrice}
-                            minQuantity={minQuantity}
-                            setMinQuantity={setMinQuantity}
-                            maxQuantity={maxQuantity}
-                            setMaxQuantity={setMaxQuantity}
-                            status={status}
-                            setStatus={setStatus}
-                            hasPhoto={hasPhoto}
-                            setHasPhoto={setHasPhoto}
+                            filters={filters}
+                            onChange={updateFilter}
                             brandOptions={brandOptions}
                             modelOptions={modelOptions}
                             categoryOptions={categoryOptions}
@@ -1053,23 +886,8 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
 
                         <TabsContent value="bodyEngine" className="mt-4">
                           <BodyEngineFiltersTab
-                            brand={brand}
-                            bodyBrand={bodyBrand}
-                            setBodyBrand={setBodyBrand}
-                            engineBrand={engineBrand}
-                            setEngineBrand={setEngineBrand}
-                            vin={vin}
-                            setVin={setVin}
-                            carReleasePeriod={carReleasePeriod}
-                            setCarReleasePeriod={setCarReleasePeriod}
-                            number={number}
-                            setNumber={setNumber}
-                            oemCode={oemCode}
-                            setOemCode={setOemCode}
-                            defect={defect}
-                            setDefect={setDefect}
-                            color={color}
-                            setColor={setColor}
+                            filters={filters}
+                            onChange={updateFilter}
                             bodyOptions={bodyOptions}
                             engineOptions={engineOptions}
                           />
@@ -1077,18 +895,8 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
 
                         <TabsContent value="transmission" className="mt-4">
                           <TransmissionFiltersTab
-                            transmission={transmission}
-                            setTransmission={setTransmission}
-                            transmissionModel={transmissionModel}
-                            setTransmissionModel={setTransmissionModel}
-                            drive={drive}
-                            setDrive={setDrive}
-                            frontRear={frontRear}
-                            setFrontRear={setFrontRear}
-                            leftRight={leftRight}
-                            setLeftRight={setLeftRight}
-                            topBottom={topBottom}
-                            setTopBottom={setTopBottom}
+                            filters={filters}
+                            onChange={updateFilter}
                             transmissionOptions={transmissionOptions}
                             driveOptions={driveOptions}
                             frontRearOptions={frontRearOptions}
@@ -1099,43 +907,15 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
 
                         <TabsContent value="warehouse" className="mt-4">
                           <WarehouseFiltersTab
-                            location={location}
-                            setLocation={setLocation}
-                            address={address}
-                            setAddress={setAddress}
-                            salesman={salesman}
-                            setSalesman={setSalesman}
-                            manufacturer={manufacturer}
-                            setManufacturer={setManufacturer}
-                            manufacturerCode={manufacturerCode}
-                            setManufacturerCode={setManufacturerCode}
-                            supplierCode={supplierCode}
-                            setSupplierCode={setSupplierCode}
-                            wearPercentage={wearPercentage}
-                            setWearPercentage={setWearPercentage}
+                            filters={filters}
+                            onChange={updateFilter}
                           />
                         </TabsContent>
 
                         <TabsContent value="wheels" className="mt-4">
                           <WheelsFiltersTab
-                            season={season}
-                            setSeason={setSeason}
-                            tireModel={tireModel}
-                            setTireModel={setTireModel}
-                            diameter={diameter}
-                            setDiameter={setDiameter}
-                            width={width}
-                            setWidth={setWidth}
-                            profile={profile}
-                            setProfile={setProfile}
-                            tireQuantity={tireQuantity}
-                            setTireQuantity={setTireQuantity}
-                            drilling={drilling}
-                            setDrilling={setDrilling}
-                            offset={offset}
-                            setOffset={setOffset}
-                            centerHoleDiameter={centerHoleDiameter}
-                            setCenterHoleDiameter={setCenterHoleDiameter}
+                            filters={filters}
+                            onChange={updateFilter}
                             seasonOptions={seasonOptions}
                           />
                         </TabsContent>

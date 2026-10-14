@@ -7,30 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import type { SelectOption } from '@/components/ui/searchable-select';
+import type { SearchFiltersState } from './searchTypes';
 
-interface GeneralFiltersTabProps {
-  brand: string;
-  setBrand: (val: string) => void;
-  model: string;
-  setModel: (val: string) => void;
-  category: string;
-  setCategory: (val: string) => void;
-  carReleaseDate: string;
-  setCarReleaseDate: (val: string) => void;
-  condition: string;
-  setCondition: (val: string) => void;
-  minPrice: string;
-  setMinPrice: (val: string) => void;
-  maxPrice: string;
-  setMaxPrice: (val: string) => void;
-  minQuantity: string;
-  setMinQuantity: (val: string) => void;
-  maxQuantity: string;
-  setMaxQuantity: (val: string) => void;
-  status: string;
-  setStatus: (val: string) => void;
-  hasPhoto: string;
-  setHasPhoto: (val: string) => void;
+export interface GeneralFiltersTabProps {
+  filters: SearchFiltersState;
+  onChange: <K extends keyof SearchFiltersState>(key: K, val: SearchFiltersState[K]) => void;
   brandOptions: SelectOption[];
   modelOptions: SelectOption[];
   categoryOptions: SelectOption[];
@@ -39,28 +20,8 @@ interface GeneralFiltersTabProps {
 }
 
 export const GeneralFiltersTab: React.FC<GeneralFiltersTabProps> = ({
-  brand,
-  setBrand,
-  model,
-  setModel,
-  category,
-  setCategory,
-  carReleaseDate,
-  setCarReleaseDate,
-  condition,
-  setCondition,
-  minPrice,
-  setMinPrice,
-  maxPrice,
-  setMaxPrice,
-  minQuantity,
-  setMinQuantity,
-  maxQuantity,
-  setMaxQuantity,
-  status,
-  setStatus,
-  hasPhoto,
-  setHasPhoto,
+  filters,
+  onChange,
   brandOptions,
   modelOptions,
   categoryOptions,
@@ -74,10 +35,10 @@ export const GeneralFiltersTab: React.FC<GeneralFiltersTabProps> = ({
         <Label htmlFor="brand-filter">Бренд</Label>
         <div className="mt-1.5">
           <SearchableSelect
-            value={brand}
+            value={filters.brand}
             onValueChange={(value) => {
-              setBrand(value);
-              setModel('');
+              onChange('brand', value);
+              onChange('model', '');
             }}
             options={brandOptions}
             placeholder="Все бренды"
@@ -94,10 +55,10 @@ export const GeneralFiltersTab: React.FC<GeneralFiltersTabProps> = ({
         <Label htmlFor="model-filter">Модель</Label>
         <div className="mt-1.5">
           <SearchableSelect
-            value={model}
-            onValueChange={setModel}
+            value={filters.model}
+            onValueChange={(val) => onChange('model', val)}
             options={modelOptions}
-            placeholder={brand ? 'Все модели' : 'Сначала выберите бренд'}
+            placeholder={filters.brand ? 'Все модели' : 'Сначала выберите бренд'}
             searchPlaceholder="Поиск модели..."
             emptyMessage="Модель не найдена — можно ввести свою"
             allowCustom={true}
@@ -111,8 +72,8 @@ export const GeneralFiltersTab: React.FC<GeneralFiltersTabProps> = ({
         <Label htmlFor="category-filter">Категория</Label>
         <div className="mt-1.5">
           <SearchableSelect
-            value={category}
-            onValueChange={setCategory}
+            value={filters.category}
+            onValueChange={(val) => onChange('category', val)}
             options={categoryOptions}
             placeholder="Все категории"
             searchPlaceholder="Поиск категории..."
@@ -128,8 +89,8 @@ export const GeneralFiltersTab: React.FC<GeneralFiltersTabProps> = ({
         <Input
           id="release-date-filter"
           type="text"
-          value={carReleaseDate}
-          onChange={(e) => setCarReleaseDate(e.target.value)}
+          value={filters.carReleaseDate}
+          onChange={(e) => onChange('carReleaseDate', e.target.value)}
           placeholder="2010..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />
@@ -141,8 +102,8 @@ export const GeneralFiltersTab: React.FC<GeneralFiltersTabProps> = ({
         <Input
           id="condition-filter"
           type="text"
-          value={condition}
-          onChange={(e) => setCondition(e.target.value)}
+          value={filters.condition}
+          onChange={(e) => onChange('condition', e.target.value)}
           placeholder="Контрактная, б/у, новая..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />
@@ -155,8 +116,8 @@ export const GeneralFiltersTab: React.FC<GeneralFiltersTabProps> = ({
           <Input
             id="min-price-filter"
             type="number"
-            value={minPrice}
-            onChange={(e) => setMinPrice(e.target.value)}
+            value={filters.minPrice}
+            onChange={(e) => onChange('minPrice', e.target.value)}
             placeholder="От 0"
             min="0"
             className="bg-transparent border border-gray-300"
@@ -164,8 +125,8 @@ export const GeneralFiltersTab: React.FC<GeneralFiltersTabProps> = ({
           <Input
             id="max-price-filter"
             type="number"
-            value={maxPrice}
-            onChange={(e) => setMaxPrice(e.target.value)}
+            value={filters.maxPrice}
+            onChange={(e) => onChange('maxPrice', e.target.value)}
             placeholder="До"
             min="0"
             className="bg-transparent border border-gray-300"
@@ -180,8 +141,8 @@ export const GeneralFiltersTab: React.FC<GeneralFiltersTabProps> = ({
           <Input
             id="min-quantity-filter"
             type="number"
-            value={minQuantity}
-            onChange={(e) => setMinQuantity(e.target.value)}
+            value={filters.minQuantity}
+            onChange={(e) => onChange('minQuantity', e.target.value)}
             placeholder="От"
             min="0"
             className="bg-transparent border border-gray-300"
@@ -189,8 +150,8 @@ export const GeneralFiltersTab: React.FC<GeneralFiltersTabProps> = ({
           <Input
             id="max-quantity-filter"
             type="number"
-            value={maxQuantity}
-            onChange={(e) => setMaxQuantity(e.target.value)}
+            value={filters.maxQuantity}
+            onChange={(e) => onChange('maxQuantity', e.target.value)}
             placeholder="До"
             min="0"
             className="bg-transparent border border-gray-300"
@@ -203,8 +164,8 @@ export const GeneralFiltersTab: React.FC<GeneralFiltersTabProps> = ({
         <Label htmlFor="status-filter">Статус</Label>
         <div className="mt-1.5">
           <SearchableSelect
-            value={status}
-            onValueChange={setStatus}
+            value={filters.status}
+            onValueChange={(val) => onChange('status', val)}
             options={statusOptions}
             placeholder="Все статусы"
             searchPlaceholder="Поиск статуса..."
@@ -219,8 +180,8 @@ export const GeneralFiltersTab: React.FC<GeneralFiltersTabProps> = ({
         <Label htmlFor="photo-filter">Фото</Label>
         <div className="mt-1.5">
           <SearchableSelect
-            value={hasPhoto}
-            onValueChange={setHasPhoto}
+            value={filters.hasPhoto}
+            onValueChange={(val) => onChange('hasPhoto', val)}
             options={photoOptions}
             placeholder="Все"
             searchPlaceholder="Поиск по фото..."

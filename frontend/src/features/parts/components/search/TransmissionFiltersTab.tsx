@@ -7,20 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import type { SelectOption } from '@/components/ui/searchable-select';
+import type { SearchFiltersState } from './searchTypes';
 
-interface TransmissionFiltersTabProps {
-  transmission: string;
-  setTransmission: (val: string) => void;
-  transmissionModel: string;
-  setTransmissionModel: (val: string) => void;
-  drive: string;
-  setDrive: (val: string) => void;
-  frontRear: string;
-  setFrontRear: (val: string) => void;
-  leftRight: string;
-  setLeftRight: (val: string) => void;
-  topBottom: string;
-  setTopBottom: (val: string) => void;
+export interface TransmissionFiltersTabProps {
+  filters: SearchFiltersState;
+  onChange: <K extends keyof SearchFiltersState>(key: K, val: SearchFiltersState[K]) => void;
   transmissionOptions: SelectOption[];
   driveOptions: SelectOption[];
   frontRearOptions: SelectOption[];
@@ -29,18 +20,8 @@ interface TransmissionFiltersTabProps {
 }
 
 export const TransmissionFiltersTab: React.FC<TransmissionFiltersTabProps> = ({
-  transmission,
-  setTransmission,
-  transmissionModel,
-  setTransmissionModel,
-  drive,
-  setDrive,
-  frontRear,
-  setFrontRear,
-  leftRight,
-  setLeftRight,
-  topBottom,
-  setTopBottom,
+  filters,
+  onChange,
   transmissionOptions,
   driveOptions,
   frontRearOptions,
@@ -54,8 +35,8 @@ export const TransmissionFiltersTab: React.FC<TransmissionFiltersTabProps> = ({
         <Label htmlFor="transmission-filter">Трансмиссия</Label>
         <div className="mt-1.5">
           <SearchableSelect
-            value={transmission}
-            onValueChange={setTransmission}
+            value={filters.transmission}
+            onValueChange={(val) => onChange('transmission', val)}
             options={transmissionOptions}
             placeholder="Все типы КПП"
             searchPlaceholder="Поиск КПП..."
@@ -71,8 +52,8 @@ export const TransmissionFiltersTab: React.FC<TransmissionFiltersTabProps> = ({
         <Input
           id="transmission-model-filter"
           type="text"
-          value={transmissionModel}
-          onChange={(e) => setTransmissionModel(e.target.value)}
+          value={filters.transmissionModel}
+          onChange={(e) => onChange('transmissionModel', e.target.value)}
           placeholder="U140F, RE4F04B..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />
@@ -83,8 +64,8 @@ export const TransmissionFiltersTab: React.FC<TransmissionFiltersTabProps> = ({
         <Label htmlFor="drive-filter">Привод</Label>
         <div className="mt-1.5">
           <SearchableSelect
-            value={drive}
-            onValueChange={setDrive}
+            value={filters.drive}
+            onValueChange={(val) => onChange('drive', val)}
             options={driveOptions}
             placeholder="Все приводы"
             searchPlaceholder="Поиск привода..."
@@ -99,8 +80,8 @@ export const TransmissionFiltersTab: React.FC<TransmissionFiltersTabProps> = ({
         <Label htmlFor="front-rear-filter">Перед / зад</Label>
         <div className="mt-1.5">
           <SearchableSelect
-            value={frontRear}
-            onValueChange={setFrontRear}
+            value={filters.frontRear}
+            onValueChange={(val) => onChange('frontRear', val)}
             options={frontRearOptions}
             placeholder="Все расположения"
             searchPlaceholder="Поиск..."
@@ -115,8 +96,8 @@ export const TransmissionFiltersTab: React.FC<TransmissionFiltersTabProps> = ({
         <Label htmlFor="left-right-filter">Право / лево</Label>
         <div className="mt-1.5">
           <SearchableSelect
-            value={leftRight}
-            onValueChange={setLeftRight}
+            value={filters.leftRight}
+            onValueChange={(val) => onChange('leftRight', val)}
             options={leftRightOptions}
             placeholder="Все стороны"
             searchPlaceholder="Поиск..."
@@ -131,8 +112,8 @@ export const TransmissionFiltersTab: React.FC<TransmissionFiltersTabProps> = ({
         <Label htmlFor="top-bottom-filter">Верх / низ</Label>
         <div className="mt-1.5">
           <SearchableSelect
-            value={topBottom}
-            onValueChange={setTopBottom}
+            value={filters.topBottom}
+            onValueChange={(val) => onChange('topBottom', val)}
             options={topBottomOptions}
             placeholder="Все положения"
             searchPlaceholder="Поиск..."

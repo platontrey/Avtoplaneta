@@ -8,47 +8,18 @@ import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import type { SelectOption } from '@/components/ui/searchable-select';
 import { formatCarReleasePeriod } from '@/lib/utils';
+import type { SearchFiltersState } from './searchTypes';
 
-interface BodyEngineFiltersTabProps {
-  brand: string;
-  bodyBrand: string;
-  setBodyBrand: (val: string) => void;
-  engineBrand: string;
-  setEngineBrand: (val: string) => void;
-  vin: string;
-  setVin: (val: string) => void;
-  carReleasePeriod: string;
-  setCarReleasePeriod: (val: string) => void;
-  number: string;
-  setNumber: (val: string) => void;
-  oemCode: string;
-  setOemCode: (val: string) => void;
-  defect: string;
-  setDefect: (val: string) => void;
-  color: string;
-  setColor: (val: string) => void;
+export interface BodyEngineFiltersTabProps {
+  filters: SearchFiltersState;
+  onChange: <K extends keyof SearchFiltersState>(key: K, val: SearchFiltersState[K]) => void;
   bodyOptions: SelectOption[];
   engineOptions: SelectOption[];
 }
 
 export const BodyEngineFiltersTab: React.FC<BodyEngineFiltersTabProps> = ({
-  brand,
-  bodyBrand,
-  setBodyBrand,
-  engineBrand,
-  setEngineBrand,
-  vin,
-  setVin,
-  carReleasePeriod,
-  setCarReleasePeriod,
-  number,
-  setNumber,
-  oemCode,
-  setOemCode,
-  defect,
-  setDefect,
-  color,
-  setColor,
+  filters,
+  onChange,
   bodyOptions,
   engineOptions,
 }) => {
@@ -58,10 +29,10 @@ export const BodyEngineFiltersTab: React.FC<BodyEngineFiltersTabProps> = ({
       <div>
         <Label htmlFor="body-brand-filter">Марка кузова</Label>
         <SearchableSelect
-          value={bodyBrand}
-          onValueChange={setBodyBrand}
+          value={filters.bodyBrand}
+          onValueChange={(val) => onChange('bodyBrand', val)}
           options={bodyOptions}
-          placeholder={brand ? 'Выберите кузов' : 'ACV40, E90, W212...'}
+          placeholder={filters.brand ? 'Выберите кузов' : 'ACV40, E90, W212...'}
           searchPlaceholder="Поиск кузова..."
           emptyMessage="Кузов не найден — можно ввести свой"
           allowCustom={true}
@@ -73,10 +44,10 @@ export const BodyEngineFiltersTab: React.FC<BodyEngineFiltersTabProps> = ({
       <div>
         <Label htmlFor="engine-brand-filter">Марка двигателя</Label>
         <SearchableSelect
-          value={engineBrand}
-          onValueChange={setEngineBrand}
+          value={filters.engineBrand}
+          onValueChange={(val) => onChange('engineBrand', val)}
           options={engineOptions}
-          placeholder={brand ? 'Выберите двигатель' : '2AZ-FE, N46, 1JZ...'}
+          placeholder={filters.brand ? 'Выберите двигатель' : '2AZ-FE, N46, 1JZ...'}
           searchPlaceholder="Поиск двигателя..."
           emptyMessage="Двигатель не найден — можно ввести свой"
           allowCustom={true}
@@ -90,8 +61,8 @@ export const BodyEngineFiltersTab: React.FC<BodyEngineFiltersTabProps> = ({
         <Input
           id="vin-filter"
           type="text"
-          value={vin}
-          onChange={(e) => setVin(e.target.value)}
+          value={filters.vin}
+          onChange={(e) => onChange('vin', e.target.value)}
           placeholder="WVWZZZ1JZ3W386549..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />
@@ -103,8 +74,8 @@ export const BodyEngineFiltersTab: React.FC<BodyEngineFiltersTabProps> = ({
         <Input
           id="car-release-period-filter"
           type="text"
-          value={carReleasePeriod}
-          onChange={(e) => setCarReleasePeriod(formatCarReleasePeriod(e.target.value))}
+          value={filters.carReleasePeriod}
+          onChange={(e) => onChange('carReleasePeriod', formatCarReleasePeriod(e.target.value))}
           placeholder="2001-2007..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />
@@ -116,8 +87,8 @@ export const BodyEngineFiltersTab: React.FC<BodyEngineFiltersTabProps> = ({
         <Input
           id="number-filter"
           type="text"
-          value={number}
-          onChange={(e) => setNumber(e.target.value)}
+          value={filters.number}
+          onChange={(e) => onChange('number', e.target.value)}
           placeholder="52119-33939..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />
@@ -129,8 +100,8 @@ export const BodyEngineFiltersTab: React.FC<BodyEngineFiltersTabProps> = ({
         <Input
           id="oem-filter"
           type="text"
-          value={oemCode}
-          onChange={(e) => setOemCode(e.target.value)}
+          value={filters.oemCode}
+          onChange={(e) => onChange('oemCode', e.target.value)}
           placeholder="89661-06G80..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />
@@ -142,8 +113,8 @@ export const BodyEngineFiltersTab: React.FC<BodyEngineFiltersTabProps> = ({
         <Input
           id="defect-filter"
           type="text"
-          value={defect}
-          onChange={(e) => setDefect(e.target.value)}
+          value={filters.defect}
+          onChange={(e) => onChange('defect', e.target.value)}
           placeholder="Царапина, скол, трещина..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />
@@ -155,8 +126,8 @@ export const BodyEngineFiltersTab: React.FC<BodyEngineFiltersTabProps> = ({
         <Input
           id="color-filter"
           type="text"
-          value={color}
-          onChange={(e) => setColor(e.target.value)}
+          value={filters.color}
+          onChange={(e) => onChange('color', e.target.value)}
           placeholder="Черный, белый, серебристый..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />

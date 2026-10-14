@@ -7,48 +7,17 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import type { SelectOption } from '@/components/ui/searchable-select';
+import type { SearchFiltersState } from './searchTypes';
 
-interface WheelsFiltersTabProps {
-  season: string;
-  setSeason: (val: string) => void;
-  tireModel: string;
-  setTireModel: (val: string) => void;
-  diameter: string;
-  setDiameter: (val: string) => void;
-  width: string;
-  setWidth: (val: string) => void;
-  profile: string;
-  setProfile: (val: string) => void;
-  tireQuantity: string;
-  setTireQuantity: (val: string) => void;
-  drilling: string;
-  setDrilling: (val: string) => void;
-  offset: string;
-  setOffset: (val: string) => void;
-  centerHoleDiameter: string;
-  setCenterHoleDiameter: (val: string) => void;
+export interface WheelsFiltersTabProps {
+  filters: SearchFiltersState;
+  onChange: <K extends keyof SearchFiltersState>(key: K, val: SearchFiltersState[K]) => void;
   seasonOptions: SelectOption[];
 }
 
 export const WheelsFiltersTab: React.FC<WheelsFiltersTabProps> = ({
-  season,
-  setSeason,
-  tireModel,
-  setTireModel,
-  diameter,
-  setDiameter,
-  width,
-  setWidth,
-  profile,
-  setProfile,
-  tireQuantity,
-  setTireQuantity,
-  drilling,
-  setDrilling,
-  offset,
-  setOffset,
-  centerHoleDiameter,
-  setCenterHoleDiameter,
+  filters,
+  onChange,
   seasonOptions,
 }) => {
   return (
@@ -58,8 +27,8 @@ export const WheelsFiltersTab: React.FC<WheelsFiltersTabProps> = ({
         <Label htmlFor="season-filter">Сезонность шин</Label>
         <div className="mt-1.5">
           <SearchableSelect
-            value={season}
-            onValueChange={setSeason}
+            value={filters.season}
+            onValueChange={(val) => onChange('season', val)}
             options={seasonOptions}
             placeholder="Все сезоны"
             searchPlaceholder="Поиск сезона..."
@@ -75,8 +44,8 @@ export const WheelsFiltersTab: React.FC<WheelsFiltersTabProps> = ({
         <Input
           id="tire-model-filter"
           type="text"
-          value={tireModel}
-          onChange={(e) => setTireModel(e.target.value)}
+          value={filters.tireModel}
+          onChange={(e) => onChange('tireModel', e.target.value)}
           placeholder="Hakkapeliitta 8, Ice Cruiser..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />
@@ -88,8 +57,8 @@ export const WheelsFiltersTab: React.FC<WheelsFiltersTabProps> = ({
         <Input
           id="diameter-filter"
           type="text"
-          value={diameter}
-          onChange={(e) => setDiameter(e.target.value)}
+          value={filters.diameter}
+          onChange={(e) => onChange('diameter', e.target.value)}
           placeholder="R15, R16, R17..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />
@@ -101,8 +70,8 @@ export const WheelsFiltersTab: React.FC<WheelsFiltersTabProps> = ({
         <Input
           id="width-filter"
           type="text"
-          value={width}
-          onChange={(e) => setWidth(e.target.value)}
+          value={filters.width}
+          onChange={(e) => onChange('width', e.target.value)}
           placeholder="205, 215, 225..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />
@@ -114,8 +83,8 @@ export const WheelsFiltersTab: React.FC<WheelsFiltersTabProps> = ({
         <Input
           id="profile-filter"
           type="text"
-          value={profile}
-          onChange={(e) => setProfile(e.target.value)}
+          value={filters.profile}
+          onChange={(e) => onChange('profile', e.target.value)}
           placeholder="55, 60, 65..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />
@@ -127,8 +96,8 @@ export const WheelsFiltersTab: React.FC<WheelsFiltersTabProps> = ({
         <Input
           id="tire-quantity-filter"
           type="text"
-          value={tireQuantity}
-          onChange={(e) => setTireQuantity(e.target.value)}
+          value={filters.tireQuantity}
+          onChange={(e) => onChange('tireQuantity', e.target.value)}
           placeholder="4 шт, пара..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />
@@ -140,8 +109,8 @@ export const WheelsFiltersTab: React.FC<WheelsFiltersTabProps> = ({
         <Input
           id="drilling-filter"
           type="text"
-          value={drilling}
-          onChange={(e) => setDrilling(e.target.value)}
+          value={filters.drilling}
+          onChange={(e) => onChange('drilling', e.target.value)}
           placeholder="5x114.3, 4x100..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />
@@ -153,8 +122,8 @@ export const WheelsFiltersTab: React.FC<WheelsFiltersTabProps> = ({
         <Input
           id="offset-filter"
           type="text"
-          value={offset}
-          onChange={(e) => setOffset(e.target.value)}
+          value={filters.offset}
+          onChange={(e) => onChange('offset', e.target.value)}
           placeholder="ET45, ET38..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />
@@ -166,8 +135,8 @@ export const WheelsFiltersTab: React.FC<WheelsFiltersTabProps> = ({
         <Input
           id="center-hole-diameter-filter"
           type="text"
-          value={centerHoleDiameter}
-          onChange={(e) => setCenterHoleDiameter(e.target.value)}
+          value={filters.centerHoleDiameter}
+          onChange={(e) => onChange('centerHoleDiameter', e.target.value)}
           placeholder="60.1, 67.1..."
           className="mt-1.5 bg-transparent border border-gray-300"
         />
