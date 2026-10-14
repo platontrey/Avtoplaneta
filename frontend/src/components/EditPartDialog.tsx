@@ -1,27 +1,25 @@
 /*
-* Copyright (c) 2025 Avtoplaneta. All rights reserved.
-*/
+ * Copyright (c) 2025-2026 Avtoplaneta. All rights reserved.
+ */
 
+import React, { useState } from "react";
+import { useForm, FormProvider } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import FormRow from "./FormRow";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import React, { useState } from "react";
-import { motion } from "framer-motion";
-import { Crop, Trash2, Plus, Copy, Check } from "lucide-react";
+import { Crop, Trash2, Plus, Copy, Check, Save } from "lucide-react";
+import { PartBasicFields } from "@/features/parts/components/PartBasicFields";
+import { PartSpecificationsFields } from "@/features/parts/components/PartSpecificationsFields";
+import { partSchema, type PartFormData } from "@/features/parts/schemas/partSchema";
+import { useQueryClient } from "@tanstack/react-query";
+import { partsKeys } from "@/hooks/useParts";
+import { partsApi } from "@/features/parts/api/partsApi";
+import { getAuthHeaders } from "@/lib/csrf";
+import { copyPhotoToClipboard } from "@/lib/photoUtils";
+import { API_BASE_URL } from "@/lib/api";
 import type { UsePartEditReturn } from "@/hooks/usePartEdit";
 import type { Part } from "@/features/parts/types";
-import { API_BASE_URL } from "@/lib/api";
-import SelectUserDropdown from "./SelectUserDropdown";
-import type { User } from "@/features/messaging/types";
-import { usePartCatalog } from "@/features/catalog/usePartCatalog";
-import { useVehicleOptions } from "@/features/vehicles/useVehicleCatalog";
-import { SearchableSelect } from "@/components/ui/searchable-select";
-import { formatCarReleasePeriod } from "@/lib/utils";
-import { copyPhotoToClipboard } from "@/lib/photoUtils";
 
 interface EditPartDialogProps {
     partEdit: UsePartEditReturn;
@@ -32,30 +30,66 @@ interface EditPartDialogProps {
     originalFile: File | null;
 }
 
-export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, onDeletePhoto, originalFile }: EditPartDialogProps) {
-    console.log('EditPartDialog render, part.photo:', part.photo, 'photoPreview:', partEdit.photoUpload.photoPreview);
-    const { data: partCatalog } = usePartCatalog();
-    // Марки, модели, кузова и двигатели — из общего серверного справочника, а не из списка в коде.
-    const { brandOptions, modelOptions, bodyOptions, engineOptions } = useVehicleOptions(
-        partEdit.editForm.brand,
-        partEdit.editForm.model
-    );
+export default function EditPartDialog({
+    partEdit,
+    part,
+    onPhotoChange,
+    onCrop,
+    onDeletePhoto,
+    originalFile,
+}: EditPartDialogProps) {
+    const queryClient = useQueryClient();
+    const [isSaving, setIsSaving] = useState(false);
+    const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
-    const visibleFields = partCatalog?.attributes.map((attribute) => attribute.code) ?? [];
-    const shows = (field: string) => visibleFields.length === 0 || visibleFields.includes(field);
-
-    const transmissionOptions = partCatalog?.attributes.find(
-        (attribute) => attribute.code === "transmission",
-    )?.options ?? ["МКПП", "АКПП", "Роботизированная", "Вариатор"];
-    const driveOptions = partCatalog?.attributes.find(
-        (attribute) => attribute.code === "drive",
-    )?.options ?? ["Передний", "Задний", "Полный"];
+    const form = useForm<PartFormData>({
+        resolver: zodResolver(partSchema),
+        defaultValues: {
+            name: part.name || "",
+            brand: part.brand || "",
+            model: part.model || "",
+            quantity: part.quantity ?? 0,
+            price: part.price ?? undefined,
+            description: part.description || "",
+            category: part.category || "",
+            location: part.location || "",
+            address: part.address || "",
+            seller_id: part.seller_id ? String(part.seller_id) : undefined,
+            vin: part.vin || "",
+            body_brand: part.body_brand || "",
+            engine_brand: part.engine_brand || "",
+            car_release_date: part.car_release_date || "",
+            car_release_period: part.car_release_period || "",
+            front_rear: part.front_rear || "",
+            left_right: part.left_right || "",
+            top_bottom: part.top_bottom || "",
+            color: part.color || "",
+            number: part.number || "",
+            manufacturer: part.manufacturer || "",
+            manufacturer_code: part.manufacturer_code || "",
+            oem_code: part.oem_code || "",
+            supplier_code: part.supplier_code || "",
+            condition: part.condition || "",
+            defect: part.defect || "",
+            transmission: part.transmission || "",
+            transmission_model: part.transmission_model || "",
+            drive: part.drive || "",
+            wear_percentage: part.wear_percentage || "",
+            season: part.season || "",
+            diameter: part.diameter || "",
+            width: part.width || "",
+            profile: part.profile || "",
+            tire_quantity: part.tire_quantity || "",
+            drilling: part.drilling || "",
+            offset: part.offset || "",
+            center_hole_diameter: part.center_hole_diameter || "",
+            tire_model: part.tire_model || "",
+        },
+    });
 
     const existingPhotos = (part.photos && part.photos.length > 0)
         ? part.photos
         : (part.photo ? [part.photo] : []);
-
-    const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
     const handleCopyExistingPhoto = async (photoUrl: string, index: number) => {
         try {
@@ -63,720 +97,178 @@ export default function EditPartDialog({ partEdit, part, onPhotoChange, onCrop, 
             setCopiedIndex(index);
             setTimeout(() => setCopiedIndex(null), 2000);
         } catch (err) {
-            console.error('Ошибка копирования фото:', err);
+            console.error("Ошибка копирования фото:", err);
+        }
+    };
+
+    const handleFormSubmit = async (values: PartFormData) => {
+        setIsSaving(true);
+        try {
+            const updatePayload = {
+                ...values,
+                seller_id: values.seller_id ? Number(values.seller_id) : undefined,
+                price: values.price ? Number(values.price) : 0,
+                quantity: Number(values.quantity) || 0,
+            };
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/parts/${part.id}`, {
+                method: "PUT",
+                headers: {
+                    ...getAuthHeaders(),
+                    "Content-Type": "application/json",
+                },
+                credentials: "include",
+                body: JSON.stringify(updatePayload),
+            });
+
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(`HTTP ${response.status}: ${text}`);
+            }
+
+            if (originalFile) {
+                await partsApi.uploadPhoto(part.id, originalFile);
+            }
+
+            void queryClient.invalidateQueries({ queryKey: partsKeys.lists() });
+            partEdit.setIsEditing(false);
+        } catch (err) {
+            console.error("Ошибка сохранения запчасти:", err);
+            alert("Не удалось сохранить изменения детали.");
+        } finally {
+            setIsSaving(false);
         }
     };
 
     return (
-        <Dialog open={partEdit.isEditing} onOpenChange={(open) => { console.log('Edit dialog open state:', open); partEdit.setIsEditing(open); }}>
+        <Dialog open={partEdit.isEditing} onOpenChange={partEdit.setIsEditing}>
             <DialogContent
-                className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto"
+                className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}
-                onEscapeKeyDown={() => partEdit.setIsEditing(false)}
-                onPointerDownOutside={() => partEdit.setIsEditing(false)}
             >
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                    transition={{ duration: 0.15, ease: "easeOut" }}
-                >
-                    <DialogHeader>
-                        <DialogTitle>Редактировать деталь</DialogTitle>
-                        <DialogDescription>
-                            Внесите изменения в детали детали здесь.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <Tabs defaultValue="basic" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="basic">Основная информация</TabsTrigger>
-                            <TabsTrigger value="specifications">Характеристики</TabsTrigger>
-                        </TabsList>
+                <DialogHeader>
+                    <DialogTitle>Редактировать деталь #{part.id}</DialogTitle>
+                    <DialogDescription>
+                        Внесите изменения в характеристики запчасти и нажмите &laquo;Сохранить изменения&raquo;.
+                    </DialogDescription>
+                </DialogHeader>
 
-                        <TabsContent value="basic" className="space-y-4 mt-4">
-                            <div className="grid gap-3 sm:gap-4 py-4">
-                                <FormRow label="Название" htmlFor="name">
-                                    <Input
-                                        id="name"
-                                        autoComplete="name"
-                                        value={partEdit.editForm.name}
-                                        onChange={(e) => partEdit.updateFormField('name', e.target.value)}
-                                    />
-                                </FormRow>
-                                <FormRow label="Бренд" htmlFor="brand-select">
-                                    <div className="relative">
-                                        <SearchableSelect
-                                            value={partEdit.editForm.brand || ""}
-                                            onValueChange={(value) => {
-                                                partEdit.updateFormField('brand', value);
-                                                // Модель принадлежит марке — старое значение к новой марке не относится.
-                                                partEdit.updateFormField('model', '');
-                                            }}
-                                            options={brandOptions}
-                                            placeholder="Выберите или введите бренд"
-                                            searchPlaceholder="Поиск бренда..."
-                                            emptyMessage="Бренд не найден"
-                                            allowCustom={true}
-                                        />
-                                        {partEdit.editForm.brand && (
-                                            <button
-                                                type="button"
-                                                onClick={() => partEdit.updateFormField('brand', "")}
-                                                className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
-                                                title="Очистить"
-                                            >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                </svg>
-                                            </button>
-                                        )}
-                                    </div>
-                                </FormRow>
-                                <FormRow label="Модель" htmlFor="model">
-                                    <SearchableSelect
-                                        value={partEdit.editForm.model || ''}
-                                        onValueChange={(value) => partEdit.updateFormField('model', value)}
-                                        options={modelOptions}
-                                        placeholder={partEdit.editForm.brand ? "Выберите или введите модель" : "Сначала выберите бренд"}
-                                        searchPlaceholder="Поиск модели..."
-                                        emptyMessage="Модель не найдена — можно ввести свою"
-                                        allowCustom={true}
-                                    />
-                                </FormRow>
-                                <FormRow label="VIN / Номер кузова" htmlFor="vin">
-                                    <Input
-                                        id="vin"
-                                        autoComplete="off"
-                                        value={partEdit.editForm.vin || ''}
-                                        onChange={(e) => partEdit.updateFormField('vin', e.target.value)}
-                                    />
-                                </FormRow>
-                                {shows('car_release_period') && (
-                                    <FormRow label="Период выпуска автомобиля" htmlFor="car_release_period">
-                                        <Input
-                                            id="car_release_period"
-                                            autoComplete="off"
-                                            placeholder="Например: 2001-2007"
-                                            value={partEdit.editForm.car_release_period || ''}
-                                            onChange={(e) => partEdit.updateFormField('car_release_period', formatCarReleasePeriod(e.target.value))}
-                                        />
-                                    </FormRow>
-                                )}
-                                <FormRow label="Количество" htmlFor="quantity">
-                                    <Input
-                                        id="quantity"
-                                        type="number"
-                                        autoComplete="off"
-                                        value={partEdit.editForm.quantity}
-                                        onChange={(e) => partEdit.updateFormField('quantity', e.target.value)}
-                                    />
-                                </FormRow>
-                                <FormRow label="Описание" htmlFor="description">
-                                    <Textarea
-                                        id="description"
-                                        autoComplete="off"
-                                        value={partEdit.editForm.description}
-                                        onChange={(e) => partEdit.updateFormField('description', e.target.value)}
-                                    />
-                                </FormRow>
-                                <FormRow label="Категория" htmlFor="category">
-                                    <div>
-                                        <Select
-                                            value={partEdit.editForm.category || ""}
-                                            onValueChange={(value) => {
-                                                console.log('Category select changed:', value);
-                                                partEdit.updateFormField('category', value);
-                                            }}
-                                            onOpenChange={(open) => console.log('Category select open state:', open)}
-                                        >
-                                            <SelectTrigger id="category" className="w-full">
-                                                <SelectValue placeholder="Выберите категорию" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {partCatalog?.part_form_categories?.map((item) => (
-                                                    <SelectItem key={item.code || item.name} value={item.name}>{item.name}</SelectItem>
-                                                ))}
-                                                {partEdit.editForm.category && !partCatalog?.part_form_categories?.some(i => i.name === partEdit.editForm.category) && (
-                                                    <SelectItem value={partEdit.editForm.category}>{partEdit.editForm.category}</SelectItem>
-                                                )}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </FormRow>
-                                <FormRow label="Цена (₽)" htmlFor="price">
-                                    <Input
-                                        id="price"
-                                        type="number"
-                                        step="100"
-                                        autoComplete="off"
-                                        value={partEdit.editForm.price}
-                                        onChange={(e) => partEdit.updateFormField('price', e.target.value)}
-                                    />
-                                </FormRow>
-                                <FormRow label="Местоположение" htmlFor="location">
-                                    <Input
-                                        id="location"
-                                        autoComplete="address-line1"
-                                        value={partEdit.editForm.location}
-                                        onChange={(e) => partEdit.updateFormField('location', e.target.value)}
-                                    />
-                                </FormRow>
-                                <FormRow label="Адрес склада" htmlFor="address">
-                                    <Input
-                                        id="address"
-                                        autoComplete="street-address"
-                                        value={partEdit.editForm.address}
-                                        onChange={(e) => partEdit.updateFormField('address', e.target.value)}
-                                    />
-                                </FormRow>
-                                <FormRow label="Статус" htmlFor="status">
-                                    <div>
-                                        <Select value={partEdit.editForm.status ? "active" : "inactive"} onValueChange={(value) => { console.log('Status select changed:', value); partEdit.updateFormField('status', value === "active"); }} onOpenChange={(open) => console.log('Status select open state:', open)}>
-                                            <SelectTrigger id="status" className="w-full">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="active">Активный</SelectItem>
-                                                <SelectItem value="inactive">Неактивный</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </FormRow>
-                                <FormRow label="Продавец" htmlFor="salesman-select">
-                                    <div>
-                                        <SelectUserDropdown
-                                            selectedUsers={
-                                                partEdit.editForm.seller_id
-                                                ? [{ id: partEdit.editForm.seller_id, name: partEdit.editForm.salesman, email: '' } as User]
-                                                : (partEdit.editForm.salesman ? [{ id: 0, name: partEdit.editForm.salesman, email: '' } as User] : [])
-                                            }
-                                            onSelectionChange={(users) => {
-                                                if (users.length > 0) {
-                                                    partEdit.updateFormField('seller_id', users[0].id);
-                                                    partEdit.updateFormField('salesman', users[0].name || users[0].email || 'Без имени');
-                                                } else {
-                                                    partEdit.updateFormField('seller_id', undefined);
-                                                    partEdit.updateFormField('salesman', '');
-                                                }
-                                            }}
-                                            placeholder="Выберите продавца"
-                                            multiple={false}
-                                            label=""
-                                        />
-                                    </div>
-                                </FormRow>
-                                <FormRow label="Фотографии" htmlFor="add-photo-input">
-                                    <div className="sm:col-span-3 flex flex-col space-y-3">
-                                        <input
-                                            type="file"
-                                            id="add-photo-input"
-                                            name="photo"
-                                            accept="image/*"
-                                            onChange={onPhotoChange}
-                                            className="hidden"
-                                        />
+                <FormProvider {...form}>
+                    <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
+                        <Tabs defaultValue="basic" className="w-full">
+                            <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="basic">Основная информация</TabsTrigger>
+                                <TabsTrigger value="specifications">Характеристики</TabsTrigger>
+                            </TabsList>
 
-                                        {/* Сетка уже добавленных фотографий и кнопка добавления */}
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                            {existingPhotos.map((photoPath, index) => {
-                                                const photoUrl = photoPath.startsWith('http') || photoPath.startsWith('data:')
-                                                    ? photoPath
-                                                    : `${API_BASE_URL}${photoPath.startsWith('/') ? photoPath : `/${photoPath}`}`;
-                                                return (
-                                                    <div key={index} className="relative rounded-lg border border-border bg-card overflow-hidden flex flex-col shadow-xs">
-                                                        <div className="relative aspect-square w-full bg-muted/40 flex items-center justify-center overflow-hidden">
-                                                            <img
-                                                                src={photoUrl}
-                                                                alt={`${part.name || 'Деталь'} - фото ${index + 1}`}
-                                                                className="w-full h-full object-cover"
-                                                                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                                                                    e.currentTarget.onerror = null;
-                                                                    e.currentTarget.src = '/placeholder-part.svg';
-                                                                }}
-                                                            />
-                                                            <span className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded font-mono font-medium">
-                                                                #{index + 1}
-                                                            </span>
-                                                        </div>
-                                                        <div className="p-1 grid grid-cols-3 gap-1 bg-muted/20 border-t border-border">
-                                                            <Button
-                                                                type="button"
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="h-7 w-full p-0 text-xs hover:bg-primary/10 hover:text-primary hover:border-primary/40 transition-colors"
-                                                                onClick={() => onCrop(photoUrl, photoPath)}
-                                                                title="Редактировать фото (кадрировать, маркеры, размытие)"
-                                                            >
-                                                                <Crop className="h-3.5 w-3.5" />
-                                                            </Button>
-                                                            <Button
-                                                                type="button"
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className={`h-7 w-full p-0 text-xs transition-colors ${
-                                                                    copiedIndex === index 
-                                                                        ? 'text-emerald-500 border-emerald-500/50 bg-emerald-500/10' 
-                                                                        : 'text-muted-foreground hover:text-foreground'
-                                                                }`}
-                                                                onClick={() => handleCopyExistingPhoto(photoUrl, index)}
-                                                                title="Скопировать фото в буфер обмена"
-                                                            >
-                                                                {copiedIndex === index ? (
-                                                                    <Check className="h-3.5 w-3.5 text-emerald-500" />
-                                                                ) : (
-                                                                    <Copy className="h-3.5 w-3.5" />
-                                                                )}
-                                                            </Button>
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="h-7 w-full p-0 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                                                onClick={() => onDeletePhoto(photoPath)}
-                                                                title="Удалить фото"
-                                                            >
-                                                                <Trash2 className="h-3.5 w-3.5" />
-                                                            </Button>
-                                                        </div>
+                            {/* Вкладка 1: Основное */}
+                            <TabsContent value="basic" className="space-y-4 mt-2">
+                                <PartBasicFields />
+
+                                {/* Управление фото */}
+                                <div className="border-t border-border pt-4">
+                                    <h4 className="text-sm font-semibold mb-3">Фотографии детали</h4>
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-3">
+                                        {existingPhotos.map((photoPath, index) => {
+                                            const photoUrl = photoPath.startsWith("http") || photoPath.startsWith("data:")
+                                                ? photoPath
+                                                : `${API_BASE_URL}${photoPath.startsWith("/") ? photoPath : `/${photoPath}`}`;
+                                            return (
+                                                <div key={index} className="relative aspect-square border rounded-lg overflow-hidden group bg-muted/20">
+                                                    <img
+                                                        src={photoUrl}
+                                                        alt={`Фото ${index + 1}`}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 p-1">
+                                                        <Button
+                                                            type="button"
+                                                            variant="secondary"
+                                                            size="icon"
+                                                            className="h-7 w-7"
+                                                            onClick={() => onCrop(photoUrl, photoPath)}
+                                                            title="Отредактировать в фоторедакторе"
+                                                        >
+                                                            <Crop className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="secondary"
+                                                            size="icon"
+                                                            className="h-7 w-7"
+                                                            onClick={() => handleCopyExistingPhoto(photoUrl, index)}
+                                                            title="Скопировать"
+                                                        >
+                                                            {copiedIndex === index ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="destructive"
+                                                            size="icon"
+                                                            className="h-7 w-7"
+                                                            onClick={() => onDeletePhoto(photoPath)}
+                                                            title="Удалить фото"
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
                                                     </div>
-                                                );
-                                            })}
-
-                                            {/* Карточка добавления нового фото */}
-                                            <label
-                                                htmlFor="add-photo-input"
-                                                className="relative aspect-square flex flex-col items-center justify-center border-2 border-dashed border-border hover:border-primary/60 rounded-lg cursor-pointer bg-muted/10 hover:bg-muted/30 transition-all p-2 text-center group"
-                                            >
-                                                {partEdit.photoUpload.isUploading ? (
-                                                    <>
-                                                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mb-1"></div>
-                                                        <span className="text-xs text-muted-foreground">Загрузка...</span>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <div className="p-2 rounded-full bg-muted group-hover:bg-primary/10 transition-colors mb-1">
-                                                            <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                                                        </div>
-                                                        <span className="text-xs font-medium text-foreground">Добавить фото</span>
-                                                        <span className="text-[10px] text-muted-foreground">Нажмите для выбора</span>
-                                                    </>
-                                                )}
-                                            </label>
-                                        </div>
-
-                                        {/* Превью выбранного локального файла перед загрузкой */}
-                                        {originalFile && (
-                                            <div className="flex items-center justify-between p-2.5 rounded-lg border border-blue-500/30 bg-blue-500/10 text-xs mt-2">
-                                                <div className="flex items-center gap-2 min-w-0">
-                                                    <span className="font-semibold text-blue-600 dark:text-blue-400 shrink-0">Выбран файл:</span>
-                                                    <span className="truncate text-muted-foreground">{originalFile.name}</span>
                                                 </div>
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="h-7 text-xs shrink-0 ml-2"
-                                                    onClick={() => onCrop(originalFile)}
-                                                >
-                                                    <Crop className="h-3.5 w-3.5 mr-1" />
-                                                    Обрезать перед сохранением
-                                                </Button>
-                                            </div>
-                                        )}
+                                            );
+                                        })}
+
+                                        {/* Добавить новое фото */}
+                                        <label className="border-2 border-dashed border-border hover:border-primary rounded-lg aspect-square flex flex-col items-center justify-center cursor-pointer transition-colors p-2 text-center">
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={onPhotoChange}
+                                                className="hidden"
+                                            />
+                                            <Plus className="h-5 w-5 text-muted-foreground mb-1" />
+                                            <span className="text-xs text-muted-foreground">Добавить фото</span>
+                                        </label>
                                     </div>
-                                </FormRow>
-                            </div>
-                        </TabsContent>
 
-                        <TabsContent value="specifications" className="space-y-4 mt-4">
-                            <div className="grid gap-3 sm:gap-4 py-4">
-
-                                <FormRow label="Марка кузова" htmlFor="body_brand">
-                                    <SearchableSelect
-                                        value={partEdit.editForm.body_brand || ''}
-                                        onValueChange={(value) => partEdit.updateFormField('body_brand', value)}
-                                        options={bodyOptions}
-                                        placeholder={partEdit.editForm.brand ? "Выберите или введите марку кузова" : "Сначала выберите бренд"}
-                                        searchPlaceholder="Поиск кузова или ввод нового..."
-                                        emptyMessage="Кузов не найден — можно ввести свой"
-                                        allowCustom={true}
-                                        className="h-10"
-                                    />
-                                </FormRow>
-
-                                {shows('engine_brand') && (
-                                    <FormRow label="Марка двигателя" htmlFor="engine_brand">
-                                        <SearchableSelect
-                                            value={partEdit.editForm.engine_brand || ''}
-                                            onValueChange={(value) => partEdit.updateFormField('engine_brand', value)}
-                                            options={engineOptions}
-                                            placeholder={partEdit.editForm.brand ? "Выберите или введите марку двигателя" : "Сначала выберите бренд"}
-                                            searchPlaceholder="Поиск двигателя или ввод нового..."
-                                            emptyMessage="Двигатель не найден — можно ввести свой"
-                                            allowCustom={true}
-                                            className="h-10"
-                                        />
-                                    </FormRow>
-                                )}
-
-                                {shows('car_release_date') && (
-                                    <FormRow label="Год выпуска" htmlFor="car_release_date">
-                                        <Input
-                                            id="car_release_date"
-                                            value={partEdit.editForm.car_release_date || ''}
-                                             onChange={(e) => partEdit.updateFormField('car_release_date', e.target.value)}
-                                        />
-                                    </FormRow>
-                                )}
-
-                                {shows('front_rear') && (
-                                    <FormRow label="Перед/зад" htmlFor="front_rear">
-                                        <div className="relative">
-                                            <Select value={partEdit.editForm.front_rear || ""} onValueChange={(value) => partEdit.updateFormField('front_rear', value)}>
-                                                <SelectTrigger className="w-full">
-                                                    <SelectValue placeholder="Выберите" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="F">F (Перед)</SelectItem>
-                                                    <SelectItem value="R">R (Зад)</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            {partEdit.editForm.front_rear && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => partEdit.updateFormField('front_rear', "")}
-                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
-                                                    title="Очистить"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                    </svg>
-                                                </button>
-                                            )}
+                                    {originalFile && (
+                                        <div className="flex items-center justify-between p-2 rounded-lg bg-primary/10 text-xs">
+                                            <span className="truncate">Новое фото: {originalFile.name}</span>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-7 text-xs"
+                                                onClick={() => onCrop(originalFile)}
+                                            >
+                                                <Crop className="h-3 w-3 mr-1" />
+                                                Обрезать
+                                            </Button>
                                         </div>
-                                    </FormRow>
-                                )}
+                                    )}
+                                </div>
+                            </TabsContent>
 
-                                {shows('left_right') && (
-                                    <FormRow label="Право/лево" htmlFor="left_right">
-                                        <div className="relative">
-                                            <Select value={partEdit.editForm.left_right || ""} onValueChange={(value) => partEdit.updateFormField('left_right', value)}>
-                                                <SelectTrigger className="w-full">
-                                                    <SelectValue placeholder="Выберите" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="L">L (Лево)</SelectItem>
-                                                    <SelectItem value="R">R (Право)</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            {partEdit.editForm.left_right && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => partEdit.updateFormField('left_right', "")}
-                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
-                                                    title="Очистить"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                    </svg>
-                                                </button>
-                                            )}
-                                        </div>
-                                    </FormRow>
-                                )}
+                            {/* Вкладка 2: Характеристики */}
+                            <TabsContent value="specifications" className="mt-2">
+                                <PartSpecificationsFields />
+                            </TabsContent>
+                        </Tabs>
 
-                                {shows('top_bottom') && (
-                                    <FormRow label="Верх/низ" htmlFor="top_bottom">
-                                        <div className="relative">
-                                            <Select value={partEdit.editForm.top_bottom || ""} onValueChange={(value) => partEdit.updateFormField('top_bottom', value)}>
-                                                <SelectTrigger className="w-full">
-                                                    <SelectValue placeholder="Выберите" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="Верх">Верх</SelectItem>
-                                                    <SelectItem value="Низ">Низ</SelectItem>
-                                                    <SelectItem value="Середина">Середина</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            {partEdit.editForm.top_bottom && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => partEdit.updateFormField('top_bottom', "")}
-                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
-                                                    title="Очистить"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                    </svg>
-                                                </button>
-                                            )}
-                                        </div>
-                                    </FormRow>
-                                )}
-
-                                {shows('number') && (
-                                    <FormRow label="Номер детали" htmlFor="number">
-                                        <Input
-                                            id="number"
-                                            value={partEdit.editForm.number || ''}
-                                            onChange={(e) => partEdit.updateFormField('number', e.target.value)}
-                                        />
-                                    </FormRow>
-                                )}
-
-                                {shows('manufacturer') && (
-                                    <FormRow label="Производитель" htmlFor="manufacturer">
-                                        <Input
-                                            id="manufacturer"
-                                            value={partEdit.editForm.manufacturer || ''}
-                                            onChange={(e) => partEdit.updateFormField('manufacturer', e.target.value)}
-                                        />
-                                    </FormRow>
-                                )}
-
-                                {shows('manufacturer_code') && (
-                                    <FormRow label="Код производителя" htmlFor="manufacturer_code">
-                                        <Input
-                                            id="manufacturer_code"
-                                            value={partEdit.editForm.manufacturer_code || ''}
-                                            onChange={(e) => partEdit.updateFormField('manufacturer_code', e.target.value)}
-                                        />
-                                    </FormRow>
-                                )}
-
-                                {shows('oem_code') && (
-                                    <FormRow label="OEM код" htmlFor="oem_code">
-                                        <Input
-                                            id="oem_code"
-                                            value={partEdit.editForm.oem_code || ''}
-                                            onChange={(e) => partEdit.updateFormField('oem_code', e.target.value)}
-                                        />
-                                    </FormRow>
-                                )}
-
-                                {shows('color') && (
-                                    <FormRow label="Цвет" htmlFor="color">
-                                        <Input
-                                            id="color"
-                                            value={partEdit.editForm.color || ''}
-                                            onChange={(e) => partEdit.updateFormField('color', e.target.value)}
-                                        />
-                                    </FormRow>
-                                )}
-
-                                {shows('condition') && (
-                                    <FormRow label="Состояние" htmlFor="condition">
-                                        <Input
-                                            id="condition"
-                                            value={partEdit.editForm.condition || ''}
-                                            onChange={(e) => partEdit.updateFormField('condition', e.target.value)}
-                                        />
-                                    </FormRow>
-                                )}
-
-                                {shows('supplier_code') && (
-                                    <FormRow label="Код поставки" htmlFor="supplier_code">
-                                        <Input
-                                            id="supplier_code"
-                                            value={partEdit.editForm.supplier_code || ''}
-                                            onChange={(e) => partEdit.updateFormField('supplier_code', e.target.value)}
-                                        />
-                                    </FormRow>
-                                )}
-
-                                {shows('defect') && (
-                                    <FormRow label="Дефект" htmlFor="defect">
-                                        <Input
-                                            id="defect"
-                                            value={partEdit.editForm.defect || ''}
-                                            onChange={(e) => partEdit.updateFormField('defect', e.target.value)}
-                                        />
-                                    </FormRow>
-                                )}
-
-                                {shows('transmission') && (
-                                    <FormRow label="Тип трансмиссии" htmlFor="transmission">
-                                        <div className="relative">
-                                            <Select value={partEdit.editForm.transmission || ""} onValueChange={(value) => partEdit.updateFormField('transmission', value)}>
-                                                <SelectTrigger className="w-full">
-                                                    <SelectValue placeholder="Выберите тип трансмиссии" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {transmissionOptions.map((opt) => (
-                                                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            {partEdit.editForm.transmission && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => partEdit.updateFormField('transmission', "")}
-                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
-                                                    title="Очистить"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                    </svg>
-                                                </button>
-                                            )}
-                                        </div>
-                                    </FormRow>
-                                )}
-
-                                {shows('transmission_model') && (
-                                    <FormRow label="Модель трансмиссии" htmlFor="transmission_model">
-                                        <Input
-                                            id="transmission_model"
-                                            value={partEdit.editForm.transmission_model || ''}
-                                            onChange={(e) => partEdit.updateFormField('transmission_model', e.target.value)}
-                                            placeholder="Введите номер трансмиссии"
-                                        />
-                                    </FormRow>
-                                )}
-
-                                {shows('drive') && (
-                                    <FormRow label="Привод" htmlFor="drive">
-                                        <div className="relative">
-                                            <Select value={partEdit.editForm.drive || ""} onValueChange={(value) => partEdit.updateFormField('drive', value)}>
-                                                <SelectTrigger className="w-full">
-                                                    <SelectValue placeholder="Выберите привод" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {driveOptions.map((opt) => (
-                                                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            {partEdit.editForm.drive && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => partEdit.updateFormField('drive', "")}
-                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-opacity duration-200 z-10"
-                                                    title="Очистить"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                    </svg>
-                                                </button>
-                                            )}
-                                        </div>
-                                    </FormRow>
-                                )}
-
-                                {shows('wear_percentage') && (
-                                    <FormRow label="Процент износа (%)" htmlFor="wear_percentage">
-                                        <Input
-                                            id="wear_percentage"
-                                            type="number"
-                                            value={partEdit.editForm.wear_percentage || ''}
-                                            onChange={(e) => partEdit.updateFormField('wear_percentage', e.target.value)}
-                                        />
-                                    </FormRow>
-                                )}
-
-                                {shows('diameter') && (
-                                    <FormRow label="Диаметр" htmlFor="diameter">
-                                        <Input
-                                            id="diameter"
-                                            value={partEdit.editForm.diameter || ''}
-                                            onChange={(e) => partEdit.updateFormField('diameter', e.target.value)}
-                                        />
-                                    </FormRow>
-                                )}
-
-                                {shows('width') && (
-                                    <FormRow label="Ширина" htmlFor="width">
-                                        <Input
-                                            id="width"
-                                            value={partEdit.editForm.width || ''}
-                                            onChange={(e) => partEdit.updateFormField('width', e.target.value)}
-                                        />
-                                    </FormRow>
-                                )}
-
-                                {shows('profile') && (
-                                    <FormRow label="Профиль" htmlFor="profile">
-                                        <Input
-                                            id="profile"
-                                            value={partEdit.editForm.profile || ''}
-                                            onChange={(e) => partEdit.updateFormField('profile', e.target.value)}
-                                        />
-                                    </FormRow>
-                                )}
-
-                                {shows('tire_quantity') && (
-                                    <FormRow label="Количество шин" htmlFor="tire_quantity">
-                                        <Input
-                                            id="tire_quantity"
-                                            value={partEdit.editForm.tire_quantity || ''}
-                                            onChange={(e) => partEdit.updateFormField('tire_quantity', e.target.value)}
-                                        />
-                                    </FormRow>
-                                )}
-
-                                {shows('drilling') && (
-                                    <FormRow label="Сверловка" htmlFor="drilling">
-                                        <Input
-                                            id="drilling"
-                                            value={partEdit.editForm.drilling || ''}
-                                            onChange={(e) => partEdit.updateFormField('drilling', e.target.value)}
-                                        />
-                                    </FormRow>
-                                )}
-
-                                {shows('offset') && (
-                                    <FormRow label="Вылет" htmlFor="offset">
-                                        <Input
-                                            id="offset"
-                                            value={partEdit.editForm.offset || ''}
-                                            onChange={(e) => partEdit.updateFormField('offset', e.target.value)}
-                                        />
-                                    </FormRow>
-                                )}
-
-                                {shows('center_hole_diameter') && (
-                                    <FormRow label="Диаметр ЦО" htmlFor="center_hole_diameter">
-                                        <Input
-                                            id="center_hole_diameter"
-                                            value={partEdit.editForm.center_hole_diameter || ''}
-                                            onChange={(e) => partEdit.updateFormField('center_hole_diameter', e.target.value)}
-                                        />
-                                    </FormRow>
-                                )}
-
-                                {shows('tire_model') && (
-                                    <FormRow label="Модель шины" htmlFor="tire_model">
-                                        <Input
-                                            id="tire_model"
-                                            value={partEdit.editForm.tire_model || ''}
-                                            onChange={(e) => partEdit.updateFormField('tire_model', e.target.value)}
-                                        />
-                                    </FormRow>
-                                )}
-
-                                {shows('season') && (
-                                    <FormRow label="Сезон" htmlFor="season">
-                                        <Input
-                                            id="season"
-                                            value={partEdit.editForm.season || ''}
-                                            onChange={(e) => partEdit.updateFormField('season', e.target.value)}
-                                        />
-                                    </FormRow>
-                                )}
-                            </div>
-                        </TabsContent>
-                    </Tabs>
-                    <DialogFooter>
-                        <motion.div
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                        >
-                            <Button type="submit" onClick={partEdit.handleEdit} disabled={partEdit.isLoading}>
-                                {partEdit.isLoading ? 'Сохранение...' : 'Сохранить изменения'}
+                        <DialogFooter className="mt-6 gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => partEdit.setIsEditing(false)}
+                                disabled={isSaving}
+                            >
+                                Отмена
                             </Button>
-                        </motion.div>
-                    </DialogFooter>
-                </motion.div>
+                            <Button type="submit" disabled={isSaving} className="gap-2">
+                                <Save className="h-4 w-4" />
+                                {isSaving ? "Сохранение..." : "Сохранить изменения"}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </FormProvider>
             </DialogContent>
         </Dialog>
     );
