@@ -299,7 +299,6 @@ export function useDuplicatePart() {
     mutationFn: (id: number) => partsApi.duplicate(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: partsKeys.lists() });
-      void queryClient.refetchQueries({ queryKey: partsKeys.lists() });
     },
     onError: (error) => {
       console.error('useDuplicatePart: onError called:', error);

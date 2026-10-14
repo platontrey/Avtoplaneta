@@ -28,6 +28,7 @@ class PartDetailScreen extends ConsumerStatefulWidget {
 
 class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
   int _carouselIndex = 0;
+  bool _isDuplicating = false;
 
   @override
   Widget build(BuildContext context) {
@@ -93,12 +94,20 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
           ),
           partAsync.maybeWhen(
             data: (part) => IconButton(
-              icon: const Icon(LucideIcons.copy_plus),
+              icon: _isDuplicating
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(LucideIcons.copy_plus),
               tooltip: 'Дублировать запчасть (без фото)',
-              onPressed: isOffline
+              onPressed: isOffline || _isDuplicating
                   ? () => ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('В оффлайн-режиме дублирование недоступно'),
+                      SnackBar(
+                        content: Text(isOffline
+                            ? 'В оффлайн-режиме дублирование недоступно'
+                            : 'Создание дубликата...'),
                       ),
                     )
                   : () => _confirmAndDuplicatePart(part),
@@ -521,15 +530,19 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                   child: SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: isOffline
-                          ? () => ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('В оффлайн-режиме дублирование недоступно'),
-                              ),
-                            )
+                      onPressed: isOffline || _isDuplicating
+                          ? null
                           : () => _confirmAndDuplicatePart(part),
-                      icon: const Icon(LucideIcons.copy_plus, size: 18),
-                      label: const Text('Дублировать запчасть (без фото)'),
+                      icon: _isDuplicating
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(LucideIcons.copy_plus, size: 18),
+                      label: Text(_isDuplicating
+                          ? 'Создание дубликата...'
+                          : 'Дублировать запчасть (без фото)'),
                     ),
                   ),
                 ),
@@ -668,52 +681,49 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
 
     if (confirmed != true || !mounted) return;
 
-    try {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+    setState(() => _isDuplicating = true);
 
+    try {
       final response = await apiClient.dio.post(
         ApiEndpoints.duplicatePart(part.id),
       );
 
-      if (mounted) {
-        Navigator.pop(context); // закрыть диалог загрузки
-      }
-
       final newPartData = response.data;
-      final newId = newPartData is Map<String, dynamic> ? newPartData['id'] as int? : null;
+      final newId = newPartData is Map<String, dynamic>
+          ? (newPartData['id'] as num?)?.toInt()
+          : null;
 
-      // Сбрасываем кэш инвентаря
+      // Автоматически переключаем фильтр на показ всех деталей (включая без фото),
+      // чтобы новая запчасть не скрывалась фильтром hasPhoto=with
+      ref.read(inventoryFilterProvider.notifier).update((f) => f.copyWith(hasPhoto: 'all'));
       ref.invalidate(inventoryProvider);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              newId != null
-                  ? 'Запчасть успешно продублирована (ID: $newId)'
-                  : 'Запчасть успешно продублирована',
+        setState(() => _isDuplicating = false);
+        if (newId != null) {
+          ref.invalidate(partProvider(newId));
+          // Сразу открываем созданную запчасть
+          context.push('/inventory/part/$newId');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Запчасть успешно продублирована (ID: $newId)'),
+              duration: const Duration(seconds: 3),
+              backgroundColor: AppTheme.successColor,
             ),
-            duration: const Duration(seconds: 3),
-            action: newId != null
-                ? SnackBarAction(
-                    label: 'Открыть',
-                    onPressed: () {
-                      context.push('/inventory/part/$newId');
-                    },
-                  )
-                : null,
-          ),
-        );
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Запчасть успешно продублирована'),
+              duration: Duration(seconds: 3),
+              backgroundColor: AppTheme.successColor,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
-        Navigator.pop(context); // закрыть диалог загрузки, если открыт
+        setState(() => _isDuplicating = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Ошибка при дублировании запчасти: $e'),

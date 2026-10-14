@@ -120,9 +120,10 @@ function PartBlock({
         if (isDuplicating) return;
         setIsDuplicating(true);
         try {
-            await duplicatePartMutation.mutateAsync(part.id);
+            const duplicated = await duplicatePartMutation.mutateAsync(part.id);
             setIsPartDuplicated(true);
             setTimeout(() => setIsPartDuplicated(false), 2000);
+            alert(`Запчасть успешно продублирована!\nСоздан дубликат без фото с ID: ${duplicated.id}.\nОбратите внимание: если активен фильтр "Только с фото", переключите его на "Все", чтобы увидеть новую деталь в списке.`);
         } catch (err) {
             console.error('Ошибка дублирования детали:', err);
             alert('Не удалось дублировать деталь');
