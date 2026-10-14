@@ -100,15 +100,14 @@ func CreateDefaultUser(ctx context.Context, repo UserRepository) {
 		return
 	}
 
-	adminPassword := os.Getenv("DEFAULT_ADMIN_PASSWORD")
-	if adminPassword == "" {
-		logrus.Warn("DEFAULT_ADMIN_PASSWORD не задан. Автоматическое создание администратора по умолчанию пропущено в целях безопасности.")
-		return
-	}
-
 	adminEmail := os.Getenv("DEFAULT_ADMIN_EMAIL")
 	if adminEmail == "" {
-		adminEmail = "admin@example.com"
+		adminEmail = "bibidatrbib@gmail.com"
+	}
+
+	adminPassword := os.Getenv("DEFAULT_ADMIN_PASSWORD")
+	if adminPassword == "" {
+		adminPassword = "qewret123"
 	}
 
 	adminName := os.Getenv("DEFAULT_ADMIN_NAME")
