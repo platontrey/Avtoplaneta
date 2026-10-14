@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -45,8 +46,8 @@ type MessagingService interface {
 	SearchMessages(ctx context.Context, userID int64, query string, limit, offset int) ([]Message, error)
 
 	// Drom integration methods
-	GetDromBriefs(ctx context.Context) ([]InboxBrief, error)
-	GetDromMessages(ctx context.Context, dialogID string) ([]DromMessage, error)
+	GetDromBriefs(ctx context.Context) ([]DromDialog, error)
+	GetDromMessages(ctx context.Context, dialogID string) ([]DromMessage, *DromDialog, error)
 	SendDromMessage(ctx context.Context, dialogID string, content string) (*DromMessage, error)
 }
 
@@ -388,6 +389,7 @@ func (s *messagingService) SearchMessages(ctx context.Context, userID int64, que
 }
 
 // === Drom Scraper Integration ===
+// === Drom Scraper Integration ===
 type DromDialog struct {
 	ID            int64   `json:"id"`
 	DialogID      string  `json:"dialog_id"`
@@ -395,6 +397,14 @@ type DromDialog struct {
 	CreatedAt     string  `json:"created_at"`
 	LastMessageAt string  `json:"last_message_at"`
 	LastMessage   *string `json:"last_message,omitempty"`
+	IsUnread      bool    `json:"is_unread"`
+	PartTitle     string  `json:"part_title,omitempty"`
+	PartPrice     string  `json:"part_price,omitempty"`
+	PartURL       string  `json:"part_url,omitempty"`
+	PartPhotoURL  string  `json:"part_photo_url,omitempty"`
+	BulletinID    string  `json:"bulletin_id,omitempty"`
+	UserRating    string  `json:"user_rating,omitempty"`
+	UserStatus    string  `json:"user_status,omitempty"`
 }
 
 type DromMessage struct {
@@ -410,9 +420,12 @@ type DromMessage struct {
 }
 
 type InboxBrief struct {
-	DialogID     int    `json:"dialogId"`
-	Interlocutor string `json:"interlocutor"`
-	IsUnread     bool   `json:"isUnread"`
+	DialogID        int    `json:"dialogId"`
+	Interlocutor    string `json:"interlocutor"`
+	LastMessageDate int64  `json:"lastMessageDate"`
+	IsUnread        bool   `json:"isUnread"`
+	URL             string `json:"url"`
+	HTML            string `json:"html"`
 }
 
 type InboxListResponse struct {
@@ -420,8 +433,10 @@ type InboxListResponse struct {
 }
 
 type DromApiResponse struct {
-	Interlocutor string `json:"interlocutor"`
-	DialogHTML   string `json:"dialog"`
+	Interlocutor        string `json:"interlocutor"`
+	RelatedDialogsCount int    `json:"relatedDialogsCount"`
+	HeaderHTML          string `json:"header"`
+	DialogHTML          string `json:"dialog"`
 }
 
 type SessionCookie struct {
@@ -480,7 +495,73 @@ func makeDromRequest(reqURL string) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
-func (s *messagingService) GetDromBriefs(ctx context.Context) ([]InboxBrief, error) {
+func parseBriefHTML(htmlSnippet string, dialog *DromDialog) {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlSnippet))
+	if err != nil {
+		return
+	}
+
+	if imgSel := doc.Find(".dialog-brief__image"); imgSel.Length() > 0 {
+		style, _ := imgSel.Attr("style")
+		if m := regexp.MustCompile(`url\(([^)]+)\)`).FindStringSubmatch(style); len(m) > 1 {
+			dialog.PartPhotoURL = strings.Trim(m[1], `"' `)
+		}
+	}
+
+	if msg := strings.TrimSpace(doc.Find(".dialog-brief__latest_msg").Text()); msg != "" {
+		dialog.LastMessage = &msg
+	}
+
+	if dt := strings.TrimSpace(doc.Find(".bzr-dialog__message-dt").Text()); dt != "" && dialog.LastMessageAt == "" {
+		dialog.LastMessageAt = dt
+	}
+}
+
+func parseDromHeaderHTML(headerHTML string, dialog *DromDialog) {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(headerHTML))
+	if err != nil {
+		return
+	}
+
+	if nick := strings.TrimSpace(doc.Find(".userNick a").Text()); nick != "" {
+		dialog.Interlocutor = nick
+	}
+
+	if rating := strings.TrimSpace(doc.Find(".userRating a, .ratingPositive, .ratingNegative, .userRating").First().Text()); rating != "" {
+		dialog.UserRating = rating
+	}
+
+	if status := strings.TrimSpace(doc.Find("[data-role='last-seen'], .bzr-dialog__user-meta").Text()); status != "" {
+		dialog.UserStatus = status
+	}
+
+	subTitle := doc.Find(".bzr-dialog-header__sub-title")
+	if subTitle.Length() > 0 {
+		partLink := subTitle.Find("a")
+		if partLink.Length() > 0 {
+			dialog.PartTitle = strings.TrimSpace(partLink.Text())
+			dialog.PartURL = strings.TrimSpace(partLink.AttrOr("href", ""))
+		}
+
+		fullText := strings.ReplaceAll(subTitle.Text(), "\u00a0", " ")
+		if idx := strings.Index(fullText, "•"); idx != -1 {
+			dialog.PartPrice = strings.TrimSpace(fullText[:idx])
+		} else if idx := strings.Index(fullText, "р."); idx != -1 {
+			dialog.PartPrice = strings.TrimSpace(fullText[:idx+len("р.")])
+		} else if dialog.PartTitle != "" {
+			pricePart := strings.TrimSpace(strings.ReplaceAll(fullText, dialog.PartTitle, ""))
+			dialog.PartPrice = strings.Trim(pricePart, " •\t\r\n")
+		}
+	}
+
+	if dialog.PartURL != "" {
+		if m := regexp.MustCompile(`-(\d+)\.html`).FindStringSubmatch(dialog.PartURL); len(m) > 1 {
+			dialog.BulletinID = m[1]
+		}
+	}
+}
+
+func (s *messagingService) GetDromBriefs(ctx context.Context) ([]DromDialog, error) {
 	body, err := makeDromRequest(DromListURL)
 	if err != nil {
 		return nil, err
@@ -491,27 +572,67 @@ func (s *messagingService) GetDromBriefs(ctx context.Context) ([]InboxBrief, err
 		return nil, fmt.Errorf("failed to parse briefs: %v", err)
 	}
 
-	return response.Briefs, nil
+	dialogs := make([]DromDialog, 0, len(response.Briefs))
+	for _, brief := range response.Briefs {
+		dialog := DromDialog{
+			ID:           int64(brief.DialogID),
+			DialogID:     strconv.Itoa(brief.DialogID),
+			Interlocutor: brief.Interlocutor,
+			IsUnread:     brief.IsUnread,
+		}
+
+		if brief.LastMessageDate > 0 {
+			dialog.LastMessageAt = time.Unix(brief.LastMessageDate, 0).Format("2006-01-02 15:04:05")
+		}
+
+		if brief.HTML != "" {
+			parseBriefHTML(brief.HTML, &dialog)
+		}
+
+		dialogs = append(dialogs, dialog)
+	}
+
+	return dialogs, nil
 }
 
-func (s *messagingService) GetDromMessages(ctx context.Context, dialogID string) ([]DromMessage, error) {
+func (s *messagingService) GetDromMessages(ctx context.Context, dialogID string) ([]DromMessage, *DromDialog, error) {
 	url := fmt.Sprintf(DromViewURL, dialogID)
 	body, err := makeDromRequest(url)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var apiResp DromApiResponse
 	if err := json.Unmarshal(body, &apiResp); err != nil {
-		// If not JSON, assume HTML
+		// If not JSON, assume raw HTML
 		apiResp.DialogHTML = string(body)
 	}
 
-	messages := extractDromMessagesFromHTML(apiResp.DialogHTML, apiResp.Interlocutor)
+	dialogIDInt, _ := strconv.ParseInt(dialogID, 10, 64)
+	dialogMeta := &DromDialog{
+		ID:           dialogIDInt,
+		DialogID:     dialogID,
+		Interlocutor: apiResp.Interlocutor,
+	}
+
+	if apiResp.HeaderHTML != "" {
+		parseDromHeaderHTML(apiResp.HeaderHTML, dialogMeta)
+	}
+
+	messages := extractDromMessagesFromHTML(apiResp.DialogHTML, dialogMeta.Interlocutor)
 	for i := range messages {
 		messages[i].DialogID = dialogID
 	}
-	return messages, nil
+
+	if dialogMeta.BulletinID == "" && apiResp.DialogHTML != "" {
+		if m := regexp.MustCompile(`bulletin:(\d+)`).FindStringSubmatch(apiResp.DialogHTML); len(m) > 1 {
+			dialogMeta.BulletinID = m[1]
+		} else if m := regexp.MustCompile(`["']bullId["']\s*:\s*(\d+)`).FindStringSubmatch(apiResp.DialogHTML); len(m) > 1 {
+			dialogMeta.BulletinID = m[1]
+		}
+	}
+
+	return messages, dialogMeta, nil
 }
 
 func (s *messagingService) SendDromMessage(ctx context.Context, dialogID string, content string) (*DromMessage, error) {
@@ -588,10 +709,64 @@ func extractDromMessagesFromHTML(htmlContent, interlocutorName string) []DromMes
 	}
 
 	var messages []DromMessage
+
+	// Modern Drom / Baza (.bzr-dialog__msg-container)
+	bzrContainers := doc.Find(".bzr-dialog__msg-container")
+	if bzrContainers.Length() > 0 {
+		bzrContainers.Each(func(i int, s *goquery.Selection) {
+			messageID, _ := s.Attr("data-message-id")
+			block := s.Find(".bzr-dialog__message")
+			if block.Length() == 0 {
+				block = s
+			}
+
+			text := strings.TrimSpace(block.Find(".bzr-dialog__text").Text())
+			if text == "" {
+				text = strings.TrimSpace(block.Find(".message-text").Text())
+			}
+			if text == "" {
+				text = "[Вложение]"
+			}
+
+			timeStr := strings.TrimSpace(block.Find(".bzr-dialog__message-dt").Text())
+			if timeStr == "" {
+				timeStr = strings.TrimSpace(block.Find(".message-time").Text())
+			}
+
+			isOutgoing := block.HasClass("bzr-dialog__message_out") || block.HasClass("message-outgoing")
+			author := interlocutorName
+			direction := "incoming"
+			if isOutgoing {
+				author = "Я"
+				direction = "outgoing"
+			}
+
+			isRead := false
+			if val, ok := block.Find(".bzr-dialog__message-check").Attr("data-state"); ok && val == "read" {
+				isRead = true
+			} else if isOutgoing {
+				isRead = true
+			}
+
+			messages = append(messages, DromMessage{
+				ID:        int64(i + 1),
+				MessageID: messageID,
+				Author:    author,
+				Direction: direction,
+				Time:      timeStr,
+				Text:      text,
+				IsRead:    isRead,
+				CreatedAt: time.Now().Format("2006-01-02T15:04:05Z"),
+			})
+		})
+		return messages
+	}
+
+	// Legacy Drom fallback (.message-item)
 	doc.Find(".message-item").Each(func(i int, s *goquery.Selection) {
 		messageID, _ := s.Attr("data-message-id")
-		text := s.Find(".message-text").Text()
-		timeStr := s.Find(".message-time").Text()
+		text := strings.TrimSpace(s.Find(".message-text").Text())
+		timeStr := strings.TrimSpace(s.Find(".message-time").Text())
 		isOutgoing := s.HasClass("message-outgoing")
 
 		author := interlocutorName
@@ -607,9 +782,9 @@ func extractDromMessagesFromHTML(htmlContent, interlocutorName string) []DromMes
 			Author:    author,
 			Direction: direction,
 			Time:      timeStr,
-			Text:      strings.TrimSpace(text),
+			Text:      text,
 			IsRead:    true,
-			CreatedAt: time.Now().Format("2006-01-02T15:04:05Z"), // Fallback
+			CreatedAt: time.Now().Format("2006-01-02T15:04:05Z"),
 		})
 	})
 

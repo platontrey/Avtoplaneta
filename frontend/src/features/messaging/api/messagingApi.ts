@@ -208,16 +208,21 @@ class MessagingApi {
     });
     if (!response.ok) throw new Error('Failed to fetch Drom dialogs');
     const data = await response.json();
-    return data.dialogs;
+    if (Array.isArray(data)) return data;
+    return data.dialogs || [];
   }
 
-  async getDromMessages(dialogId: string): Promise<DromMessage[]> {
+  async getDromMessages(dialogId: string): Promise<{ messages: DromMessage[]; dialog?: DromDialog }> {
     const response = await fetch(`${MESSAGING_BASE_URL}/drom/messages?dialog_id=${encodeURIComponent(dialogId)}`, {
       headers: this.getHeaders(),
     });
     if (!response.ok) throw new Error('Failed to fetch Drom messages');
     const data = await response.json();
-    return data.messages;
+    if (Array.isArray(data)) return { messages: data };
+    return {
+      messages: data.messages || [],
+      dialog: data.dialog,
+    };
   }
 
   async sendDromMessage(dialogId: string, content: string): Promise<DromMessage> {

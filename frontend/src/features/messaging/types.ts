@@ -67,10 +67,17 @@ export interface DromDialog {
   id: number;
   dialog_id: string;
   interlocutor: string;
-  created_at: string;
-  last_message_at: string;
+  created_at?: string;
+  last_message_at?: string;
   last_message?: string;
   is_unread?: boolean;
+  part_title?: string;
+  part_price?: string;
+  part_url?: string;
+  part_photo_url?: string;
+  bulletin_id?: string;
+  user_rating?: string;
+  user_status?: string;
 }
 
 export interface DromMessage {

@@ -7,7 +7,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -324,18 +323,31 @@ func (s *messagingGRPCServer) SearchMessages(ctx context.Context, req *msgv1.Sea
 // ─── Drom Integration ───────────────────────────────────────────────────────
 
 func (s *messagingGRPCServer) GetDromDialogs(ctx context.Context, req *msgv1.GetDromDialogsRequest) (*msgv1.DromDialogList, error) {
-	briefs, err := svc.GetDromBriefs(ctx)
+	dialogs, err := svc.GetDromBriefs(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось получить диалоги Drom: %v", err)
 	}
 
-	protoDialogs := make([]*msgv1.DromDialog, len(briefs))
-	for i, d := range briefs {
+	protoDialogs := make([]*msgv1.DromDialog, len(dialogs))
+	for i, d := range dialogs {
+		lastMsg := ""
+		if d.LastMessage != nil {
+			lastMsg = *d.LastMessage
+		}
 		protoDialogs[i] = &msgv1.DromDialog{
-			Id:           int32(d.DialogID),
-			DialogId:     strconv.Itoa(d.DialogID),
-			Interlocutor: d.Interlocutor,
-			IsUnread:     d.IsUnread,
+			Id:            int32(d.ID),
+			DialogId:      d.DialogID,
+			Interlocutor:  d.Interlocutor,
+			LastMessageAt: d.LastMessageAt,
+			LastMessage:   lastMsg,
+			IsUnread:      d.IsUnread,
+			PartTitle:     d.PartTitle,
+			PartPrice:     d.PartPrice,
+			PartUrl:       d.PartURL,
+			PartPhotoUrl:  d.PartPhotoURL,
+			BulletinId:    d.BulletinID,
+			UserRating:    d.UserRating,
+			UserStatus:    d.UserStatus,
 		}
 	}
 
@@ -343,7 +355,7 @@ func (s *messagingGRPCServer) GetDromDialogs(ctx context.Context, req *msgv1.Get
 }
 
 func (s *messagingGRPCServer) GetDromMessages(ctx context.Context, req *msgv1.GetDromMessagesRequest) (*msgv1.DromMessageList, error) {
-	messages, err := svc.GetDromMessages(ctx, req.DialogId)
+	messages, dialogMeta, err := svc.GetDromMessages(ctx, req.DialogId)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось получить сообщения Drom: %v", err)
 	}
@@ -363,7 +375,33 @@ func (s *messagingGRPCServer) GetDromMessages(ctx context.Context, req *msgv1.Ge
 		}
 	}
 
-	return &msgv1.DromMessageList{Messages: protoMsgs}, nil
+	var protoDialog *msgv1.DromDialog
+	if dialogMeta != nil {
+		lastMsg := ""
+		if dialogMeta.LastMessage != nil {
+			lastMsg = *dialogMeta.LastMessage
+		}
+		protoDialog = &msgv1.DromDialog{
+			Id:            int32(dialogMeta.ID),
+			DialogId:      dialogMeta.DialogID,
+			Interlocutor:  dialogMeta.Interlocutor,
+			LastMessageAt: dialogMeta.LastMessageAt,
+			LastMessage:   lastMsg,
+			IsUnread:      dialogMeta.IsUnread,
+			PartTitle:     dialogMeta.PartTitle,
+			PartPrice:     dialogMeta.PartPrice,
+			PartUrl:       dialogMeta.PartURL,
+			PartPhotoUrl:  dialogMeta.PartPhotoURL,
+			BulletinId:    dialogMeta.BulletinID,
+			UserRating:    dialogMeta.UserRating,
+			UserStatus:    dialogMeta.UserStatus,
+		}
+	}
+
+	return &msgv1.DromMessageList{
+		Messages: protoMsgs,
+		Dialog:   protoDialog,
+	}, nil
 }
 
 func (s *messagingGRPCServer) SendDromMessage(ctx context.Context, req *msgv1.SendDromMessageRequest) (*msgv1.SendDromMessageResponse, error) {

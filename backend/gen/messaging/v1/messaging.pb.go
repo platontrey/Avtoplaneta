@@ -1975,6 +1975,13 @@ type DromDialog struct {
 	LastMessageAt string                 `protobuf:"bytes,5,opt,name=last_message_at,json=lastMessageAt,proto3" json:"last_message_at,omitempty"`
 	LastMessage   string                 `protobuf:"bytes,6,opt,name=last_message,json=lastMessage,proto3" json:"last_message,omitempty"`
 	IsUnread      bool                   `protobuf:"varint,7,opt,name=is_unread,json=isUnread,proto3" json:"is_unread,omitempty"`
+	PartTitle     string                 `protobuf:"bytes,8,opt,name=part_title,json=partTitle,proto3" json:"part_title,omitempty"`
+	PartPrice     string                 `protobuf:"bytes,9,opt,name=part_price,json=partPrice,proto3" json:"part_price,omitempty"`
+	PartUrl       string                 `protobuf:"bytes,10,opt,name=part_url,json=partUrl,proto3" json:"part_url,omitempty"`
+	PartPhotoUrl  string                 `protobuf:"bytes,11,opt,name=part_photo_url,json=partPhotoUrl,proto3" json:"part_photo_url,omitempty"`
+	BulletinId    string                 `protobuf:"bytes,12,opt,name=bulletin_id,json=bulletinId,proto3" json:"bulletin_id,omitempty"`
+	UserRating    string                 `protobuf:"bytes,13,opt,name=user_rating,json=userRating,proto3" json:"user_rating,omitempty"`
+	UserStatus    string                 `protobuf:"bytes,14,opt,name=user_status,json=userStatus,proto3" json:"user_status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2056,6 +2063,55 @@ func (x *DromDialog) GetIsUnread() bool {
 		return x.IsUnread
 	}
 	return false
+}
+
+func (x *DromDialog) GetPartTitle() string {
+	if x != nil {
+		return x.PartTitle
+	}
+	return ""
+}
+
+func (x *DromDialog) GetPartPrice() string {
+	if x != nil {
+		return x.PartPrice
+	}
+	return ""
+}
+
+func (x *DromDialog) GetPartUrl() string {
+	if x != nil {
+		return x.PartUrl
+	}
+	return ""
+}
+
+func (x *DromDialog) GetPartPhotoUrl() string {
+	if x != nil {
+		return x.PartPhotoUrl
+	}
+	return ""
+}
+
+func (x *DromDialog) GetBulletinId() string {
+	if x != nil {
+		return x.BulletinId
+	}
+	return ""
+}
+
+func (x *DromDialog) GetUserRating() string {
+	if x != nil {
+		return x.UserRating
+	}
+	return ""
+}
+
+func (x *DromDialog) GetUserStatus() string {
+	if x != nil {
+		return x.UserStatus
+	}
+	return ""
 }
 
 type DromDialogList struct {
@@ -2213,6 +2269,7 @@ func (x *DromMessage) GetCreatedAt() string {
 type DromMessageList struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Messages      []*DromMessage         `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
+	Dialog        *DromDialog            `protobuf:"bytes,2,opt,name=dialog,proto3" json:"dialog,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2250,6 +2307,13 @@ func (*DromMessageList) Descriptor() ([]byte, []int) {
 func (x *DromMessageList) GetMessages() []*DromMessage {
 	if x != nil {
 		return x.Messages
+	}
+	return nil
+}
+
+func (x *DromMessageList) GetDialog() *DromDialog {
+	if x != nil {
+		return x.Dialog
 	}
 	return nil
 }
@@ -2563,7 +2627,7 @@ const file_messaging_v1_messaging_proto_rawDesc = "" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x05R\x06userId\x12\x14\n" +
 	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06offset\x18\x04 \x01(\x05R\x06offset\"\xe4\x01\n" +
+	"\x06offset\x18\x04 \x01(\x05R\x06offset\"\xc6\x03\n" +
 	"\n" +
 	"DromDialog\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1b\n" +
@@ -2573,7 +2637,20 @@ const file_messaging_v1_messaging_proto_rawDesc = "" +
 	"created_at\x18\x04 \x01(\tR\tcreatedAt\x12&\n" +
 	"\x0flast_message_at\x18\x05 \x01(\tR\rlastMessageAt\x12!\n" +
 	"\flast_message\x18\x06 \x01(\tR\vlastMessage\x12\x1b\n" +
-	"\tis_unread\x18\a \x01(\bR\bisUnread\"D\n" +
+	"\tis_unread\x18\a \x01(\bR\bisUnread\x12\x1d\n" +
+	"\n" +
+	"part_title\x18\b \x01(\tR\tpartTitle\x12\x1d\n" +
+	"\n" +
+	"part_price\x18\t \x01(\tR\tpartPrice\x12\x19\n" +
+	"\bpart_url\x18\n" +
+	" \x01(\tR\apartUrl\x12$\n" +
+	"\x0epart_photo_url\x18\v \x01(\tR\fpartPhotoUrl\x12\x1f\n" +
+	"\vbulletin_id\x18\f \x01(\tR\n" +
+	"bulletinId\x12\x1f\n" +
+	"\vuser_rating\x18\r \x01(\tR\n" +
+	"userRating\x12\x1f\n" +
+	"\vuser_status\x18\x0e \x01(\tR\n" +
+	"userStatus\"D\n" +
 	"\x0eDromDialogList\x122\n" +
 	"\adialogs\x18\x01 \x03(\v2\x18.messaging.v1.DromDialogR\adialogs\"\xef\x01\n" +
 	"\vDromMessage\x12\x0e\n" +
@@ -2587,9 +2664,10 @@ const file_messaging_v1_messaging_proto_rawDesc = "" +
 	"\x04text\x18\a \x01(\tR\x04text\x12\x17\n" +
 	"\ais_read\x18\b \x01(\bR\x06isRead\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\t \x01(\tR\tcreatedAt\"H\n" +
+	"created_at\x18\t \x01(\tR\tcreatedAt\"z\n" +
 	"\x0fDromMessageList\x125\n" +
-	"\bmessages\x18\x01 \x03(\v2\x19.messaging.v1.DromMessageR\bmessages\"\x17\n" +
+	"\bmessages\x18\x01 \x03(\v2\x19.messaging.v1.DromMessageR\bmessages\x120\n" +
+	"\x06dialog\x18\x02 \x01(\v2\x18.messaging.v1.DromDialogR\x06dialog\"\x17\n" +
 	"\x15GetDromDialogsRequest\"5\n" +
 	"\x16GetDromMessagesRequest\x12\x1b\n" +
 	"\tdialog_id\x18\x01 \x01(\tR\bdialogId\"O\n" +
@@ -2696,55 +2774,56 @@ var file_messaging_v1_messaging_proto_depIdxs = []int32{
 	31, // 10: messaging.v1.UserStatusList.statuses:type_name -> messaging.v1.UserStatus
 	36, // 11: messaging.v1.DromDialogList.dialogs:type_name -> messaging.v1.DromDialog
 	38, // 12: messaging.v1.DromMessageList.messages:type_name -> messaging.v1.DromMessage
-	2,  // 13: messaging.v1.MessagingService.GetConversations:input_type -> messaging.v1.GetConversationsRequest
-	3,  // 14: messaging.v1.MessagingService.CreateConversation:input_type -> messaging.v1.CreateConversationRequest
-	4,  // 15: messaging.v1.MessagingService.GetConversation:input_type -> messaging.v1.GetConversationRequest
-	5,  // 16: messaging.v1.MessagingService.UpdateConversation:input_type -> messaging.v1.UpdateConversationRequest
-	6,  // 17: messaging.v1.MessagingService.DeleteConversation:input_type -> messaging.v1.DeleteConversationRequest
-	8,  // 18: messaging.v1.MessagingService.RemoveParticipant:input_type -> messaging.v1.RemoveParticipantRequest
-	14, // 19: messaging.v1.MessagingService.GetMessages:input_type -> messaging.v1.GetMessagesRequest
-	15, // 20: messaging.v1.MessagingService.SendMessage:input_type -> messaging.v1.SendMessageRequest
-	16, // 21: messaging.v1.MessagingService.SendVoiceMessage:input_type -> messaging.v1.SendVoiceMessageChunk
-	17, // 22: messaging.v1.MessagingService.DeleteMessage:input_type -> messaging.v1.DeleteMessageRequest
-	19, // 23: messaging.v1.MessagingService.MarkMessageRead:input_type -> messaging.v1.MarkMessageReadRequest
-	21, // 24: messaging.v1.MessagingService.AddReaction:input_type -> messaging.v1.AddReactionRequest
-	22, // 25: messaging.v1.MessagingService.RemoveReaction:input_type -> messaging.v1.RemoveReactionRequest
-	26, // 26: messaging.v1.MessagingService.GetNotifications:input_type -> messaging.v1.GetNotificationsRequest
-	27, // 27: messaging.v1.MessagingService.MarkNotificationRead:input_type -> messaging.v1.MarkNotificationReadRequest
-	29, // 28: messaging.v1.MessagingService.MarkAllNotificationsRead:input_type -> messaging.v1.MarkAllNotificationsReadRequest
-	33, // 29: messaging.v1.MessagingService.GetUserStatuses:input_type -> messaging.v1.GetUserStatusesRequest
-	34, // 30: messaging.v1.MessagingService.UpdateUserStatus:input_type -> messaging.v1.UpdateUserStatusRequest
-	35, // 31: messaging.v1.MessagingService.SearchMessages:input_type -> messaging.v1.SearchMessagesRequest
-	40, // 32: messaging.v1.MessagingService.GetDromDialogs:input_type -> messaging.v1.GetDromDialogsRequest
-	41, // 33: messaging.v1.MessagingService.GetDromMessages:input_type -> messaging.v1.GetDromMessagesRequest
-	42, // 34: messaging.v1.MessagingService.SendDromMessage:input_type -> messaging.v1.SendDromMessageRequest
-	1,  // 35: messaging.v1.MessagingService.GetConversations:output_type -> messaging.v1.ConversationList
-	0,  // 36: messaging.v1.MessagingService.CreateConversation:output_type -> messaging.v1.Conversation
-	0,  // 37: messaging.v1.MessagingService.GetConversation:output_type -> messaging.v1.Conversation
-	0,  // 38: messaging.v1.MessagingService.UpdateConversation:output_type -> messaging.v1.Conversation
-	7,  // 39: messaging.v1.MessagingService.DeleteConversation:output_type -> messaging.v1.DeleteConversationResponse
-	9,  // 40: messaging.v1.MessagingService.RemoveParticipant:output_type -> messaging.v1.RemoveParticipantResponse
-	13, // 41: messaging.v1.MessagingService.GetMessages:output_type -> messaging.v1.MessageList
-	12, // 42: messaging.v1.MessagingService.SendMessage:output_type -> messaging.v1.Message
-	12, // 43: messaging.v1.MessagingService.SendVoiceMessage:output_type -> messaging.v1.Message
-	18, // 44: messaging.v1.MessagingService.DeleteMessage:output_type -> messaging.v1.DeleteMessageResponse
-	20, // 45: messaging.v1.MessagingService.MarkMessageRead:output_type -> messaging.v1.MarkMessageReadResponse
-	11, // 46: messaging.v1.MessagingService.AddReaction:output_type -> messaging.v1.Reaction
-	23, // 47: messaging.v1.MessagingService.RemoveReaction:output_type -> messaging.v1.RemoveReactionResponse
-	25, // 48: messaging.v1.MessagingService.GetNotifications:output_type -> messaging.v1.NotificationList
-	28, // 49: messaging.v1.MessagingService.MarkNotificationRead:output_type -> messaging.v1.MarkNotificationReadResponse
-	30, // 50: messaging.v1.MessagingService.MarkAllNotificationsRead:output_type -> messaging.v1.MarkAllNotificationsReadResponse
-	32, // 51: messaging.v1.MessagingService.GetUserStatuses:output_type -> messaging.v1.UserStatusList
-	31, // 52: messaging.v1.MessagingService.UpdateUserStatus:output_type -> messaging.v1.UserStatus
-	13, // 53: messaging.v1.MessagingService.SearchMessages:output_type -> messaging.v1.MessageList
-	37, // 54: messaging.v1.MessagingService.GetDromDialogs:output_type -> messaging.v1.DromDialogList
-	39, // 55: messaging.v1.MessagingService.GetDromMessages:output_type -> messaging.v1.DromMessageList
-	43, // 56: messaging.v1.MessagingService.SendDromMessage:output_type -> messaging.v1.SendDromMessageResponse
-	35, // [35:57] is the sub-list for method output_type
-	13, // [13:35] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	36, // 13: messaging.v1.DromMessageList.dialog:type_name -> messaging.v1.DromDialog
+	2,  // 14: messaging.v1.MessagingService.GetConversations:input_type -> messaging.v1.GetConversationsRequest
+	3,  // 15: messaging.v1.MessagingService.CreateConversation:input_type -> messaging.v1.CreateConversationRequest
+	4,  // 16: messaging.v1.MessagingService.GetConversation:input_type -> messaging.v1.GetConversationRequest
+	5,  // 17: messaging.v1.MessagingService.UpdateConversation:input_type -> messaging.v1.UpdateConversationRequest
+	6,  // 18: messaging.v1.MessagingService.DeleteConversation:input_type -> messaging.v1.DeleteConversationRequest
+	8,  // 19: messaging.v1.MessagingService.RemoveParticipant:input_type -> messaging.v1.RemoveParticipantRequest
+	14, // 20: messaging.v1.MessagingService.GetMessages:input_type -> messaging.v1.GetMessagesRequest
+	15, // 21: messaging.v1.MessagingService.SendMessage:input_type -> messaging.v1.SendMessageRequest
+	16, // 22: messaging.v1.MessagingService.SendVoiceMessage:input_type -> messaging.v1.SendVoiceMessageChunk
+	17, // 23: messaging.v1.MessagingService.DeleteMessage:input_type -> messaging.v1.DeleteMessageRequest
+	19, // 24: messaging.v1.MessagingService.MarkMessageRead:input_type -> messaging.v1.MarkMessageReadRequest
+	21, // 25: messaging.v1.MessagingService.AddReaction:input_type -> messaging.v1.AddReactionRequest
+	22, // 26: messaging.v1.MessagingService.RemoveReaction:input_type -> messaging.v1.RemoveReactionRequest
+	26, // 27: messaging.v1.MessagingService.GetNotifications:input_type -> messaging.v1.GetNotificationsRequest
+	27, // 28: messaging.v1.MessagingService.MarkNotificationRead:input_type -> messaging.v1.MarkNotificationReadRequest
+	29, // 29: messaging.v1.MessagingService.MarkAllNotificationsRead:input_type -> messaging.v1.MarkAllNotificationsReadRequest
+	33, // 30: messaging.v1.MessagingService.GetUserStatuses:input_type -> messaging.v1.GetUserStatusesRequest
+	34, // 31: messaging.v1.MessagingService.UpdateUserStatus:input_type -> messaging.v1.UpdateUserStatusRequest
+	35, // 32: messaging.v1.MessagingService.SearchMessages:input_type -> messaging.v1.SearchMessagesRequest
+	40, // 33: messaging.v1.MessagingService.GetDromDialogs:input_type -> messaging.v1.GetDromDialogsRequest
+	41, // 34: messaging.v1.MessagingService.GetDromMessages:input_type -> messaging.v1.GetDromMessagesRequest
+	42, // 35: messaging.v1.MessagingService.SendDromMessage:input_type -> messaging.v1.SendDromMessageRequest
+	1,  // 36: messaging.v1.MessagingService.GetConversations:output_type -> messaging.v1.ConversationList
+	0,  // 37: messaging.v1.MessagingService.CreateConversation:output_type -> messaging.v1.Conversation
+	0,  // 38: messaging.v1.MessagingService.GetConversation:output_type -> messaging.v1.Conversation
+	0,  // 39: messaging.v1.MessagingService.UpdateConversation:output_type -> messaging.v1.Conversation
+	7,  // 40: messaging.v1.MessagingService.DeleteConversation:output_type -> messaging.v1.DeleteConversationResponse
+	9,  // 41: messaging.v1.MessagingService.RemoveParticipant:output_type -> messaging.v1.RemoveParticipantResponse
+	13, // 42: messaging.v1.MessagingService.GetMessages:output_type -> messaging.v1.MessageList
+	12, // 43: messaging.v1.MessagingService.SendMessage:output_type -> messaging.v1.Message
+	12, // 44: messaging.v1.MessagingService.SendVoiceMessage:output_type -> messaging.v1.Message
+	18, // 45: messaging.v1.MessagingService.DeleteMessage:output_type -> messaging.v1.DeleteMessageResponse
+	20, // 46: messaging.v1.MessagingService.MarkMessageRead:output_type -> messaging.v1.MarkMessageReadResponse
+	11, // 47: messaging.v1.MessagingService.AddReaction:output_type -> messaging.v1.Reaction
+	23, // 48: messaging.v1.MessagingService.RemoveReaction:output_type -> messaging.v1.RemoveReactionResponse
+	25, // 49: messaging.v1.MessagingService.GetNotifications:output_type -> messaging.v1.NotificationList
+	28, // 50: messaging.v1.MessagingService.MarkNotificationRead:output_type -> messaging.v1.MarkNotificationReadResponse
+	30, // 51: messaging.v1.MessagingService.MarkAllNotificationsRead:output_type -> messaging.v1.MarkAllNotificationsReadResponse
+	32, // 52: messaging.v1.MessagingService.GetUserStatuses:output_type -> messaging.v1.UserStatusList
+	31, // 53: messaging.v1.MessagingService.UpdateUserStatus:output_type -> messaging.v1.UserStatus
+	13, // 54: messaging.v1.MessagingService.SearchMessages:output_type -> messaging.v1.MessageList
+	37, // 55: messaging.v1.MessagingService.GetDromDialogs:output_type -> messaging.v1.DromDialogList
+	39, // 56: messaging.v1.MessagingService.GetDromMessages:output_type -> messaging.v1.DromMessageList
+	43, // 57: messaging.v1.MessagingService.SendDromMessage:output_type -> messaging.v1.SendDromMessageResponse
+	36, // [36:58] is the sub-list for method output_type
+	14, // [14:36] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_messaging_v1_messaging_proto_init() }

@@ -3,7 +3,7 @@
 */
 
 import { useState, useEffect } from 'react';
-import { MessageCircle, RefreshCw, Settings, ArrowLeft } from 'lucide-react';
+import { MessageCircle, RefreshCw, Settings, ArrowLeft, ExternalLink, Tag } from 'lucide-react';
 import type { Conversation, DromDialog, DromMessage } from '../features/messaging/types';
 import { useAuth } from '../features/auth/hooks/useAuth';
 import { messagingApi } from '../features/messaging/api/messagingApi';
@@ -104,12 +104,19 @@ export default function MessagesPage() {
   const loadDromMessages = async (dialogId: string) => {
     setDromMessagesLoading(true);
     try {
-      const data = await messagingApi.getDromMessages(dialogId);
-      if (data.length > previousMessageCount) {
+      const res = await messagingApi.getDromMessages(dialogId);
+      const msgs = res.messages || [];
+      if (msgs.length > previousMessageCount) {
         setHasNewDromMessages(true);
       }
-      setPreviousMessageCount(data.length);
-      setDromMessages(data);
+      setPreviousMessageCount(msgs.length);
+      setDromMessages(msgs);
+      if (res.dialog) {
+        setSelectedDromDialog((prev) => (prev ? { ...prev, ...res.dialog } : res.dialog!));
+        setDromDialogs((prev) =>
+          prev.map((d) => (d.dialog_id === dialogId ? { ...d, ...res.dialog } : d))
+        );
+      }
     } catch (error) {
       console.error('Failed to load Drom messages:', error);
     } finally {
@@ -326,23 +333,47 @@ export default function MessagesPage() {
                   ) : dromDialogs && dromDialogs.length > 0 ? (
                     dromDialogs.map((dialog: DromDialog) => (
                       <div
-                        key={dialog.id}
-                        className={`p-4 border-b border-border cursor-pointer hover:bg-accent/50 ${
-                          selectedDromDialog?.id === dialog.id ? 'bg-accent' : ''
+                        key={dialog.id || dialog.dialog_id}
+                        className={`p-3 border-b border-border cursor-pointer transition-colors hover:bg-accent/50 ${
+                          selectedDromDialog?.dialog_id === dialog.dialog_id ? 'bg-accent' : ''
                         }`}
                         onClick={() => handleSelectDromDialog(dialog)}
                       >
-                        <div className="font-medium flex items-center justify-between">
-                          <span>{dialog.interlocutor}</span>
-                          {dialog.is_unread && (
-                            <div className="w-2 h-2 bg-red-500 rounded-full" title="Новое сообщение"></div>
+                        <div className="flex gap-2.5 items-start">
+                          {dialog.part_photo_url ? (
+                            <img
+                              src={dialog.part_photo_url}
+                              alt=""
+                              className="w-11 h-11 rounded object-cover flex-shrink-0 border border-border"
+                            />
+                          ) : (
+                            <div className="w-11 h-11 rounded bg-muted flex items-center justify-center flex-shrink-0 text-muted-foreground">
+                              <MessageCircle className="w-5 h-5" />
+                            </div>
                           )}
-                        </div>
-                        <div className="text-sm text-muted-foreground truncate">
-                          {dialog.last_message || 'Нет сообщений'}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(dialog.last_message_at).toLocaleString('ru-RU')}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium flex items-center justify-between text-sm">
+                              <span className="truncate">{dialog.interlocutor}</span>
+                              {dialog.is_unread && (
+                                <div className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0 ml-1" title="Новое сообщение"></div>
+                              )}
+                            </div>
+                            {dialog.part_title && (
+                              <div className="text-xs font-medium text-primary truncate mt-0.5" title={dialog.part_title}>
+                                {dialog.part_title}
+                              </div>
+                            )}
+                            <div className="text-xs text-muted-foreground truncate mt-0.5">
+                              {dialog.last_message || 'Нет сообщений'}
+                            </div>
+                            {dialog.last_message_at && (
+                              <div className="text-[11px] text-muted-foreground mt-0.5">
+                                {dialog.last_message_at.includes('T')
+                                  ? new Date(dialog.last_message_at).toLocaleString('ru-RU')
+                                  : dialog.last_message_at}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))
@@ -358,11 +389,55 @@ export default function MessagesPage() {
               <div className={`${mobileShowChat ? 'flex' : 'hidden'} sm:flex flex-col flex-1`}>
                 {selectedDromDialog ? (
                   <>
-                    <div className="p-4 border-b border-border flex items-center gap-2">
-                      <Button variant="ghost" size="sm" className="sm:hidden p-1" onClick={() => { setSelectedDromDialog(null); setMobileShowChat(false); }}>
-                        <ArrowLeft className="w-5 h-5" />
-                      </Button>
-                      <h3 className="font-medium truncate">{selectedDromDialog.interlocutor}</h3>
+                    <div className="p-3 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-card">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Button variant="ghost" size="sm" className="sm:hidden p-1 h-8 w-8" onClick={() => { setSelectedDromDialog(null); setMobileShowChat(false); }}>
+                          <ArrowLeft className="w-5 h-5" />
+                        </Button>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium text-base truncate">{selectedDromDialog.interlocutor}</h3>
+                            {selectedDromDialog.user_rating && (
+                              <span className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold px-1.5 py-0.5 rounded">
+                                {selectedDromDialog.user_rating}
+                              </span>
+                            )}
+                            {selectedDromDialog.user_status && (
+                              <span className="text-xs text-muted-foreground hidden sm:inline">
+                                • {selectedDromDialog.user_status}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Part info block */}
+                      {(selectedDromDialog.part_title || selectedDromDialog.part_url) && (
+                        <div className="flex items-center gap-2 bg-muted/60 px-2.5 py-1.5 rounded-md border border-border text-xs max-w-full sm:max-w-md">
+                          <Tag className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                          <div className="truncate flex-1">
+                            {selectedDromDialog.part_url ? (
+                              <a
+                                href={selectedDromDialog.part_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-medium text-foreground hover:text-primary transition-colors hover:underline inline-flex items-center gap-1 truncate max-w-full"
+                                title={selectedDromDialog.part_title || 'Перейти к детали на Drom.ru'}
+                              >
+                                <span className="truncate">{selectedDromDialog.part_title || 'Деталь на Дроме'}</span>
+                                <ExternalLink className="w-3 h-3 flex-shrink-0 opacity-70" />
+                              </a>
+                            ) : (
+                              <span className="font-medium text-foreground truncate">{selectedDromDialog.part_title}</span>
+                            )}
+                          </div>
+                          {selectedDromDialog.part_price && (
+                            <span className="font-semibold text-primary whitespace-nowrap pl-1 border-l border-border">
+                              {selectedDromDialog.part_price}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 overflow-y-auto p-4 space-y-4">
                       {dromMessagesLoading ? (

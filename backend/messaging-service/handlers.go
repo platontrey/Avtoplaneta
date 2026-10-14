@@ -696,12 +696,14 @@ func searchMessages(c *gin.Context) {
 
 // Drom integration
 func getDromDialogs(c *gin.Context) {
-	briefs, err := svc.GetDromBriefs(c.Request.Context())
+	dialogs, err := svc.GetDromBriefs(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, briefs)
+	c.JSON(http.StatusOK, gin.H{
+		"dialogs": dialogs,
+	})
 }
 
 func getDromMessages(c *gin.Context) {
@@ -710,12 +712,15 @@ func getDromMessages(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "dialog_id parameter is required"})
 		return
 	}
-	messages, err := svc.GetDromMessages(c.Request.Context(), dialogID)
+	messages, dialogMeta, err := svc.GetDromMessages(c.Request.Context(), dialogID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, messages)
+	c.JSON(http.StatusOK, gin.H{
+		"messages": messages,
+		"dialog":   dialogMeta,
+	})
 }
 
 func sendDromMessage(c *gin.Context) {

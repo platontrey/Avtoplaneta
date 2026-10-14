@@ -246,6 +246,13 @@ message DromDialog {
   string last_message_at = 5;
   string last_message = 6;
   bool is_unread = 7;
+  string part_title = 8;
+  string part_price = 9;
+  string part_url = 10;
+  string part_photo_url = 11;
+  string bulletin_id = 12;
+  string user_rating = 13;
+  string user_status = 14;
 }
 
 message DromDialogList {
@@ -266,6 +273,7 @@ message DromMessage {
 
 message DromMessageList {
   repeated DromMessage messages = 1;
+  DromDialog dialog = 2;
 }
 
 message GetDromDialogsRequest {}
