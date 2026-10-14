@@ -353,7 +353,7 @@ function PartBlock({
     if (isLoading) {
         return (
             <motion.div
-                className="border rounded-lg mb-2 p-4"
+                className="border rounded-lg mb-2 p-4 part-card-virtual"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
@@ -397,7 +397,7 @@ function PartBlock({
 
     return (
         <motion.div
-            className="bg-card border border-border rounded-lg mb-4 relative group hover:shadow-md transition-shadow p-4"
+            className="bg-card border border-border rounded-lg mb-4 relative group hover:shadow-md transition-shadow p-4 part-card-virtual"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{

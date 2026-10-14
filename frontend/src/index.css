@@ -179,5 +179,12 @@
 }
 
 /*
- * Copyright (c) 2025 Avtoplaneta. All rights reserved.
+ * Оптимизация производительности рендеринга списка запчастей (нативная виртуализация).
+ * Браузер пропускает paint и layout для карточек вне области видимости,
+ * сохраняя нативный поток документа и плавную синхронную анимацию аккордеонов.
  */
+.part-card-virtual {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 130px;
+}
+
