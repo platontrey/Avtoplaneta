@@ -12,10 +12,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { getAuthHeaders } from "@/lib/csrf";
+import { safeFetchJson, API_BASE_URL } from "@/lib/api";
 import { logUserActivity } from "@/features/admin/api/adminApi";
 import { useQueryClient } from '@tanstack/react-query';
 import { partsKeys } from '@/hooks/useParts';
-import { API_BASE_URL } from '@/lib/api';
+import { usePartCatalog } from '@/features/catalog/usePartCatalog';
 import type { Part } from '@/lib/types';
 import { ArrowRight, Calculator, CheckCircle2, SlidersHorizontal } from "lucide-react";
 
@@ -40,7 +41,6 @@ interface BulkEditForm {
   salesman?: string;
   bodyBrand?: string;
   engineBrand?: string;
-  // Флаги применения полей
   applyCategory: boolean;
   applyPrice: boolean;
   applyLocation: boolean;
@@ -49,6 +49,14 @@ interface BulkEditForm {
   applyBodyBrand: boolean;
   applyEngineBrand: boolean;
 }
+
+const DEFAULT_CATEGORIES = [
+  'Тормоза', 'Двигатель', 'Подвеска', 'Подвеска ДВС/КПП', 'Подвеска передних колес',
+  'Подвеска задних колес', 'Электрика', 'Кузов', 'Кузов снаружи', 'Интерьер',
+  'Трансмиссия', 'Система охлаждения и отопления', 'Система выхлопа (Глушитель)',
+  'Система рулевого управления', 'Рулевое управление', 'Система фильтрации (Фильтры)',
+  'Шины и диски', 'Автохимия и масла', 'Аксессуары и тюннинг', 'Другое',
+];
 
 export default function BulkEditDialog({
   isOpen,
@@ -60,6 +68,7 @@ export default function BulkEditDialog({
   onSuccess,
 }: BulkEditDialogProps) {
   const queryClient = useQueryClient();
+  const { data: partCatalog } = usePartCatalog();
   const [isLoading, setIsLoading] = useState(false);
   const [users, setUsers] = useState<{ id: number; name: string; email: string }[]>([]);
   const [scopeType, setScopeType] = useState<'ids' | 'filter'>(initialScopeType || 'ids');
@@ -85,37 +94,30 @@ export default function BulkEditDialog({
     applyEngineBrand: false,
   });
 
-  // Загружаем список пользователей при открытии
+  const categories = useMemo(() => {
+    const fromCatalog = partCatalog?.part_form_categories?.map((c) => c.name) ?? [];
+    return Array.from(new Set([...fromCatalog, ...DEFAULT_CATEGORIES])).sort((a, b) => a.localeCompare(b, 'ru'));
+  }, [partCatalog]);
+
   useEffect(() => {
     if (isOpen) {
-      fetchUsers();
+      safeFetchJson<{ users?: { id: number; name: string; email: string }[] }>(`${API_BASE_URL}/api/v1/admin/users`, {
+        headers: getAuthHeaders(),
+        credentials: 'include',
+      })
+        .then((data) => setUsers(data.users || []))
+        .catch((err) => console.error('Failed to fetch users:', err));
+
       if (initialScopeType) {
         setScopeType(initialScopeType);
       }
     }
   }, [isOpen, initialScopeType]);
 
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/admin/users`, {
-        headers: getAuthHeaders(),
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data.users || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch users:', error);
-    }
-  };
-
   const updateForm = <K extends keyof BulkEditForm>(field: K, value: BulkEditForm[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Расчет предпросмотра цен для первых 3 запчастей
   const previewParts = useMemo(() => {
     if (!form.applyPrice || !form.priceValue || selectedParts.length === 0) return [];
     const val = parseFloat(form.priceValue.replace(',', '.'));
@@ -147,13 +149,8 @@ export default function BulkEditDialog({
 
     try {
       const hasAnyField =
-        form.applyPrice ||
-        form.applyCategory ||
-        form.applyLocation ||
-        form.applyStatus ||
-        form.applySalesman ||
-        form.applyBodyBrand ||
-        form.applyEngineBrand;
+        form.applyPrice || form.applyCategory || form.applyLocation ||
+        form.applyStatus || form.applySalesman || form.applyBodyBrand || form.applyEngineBrand;
 
       if (!hasAnyField) {
         alert('Выберите хотя бы одно поле для изменения');
@@ -161,7 +158,6 @@ export default function BulkEditDialog({
         return;
       }
 
-      // Формируем операции строго по gRPC / Protobuf спецификации
       const operations: Record<string, unknown> = {};
 
       if (form.applyPrice) {
@@ -171,84 +167,38 @@ export default function BulkEditDialog({
           setIsLoading(false);
           return;
         }
-        operations.price = {
-          mode: form.priceMode,
-          value: val,
-        };
+        operations.price = { mode: form.priceMode, value: val };
       }
 
-      if (form.applyCategory && form.category) {
-        operations.category = form.category;
-      }
+      if (form.applyCategory && form.category) operations.category = form.category;
+      if (form.applyLocation && form.location) operations.location = form.location;
+      if (form.applySalesman && form.salesman) operations.salesman = form.salesman;
+      if (form.applyStatus) operations.status = form.status;
+      if (form.applyBodyBrand) operations.body_brand = form.bodyBrand || '';
+      if (form.applyEngineBrand) operations.engine_brand = form.engineBrand || '';
 
-      if (form.applyLocation && form.location) {
-        operations.location = form.location;
-      }
-
-      if (form.applySalesman && form.salesman) {
-        operations.salesman = form.salesman;
-      }
-
-      if (form.applyStatus) {
-        operations.status = form.status;
-      }
-
-      if (form.applyBodyBrand) {
-        operations.body_brand = form.bodyBrand || '';
-      }
-
-      if (form.applyEngineBrand) {
-        operations.engine_brand = form.engineBrand || '';
-      }
-
-      // Формируем область применения (scope)
       const scope: Record<string, unknown> = {
         type: scopeType === 'filter' ? 'BULK_SCOPE_TYPE_FILTER' : 'BULK_SCOPE_TYPE_IDS',
+        ...(scopeType === 'filter' ? { filter: activeFilters || {} } : { ids: selectedPartIds }),
       };
 
-      if (scopeType === 'filter') {
-        scope.filter = activeFilters || {};
-      } else {
-        scope.ids = selectedPartIds;
-      }
-
-      const payload = {
-        scope,
-        operations,
-        confirm_entire_catalog: confirmEntireCatalog,
-      };
-
-      const response = await fetch(`${API_BASE_URL}/api/v1/admin/parts/bulk-update`, {
+      const result = await safeFetchJson<{ updated_count?: number }>(`${API_BASE_URL}/api/v1/admin/parts/bulk-update`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-CSRF-Token': getAuthHeaders()['X-CSRF-Token'] || '',
         },
         credentials: 'include',
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ scope, operations, confirm_entire_catalog: confirmEntireCatalog }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update parts');
-      }
+      logUserActivity({
+        action: 'bulk_update_parts',
+        resource_type: 'part',
+        details: `Массовое обновление запчастей (${scopeType === 'filter' ? 'по фильтру' : `${selectedPartIds.length} шт.`}). Изменения: ${Object.keys(operations).join(', ')}`,
+      }).catch(console.warn);
 
-      const result = await response.json();
-
-      // Логируем действие
-      try {
-        await logUserActivity({
-          action: 'bulk_update_parts',
-          resource_type: 'part',
-          details: `Массовое обновление запчастей (${scopeType === 'filter' ? 'по фильтру' : `${selectedPartIds.length} шт.`}). Изменения: ${Object.keys(operations).join(', ')}`,
-        });
-      } catch (logError) {
-        console.warn('Failed to log bulk update activity:', logError);
-      }
-
-      // Инвалидируем кэш списков деталей
       queryClient.invalidateQueries({ queryKey: partsKeys.lists() });
-
       alert(`Успешно обновлено запчастей: ${result.updated_count ?? selectedPartIds.length}`);
       onSuccess();
     } catch (error) {
@@ -274,7 +224,6 @@ export default function BulkEditDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Переключатель области применения, если есть активные фильтры */}
         {activeFilters && Object.keys(activeFilters).length > 0 && (
           <div className="bg-muted/50 p-3 rounded-lg border flex flex-col gap-2">
             <span className="text-xs font-medium text-muted-foreground">Область применения:</span>
@@ -302,7 +251,7 @@ export default function BulkEditDialog({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-          {/* Блок изменения цены */}
+          {/* Изменение цены */}
           <div className="rounded-lg border p-3.5 space-y-3 bg-card shadow-xs">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
@@ -326,23 +275,13 @@ export default function BulkEditDialog({
 
             {form.applyPrice && (
               <div className="space-y-3 pt-1">
-                <Tabs
-                  value={form.priceMode}
-                  onValueChange={(val) => updateForm('priceMode', val as PriceOperationMode)}
-                >
+                <Tabs value={form.priceMode} onValueChange={(val) => updateForm('priceMode', val as PriceOperationMode)}>
                   <TabsList className="grid grid-cols-3 w-full">
-                    <TabsTrigger value="PRICE_OPERATION_MODE_SET" className="text-xs">
-                      Фиксированная
-                    </TabsTrigger>
-                    <TabsTrigger value="PRICE_OPERATION_MODE_PERCENT" className="text-xs">
-                      Процент %
-                    </TabsTrigger>
-                    <TabsTrigger value="PRICE_OPERATION_MODE_OFFSET" className="text-xs">
-                      Смещение ₽
-                    </TabsTrigger>
+                    <TabsTrigger value="PRICE_OPERATION_MODE_SET" className="text-xs">Фиксированная</TabsTrigger>
+                    <TabsTrigger value="PRICE_OPERATION_MODE_PERCENT" className="text-xs">Процент %</TabsTrigger>
+                    <TabsTrigger value="PRICE_OPERATION_MODE_OFFSET" className="text-xs">Смещение ₽</TabsTrigger>
                   </TabsList>
                 </Tabs>
-
                 <div>
                   <Label className="text-xs text-muted-foreground mb-1 block">
                     {form.priceMode === 'PRICE_OPERATION_MODE_SET' && 'Новая цена для всех запчастей (₽)'}
@@ -364,7 +303,6 @@ export default function BulkEditDialog({
                   />
                 </div>
 
-                {/* Живой предпросмотр цен для выбранных */}
                 {previewParts.length > 0 && (
                   <div className="mt-2 p-2.5 rounded-md bg-muted/60 border text-xs space-y-1.5">
                     <div className="flex items-center gap-1.5 font-medium text-foreground">
@@ -373,15 +311,11 @@ export default function BulkEditDialog({
                     </div>
                     {previewParts.map((item) => (
                       <div key={item.id} className="flex items-center justify-between text-muted-foreground">
-                        <span className="truncate max-w-[200px]" title={item.name}>
-                          {item.name}
-                        </span>
+                        <span className="truncate max-w-[200px]" title={item.name}>{item.name}</span>
                         <div className="flex items-center gap-1.5 font-mono">
                           <span>{item.oldPrice.toLocaleString('ru-RU')} ₽</span>
                           <ArrowRight className="h-3 w-3 text-primary inline" />
-                          <span className="font-semibold text-foreground">
-                            {item.newPrice.toLocaleString('ru-RU')} ₽
-                          </span>
+                          <span className="font-semibold text-foreground">{item.newPrice.toLocaleString('ru-RU')} ₽</span>
                           {item.diff !== 0 && (
                             <span className={item.diff > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
                               ({item.diff > 0 ? `+${item.diff.toLocaleString('ru-RU')}` : item.diff.toLocaleString('ru-RU')} ₽)
@@ -399,41 +333,16 @@ export default function BulkEditDialog({
           {/* Категория */}
           <div className="rounded-lg border p-3.5 space-y-2 bg-card shadow-xs">
             <div className="flex items-center space-x-2">
-              <Checkbox
-                id="applyCategory"
-                checked={form.applyCategory}
-                onCheckedChange={(checked) => updateForm('applyCategory', Boolean(checked))}
-              />
-              <Label htmlFor="applyCategory" className="text-sm font-semibold cursor-pointer">
-                Категория
-              </Label>
+              <Checkbox id="applyCategory" checked={form.applyCategory} onCheckedChange={(c) => updateForm('applyCategory', Boolean(c))} />
+              <Label htmlFor="applyCategory" className="text-sm font-semibold cursor-pointer">Категория</Label>
             </div>
             {form.applyCategory && (
-              <Select value={form.category || ""} onValueChange={(value) => updateForm('category', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Выберите категорию" />
-                </SelectTrigger>
+              <Select value={form.category || ""} onValueChange={(val) => updateForm('category', val)}>
+                <SelectTrigger><SelectValue placeholder="Выберите категорию" /></SelectTrigger>
                 <SelectContent className="max-h-60">
-                  <SelectItem value="Тормоза">Тормоза</SelectItem>
-                  <SelectItem value="Двигатель">Двигатель</SelectItem>
-                  <SelectItem value="Подвеска">Подвеска</SelectItem>
-                  <SelectItem value="Подвеска ДВС/КПП">Подвеска ДВС/КПП</SelectItem>
-                  <SelectItem value="Подвеска передних колес">Подвеска передних колес</SelectItem>
-                  <SelectItem value="Подвеска задних колес">Подвеска задних колес</SelectItem>
-                  <SelectItem value="Электрика">Электрика</SelectItem>
-                  <SelectItem value="Кузов">Кузов</SelectItem>
-                  <SelectItem value="Кузов снаружи">Кузов снаружи</SelectItem>
-                  <SelectItem value="Интерьер">Интерьер</SelectItem>
-                  <SelectItem value="Трансмиссия">Трансмиссия</SelectItem>
-                  <SelectItem value="Система охлаждения и отопления">Система охлаждения и отопления</SelectItem>
-                  <SelectItem value="Система выхлопа (Глушитель)">Система выхлопа (Глушитель)</SelectItem>
-                  <SelectItem value="Система рулевого управления">Система рулевого управления</SelectItem>
-                  <SelectItem value="Рулевое управление">Рулевое управление</SelectItem>
-                  <SelectItem value="Система фильтрации (Фильтры)">Система фильтрации (Фильтры)</SelectItem>
-                  <SelectItem value="Шины и диски">Шины и диски</SelectItem>
-                  <SelectItem value="Автохимия и масла">Автохимия и масла</SelectItem>
-                  <SelectItem value="Аксессуары и тюннинг">Аксессуары и тюннинг</SelectItem>
-                  <SelectItem value="Другое">Другое</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )}
@@ -442,14 +351,8 @@ export default function BulkEditDialog({
           {/* Местоположение */}
           <div className="rounded-lg border p-3.5 space-y-2 bg-card shadow-xs">
             <div className="flex items-center space-x-2">
-              <Checkbox
-                id="applyLocation"
-                checked={form.applyLocation}
-                onCheckedChange={(checked) => updateForm('applyLocation', Boolean(checked))}
-              />
-              <Label htmlFor="applyLocation" className="text-sm font-semibold cursor-pointer">
-                Местоположение / Склад
-              </Label>
+              <Checkbox id="applyLocation" checked={form.applyLocation} onCheckedChange={(c) => updateForm('applyLocation', Boolean(c))} />
+              <Label htmlFor="applyLocation" className="text-sm font-semibold cursor-pointer">Местоположение / Склад</Label>
             </div>
             {form.applyLocation && (
               <Input
@@ -463,23 +366,12 @@ export default function BulkEditDialog({
           {/* Статус */}
           <div className="rounded-lg border p-3.5 space-y-2 bg-card shadow-xs">
             <div className="flex items-center space-x-2">
-              <Checkbox
-                id="applyStatus"
-                checked={form.applyStatus}
-                onCheckedChange={(checked) => updateForm('applyStatus', Boolean(checked))}
-              />
-              <Label htmlFor="applyStatus" className="text-sm font-semibold cursor-pointer">
-                Статус активности
-              </Label>
+              <Checkbox id="applyStatus" checked={form.applyStatus} onCheckedChange={(c) => updateForm('applyStatus', Boolean(c))} />
+              <Label htmlFor="applyStatus" className="text-sm font-semibold cursor-pointer">Статус активности</Label>
             </div>
             {form.applyStatus && (
-              <Select
-                value={form.status ? "active" : "inactive"}
-                onValueChange={(value) => updateForm('status', value === "active")}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+              <Select value={form.status ? "active" : "inactive"} onValueChange={(val) => updateForm('status', val === "active")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Активный</SelectItem>
                   <SelectItem value="inactive">Неактивный</SelectItem>
@@ -491,25 +383,15 @@ export default function BulkEditDialog({
           {/* Продавец */}
           <div className="rounded-lg border p-3.5 space-y-2 bg-card shadow-xs">
             <div className="flex items-center space-x-2">
-              <Checkbox
-                id="applySalesman"
-                checked={form.applySalesman}
-                onCheckedChange={(checked) => updateForm('applySalesman', Boolean(checked))}
-              />
-              <Label htmlFor="applySalesman" className="text-sm font-semibold cursor-pointer">
-                Ответственный продавец
-              </Label>
+              <Checkbox id="applySalesman" checked={form.applySalesman} onCheckedChange={(c) => updateForm('applySalesman', Boolean(c))} />
+              <Label htmlFor="applySalesman" className="text-sm font-semibold cursor-pointer">Ответственный продавец</Label>
             </div>
             {form.applySalesman && (
-              <Select value={form.salesman || ""} onValueChange={(value) => updateForm('salesman', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Выберите продавца" />
-                </SelectTrigger>
+              <Select value={form.salesman || ""} onValueChange={(val) => updateForm('salesman', val)}>
+                <SelectTrigger><SelectValue placeholder="Выберите продавца" /></SelectTrigger>
                 <SelectContent>
                   {users.map((user) => (
-                    <SelectItem key={user.id} value={user.name}>
-                      {user.name}
-                    </SelectItem>
+                    <SelectItem key={user.id} value={user.name}>{user.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -519,14 +401,8 @@ export default function BulkEditDialog({
           {/* Марка кузова */}
           <div className="rounded-lg border p-3.5 space-y-2 bg-card shadow-xs">
             <div className="flex items-center space-x-2">
-              <Checkbox
-                id="applyBodyBrand"
-                checked={form.applyBodyBrand}
-                onCheckedChange={(checked) => updateForm('applyBodyBrand', Boolean(checked))}
-              />
-              <Label htmlFor="applyBodyBrand" className="text-sm font-semibold cursor-pointer">
-                Марка кузова
-              </Label>
+              <Checkbox id="applyBodyBrand" checked={form.applyBodyBrand} onCheckedChange={(c) => updateForm('applyBodyBrand', Boolean(c))} />
+              <Label htmlFor="applyBodyBrand" className="text-sm font-semibold cursor-pointer">Марка кузова</Label>
             </div>
             {form.applyBodyBrand && (
               <Input
@@ -540,14 +416,8 @@ export default function BulkEditDialog({
           {/* Марка двигателя */}
           <div className="rounded-lg border p-3.5 space-y-2 bg-card shadow-xs">
             <div className="flex items-center space-x-2">
-              <Checkbox
-                id="applyEngineBrand"
-                checked={form.applyEngineBrand}
-                onCheckedChange={(checked) => updateForm('applyEngineBrand', Boolean(checked))}
-              />
-              <Label htmlFor="applyEngineBrand" className="text-sm font-semibold cursor-pointer">
-                Марка двигателя
-              </Label>
+              <Checkbox id="applyEngineBrand" checked={form.applyEngineBrand} onCheckedChange={(c) => updateForm('applyEngineBrand', Boolean(c))} />
+              <Label htmlFor="applyEngineBrand" className="text-sm font-semibold cursor-pointer">Марка двигателя</Label>
             </div>
             {form.applyEngineBrand && (
               <Input
