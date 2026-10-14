@@ -91,7 +91,9 @@ export default function BulkDeleteDialog({ isOpen, onClose, selectedPartIds, onS
         <div className="py-4">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <p className="text-sm text-red-800">
-              Будут удалены запчасти с ID: {selectedPartIds.join(', ')}
+              {selectedPartIds.length <= 6
+                ? `Будут удалены запчасти с ID: ${selectedPartIds.join(', ')}`
+                : `Будут удалены запчасти с ID: ${selectedPartIds.slice(0, 6).join(', ')} ... и ещё ${selectedPartIds.length - 6}`}
             </p>
           </div>
         </div>

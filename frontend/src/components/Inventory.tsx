@@ -208,6 +208,7 @@ function Inventory() {
          hasMore={hasNextPage}
          isInfiniteScroll={isInfiniteMode}
          defaultOpenPartId={targetPartId}
+         activeFilters={filters}
        />
      </div>
    );

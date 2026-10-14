@@ -16,6 +16,7 @@ import SelectByCriteriaDialog from './SelectByCriteriaDialog';
 import { useSwipeGesture } from '@/hooks/useSwipeGesture';
 import { useOrders } from '@/hooks/useOrders';
 import type { Part } from '@/lib/types';
+import type { PartFilters } from '@/hooks/useParts';
 
 interface PartsListProps {
     parts: Part[];
@@ -25,9 +26,10 @@ interface PartsListProps {
     hasMore?: boolean;
     isInfiniteScroll?: boolean;
     defaultOpenPartId?: number | null;
+    activeFilters?: PartFilters;
 }
 
-function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScroll = false, defaultOpenPartId = null }: PartsListProps) {
+function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScroll = false, defaultOpenPartId = null, activeFilters }: PartsListProps) {
     const loadMoreRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
@@ -45,9 +47,21 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
     const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
     const [isBulkOrderOpen, setIsBulkOrderOpen] = useState(false);
     const [isCriteriaDialogOpen, setIsCriteriaDialogOpen] = useState(false);
+    const [isAllMatchingFilterSelected, setIsAllMatchingFilterSelected] = useState(false);
     const [openAccordionValue, setOpenAccordionValue] = useState<string>(
         defaultOpenPartId ? `part-${defaultOpenPartId}` : ''
     );
+
+    const cleanedFilters = useMemo(() => {
+        if (!activeFilters) return undefined;
+        const result: Record<string, string> = {};
+        for (const [key, value] of Object.entries(activeFilters)) {
+            if (value !== undefined && value !== null && String(value).trim() !== '' && key !== 'limit' && key !== 'page') {
+                result[key] = String(value).trim();
+            }
+        }
+        return Object.keys(result).length > 0 ? result : undefined;
+    }, [activeFilters]);
 
     const { data: activeOrders } = useOrders();
 
@@ -116,6 +130,7 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
 
     const exitSelectionMode = () => {
         setIsSelectionMode(false);
+        setIsAllMatchingFilterSelected(false);
         setSelectedParts(new Set());
         setSelectedPartsCatalog(new Map());
     };
@@ -126,6 +141,7 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
 
     const deselectAll = () => {
         setSelectedParts(new Set());
+        setIsAllMatchingFilterSelected(false);
     };
 
     const handleSelectMatching = (matchedIds: number[]) => {
@@ -255,6 +271,24 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
                             Отмена
                         </Button>
                     </div>
+                    {cleanedFilters && selectedParts.size === parts.length && parts.length > 0 && (
+                        <div className="mt-2.5 py-1.5 px-3 bg-blue-100/80 dark:bg-blue-900/40 rounded text-xs text-blue-900 dark:text-blue-100 flex items-center justify-between">
+                            <span>
+                                {isAllMatchingFilterSelected
+                                    ? "Выбраны ВСЕ запчасти по активному фильтру каталога."
+                                    : `Выбраны все ${parts.length} запч. на этой странице.`}
+                            </span>
+                            <button
+                                type="button"
+                                className="text-xs text-blue-700 dark:text-blue-300 font-semibold underline hover:text-blue-900 dark:hover:text-white cursor-pointer ml-2"
+                                onClick={() => setIsAllMatchingFilterSelected((prev) => !prev)}
+                            >
+                                {isAllMatchingFilterSelected
+                                    ? "Оставить только запчасти на странице"
+                                    : "Выбрать все запчасти по этому фильтру"}
+                            </button>
+                        </div>
+                    )}
                     {selectedParts.size > 0 && (
                         <div className="mt-3 flex flex-col sm:flex-row gap-2 flex-wrap">
                             <Button
@@ -388,6 +422,8 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
                 onClose={() => setIsBulkEditOpen(false)}
                 selectedPartIds={Array.from(selectedParts)}
                 selectedParts={selectedPartObjects}
+                activeFilters={cleanedFilters}
+                initialScopeType={isAllMatchingFilterSelected ? 'filter' : 'ids'}
                 onSuccess={() => {
                     setIsBulkEditOpen(false);
                     exitSelectionMode();

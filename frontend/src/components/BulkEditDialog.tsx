@@ -27,6 +27,7 @@ interface BulkEditDialogProps {
   selectedPartIds: number[];
   selectedParts?: Part[];
   activeFilters?: Record<string, string>;
+  initialScopeType?: 'ids' | 'filter';
   onSuccess: () => void;
 }
 
@@ -51,12 +52,13 @@ export default function BulkEditDialog({
   selectedPartIds,
   selectedParts = [],
   activeFilters,
+  initialScopeType,
   onSuccess,
 }: BulkEditDialogProps) {
   const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
   const [users, setUsers] = useState<{ id: number; name: string; email: string }[]>([]);
-  const [scopeType, setScopeType] = useState<'ids' | 'filter'>('ids');
+  const [scopeType, setScopeType] = useState<'ids' | 'filter'>(initialScopeType || 'ids');
 
   const [form, setForm] = useState<BulkEditForm>({
     category: '',
@@ -76,8 +78,11 @@ export default function BulkEditDialog({
   useEffect(() => {
     if (isOpen) {
       fetchUsers();
+      if (initialScopeType) {
+        setScopeType(initialScopeType);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, initialScopeType]);
 
   const fetchUsers = async () => {
     try {

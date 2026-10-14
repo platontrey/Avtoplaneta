@@ -19,6 +19,8 @@ enum PriceMode {
 
 Map<String, dynamic> buildBulkUpdatePayload({
   required Iterable<int> ids,
+  String scopeType = 'BULK_SCOPE_TYPE_IDS',
+  Map<String, dynamic>? filterQuery,
   PriceMode? priceMode,
   double? priceValue,
   String? category,
@@ -46,11 +48,19 @@ Map<String, dynamic> buildBulkUpdatePayload({
     operations['status'] = status;
   }
 
+  final scope = <String, dynamic>{
+    'type': scopeType,
+  };
+  if (scopeType == 'BULK_SCOPE_TYPE_FILTER') {
+    if (filterQuery != null) {
+      scope['filter'] = filterQuery;
+    }
+  } else {
+    scope['ids'] = ids.toList();
+  }
+
   return {
-    'scope': {
-      'type': 'BULK_SCOPE_TYPE_IDS',
-      'ids': ids.toList(),
-    },
+    'scope': scope,
     'operations': operations,
   };
 }
@@ -96,12 +106,17 @@ Future<bool> showBulkEditSheet(
   WidgetRef ref, {
   required List<Part> parts,
   required List<String> categories,
+  InventoryFilter? activeFilter,
 }) async {
   final changed = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (_) => _BulkEditSheet(parts: parts, categories: categories),
+    builder: (_) => _BulkEditSheet(
+      parts: parts,
+      categories: categories,
+      activeFilter: activeFilter,
+    ),
   );
   if (changed == true) {
     ref.invalidate(inventoryProvider);
@@ -317,8 +332,13 @@ class _SelectByCriteriaSheetState extends State<_SelectByCriteriaSheet> {
 class _BulkEditSheet extends StatefulWidget {
   final List<Part> parts;
   final List<String> categories;
+  final InventoryFilter? activeFilter;
 
-  const _BulkEditSheet({required this.parts, required this.categories});
+  const _BulkEditSheet({
+    required this.parts,
+    required this.categories,
+    this.activeFilter,
+  });
 
   @override
   State<_BulkEditSheet> createState() => _BulkEditSheetState();
@@ -331,6 +351,7 @@ class _BulkEditSheetState extends State<_BulkEditSheet> {
   final _salesman = TextEditingController();
   final Set<String> _enabled = {};
   PriceMode _priceMode = PriceMode.set;
+  String _scopeMode = 'ids';
   String? _category;
   bool _status = true;
   bool _submitting = false;
@@ -371,8 +392,11 @@ class _BulkEditSheetState extends State<_BulkEditSheet> {
 
     setState(() => _submitting = true);
     try {
+      final isFilterScope = _scopeMode == 'filter' && widget.activeFilter != null;
       final payload = buildBulkUpdatePayload(
         ids: widget.parts.map((part) => part.id),
+        scopeType: isFilterScope ? 'BULK_SCOPE_TYPE_FILTER' : 'BULK_SCOPE_TYPE_IDS',
+        filterQuery: isFilterScope ? widget.activeFilter!.toQueryParameters() : null,
         priceMode: _enabled.contains('price') ? _priceMode : null,
         priceValue: priceVal,
         category: _enabled.contains('category') ? _category : null,
@@ -443,7 +467,9 @@ class _BulkEditSheetState extends State<_BulkEditSheet> {
                 children: [
                   Expanded(
                     child: Text(
-                      'Изменить ${widget.parts.length} запчастей',
+                      _scopeMode == 'filter'
+                          ? 'Изменить по фильтру'
+                          : 'Изменить ${widget.parts.length} запчастей',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                   ),
@@ -453,6 +479,24 @@ class _BulkEditSheetState extends State<_BulkEditSheet> {
                   ),
                 ],
               ),
+              if (widget.activeFilter != null && widget.activeFilter!.activeFilterCount > 0) ...[
+                const SizedBox(height: 8),
+                SegmentedButton<String>(
+                  segments: [
+                    ButtonSegment(
+                      value: 'ids',
+                      label: Text('Выбранные (${widget.parts.length})'),
+                    ),
+                    const ButtonSegment(
+                      value: 'filter',
+                      label: Text('Все по фильтру'),
+                    ),
+                  ],
+                  selected: {_scopeMode},
+                  onSelectionChanged: (val) => setState(() => _scopeMode = val.first),
+                ),
+                const SizedBox(height: 8),
+              ],
 
               // Изменение цены
               _fieldToggle('price', 'Изменение цены'),

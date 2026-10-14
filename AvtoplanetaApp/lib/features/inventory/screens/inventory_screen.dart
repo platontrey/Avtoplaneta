@@ -621,6 +621,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   ref,
                   parts: selectedParts,
                   categories: categories,
+                  activeFilter: filter.activeFilterCount > 0 ? filter : null,
                 );
                 if (!context.mounted) return;
                 if (changed) {
