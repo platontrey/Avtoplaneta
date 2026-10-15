@@ -38,11 +38,27 @@ class UpdateDialog extends StatefulWidget {
 
 class _UpdateDialogState extends State<UpdateDialog> {
   bool _isDownloading = false;
+  bool _isAlreadyDownloaded = false;
   double _progress = 0.0;
   int _receivedBytes = 0;
   int _totalBytes = 0;
   String? _errorMessage;
   CancelToken? _cancelToken;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPreDownloaded();
+  }
+
+  Future<void> _checkPreDownloaded() async {
+    final downloaded = await widget.updateService.isUpdateDownloaded(widget.info);
+    if (downloaded && mounted) {
+      setState(() {
+        _isAlreadyDownloaded = true;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -291,8 +307,17 @@ class _UpdateDialogState extends State<UpdateDialog> {
           if (!_isDownloading)
             FilledButton.icon(
               onPressed: _startDownload,
-              icon: Icon(_errorMessage != null ? LucideIcons.refresh_cw : LucideIcons.download, size: 18),
-              label: Text(_errorMessage != null ? 'Повторить загрузку' : 'Обновить'),
+              icon: Icon(
+                _errorMessage != null
+                    ? LucideIcons.refresh_cw
+                    : (_isAlreadyDownloaded ? LucideIcons.check : LucideIcons.download),
+                size: 18,
+              ),
+              label: Text(
+                _errorMessage != null
+                    ? 'Повторить загрузку'
+                    : (_isAlreadyDownloaded ? 'Установить обновление' : 'Обновить'),
+              ),
             ),
         ],
       ),

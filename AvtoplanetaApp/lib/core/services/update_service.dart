@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -14,57 +15,112 @@ class AppUpdateInfo {
   final String version;
   final int buildNumber;
   final String downloadUrl;
+  final Map<String, String> downloadUrls;
   final bool forceUpdate;
   final int minSupportedBuild;
   final String changelog;
   final int fileSizeBytes;
   final DateTime? publishedAt;
+  final String? targetAbi;
 
   const AppUpdateInfo({
     required this.version,
     required this.buildNumber,
     required this.downloadUrl,
+    this.downloadUrls = const {},
     required this.forceUpdate,
     required this.minSupportedBuild,
     required this.changelog,
     this.fileSizeBytes = 0,
     this.publishedAt,
+    this.targetAbi,
   });
 
   /// Парсинг ответа от собственного бэкенда (/api/app/version)
-  factory AppUpdateInfo.fromJson(Map<String, dynamic> json) {
+  factory AppUpdateInfo.fromJson(Map<String, dynamic> json, {String? targetAbi}) {
+    final rawUrls = json['download_urls'];
+    final Map<String, String> downloadUrls = {};
+    if (rawUrls is Map) {
+      rawUrls.forEach((k, v) {
+        if (k != null && v != null) {
+          downloadUrls[k.toString()] = v.toString();
+        }
+      });
+    }
+
+    String downloadUrl = json['download_url'] as String? ?? '';
+    // Выбираем URL под нужный ABI, если бэкенд отдает список download_urls
+    if (targetAbi != null && targetAbi.isNotEmpty) {
+      if (downloadUrls.containsKey(targetAbi)) {
+        downloadUrl = downloadUrls[targetAbi]!;
+      } else if ((targetAbi == 'arm64-v8a' || targetAbi == 'arm64') && downloadUrls.containsKey('arm64-v8a')) {
+        downloadUrl = downloadUrls['arm64-v8a']!;
+      } else if ((targetAbi == 'arm64-v8a' || targetAbi == 'arm64') && downloadUrls.containsKey('arm64')) {
+        downloadUrl = downloadUrls['arm64']!;
+      } else if ((targetAbi == 'armeabi-v7a' || targetAbi == 'armv7') && downloadUrls.containsKey('armeabi-v7a')) {
+        downloadUrl = downloadUrls['armeabi-v7a']!;
+      } else if ((targetAbi == 'armeabi-v7a' || targetAbi == 'armv7') && downloadUrls.containsKey('armv7')) {
+        downloadUrl = downloadUrls['armv7']!;
+      }
+    }
+
     return AppUpdateInfo(
       version: json['version'] as String? ?? '',
       buildNumber: json['build_number'] as int? ?? 0,
-      downloadUrl: json['download_url'] as String? ?? '',
+      downloadUrl: downloadUrl,
+      downloadUrls: downloadUrls,
       forceUpdate: json['force_update'] as bool? ?? false,
       minSupportedBuild: json['min_supported_build'] as int? ?? 0,
       changelog: json['changelog'] as String? ?? '',
       fileSizeBytes: json['file_size_bytes'] as int? ?? 0,
+      targetAbi: targetAbi,
       publishedAt: json['published_at'] != null
           ? DateTime.tryParse(json['published_at'] as String)
           : null,
     );
   }
 
-  /// Парсинг ответа GitHub Releases API (https://api.github.com/repos/.../releases/...)
-  factory AppUpdateInfo.fromGitHubRelease(Map<String, dynamic> json) {
+  /// Парсинг ответа GitHub Releases API с выбором APK под нужную архитектуру процессора
+  factory AppUpdateInfo.fromGitHubRelease(Map<String, dynamic> json, {String? targetAbi}) {
     final tagName = (json['tag_name'] as String? ?? '').trim();
     final name = json['name'] as String? ?? '';
     final body = json['body'] as String? ?? '';
 
-    // Находим ассет APK
     final assets = (json['assets'] as List<dynamic>?) ?? [];
     String downloadUrl = '';
     int size = 0;
 
-    for (final asset in assets) {
-      if (asset is Map<String, dynamic>) {
-        final assetName = (asset['name'] as String? ?? '').toLowerCase();
-        if (assetName.endsWith('.apk')) {
-          downloadUrl = asset['browser_download_url'] as String? ?? '';
-          size = asset['size'] as int? ?? 0;
-          break;
+    String? preferredPattern;
+    if (targetAbi == 'arm64-v8a' || targetAbi == 'arm64') {
+      preferredPattern = 'arm64';
+    } else if (targetAbi == 'armeabi-v7a' || targetAbi == 'armv7') {
+      preferredPattern = 'armv7';
+    }
+
+    // 1. Сначала ищем ассет под архитектуру процессора
+    if (preferredPattern != null) {
+      for (final asset in assets) {
+        if (asset is Map<String, dynamic>) {
+          final assetName = (asset['name'] as String? ?? '').toLowerCase();
+          if (assetName.endsWith('.apk') && assetName.contains(preferredPattern)) {
+            downloadUrl = asset['browser_download_url'] as String? ?? '';
+            size = asset['size'] as int? ?? 0;
+            break;
+          }
+        }
+      }
+    }
+
+    // 2. Фоллбэк: если специфичного файла нет, берем основной APK
+    if (downloadUrl.isEmpty) {
+      for (final asset in assets) {
+        if (asset is Map<String, dynamic>) {
+          final assetName = (asset['name'] as String? ?? '').toLowerCase();
+          if (assetName.endsWith('.apk')) {
+            downloadUrl = asset['browser_download_url'] as String? ?? '';
+            size = asset['size'] as int? ?? 0;
+            break;
+          }
         }
       }
     }
@@ -99,6 +155,7 @@ class AppUpdateInfo {
       minSupportedBuild: 0,
       changelog: body.isNotEmpty ? body : (name.isNotEmpty ? name : 'Обновление приложения'),
       fileSizeBytes: size,
+      targetAbi: targetAbi,
       publishedAt: json['published_at'] != null
           ? DateTime.tryParse(json['published_at'] as String)
           : null,
@@ -110,10 +167,12 @@ class AppUpdateInfo {
       'version': version,
       'build_number': buildNumber,
       'download_url': downloadUrl,
+      'download_urls': downloadUrls,
       'force_update': forceUpdate,
       'min_supported_build': minSupportedBuild,
       'changelog': changelog,
       'file_size_bytes': fileSizeBytes,
+      'target_abi': targetAbi,
       'published_at': publishedAt?.toIso8601String(),
     };
   }
@@ -217,6 +276,22 @@ class UpdateService {
     return 0;
   }
 
+  static const MethodChannel _deviceChannel = MethodChannel('com.avtoplaneta.app/device');
+
+  /// Получение поддерживаемой архитектуры процессора устройства (arm64-v8a или armeabi-v7a)
+  static Future<String> getDeviceAbi() async {
+    if (kIsWeb || !Platform.isAndroid) return '';
+    try {
+      final abis = await _deviceChannel.invokeListMethod<String>('getSupportedAbis');
+      if (abis != null && abis.isNotEmpty) {
+        if (abis.any((a) => a.contains('arm64'))) return 'arm64-v8a';
+        if (abis.any((a) => a.contains('v7a') || a == 'armeabi')) return 'armeabi-v7a';
+        return abis.first;
+      }
+    } catch (_) {}
+    return 'arm64-v8a';
+  }
+
   /// Проверяет наличие обновлений (с бэкенда или с GitHub Releases)
   Future<UpdateCheckResult> checkForUpdates({
     String? overrideCurrentVersion,
@@ -246,10 +321,13 @@ class UpdateService {
       );
     }
 
+    final deviceAbi = await getDeviceAbi();
+
     // 1. Сначала пробуем получить конфигурацию с собственного бэкенда
     try {
       final response = await _dio.get(
         '/api/app/version',
+        queryParameters: deviceAbi.isNotEmpty ? {'abi': deviceAbi} : null,
         options: Options(responseType: ResponseType.json),
       );
 
@@ -258,7 +336,7 @@ class UpdateService {
         final jsonMap = data is Map
             ? Map<String, dynamic>.from(data)
             : <String, dynamic>{};
-        final serverInfo = AppUpdateInfo.fromJson(jsonMap);
+        final serverInfo = AppUpdateInfo.fromJson(jsonMap, targetAbi: deviceAbi);
 
         final hasNewer = isVersionNewer(
           serverVersion: serverInfo.version,
@@ -289,6 +367,7 @@ class UpdateService {
       final githubResult = await checkGitHubUpdate(
         currentVersion: currentVersion,
         currentBuild: currentBuild,
+        targetAbi: deviceAbi,
       );
       if (githubResult.hasUpdate) {
         return githubResult;
@@ -307,6 +386,7 @@ class UpdateService {
   Future<UpdateCheckResult> checkGitHubUpdate({
     required String currentVersion,
     required int currentBuild,
+    String? targetAbi,
   }) async {
     final client = Dio(BaseOptions(
       connectTimeout: const Duration(seconds: 10),
@@ -326,7 +406,10 @@ class UpdateService {
       try {
         final response = await client.get(url);
         if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
-          final info = AppUpdateInfo.fromGitHubRelease(response.data as Map<String, dynamic>);
+          final info = AppUpdateInfo.fromGitHubRelease(
+            response.data as Map<String, dynamic>,
+            targetAbi: targetAbi ?? await getDeviceAbi(),
+          );
           if (info.downloadUrl.isNotEmpty) {
             final hasNewer = isVersionNewer(
               serverVersion: info.version,
@@ -359,14 +442,71 @@ class UpdateService {
     );
   }
 
-  /// Скачивает APK и запускает системный инсталлятор
+  /// Проверяет, скачан ли уже APK обновления целиком
+  Future<bool> isUpdateDownloaded(AppUpdateInfo info) async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final targetFile = File('${tempDir.path}/avtoplaneta-update.apk');
+      if (!targetFile.existsSync()) return false;
+      final currentBytes = targetFile.lengthSync();
+      if (info.fileSizeBytes > 0) {
+        return currentBytes == info.fileSizeBytes;
+      }
+      return currentBytes > 10 * 1024 * 1024; // > 10 MB
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Тихо скачивает APK обновления в фоне без вызова системного установщика
+  Future<void> preDownloadUpdate(AppUpdateInfo info) async {
+    try {
+      final alreadyDownloaded = await isUpdateDownloaded(info);
+      if (alreadyDownloaded) {
+        debugPrint('Обновление уже предварительно загружено в кэш');
+        return;
+      }
+      debugPrint('Старт тихой фоновой загрузки обновления (${info.version})...');
+      await downloadAndInstall(
+        info: info,
+        autoOpen: false,
+        onProgress: (progress, received, total) {
+          // Тихий прогресс в фоне
+        },
+      );
+      debugPrint('Тихая фоновая загрузка обновления завершена!');
+    } catch (e) {
+      debugPrint('Фоновая загрузка обновления прервана: $e');
+    }
+  }
+
+  /// Скачивает APK и запускает системный инсталлятор (или тихо сохраняет при autoOpen = false)
   Future<OpenResult> downloadAndInstall({
     required AppUpdateInfo info,
     required void Function(double progress, int receivedBytes, int totalBytes) onProgress,
     CancelToken? cancelToken,
+    bool autoOpen = true,
   }) async {
     final tempDir = await getTemporaryDirectory();
     final targetFile = File('${tempDir.path}/avtoplaneta-update.apk');
+
+    // Если файл уже скачан и его размер совпадает с ожидаемым — мгновенно открываем установщик
+    if (targetFile.existsSync()) {
+      final currentBytes = targetFile.lengthSync();
+      final isComplete = (info.fileSizeBytes > 0 && currentBytes == info.fileSizeBytes) ||
+          (info.fileSizeBytes == 0 && currentBytes > 10 * 1024 * 1024);
+      if (isComplete) {
+        debugPrint('APK уже скачан и готов к установке ($currentBytes байт)');
+        onProgress(1.0, currentBytes, currentBytes);
+        if (autoOpen) {
+          return await OpenFilex.open(
+            targetFile.path,
+            type: 'application/vnd.android.package-archive',
+          );
+        }
+        return OpenResult(type: ResultType.done, message: 'Файл уже загружен');
+      }
+    }
 
     String finalUrl = info.downloadUrl;
     if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
@@ -469,6 +609,10 @@ class UpdateService {
         }
         await Future.delayed(Duration(seconds: retries));
       }
+    }
+
+    if (!autoOpen) {
+      return OpenResult(type: ResultType.done, message: 'APK успешно загружен в фоне');
     }
 
     final openResult = await OpenFilex.open(

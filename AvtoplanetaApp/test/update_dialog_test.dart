@@ -16,6 +16,7 @@ class _FakeUpdateService extends UpdateService {
     required AppUpdateInfo info,
     required void Function(double progress, int receivedBytes, int totalBytes) onProgress,
     CancelToken? cancelToken,
+    bool autoOpen = true,
   }) async {
     downloadCalled = true;
     if (shouldFailDownload) {

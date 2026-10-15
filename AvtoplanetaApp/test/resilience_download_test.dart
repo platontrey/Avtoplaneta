@@ -19,6 +19,7 @@ class _SimulatedFailingUpdateService extends UpdateService {
     required AppUpdateInfo info,
     required void Function(double progress, int receivedBytes, int totalBytes) onProgress,
     CancelToken? cancelToken,
+    bool autoOpen = true,
   }) async {
     attempts++;
     if (alwaysFail || attempts == 1) {

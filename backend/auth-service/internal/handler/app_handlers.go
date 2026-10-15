@@ -26,25 +26,48 @@ func (h *Handler) GetAppVersionHandler(c *gin.Context) {
 	c.JSON(http.StatusNotFound, gin.H{"error": "файл конфигурации версий не найден"})
 }
 
-// DownloadAppHandler отдает APK-файл мобильного приложения
+// DownloadAppHandler отдает APK-файл мобильного приложения с поддержкой архитектур (arm64, armv7)
 func (h *Handler) DownloadAppHandler(c *gin.Context) {
-	apkPaths := []string{
-		"./downloads/avtoplaneta-release.apk",
-		"./downloads/app-release.apk",
-		"backend/downloads/avtoplaneta-release.apk",
-		"backend/downloads/app-release.apk",
-		"/app/downloads/avtoplaneta-release.apk",
-		"/app/downloads/app-release.apk",
-		"../downloads/avtoplaneta-release.apk",
-		"../downloads/app-release.apk",
+	abi := c.DefaultQuery("abi", "")
+	var targetFiles []string
+
+	if abi == "arm64" || abi == "arm64-v8a" {
+		targetFiles = []string{
+			"avtoplaneta-arm64-v8a.apk",
+			"avtoplaneta-latest-arm64.apk",
+			"avtoplaneta-arm64.apk",
+		}
+	} else if abi == "armv7" || abi == "armeabi-v7a" {
+		targetFiles = []string{
+			"avtoplaneta-armeabi-v7a.apk",
+			"avtoplaneta-latest-armv7.apk",
+			"avtoplaneta-armv7.apk",
+		}
 	}
 
-	for _, p := range apkPaths {
-		if _, err := os.Stat(p); err == nil {
-			c.Header("Content-Disposition", "attachment; filename=\"avtoplaneta-release.apk\"")
-			c.Header("Content-Type", "application/vnd.android.package-archive")
-			c.File(p)
-			return
+	// Общие фоллбэки
+	targetFiles = append(targetFiles,
+		"avtoplaneta-release.apk",
+		"avtoplaneta-latest.apk",
+		"app-release.apk",
+	)
+
+	baseDirs := []string{
+		"./downloads",
+		"backend/downloads",
+		"/app/downloads",
+		"../downloads",
+	}
+
+	for _, dir := range baseDirs {
+		for _, name := range targetFiles {
+			p := dir + "/" + name
+			if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
+				c.Header("Content-Disposition", "attachment; filename=\""+name+"\"")
+				c.Header("Content-Type", "application/vnd.android.package-archive")
+				c.File(p)
+				return
+			}
 		}
 	}
 

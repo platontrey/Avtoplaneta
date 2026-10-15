@@ -32,9 +32,12 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     final updateService = ref.read(updateServiceProvider);
     final result = await updateService.checkForUpdates();
     if (result.hasUpdate && result.updateInfo != null && mounted) {
+      final info = result.updateInfo!;
+      // Запускаем фоновую предзагрузку APK для ускорения установки
+      updateService.preDownloadUpdate(info);
       UpdateDialog.show(
         context: context,
-        info: result.updateInfo!,
+        info: info,
         updateService: updateService,
       );
     }
