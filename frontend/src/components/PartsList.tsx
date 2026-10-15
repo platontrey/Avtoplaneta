@@ -297,29 +297,66 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
         }
     };
 
+    // Двойной механизм бесконечной подгрузки: Scroll Listener с упреждением + IntersectionObserver
     useEffect(() => {
-        if (!isInfiniteScroll || !onLoadMore || !hasMore || isLoading) return;
+        if (!isInfiniteScroll || !onLoadMore || !hasMore) return;
 
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0]?.isIntersecting) {
-                    onLoadMore();
-                }
-            },
-            { rootMargin: '400px' }
-        );
+        let ticking = false;
 
+        const checkAndLoad = () => {
+            if (isLoading || !hasMore) return;
+
+            const scrollHeight = document.documentElement.scrollHeight;
+            const scrollTop = window.scrollY || document.documentElement.scrollTop;
+            const clientHeight = window.innerHeight;
+
+            // Срабатывает с упреждением 600px до конца страницы для бесшовной подгрузки
+            if (scrollTop + clientHeight >= scrollHeight - 600) {
+                onLoadMore();
+            }
+        };
+
+        const handleScroll = () => {
+            if (!ticking) {
+                window.requestAnimationFrame(() => {
+                    checkAndLoad();
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        window.addEventListener('resize', handleScroll, { passive: true });
+
+        // IntersectionObserver в качестве второго параллельного триггера
+        let observer: IntersectionObserver | null = null;
         const currentTarget = loadMoreRef.current;
-        if (currentTarget) {
+
+        if (typeof IntersectionObserver !== 'undefined' && currentTarget) {
+            observer = new IntersectionObserver(
+                (entries) => {
+                    if (entries[0]?.isIntersecting && !isLoading && hasMore) {
+                        onLoadMore();
+                    }
+                },
+                { rootMargin: '600px' }
+            );
             observer.observe(currentTarget);
         }
 
+        // Проверяем сразу (например, если контента мало для появления полосы прокрутки)
+        checkAndLoad();
+
         return () => {
-            if (currentTarget) {
+            window.removeEventListener('scroll', handleScroll);
+            window.removeEventListener('resize', handleScroll);
+            if (observer && currentTarget) {
                 observer.unobserve(currentTarget);
+                observer.disconnect();
             }
         };
-    }, [isInfiniteScroll, onLoadMore, hasMore, isLoading]);
+    }, [isInfiniteScroll, onLoadMore, hasMore, isLoading, parts.length]);
 
     useEffect(() => {
         return bindSwipeEvents(containerRef.current);
@@ -530,16 +567,18 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
             </Accordion>
 
             {/* Триггер бесконечной прокрутки */}
-            {isInfiniteScroll && (
-                <div ref={loadMoreRef} className="flex justify-center py-4">
+            {isInfiniteScroll && hasMore && (
+                <div ref={loadMoreRef} className="flex justify-center items-center py-6 min-h-[48px]">
                     {isLoading ? (
-                        <div className="flex items-center gap-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span>Загрузка...</span>
+                        <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            <span>Загрузка запчастей...</span>
                         </div>
-                    ) : hasMore ? (
-                        <div className="h-4 w-full text-center text-xs text-transparent select-none">Load More Trigger</div>
-                    ) : null}
+                    ) : (
+                        <div className="h-6 w-full text-center text-xs text-transparent select-none">
+                            Load More Trigger
+                        </div>
+                    )}
                 </div>
             )}
 

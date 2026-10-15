@@ -201,7 +201,7 @@ function Inventory() {
 
        {/* Компонент списка запчастей */}
        <PartsList
-         parts={allParts}
+         parts={partsData.length > 0 ? partsData : allParts}
          isLoading={isLoading || isFetchingNextPage}
          error={error}
          onLoadMore={isInfiniteMode ? loadMore : undefined}
