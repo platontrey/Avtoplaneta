@@ -1,8 +1,11 @@
 package repository
 
 import (
+	"context"
+
 	"github.com/stretchr/testify/mock"
 
+	"auth-service/db/sqlc"
 	"auth-service/internal/domain"
 )
 
@@ -69,6 +72,34 @@ func (m *MockUserRepository) ExistsByEmailOrName(email, name string) (bool, erro
 func (m *MockUserRepository) CountAll() (int, error) {
 	args := m.Called()
 	return args.Int(0), args.Error(1)
+}
+
+func (m *MockUserRepository) CreateOutboxEvent(ctx context.Context, aggregateType string, aggregateID int64, eventType string, payload []byte) error {
+	args := m.Called(ctx, aggregateType, aggregateID, eventType, payload)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) FetchPendingOutboxEvents(ctx context.Context, limit int32) ([]sqlc.OutboxEvent, error) {
+	args := m.Called(ctx, limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]sqlc.OutboxEvent), args.Error(1)
+}
+
+func (m *MockUserRepository) MarkOutboxEventProcessed(ctx context.Context, id int64) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) MarkOutboxEventFailed(ctx context.Context, id int64, lastErr string) error {
+	args := m.Called(ctx, id, lastErr)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) CleanupProcessedOutboxEvents(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
 }
 
 // MockActivityLogRepository мок для ActivityLogRepository

@@ -31,6 +31,28 @@ var (
 		},
 		[]string{"method", "endpoint", "status"},
 	)
+	OutboxEventsProcessedTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "auth_outbox_events_processed_total",
+			Help: "Total number of processed auth outbox events",
+		},
+		[]string{"event_type"},
+	)
+	OutboxEventsFailedTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "auth_outbox_events_failed_total",
+			Help: "Total number of failed auth outbox events",
+		},
+		[]string{"event_type"},
+	)
+	OutboxProcessingDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "auth_outbox_processing_duration_seconds",
+			Help:    "Duration of auth outbox event processing in seconds",
+			Buckets: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5},
+		},
+		[]string{"event_type"},
+	)
 )
 
 func init() {
@@ -38,6 +60,9 @@ func init() {
 		HTTPRequestsTotal,
 		HTTPRequestDuration,
 		HTTPRequestsErrorsTotal,
+		OutboxEventsProcessedTotal,
+		OutboxEventsFailedTotal,
+		OutboxProcessingDuration,
 	)
 }
 

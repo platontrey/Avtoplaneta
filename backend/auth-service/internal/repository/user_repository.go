@@ -3,8 +3,10 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"strings"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"auth-service/db/sqlc"
@@ -22,6 +24,13 @@ type UserRepository interface {
 	ExistsByEmailOrName(email, name string) (bool, error)
 	CountAll() (int, error)
 	FindByEmail(email string) (*domain.User, error)
+
+	// Outbox
+	CreateOutboxEvent(ctx context.Context, aggregateType string, aggregateID int64, eventType string, payload []byte) error
+	FetchPendingOutboxEvents(ctx context.Context, limit int32) ([]sqlc.OutboxEvent, error)
+	MarkOutboxEventProcessed(ctx context.Context, id int64) error
+	MarkOutboxEventFailed(ctx context.Context, id int64, lastErr string) error
+	CleanupProcessedOutboxEvents(ctx context.Context) error
 }
 
 type userRepository struct {
@@ -90,7 +99,15 @@ func (r *userRepository) FindByEmail(email string) (*domain.User, error) {
 }
 
 func (r *userRepository) Update(id int64, params domain.UpdateUserParams) (*domain.User, error) {
-	err := r.queries.UpdateUser(context.Background(), sqlc.UpdateUserParams{
+	ctx := context.Background()
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := r.queries.WithTx(tx)
+	err = qtx.UpdateUser(ctx, sqlc.UpdateUserParams{
 		ID:      id,
 		Column2: params.Name,
 		Column3: params.Email,
@@ -101,6 +118,27 @@ func (r *userRepository) Update(id int64, params domain.UpdateUserParams) (*doma
 	if err != nil {
 		return nil, err
 	}
+
+	if strings.TrimSpace(params.Name) != "" {
+		payload, _ := json.Marshal(map[string]interface{}{
+			"seller_id": id,
+			"name":      strings.TrimSpace(params.Name),
+		})
+		_, err = qtx.CreateAuthOutboxEvent(ctx, sqlc.CreateAuthOutboxEventParams{
+			AggregateType: "user",
+			AggregateID:   id,
+			EventType:     "seller_renamed",
+			Payload:       payload,
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+
 	return r.FindByID(id)
 }
 
@@ -155,4 +193,33 @@ func sqlcUserToDomain(u sqlc.User) *domain.User {
 		Role:     u.Role,
 		Password: u.Password,
 	}
+}
+
+func (r *userRepository) CreateOutboxEvent(ctx context.Context, aggregateType string, aggregateID int64, eventType string, payload []byte) error {
+	_, err := r.queries.CreateAuthOutboxEvent(ctx, sqlc.CreateAuthOutboxEventParams{
+		AggregateType: aggregateType,
+		AggregateID:   aggregateID,
+		EventType:     eventType,
+		Payload:       payload,
+	})
+	return err
+}
+
+func (r *userRepository) FetchPendingOutboxEvents(ctx context.Context, limit int32) ([]sqlc.OutboxEvent, error) {
+	return r.queries.FetchPendingAuthOutboxEvents(ctx, limit)
+}
+
+func (r *userRepository) MarkOutboxEventProcessed(ctx context.Context, id int64) error {
+	return r.queries.MarkAuthOutboxEventProcessed(ctx, id)
+}
+
+func (r *userRepository) MarkOutboxEventFailed(ctx context.Context, id int64, lastErr string) error {
+	return r.queries.MarkAuthOutboxEventFailed(ctx, sqlc.MarkAuthOutboxEventFailedParams{
+		ID:        id,
+		LastError: pgtype.Text{String: lastErr, Valid: lastErr != ""},
+	})
+}
+
+func (r *userRepository) CleanupProcessedOutboxEvents(ctx context.Context) error {
+	return r.queries.CleanupProcessedAuthOutboxEvents(ctx)
 }

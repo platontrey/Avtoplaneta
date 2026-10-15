@@ -8,6 +8,19 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type OutboxEvent struct {
+	ID            int64              `json:"id"`
+	AggregateType string             `json:"aggregate_type"`
+	AggregateID   int64              `json:"aggregate_id"`
+	EventType     string             `json:"event_type"`
+	Payload       []byte             `json:"payload"`
+	Status        string             `json:"status"`
+	RetryCount    int32              `json:"retry_count"`
+	LastError     pgtype.Text        `json:"last_error"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	ProcessedAt   pgtype.Timestamptz `json:"processed_at"`
+}
+
 type User struct {
 	ID       int64  `json:"id"`
 	Email    string `json:"email"`

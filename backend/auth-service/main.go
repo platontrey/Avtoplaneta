@@ -18,10 +18,13 @@ import (
 	"avtoplaneta/pkg/redisclient"
 	"avtoplaneta/pkg/tracing"
 
+	"github.com/redis/go-redis/v9"
+
 	"auth-service/internal/config"
 	"auth-service/internal/events"
 	grpcserver "auth-service/internal/grpc"
 	"auth-service/internal/handler"
+	"auth-service/internal/outbox"
 	"auth-service/internal/repository"
 	"auth-service/internal/security"
 	"auth-service/internal/service"
@@ -76,16 +79,26 @@ func main() {
 	rateLimiter := security.NewMemoryRateLimiter()
 
 	// Подключение к Redis для публикации событий пользователей
+	var redisClient *redis.Client
 	var eventPublisher events.UserEventPublisher
 	if cfg.RedisURL != "" {
 		rdb, err := redisclient.New(cfg.RedisURL, "")
 		if err != nil {
 			logrus.WithError(err).Warn("Failed to connect to Redis for user events")
 		} else {
+			redisClient = rdb
 			eventPublisher = events.NewRedisUserEventPublisher(rdb)
 			defer rdb.Close()
 		}
 	}
+
+	// Запуск Transactional Outbox диспетчера с LISTEN/NOTIFY
+	outboxDispatcher := outbox.NewDispatcher(dbPool, userRepo, redisClient)
+	go func() {
+		if err := outboxDispatcher.Start(ctx); err != nil {
+			logrus.WithError(err).Error("Auth outbox dispatcher failed")
+		}
+	}()
 
 	// Сервисный слой
 	authService := service.NewAuthService(
