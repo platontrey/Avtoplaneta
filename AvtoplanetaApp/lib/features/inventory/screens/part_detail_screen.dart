@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
@@ -45,43 +47,53 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
         title: const Text('Запчасть'),
         actions: [
           partAsync.maybeWhen(
-            data: (part) => part.photos.isNotEmpty
-                ? Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (user?.isOperator == true)
-                        IconButton(
-                          tooltip: 'Редактировать фото (маркер, размытие, обрезка)',
-                          icon: const Icon(LucideIcons.wand_sparkles, color: AppTheme.accentPurple),
-                          onPressed: isOffline
-                              ? () => ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('В оффлайн-режиме редактирование недоступно')),
-                                  )
-                              : () async {
-                                  final idx = _carouselIndex.clamp(0, part.photos.length - 1);
-                                  await PhotoEditorScreen.show(
-                                    context,
-                                    imageUrl: apiClient.resolveUrl(part.photos[idx]),
-                                    partId: part.id,
-                                    photoPathToReplace: part.photos[idx],
-                                  );
-                                },
-                        ),
-                      IconButton(
-                        tooltip: 'Поделиться фото',
-                        icon: const Icon(LucideIcons.share_2),
-                        onPressed: () {
-                          final idx = _carouselIndex.clamp(0, part.photos.length - 1);
-                          final url = apiClient.resolveUrl(part.photos[idx]);
-                          final uri = Uri.tryParse(url);
-                          if (uri != null) {
-                            SharePlus.instance.share(ShareParams(uri: uri, subject: part.name));
-                          }
-                        },
-                      ),
-                    ],
-                  )
-                : const SizedBox.shrink(),
+            data: (part) => Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (user?.isOperator == true)
+                  IconButton(
+                    tooltip: part.photos.isNotEmpty
+                        ? 'Редактировать фото (маркер, размытие, обрезка)'
+                        : 'Сделать или добавить фото',
+                    icon: Icon(
+                      part.photos.isNotEmpty ? LucideIcons.wand_sparkles : LucideIcons.camera,
+                      color: part.photos.isNotEmpty ? AppTheme.accentPurple : AppTheme.primaryColor,
+                    ),
+                    onPressed: isOffline
+                        ? () => ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('В оффлайн-режиме редактирование недоступно')),
+                            )
+                        : () async {
+                            if (part.photos.isEmpty) {
+                              await _addPhoto(part);
+                            } else {
+                              final idx = _carouselIndex.clamp(0, part.photos.length - 1);
+                              await PhotoEditorScreen.show(
+                                context,
+                                imageUrl: apiClient.resolveUrl(part.photos[idx]),
+                                partId: part.id,
+                                photoPathToReplace: part.photos[idx],
+                              );
+                              ref.invalidate(partProvider(part.id));
+                              ref.invalidate(inventoryProvider);
+                            }
+                          },
+                  ),
+                if (part.photos.isNotEmpty)
+                  IconButton(
+                    tooltip: 'Поделиться фото',
+                    icon: const Icon(LucideIcons.share_2),
+                    onPressed: () {
+                      final idx = _carouselIndex.clamp(0, part.photos.length - 1);
+                      final url = apiClient.resolveUrl(part.photos[idx]);
+                      final uri = Uri.tryParse(url);
+                      if (uri != null) {
+                        SharePlus.instance.share(ShareParams(uri: uri, subject: part.name));
+                      }
+                    },
+                  ),
+              ],
+            ),
             orElse: () => const SizedBox.shrink(),
           ),
           partAsync.maybeWhen(
@@ -350,18 +362,38 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
                       ),
                     )
                   else
-                    Container(
-                      height: 160,
-                      decoration: BoxDecoration(
-                        color: AppTheme.cardColor,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppTheme.borderColor),
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          LucideIcons.car,
-                          size: 64,
-                          color: Colors.white24,
+                    InkWell(
+                      onTap: isOffline || user?.isOperator != true ? null : () => _addPhoto(part),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        height: 160,
+                        decoration: BoxDecoration(
+                          color: AppTheme.cardColor,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppTheme.borderColor),
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                LucideIcons.camera,
+                                size: 48,
+                                color: AppTheme.primaryColor,
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                user?.isOperator == true
+                                    ? 'Нажмите, чтобы сделать или добавить фото'
+                                    : 'Нет фотографии',
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -814,4 +846,70 @@ class _PartDetailScreenState extends ConsumerState<PartDetailScreen> {
       ),
     ),
   );
+
+  Future<void> _addPhoto(Part part) async {
+    final filter = ref.read(inventoryFilterProvider);
+    final isOffline = ref.read(inventoryProvider(filter)).valueOrNull?.isOffline ?? false;
+    if (isOffline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('В оффлайн-режиме добавление фото недоступно')),
+      );
+      return;
+    }
+
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: AppTheme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(LucideIcons.camera, color: AppTheme.primaryColor),
+                title: const Text('Сделать снимок на камеру'),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(LucideIcons.image, color: AppTheme.primaryColor),
+                title: const Text('Выбрать из галереи'),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (source == null || !mounted) return;
+
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: source, imageQuality: 90);
+      if (picked == null || !mounted) return;
+
+      final file = File(picked.path);
+      await PhotoEditorScreen.show(
+        context,
+        imageFile: file,
+        partId: part.id,
+      );
+      ref.invalidate(partProvider(part.id));
+      ref.invalidate(inventoryProvider);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка выбора фото: $e'),
+            backgroundColor: AppTheme.dangerColor,
+          ),
+        );
+      }
+    }
+  }
 }
+

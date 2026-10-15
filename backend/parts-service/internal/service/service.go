@@ -1097,19 +1097,65 @@ func (s *inventoryService) PeekNextSupplierCode(ctx context.Context) (string, er
 	return s.repo.PeekNextSupplierCode(ctx)
 }
 
-// UploadPartPhoto загружает фото
+// syncPartIndex переиндексирует запчасть в Elasticsearch, отправляет событие в Redis и сбрасывает кэш
+func (s *inventoryService) syncPartIndex(ctx context.Context, id int64) {
+	updatedPart, err := s.repo.FindByID(ctx, id)
+	if err != nil || updatedPart == nil {
+		logrus.WithError(err).WithField("part_id", id).Warn("syncPartIndex: failed to find part for reindexing")
+		return
+	}
+
+	// Синхронная прямая индексация в Elasticsearch (Refresh: "true") для мгновенной видимости в фильтрах "с фото"
+	if err := search.IndexPart(updatedPart); err != nil {
+		logrus.WithError(err).WithField("part_id", id).Warn("syncPartIndex: failed to index part in Elasticsearch")
+	}
+
+	// Отправка события в Redis Stream events:orders
+	if s.redis != nil {
+		err := s.redis.XAdd(ctx, &redis.XAddArgs{
+			Stream: "events:orders",
+			Values: map[string]interface{}{
+				"type":    "part_index_requested",
+				"part_id": fmt.Sprintf("%d", id),
+			},
+		}).Err()
+		if err != nil {
+			logrus.WithError(err).Warn("syncPartIndex: failed to publish part_index_requested to Redis")
+		}
+
+		s.redis.Del(ctx, inventoryCacheKey)
+		s.redis.Del(ctx, inventoryCacheKeyWithoutPhotos)
+		s.invalidateStatisticsCache(ctx)
+	}
+}
+
+// UploadPartPhoto загружает фото и синхронизирует поисковый индекс
 func (s *inventoryService) UploadPartPhoto(ctx context.Context, id int64, c *gin.Context) (string, error) {
-	return HandlePhotoUpload(ctx, c, id, s.repo)
+	photoPath, err := HandlePhotoUpload(ctx, c, id, s.repo)
+	if err != nil {
+		return "", err
+	}
+	s.syncPartIndex(ctx, id)
+	return photoPath, nil
 }
 
-// DeletePartPhoto удаляет фото
+// DeletePartPhoto удаляет фото и синхронизирует поисковый индекс
 func (s *inventoryService) DeletePartPhoto(ctx context.Context, id int64, photoPath string) error {
-	return DeletePhoto(ctx, id, photoPath, s.repo)
+	if err := DeletePhoto(ctx, id, photoPath, s.repo); err != nil {
+		return err
+	}
+	s.syncPartIndex(ctx, id)
+	return nil
 }
 
-// SavePhotoFromBytes сохраняет фото из байтов (для gRPC streaming upload)
+// SavePhotoFromBytes сохраняет фото из байтов (для gRPC streaming upload) и синхронизирует поисковый индекс
 func (s *inventoryService) SavePhotoFromBytes(ctx context.Context, id int64, data []byte) (string, error) {
-	return SavePhotoFromBytes(ctx, id, data, s.repo)
+	photoPath, err := SavePhotoFromBytes(ctx, id, data, s.repo)
+	if err != nil {
+		return "", err
+	}
+	s.syncPartIndex(ctx, id)
+	return photoPath, nil
 }
 
 // GetPartByID получает запчасть по ID
