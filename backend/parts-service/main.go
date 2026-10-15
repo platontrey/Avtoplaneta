@@ -115,8 +115,8 @@ func main() {
 		}
 	}()
 
-	// Запуск Transactional Outbox диспетчера для надежной синхронизации ES и кэша
-	outboxDispatcher := outbox.NewDispatcher(repo, esClient, redisClient)
+	// Запуск Transactional Outbox диспетчера с LISTEN/NOTIFY для суб-миллисекундной синхронизации ES и кэша
+	outboxDispatcher := outbox.NewDispatcher(dbPool, repo, esClient, redisClient)
 	go func() {
 		if err := outboxDispatcher.Start(ctx); err != nil {
 			logrus.WithError(err).Error("Outbox dispatcher error")

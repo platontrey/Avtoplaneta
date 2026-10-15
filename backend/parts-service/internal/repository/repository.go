@@ -197,7 +197,7 @@ func sqlcPartToDomain(p sqlc.Part) *domain.Part {
 			ManufacturerCode:  p.ManufacturerCode,
 			OEMCode:           p.OemCode,
 			Color:             p.Color,
-			Condition:        p.Condition,
+			Condition:         p.Condition,
 			SupplierCode:      p.SupplierCode,
 			Defect:            p.Defect,
 			Transmission:      p.Transmission,
@@ -855,15 +855,15 @@ func (r *partRepository) BulkUpdateWithProto(ctx context.Context, req *partsv1.B
 		}
 
 		sqlcParts, err := r.queries.BulkUpdateFieldsByIDs(ctx, sqlc.BulkUpdateFieldsByIDsParams{
-			HasPrice:    hasPrice,
-			PriceMode:   priceMode,
-			PriceVal:    priceVal,
-			HasCategory: req.Operations != nil && req.Operations.Category != nil,
-			Category:    req.Operations.GetCategory(),
-			HasLocation: req.Operations != nil && req.Operations.Location != nil,
-			Location:    req.Operations.GetLocation(),
-			HasAddress:  req.Operations != nil && req.Operations.Address != nil,
-			Address:     req.Operations.GetAddress(),
+			HasPrice:       hasPrice,
+			PriceMode:      priceMode,
+			PriceVal:       priceVal,
+			HasCategory:    req.Operations != nil && req.Operations.Category != nil,
+			Category:       req.Operations.GetCategory(),
+			HasLocation:    req.Operations != nil && req.Operations.Location != nil,
+			Location:       req.Operations.GetLocation(),
+			HasAddress:     req.Operations != nil && req.Operations.Address != nil,
+			Address:        req.Operations.GetAddress(),
 			HasSalesman:    req.Operations != nil && req.Operations.Salesman != nil,
 			Salesman:       req.Operations.GetSalesman(),
 			HasStatus:      req.Operations != nil && req.Operations.Status != nil,
@@ -1561,4 +1561,3 @@ func (r *partRepository) MarkOutboxEventFailed(ctx context.Context, id int64, la
 func (r *partRepository) CleanupProcessedOutboxEvents(ctx context.Context) error {
 	return r.queries.CleanupProcessedOutboxEvents(ctx)
 }
-

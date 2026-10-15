@@ -168,7 +168,7 @@ func TestDispatcher_ProcessEvent_PartCreated_Success(t *testing.T) {
 	mockRepo := new(MockRepository)
 	mockES := new(MockESClient)
 
-	dispatcher := NewDispatcher(mockRepo, mockES, nil)
+	dispatcher := NewDispatcher(nil, mockRepo, mockES, nil)
 	dispatcher.pollInterval = 10 * time.Millisecond
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -215,7 +215,7 @@ func TestDispatcher_ProcessEvent_PartDeleted(t *testing.T) {
 	mockRepo := new(MockRepository)
 	mockES := new(MockESClient)
 
-	dispatcher := NewDispatcher(mockRepo, mockES, nil)
+	dispatcher := NewDispatcher(nil, mockRepo, mockES, nil)
 	dispatcher.pollInterval = 10 * time.Millisecond
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -250,7 +250,7 @@ func TestDispatcher_ProcessEvent_ESFailure_MarksFailed(t *testing.T) {
 	mockRepo := new(MockRepository)
 	mockES := new(MockESClient)
 
-	dispatcher := NewDispatcher(mockRepo, mockES, nil)
+	dispatcher := NewDispatcher(nil, mockRepo, mockES, nil)
 	dispatcher.pollInterval = 10 * time.Millisecond
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -298,7 +298,7 @@ func TestDispatcher_ProcessEvent_PartNotFoundInDB(t *testing.T) {
 	mockRepo := new(MockRepository)
 	mockES := new(MockESClient)
 
-	dispatcher := NewDispatcher(mockRepo, mockES, nil)
+	dispatcher := NewDispatcher(nil, mockRepo, mockES, nil)
 	dispatcher.pollInterval = 10 * time.Millisecond
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -328,4 +328,37 @@ func TestDispatcher_ProcessEvent_PartNotFoundInDB(t *testing.T) {
 
 	mockRepo.AssertExpectations(t)
 	mockES.AssertExpectations(t)
+}
+
+func TestDispatcher_ProcessEvent_UnknownEventType(t *testing.T) {
+	mockRepo := new(MockRepository)
+	mockES := new(MockESClient)
+
+	dispatcher := NewDispatcher(nil, mockRepo, mockES, nil)
+	dispatcher.pollInterval = 10 * time.Millisecond
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	event := sqlc.OutboxEvent{
+		ID:            5,
+		AggregateType: "part",
+		AggregateID:   105,
+		EventType:     "unknown_future_event",
+		Status:        "pending",
+	}
+
+	mockRepo.On("FetchPendingOutboxEvents", mock.Anything, int32(50)).Return([]sqlc.OutboxEvent{event}, nil).Once()
+	mockRepo.On("MarkOutboxEventProcessed", mock.Anything, int64(5)).Return(nil)
+	mockRepo.On("FetchPendingOutboxEvents", mock.Anything, int32(50)).Return([]sqlc.OutboxEvent{}, nil)
+
+	go func() {
+		time.Sleep(30 * time.Millisecond)
+		cancel()
+	}()
+
+	err := dispatcher.Start(ctx)
+	assert.NoError(t, err)
+
+	mockRepo.AssertExpectations(t)
 }
