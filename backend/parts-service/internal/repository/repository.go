@@ -58,6 +58,12 @@ type PartRepository interface {
 	UpdatePartPhotos(ctx context.Context, id int64, photos domain.StringArray) error
 	GetPartsForXML(ctx context.Context) ([]domain.Part, error)
 	GetLastCreatedPart(ctx context.Context) (*domain.Part, error)
+
+	// Outbox
+	FetchPendingOutboxEvents(ctx context.Context, limit int32) ([]sqlc.OutboxEvent, error)
+	MarkOutboxEventProcessed(ctx context.Context, id int64) error
+	MarkOutboxEventFailed(ctx context.Context, id int64, lastErr string) error
+	CleanupProcessedOutboxEvents(ctx context.Context) error
 }
 
 // partRepository реализует PartRepository
@@ -237,7 +243,14 @@ func (r *partRepository) Create(ctx context.Context, part *domain.Part) error {
 		toDeleteAt = pgtype.Timestamptz{Time: *part.ToDeleteAt, Valid: true}
 	}
 
-	created, err := r.queries.CreatePart(ctx, sqlc.CreatePartParams{
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin tx for create: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := r.queries.WithTx(tx)
+	created, err := qtx.CreatePart(ctx, sqlc.CreatePartParams{
 		Name:               part.Name,
 		Quantity:           int32(part.Quantity),
 		Description:        part.Description,
@@ -286,7 +299,19 @@ func (r *partRepository) Create(ctx context.Context, part *domain.Part) error {
 		return err
 	}
 	part.ID = created.ID
-	return nil
+
+	payload, _ := json.Marshal(map[string]interface{}{"id": created.ID, "name": part.Name})
+	_, err = qtx.CreateOutboxEvent(ctx, sqlc.CreateOutboxEventParams{
+		AggregateType: "part",
+		AggregateID:   created.ID,
+		EventType:     "part_created",
+		Payload:       payload,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create outbox event: %w", err)
+	}
+
+	return tx.Commit(ctx)
 }
 
 func (r *partRepository) FindByID(ctx context.Context, id int64) (*domain.Part, error) {
@@ -339,8 +364,29 @@ func (r *partRepository) Update(ctx context.Context, id int64, updates map[strin
 		return err
 	}
 
-	_, err = r.pool.Exec(ctx, sql, args...)
-	return err
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin tx for update: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx, sql, args...)
+	if err != nil {
+		return err
+	}
+
+	qtx := r.queries.WithTx(tx)
+	_, err = qtx.CreateOutboxEvent(ctx, sqlc.CreateOutboxEventParams{
+		AggregateType: "part",
+		AggregateID:   id,
+		EventType:     "part_updated",
+		Payload:       []byte("{}"),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create outbox event for update: %w", err)
+	}
+
+	return tx.Commit(ctx)
 }
 
 func (r *partRepository) CreateBatch(ctx context.Context, parts []domain.Part) ([]domain.Part, error) {
@@ -405,6 +451,20 @@ func (r *partRepository) CreateBatch(ctx context.Context, parts []domain.Part) (
 		return nil, fmt.Errorf("failed to close batch in transaction: %w", err)
 	}
 
+	qtx := r.queries.WithTx(tx)
+	for i := range parts {
+		payload, _ := json.Marshal(map[string]interface{}{"id": parts[i].ID, "name": parts[i].Name})
+		_, err = qtx.CreateOutboxEvent(ctx, sqlc.CreateOutboxEventParams{
+			AggregateType: "part",
+			AggregateID:   parts[i].ID,
+			EventType:     "part_created",
+			Payload:       payload,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create outbox event for batch part %d: %w", parts[i].ID, err)
+		}
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("failed to commit batch create transaction: %w", err)
 	}
@@ -413,14 +473,14 @@ func (r *partRepository) CreateBatch(ctx context.Context, parts []domain.Part) (
 }
 
 func (r *partRepository) DecreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error {
-	if operationID != "" {
-		tx, err := r.pool.Begin(ctx)
-		if err != nil {
-			return err
-		}
-		defer tx.Rollback(ctx)
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
 
-		q := r.queries.WithTx(tx)
+	q := r.queries.WithTx(tx)
+	if operationID != "" {
 		rowsAffected, err := q.RecordStockOperation(ctx, sqlc.RecordStockOperationParams{
 			OperationID:   operationID,
 			PartID:        id,
@@ -438,31 +498,38 @@ func (r *partRepository) DecreaseQuantity(ctx context.Context, id int64, amount 
 			}).Info("Stock operation already recorded, skipping decrease (idempotent)")
 			return nil
 		}
-
-		if err := q.DecreasePartQuantity(ctx, sqlc.DecreasePartQuantityParams{
-			ID:     id,
-			Amount: int32(amount),
-		}); err != nil {
-			return err
-		}
-		return tx.Commit(ctx)
 	}
 
-	return r.queries.DecreasePartQuantity(ctx, sqlc.DecreasePartQuantityParams{
+	if err := q.DecreasePartQuantity(ctx, sqlc.DecreasePartQuantityParams{
 		ID:     id,
 		Amount: int32(amount),
+	}); err != nil {
+		return err
+	}
+
+	payload, _ := json.Marshal(map[string]interface{}{"id": id, "amount": amount, "operation": "decrease"})
+	_, err = q.CreateOutboxEvent(ctx, sqlc.CreateOutboxEventParams{
+		AggregateType: "part",
+		AggregateID:   id,
+		EventType:     "part_updated",
+		Payload:       payload,
 	})
+	if err != nil {
+		return fmt.Errorf("failed to create outbox event: %w", err)
+	}
+
+	return tx.Commit(ctx)
 }
 
 func (r *partRepository) IncreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error {
-	if operationID != "" {
-		tx, err := r.pool.Begin(ctx)
-		if err != nil {
-			return err
-		}
-		defer tx.Rollback(ctx)
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
 
-		q := r.queries.WithTx(tx)
+	q := r.queries.WithTx(tx)
+	if operationID != "" {
 		rowsAffected, err := q.RecordStockOperation(ctx, sqlc.RecordStockOperationParams{
 			OperationID:   operationID,
 			PartID:        id,
@@ -480,24 +547,52 @@ func (r *partRepository) IncreaseQuantity(ctx context.Context, id int64, amount 
 			}).Info("Stock operation already recorded, skipping increase (idempotent)")
 			return nil
 		}
-
-		if err := q.IncreasePartQuantity(ctx, sqlc.IncreasePartQuantityParams{
-			ID:     id,
-			Amount: int32(amount),
-		}); err != nil {
-			return err
-		}
-		return tx.Commit(ctx)
 	}
 
-	return r.queries.IncreasePartQuantity(ctx, sqlc.IncreasePartQuantityParams{
+	if err := q.IncreasePartQuantity(ctx, sqlc.IncreasePartQuantityParams{
 		ID:     id,
 		Amount: int32(amount),
+	}); err != nil {
+		return err
+	}
+
+	payload, _ := json.Marshal(map[string]interface{}{"id": id, "amount": amount, "operation": "increase"})
+	_, err = q.CreateOutboxEvent(ctx, sqlc.CreateOutboxEventParams{
+		AggregateType: "part",
+		AggregateID:   id,
+		EventType:     "part_updated",
+		Payload:       payload,
 	})
+	if err != nil {
+		return fmt.Errorf("failed to create outbox event: %w", err)
+	}
+
+	return tx.Commit(ctx)
 }
 
 func (r *partRepository) Delete(ctx context.Context, id int64) error {
-	return r.queries.DeletePart(ctx, id)
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin tx for delete: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := r.queries.WithTx(tx)
+	if err := qtx.DeletePart(ctx, id); err != nil {
+		return err
+	}
+
+	_, err = qtx.CreateOutboxEvent(ctx, sqlc.CreateOutboxEventParams{
+		AggregateType: "part",
+		AggregateID:   id,
+		EventType:     "part_deleted",
+		Payload:       []byte("{}"),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create outbox event for delete: %w", err)
+	}
+
+	return tx.Commit(ctx)
 }
 
 // ─── FindWithFilters (Squirrel dynamic query) ───────────────────────────────
@@ -1341,11 +1436,34 @@ func (r *partRepository) UpdateTotalEarnings(ctx context.Context, amount float64
 // ─── Additional methods (moved from direct db access) ───────────────────────
 
 func (r *partRepository) UpdatePartPhotos(ctx context.Context, id int64, photos domain.StringArray) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin tx for update photos: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := r.queries.WithTx(tx)
 	photosJSON, _ := json.Marshal(photos)
-	return r.queries.UpdatePartPhotos(ctx, sqlc.UpdatePartPhotosParams{
+	err = qtx.UpdatePartPhotos(ctx, sqlc.UpdatePartPhotosParams{
 		ID:     id,
 		Photos: photosJSON,
 	})
+	if err != nil {
+		return err
+	}
+
+	payload, _ := json.Marshal(map[string]interface{}{"id": id, "photos": photos})
+	_, err = qtx.CreateOutboxEvent(ctx, sqlc.CreateOutboxEventParams{
+		AggregateType: "part",
+		AggregateID:   id,
+		EventType:     "part_photos_updated",
+		Payload:       payload,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create outbox event for photos: %w", err)
+	}
+
+	return tx.Commit(ctx)
 }
 
 func (r *partRepository) GetPartsForXML(ctx context.Context) ([]domain.Part, error) {
@@ -1422,3 +1540,25 @@ func (r *partRepository) RenameSeller(ctx context.Context, sellerID int64, name 
 	}
 	return updated, nil
 }
+
+// ─── Outbox ─────────────────────────────────────────────────────────────────
+
+func (r *partRepository) FetchPendingOutboxEvents(ctx context.Context, limit int32) ([]sqlc.OutboxEvent, error) {
+	return r.queries.FetchPendingOutboxEvents(ctx, limit)
+}
+
+func (r *partRepository) MarkOutboxEventProcessed(ctx context.Context, id int64) error {
+	return r.queries.MarkOutboxEventProcessed(ctx, id)
+}
+
+func (r *partRepository) MarkOutboxEventFailed(ctx context.Context, id int64, lastErr string) error {
+	return r.queries.MarkOutboxEventFailed(ctx, sqlc.MarkOutboxEventFailedParams{
+		ID:        id,
+		LastError: pgtype.Text{String: lastErr, Valid: lastErr != ""},
+	})
+}
+
+func (r *partRepository) CleanupProcessedOutboxEvents(ctx context.Context) error {
+	return r.queries.CleanupProcessedOutboxEvents(ctx)
+}
+

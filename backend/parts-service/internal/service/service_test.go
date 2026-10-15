@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	partsv1 "avtoplaneta/gen/parts/v1"
+	"parts-service/db/sqlc"
 	"parts-service/internal/catalog"
 	"parts-service/internal/config"
 	"parts-service/internal/domain"
@@ -166,6 +167,29 @@ func (m *MockPartRepository) GetLastCreatedPart(ctx context.Context) (*domain.Pa
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*domain.Part), args.Error(1)
+}
+
+func (m *MockPartRepository) FetchPendingOutboxEvents(ctx context.Context, limit int32) ([]sqlc.OutboxEvent, error) {
+	args := m.Called(ctx, limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]sqlc.OutboxEvent), args.Error(1)
+}
+
+func (m *MockPartRepository) MarkOutboxEventProcessed(ctx context.Context, id int64) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockPartRepository) MarkOutboxEventFailed(ctx context.Context, id int64, lastErr string) error {
+	args := m.Called(ctx, id, lastErr)
+	return args.Error(0)
+}
+
+func (m *MockPartRepository) CleanupProcessedOutboxEvents(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
 }
 
 // MockElasticsearchClient - мок для Elasticsearch клиента

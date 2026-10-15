@@ -20,6 +20,7 @@ import (
 	"parts-service/internal/events"
 	"parts-service/internal/grpc"
 	"parts-service/internal/handler"
+	"parts-service/internal/outbox"
 	"parts-service/internal/repository"
 	"parts-service/internal/search"
 	"parts-service/internal/service"
@@ -111,6 +112,14 @@ func main() {
 	go func() {
 		if err := eventConsumer.Start(ctx); err != nil {
 			logrus.WithError(err).Error("Redis event consumer error")
+		}
+	}()
+
+	// Запуск Transactional Outbox диспетчера для надежной синхронизации ES и кэша
+	outboxDispatcher := outbox.NewDispatcher(repo, esClient, redisClient)
+	go func() {
+		if err := outboxDispatcher.Start(ctx); err != nil {
+			logrus.WithError(err).Error("Outbox dispatcher error")
 		}
 	}()
 
