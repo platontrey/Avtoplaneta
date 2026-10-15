@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"strings"
@@ -678,38 +679,10 @@ func (s *ordersService) CompleteOrder(ctx context.Context, orderID int64) error 
 	var subtotal float64
 	for _, item := range order.Items {
 		subtotal += item.Price * float64(item.Quantity)
-		if item.PartID <= 0 {
-			continue
-		}
-
-		part, errPart := s.partRepo.FindByID(ctx, item.PartID)
-		if errPart != nil {
-			logrus.WithError(errPart).WithField("part_id", item.PartID).Warn("Part not found during order completion (may already be deleted)")
-			continue
-		}
-
-		if part.Quantity > item.Quantity {
-			opID := fmt.Sprintf("complete-order-%d-part-%d", orderID, item.PartID)
-			if err := s.partRepo.DecreaseQuantity(ctx, item.PartID, item.Quantity, opID); err != nil {
-				logrus.WithError(err).WithField("part_id", item.PartID).Error("Failed to decrease part quantity on order completion")
-				return fmt.Errorf("failed to decrease part %d quantity: %w", item.PartID, err)
-			}
-			logrus.WithFields(logrus.Fields{
-				"part_id":       item.PartID,
-				"sold_quantity": item.Quantity,
-				"remaining":     part.Quantity - item.Quantity,
-			}).Info("Part quantity decreased after order completion")
-		} else {
-			if err := s.partRepo.DeletePart(ctx, item.PartID); err != nil {
-				logrus.WithError(err).WithField("part_id", item.PartID).Error("Failed to delete depleted part after order completion")
-				return fmt.Errorf("failed to delete part %d: %w", item.PartID, err)
-			}
-			logrus.WithField("part_id", item.PartID).Info("Depleted part deleted after order completion")
-		}
 	}
-
 	totalAmount := math.Max(subtotal-order.Discount, 0)
 
+	// 1. Атомарно завершаем заказ и создаем Outbox-событие в единой транзакции
 	err = repository.RunInTransaction(ctx, s.orderRepo.GetPool(), func(txCtx context.Context) error {
 		if err := s.orderRepo.CompleteRecord(txCtx, orderID); err != nil {
 			return err
@@ -725,15 +698,44 @@ func (s *ordersService) CompleteOrder(ctx context.Context, orderID int64) error 
 			logrus.WithError(err).WithField("order_id", orderID).Warn("Failed to create sales history entry")
 		}
 
-		return nil
+		payload, _ := json.Marshal(map[string]interface{}{
+			"order_id": orderID,
+			"amount":   totalAmount,
+		})
+		return s.orderRepo.CreateOutboxEvent(txCtx, "order", orderID, "order_completed", payload)
 	})
 	if err != nil {
 		return err
 	}
 
+	// 2. Быстрый путь (Fast-path): списываем остатки и отправляем событие сразу,
+	// а Outbox-диспетчер гарантирует повторы и доставку в случае любых сетевых сбоев
+	for _, item := range order.Items {
+		if item.PartID <= 0 {
+			continue
+		}
+
+		part, errPart := s.partRepo.FindByID(ctx, item.PartID)
+		if errPart != nil {
+			logrus.WithError(errPart).WithField("part_id", item.PartID).Warn("Part not found during order completion (may already be deleted)")
+			continue
+		}
+
+		if part.Quantity > item.Quantity {
+			opID := fmt.Sprintf("complete-order-%d-part-%d", orderID, item.PartID)
+			if err := s.partRepo.DecreaseQuantity(ctx, item.PartID, item.Quantity, opID); err != nil {
+				logrus.WithError(err).WithField("part_id", item.PartID).Warn("Fast-path decrease failed, Outbox Dispatcher will retry")
+			}
+		} else {
+			if err := s.partRepo.DeletePart(ctx, item.PartID); err != nil {
+				logrus.WithError(err).WithField("part_id", item.PartID).Warn("Fast-path delete failed, Outbox Dispatcher will retry")
+			}
+		}
+	}
+
 	if s.publisher != nil {
 		if err := s.publisher.PublishOrderCompleted(ctx, orderID, totalAmount); err != nil {
-			logrus.WithError(err).WithField("order_id", orderID).Warn("Failed to publish order completed event")
+			logrus.WithError(err).WithField("order_id", orderID).Warn("Fast-path publish failed, Outbox Dispatcher will retry")
 		}
 	}
 

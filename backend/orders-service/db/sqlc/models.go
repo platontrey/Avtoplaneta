@@ -57,6 +57,19 @@ type OrderItem struct {
 	PartNameSnapshot string  `json:"part_name_snapshot"`
 }
 
+type OutboxEvent struct {
+	ID            int64              `json:"id"`
+	AggregateType string             `json:"aggregate_type"`
+	AggregateID   int64              `json:"aggregate_id"`
+	EventType     string             `json:"event_type"`
+	Payload       []byte             `json:"payload"`
+	Status        string             `json:"status"`
+	RetryCount    int32              `json:"retry_count"`
+	LastError     pgtype.Text        `json:"last_error"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	ProcessedAt   pgtype.Timestamptz `json:"processed_at"`
+}
+
 type SalesHistory struct {
 	ID        int64              `json:"id"`
 	Month     string             `json:"month"`

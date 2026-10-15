@@ -46,6 +46,13 @@ type OrderRepository interface {
 	UpdateCustomer(ctx context.Context, customer *domain.Customer) error
 	DeleteCustomer(ctx context.Context, id int64) error
 	GetOrdersByCustomerID(ctx context.Context, customerID int64) ([]domain.Order, error)
+
+	// Outbox methods
+	CreateOutboxEvent(ctx context.Context, aggregateType string, aggregateID int64, eventType string, payload []byte) error
+	FetchPendingOutboxEvents(ctx context.Context, limit int32) ([]sqlc.OutboxEvent, error)
+	MarkOutboxEventProcessed(ctx context.Context, id int64) error
+	MarkOutboxEventFailed(ctx context.Context, id int64, lastErr string) error
+	CleanupProcessedOutboxEvents(ctx context.Context) error
 }
 
 // orderRepository реализует OrderRepository с использованием sqlc и pgx
@@ -617,4 +624,33 @@ func (r *orderRepository) GetOrdersByCustomerID(ctx context.Context, customerID 
 
 func (r *orderRepository) GetPool() *pgxpool.Pool {
 	return r.pool
+}
+
+func (r *orderRepository) CreateOutboxEvent(ctx context.Context, aggregateType string, aggregateID int64, eventType string, payload []byte) error {
+	_, err := r.getQueries(ctx).CreateOrdersOutboxEvent(ctx, sqlc.CreateOrdersOutboxEventParams{
+		AggregateType: aggregateType,
+		AggregateID:   aggregateID,
+		EventType:     eventType,
+		Payload:       payload,
+	})
+	return err
+}
+
+func (r *orderRepository) FetchPendingOutboxEvents(ctx context.Context, limit int32) ([]sqlc.OutboxEvent, error) {
+	return r.getQueries(ctx).FetchPendingOrdersOutboxEvents(ctx, limit)
+}
+
+func (r *orderRepository) MarkOutboxEventProcessed(ctx context.Context, id int64) error {
+	return r.getQueries(ctx).MarkOrdersOutboxEventProcessed(ctx, id)
+}
+
+func (r *orderRepository) MarkOutboxEventFailed(ctx context.Context, id int64, lastErr string) error {
+	return r.getQueries(ctx).MarkOrdersOutboxEventFailed(ctx, sqlc.MarkOrdersOutboxEventFailedParams{
+		ID:        id,
+		LastError: pgtype.Text{String: lastErr, Valid: lastErr != ""},
+	})
+}
+
+func (r *orderRepository) CleanupProcessedOutboxEvents(ctx context.Context) error {
+	return r.getQueries(ctx).CleanupProcessedOrdersOutboxEvents(ctx)
 }

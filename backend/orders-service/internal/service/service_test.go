@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"orders-service/db/sqlc"
 	"orders-service/internal/domain"
 )
 
@@ -180,6 +181,34 @@ func (m *MockOrderRepository) DeleteCustomer(ctx context.Context, id int64) erro
 func (m *MockOrderRepository) GetOrdersByCustomerID(ctx context.Context, customerID int64) ([]domain.Order, error) {
 	args := m.Called(ctx, customerID)
 	return args.Get(0).([]domain.Order), args.Error(1)
+}
+
+func (m *MockOrderRepository) CreateOutboxEvent(ctx context.Context, aggregateType string, aggregateID int64, eventType string, payload []byte) error {
+	args := m.Called(ctx, aggregateType, aggregateID, eventType, payload)
+	return args.Error(0)
+}
+
+func (m *MockOrderRepository) FetchPendingOutboxEvents(ctx context.Context, limit int32) ([]sqlc.OutboxEvent, error) {
+	args := m.Called(ctx, limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]sqlc.OutboxEvent), args.Error(1)
+}
+
+func (m *MockOrderRepository) MarkOutboxEventProcessed(ctx context.Context, id int64) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockOrderRepository) MarkOutboxEventFailed(ctx context.Context, id int64, lastErr string) error {
+	args := m.Called(ctx, id, lastErr)
+	return args.Error(0)
+}
+
+func (m *MockOrderRepository) CleanupProcessedOutboxEvents(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
 }
 
 // MockPartRepositoryForOrders мок для PartRepositoryForOrders

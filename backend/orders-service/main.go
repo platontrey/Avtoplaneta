@@ -17,6 +17,7 @@ import (
 	"orders-service/internal/events"
 	"orders-service/internal/grpc"
 	"orders-service/internal/handler"
+	"orders-service/internal/outbox"
 	"orders-service/internal/repository"
 	"orders-service/internal/service"
 )
@@ -68,6 +69,14 @@ func main() {
 	go func() {
 		if err := eventConsumer.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
 			logrus.WithError(err).Error("Redis event consumer failed in orders-service")
+		}
+	}()
+
+	// Запуск Transactional Outbox диспетчера с LISTEN/NOTIFY
+	outboxDispatcher := outbox.NewDispatcher(dbPool, orderRepo, partRepo, redisClient, cacheService)
+	go func() {
+		if err := outboxDispatcher.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			logrus.WithError(err).Error("Orders outbox dispatcher failed")
 		}
 	}()
 
