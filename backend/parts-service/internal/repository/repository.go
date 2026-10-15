@@ -50,6 +50,7 @@ type PartRepository interface {
 	GetSupplierCodes(ctx context.Context) ([]string, error)
 	GetNextSupplierCode(ctx context.Context) (string, error)
 	PeekNextSupplierCode(ctx context.Context) (string, error)
+	GetNextPartNumber(ctx context.Context) (string, error)
 
 	GetTotalEarnings(ctx context.Context) (float64, error)
 	UpdateTotalEarnings(ctx context.Context, amount float64) error
@@ -1284,6 +1285,25 @@ func (r *partRepository) PeekNextSupplierCode(ctx context.Context) (string, erro
 		return strconv.FormatInt(lastVal, 10), nil
 	}
 	return strconv.FormatInt(lastVal+1, 10), nil
+}
+
+func (r *partRepository) GetNextPartNumber(ctx context.Context) (string, error) {
+	var seqVal int64
+	err := r.pool.QueryRow(ctx, "SELECT nextval('part_number_seq')").Scan(&seqVal)
+	if err != nil {
+		logrus.WithError(err).Warn("Repository: nextval(part_number_seq) failed, falling back to max number query")
+		var maxVal int64
+		fallbackErr := r.pool.QueryRow(ctx, `
+			SELECT COALESCE(MAX(CAST(number AS BIGINT)), 0) + 1
+			FROM parts
+			WHERE number ~ '^[0-9]+$' AND LENGTH(number) < 15
+		`).Scan(&maxVal)
+		if fallbackErr == nil && maxVal > 0 {
+			return strconv.FormatInt(maxVal, 10), nil
+		}
+		return "1", nil
+	}
+	return strconv.FormatInt(seqVal, 10), nil
 }
 
 // ─── Earnings ───────────────────────────────────────────────────────────────

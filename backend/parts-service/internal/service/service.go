@@ -467,6 +467,14 @@ func (s *inventoryService) DuplicatePart(ctx context.Context, id int64) (*domain
 		clone.Quantity = 1
 	}
 
+	// Генерируем новый свободный порядковый номер детали
+	newNumber, err := s.repo.GetNextPartNumber(ctx)
+	if err != nil || newNumber == "" {
+		logrus.WithError(err).Warn("DuplicatePart: failed to get next part number, falling back to empty")
+	} else {
+		clone.Number = newNumber
+	}
+
 	if err := s.repo.Create(ctx, &clone); err != nil {
 		return nil, fmt.Errorf("не удалось создать дубликат запчасти: %w", err)
 	}

@@ -155,6 +155,11 @@ func (m *MockPartRepository) GetLastCreatedPart(ctx context.Context) (*domain.Pa
 	return args.Get(0).(*domain.Part), args.Error(1)
 }
 
+func (m *MockPartRepository) GetNextPartNumber(ctx context.Context) (string, error) {
+	args := m.Called(ctx)
+	return args.String(0), args.Error(1)
+}
+
 // RepositoryTestSuite - набор тестов для репозитория
 type RepositoryTestSuite struct {
 	suite.Suite
