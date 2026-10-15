@@ -19,6 +19,10 @@ dependencies:
   flutter_riverpod: ^2.6.1
   riverpod_annotation: ^2.6.1
 
+  # Кодогенерация моделей (Freezed & JSON)
+  freezed_annotation: ^3.0.0
+  json_annotation: ^4.9.0
+
   # Навигация
   go_router: ^15.1.2
 
@@ -64,6 +68,8 @@ dev_dependencies:
   riverpod_generator: ^2.6.5
   custom_lint: ^0.7.5
   riverpod_lint: ^2.6.5
+  freezed: ^3.0.0
+  json_serializable: ^6.9.4
 
 # path_provider_android 2.3.x compiles a JNI bridge through CMake on every
 # Android CI build. Keep the stable channel implementation until that native

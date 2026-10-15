@@ -1,0 +1,20 @@
+targets:
+  $default:
+    builders:
+      freezed:
+        generate_for:
+          - lib/core/models/customer.dart
+          - lib/core/models/part.dart
+          - lib/core/models/order.dart
+          - lib/core/models/user.dart
+          - lib/core/models/statistics.dart
+          - lib/features/inventory/data/inventory_filter.dart
+      json_serializable:
+        generate_for:
+          - lib/core/models/customer.dart
+          - lib/core/models/part.dart
+          - lib/core/models/order.dart
+          - lib/core/models/user.dart
+          - lib/core/models/statistics.dart
+      riverpod_generator:
+        enabled: false

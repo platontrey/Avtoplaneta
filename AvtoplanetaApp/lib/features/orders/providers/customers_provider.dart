@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_client.dart';
-import '../../../core/api/api_endpoints.dart';
 import '../../../core/models/customer.dart';
+import '../repositories/customers_repository.dart';
+
+export '../repositories/customers_repository.dart';
 
 class CustomerFilter {
   final String search;
@@ -39,46 +41,28 @@ final customerFilterProvider = StateProvider<CustomerFilter>((ref) {
   return const CustomerFilter();
 });
 
+/// Провайдер списка клиентов с учетом фильтров поиска и категории
 final customersProvider = FutureProvider<List<Customer>>((ref) async {
   final filter = ref.watch(customerFilterProvider);
-  final queryParams = <String, dynamic>{};
-  if (filter.search.trim().isNotEmpty) {
-    queryParams['search'] = filter.search.trim();
-  }
-  if (filter.category.trim().isNotEmpty) {
-    queryParams['category'] = filter.category.trim();
-  }
+  final repository = ref.watch(customersRepositoryProvider);
 
-  final response = await apiClient.dio.get(
-    ApiEndpoints.customers,
-    queryParameters: queryParams,
+  return repository.fetchCustomers(
+    search: filter.search,
+    category: filter.category,
   );
-
-  final data = response.data;
-  if (data is Map) {
-    final parsed = CustomersResponse.fromJson(Map<String, dynamic>.from(data));
-    return parsed.customers;
-  }
-  if (data is List) {
-    return data
-        .whereType<Map>()
-        .map((c) => Customer.fromJson(Map<String, dynamic>.from(c)))
-        .toList();
-  }
-  return const [];
 });
 
+/// Провайдер карточки клиента
 final customerDetailsProvider =
     FutureProvider.family<CustomerDetails, int>((ref, id) async {
-  final response = await apiClient.dio.get(ApiEndpoints.customerById(id));
-  final data = response.data;
-  if (data is Map) {
-    return CustomerDetails.fromJson(Map<String, dynamic>.from(data));
-  }
-  throw Exception('Неверный формат данных клиента');
+  final repository = ref.watch(customersRepositoryProvider);
+  return repository.fetchCustomerById(id);
 });
 
+/// Фасад для обратной совместимости с существующим UI кодом
 class CustomerService {
+  static final _repo = CustomersRepository(apiClient);
+
   static Future<Customer> createCustomer({
     required String name,
     required String phone,
@@ -88,21 +72,17 @@ class CustomerService {
     String notes = '',
     String category = 'regular',
     double discountPercent = 0.0,
-  }) async {
-    final response = await apiClient.dio.post(
-      ApiEndpoints.customers,
-      data: {
-        'name': name.trim(),
-        'phone': phone.trim(),
-        'city': city.trim(),
-        'preferred_tk': preferredTk.trim(),
-        'tk_details': tkDetails.trim(),
-        'notes': notes.trim(),
-        'category': category,
-        'discount_percent': discountPercent,
-      },
+  }) {
+    return _repo.createCustomer(
+      name: name,
+      phone: phone,
+      city: city,
+      preferredTk: preferredTk,
+      tkDetails: tkDetails,
+      notes: notes,
+      category: category,
+      discountPercent: discountPercent,
     );
-    return Customer.fromJson(Map<String, dynamic>.from(response.data as Map));
   }
 
   static Future<Customer> updateCustomer({
@@ -115,24 +95,21 @@ class CustomerService {
     String notes = '',
     String category = 'regular',
     double discountPercent = 0.0,
-  }) async {
-    final response = await apiClient.dio.put(
-      ApiEndpoints.customerById(id),
-      data: {
-        'name': name.trim(),
-        'phone': phone.trim(),
-        'city': city.trim(),
-        'preferred_tk': preferredTk.trim(),
-        'tk_details': tkDetails.trim(),
-        'notes': notes.trim(),
-        'category': category,
-        'discount_percent': discountPercent,
-      },
+  }) {
+    return _repo.updateCustomer(
+      id: id,
+      name: name,
+      phone: phone,
+      city: city,
+      preferredTk: preferredTk,
+      tkDetails: tkDetails,
+      notes: notes,
+      category: category,
+      discountPercent: discountPercent,
     );
-    return Customer.fromJson(Map<String, dynamic>.from(response.data as Map));
   }
 
-  static Future<void> deleteCustomer(int id) async {
-    await apiClient.dio.delete(ApiEndpoints.customerById(id));
+  static Future<void> deleteCustomer(int id) {
+    return _repo.deleteCustomer(id);
   }
 }

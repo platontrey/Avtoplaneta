@@ -4,8 +4,8 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
-import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
+import '../../../core/errors/failure.dart';
 import '../../../core/models/customer.dart';
 import '../../../core/models/order.dart';
 import '../../../core/utils/formatters.dart';
@@ -17,6 +17,7 @@ import '../providers/customers_provider.dart';
 import '../providers/orders_provider.dart';
 import '../widgets/customer_detail_sheet.dart';
 import '../widgets/customer_form_sheet.dart';
+import '../widgets/customer_ui_helpers.dart';
 
 class OrdersScreen extends ConsumerStatefulWidget {
   const OrdersScreen({super.key});
@@ -792,13 +793,14 @@ class _PartLinkRow extends StatelessWidget {
   }
 }
 
-class _OrderActions extends StatelessWidget {
+class _OrderActions extends ConsumerWidget {
   final int orderId;
   final VoidCallback onChanged;
   const _OrderActions({required this.orderId, required this.onChanged});
 
   Future<void> _confirmAction(
-    BuildContext context, {
+    BuildContext context,
+    WidgetRef ref, {
     required String title,
     required String description,
     required String actionLabel,
@@ -827,11 +829,8 @@ class _OrderActions extends StatelessWidget {
     }
 
     try {
-      if (method == 'DELETE') {
-        await apiClient.dio.delete(path);
-      } else {
-        await apiClient.dio.put(path);
-      }
+      final repo = ref.read(ordersRepositoryProvider);
+      await repo.executeOrderAction(path, method: method);
       if (!context.mounted) {
         return;
       }
@@ -843,20 +842,22 @@ class _OrderActions extends StatelessWidget {
       if (!context.mounted) {
         return;
       }
+      final failure = AppFailure.from(error);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Не удалось выполнить действие: $error')),
+        SnackBar(content: Text('Не удалось выполнить действие: ${failure.message}')),
       );
     }
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Row(
       children: [
         Expanded(
           child: FilledButton.tonal(
             onPressed: () => _confirmAction(
               context,
+              ref,
               title: 'Подтверждение завершения продажи',
               description:
                   'Завершить продажу по заказу #$orderId? Запчасти будут списаны со склада и учтены в статистике продаж.',
@@ -872,6 +873,7 @@ class _OrderActions extends StatelessWidget {
           child: OutlinedButton(
             onPressed: () => _confirmAction(
               context,
+              ref,
               title: 'Отмена заказа',
               description:
                   'Отменить заказ #$orderId? Запчасти останутся в наличии на складе.',
@@ -888,7 +890,7 @@ class _OrderActions extends StatelessWidget {
   }
 }
 
-class _EditOrderSheet extends StatefulWidget {
+class _EditOrderSheet extends ConsumerStatefulWidget {
   final Order order;
   final VoidCallback onChanged;
 
@@ -908,10 +910,10 @@ class _EditOrderSheet extends StatefulWidget {
   }
 
   @override
-  State<_EditOrderSheet> createState() => _EditOrderSheetState();
+  ConsumerState<_EditOrderSheet> createState() => _EditOrderSheetState();
 }
 
-class _EditOrderSheetState extends State<_EditOrderSheet> {
+class _EditOrderSheetState extends ConsumerState<_EditOrderSheet> {
   late String _paymentStatus;
   late String _warehouseStatus;
   late String _deliveryMethod;
@@ -973,9 +975,10 @@ class _EditOrderSheetState extends State<_EditOrderSheet> {
     if (_saving) return;
     setState(() => _saving = true);
     try {
-      await apiClient.dio.patch(
-        ApiEndpoints.orderById(widget.order.id),
-        data: {
+      final repo = ref.read(ordersRepositoryProvider);
+      await repo.updateOrder(
+        widget.order.id,
+        {
           'payment_status': _paymentStatus,
           'warehouse_status': _warehouseStatus,
           'delivery_method': _deliveryMethod,
@@ -993,9 +996,10 @@ class _EditOrderSheetState extends State<_EditOrderSheet> {
         final newQty = int.tryParse(_qtyControllers[item.id]?.text ?? '') ?? item.quantity;
         final newPrice = double.tryParse(_priceControllers[item.id]?.text ?? '') ?? item.price;
         if (newQty != item.quantity || newPrice != item.price) {
-          await apiClient.dio.patch(
-            ApiEndpoints.orderItem(widget.order.id, item.id),
-            data: {'quantity': newQty, 'price': newPrice},
+          await repo.updateOrderItem(
+            widget.order.id,
+            item.id,
+            {'quantity': newQty, 'price': newPrice},
           );
         }
       }
@@ -1008,8 +1012,9 @@ class _EditOrderSheetState extends State<_EditOrderSheet> {
       );
     } catch (error) {
       if (!mounted) return;
+      final failure = AppFailure.from(error);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка обновления заказа: $error')),
+        SnackBar(content: Text('Ошибка обновления заказа: ${failure.message}')),
       );
     } finally {
       if (mounted) setState(() => _saving = false);

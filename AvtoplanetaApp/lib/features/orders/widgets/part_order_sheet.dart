@@ -1,16 +1,15 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/api/api_client.dart';
-import '../../../core/api/api_endpoints.dart';
+import '../../../core/errors/failure.dart';
 import '../../../core/models/customer.dart';
 import '../../../core/models/part.dart';
 import '../../inventory/providers/inventory_provider.dart';
 import '../providers/customers_provider.dart';
 import '../providers/orders_provider.dart';
+import 'customer_ui_helpers.dart';
 
 Future<bool> showPartOrderSheet(
   BuildContext context,
@@ -181,16 +180,14 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
         .toList();
     setState(() => _submitting = true);
     try {
+      final repo = ref.read(ordersRepositoryProvider);
       if (_mode == 'existing') {
         final orderId = _selectedOrderId;
         if (orderId == null) {
-          throw Exception('Не выбран заказ для добавления деталей');
+          throw const ValidationFailure('Не выбран заказ для добавления деталей');
         }
         for (final item in items) {
-          await apiClient.dio.post(
-            ApiEndpoints.orderItems(orderId),
-            data: item,
-          );
+          await repo.addOrderItem(orderId, item);
         }
       } else {
         final isQuick = _mode == 'quick';
@@ -230,29 +227,26 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
         }
 
         final discount = double.tryParse(_discountController.text) ?? 0.0;
-        await apiClient.dio.post(
-          ApiEndpoints.orders,
-          data: {
-            'customer_id': matchedCustomer?.id ?? 0,
-            'discount': discount,
-            'order_number': _orderNumberController.text.trim(),
-            'part': widget.parts.map((part) => part.name).join(', '),
-            'part_id': widget.parts.first.id,
-            'buyer_number': buyer.isNotEmpty
-                ? buyer
-                : (isQuick ? 'Продажа на месте' : 'Без контакта'),
-            'source': isQuick ? 'pickup' : _source,
-            'payment_status': isQuick ? 'paid' : _paymentStatus,
-            'warehouse_status': isQuick ? 'ready' : 'inspecting',
-            'delivery_method': isQuick ? 'pickup' : _deliveryMethod,
-            'transport_company': isQuick
-                ? ''
-                : _transportCompanyController.text.trim(),
-            'notes': _notesController.text.trim(),
-            'quick_sale': isQuick,
-            'items': items,
-          },
-        );
+        await repo.createOrder({
+          'customer_id': matchedCustomer?.id ?? 0,
+          'discount': discount,
+          'order_number': _orderNumberController.text.trim(),
+          'part': widget.parts.map((part) => part.name).join(', '),
+          'part_id': widget.parts.first.id,
+          'buyer_number': buyer.isNotEmpty
+              ? buyer
+              : (isQuick ? 'Продажа на месте' : 'Без контакта'),
+          'source': isQuick ? 'pickup' : _source,
+          'payment_status': isQuick ? 'paid' : _paymentStatus,
+          'warehouse_status': isQuick ? 'ready' : 'inspecting',
+          'delivery_method': isQuick ? 'pickup' : _deliveryMethod,
+          'transport_company': isQuick
+              ? ''
+              : _transportCompanyController.text.trim(),
+          'notes': _notesController.text.trim(),
+          'quick_sale': isQuick,
+          'items': items,
+        });
       }
       if (mounted) {
         HapticFeedback.mediumImpact();
@@ -260,21 +254,10 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
       }
     } catch (error) {
       if (mounted) {
-        String message = error.toString();
-        if (error is DioException && error.response?.data != null) {
-          final data = error.response!.data;
-          if (data is Map) {
-            final details = data['details'] ?? data['error'] ?? data['message'];
-            if (details != null && details.toString().isNotEmpty) {
-              message = details.toString();
-            }
-          } else if (data is String && data.isNotEmpty) {
-            message = data;
-          }
-        }
+        final failure = AppFailure.from(error);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Не удалось оформить заказ: $message'),
+            content: Text('Не удалось оформить заказ: ${failure.message}'),
             backgroundColor: Colors.red.shade800,
           ),
         );

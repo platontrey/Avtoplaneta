@@ -7,6 +7,7 @@ import '../../../core/models/customer.dart';
 import '../../../core/utils/formatters.dart';
 import '../providers/customers_provider.dart';
 import 'customer_form_sheet.dart';
+import 'customer_ui_helpers.dart';
 
 class CustomerDetailSheet extends ConsumerWidget {
   final int customerId;

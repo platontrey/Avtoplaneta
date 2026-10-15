@@ -1,225 +1,136 @@
-class Part {
-  final int id;
-  final String name;
-  final String? description;
-  final String category;
-  final double price;
-  final int quantity;
-  final bool? status;
-  final String? brand;
-  final String? model;
-  final String? bodyBrand;
-  final String? engineBrand;
-  final String? carReleaseDate;
-  final String? frontRear;
-  final String? leftRight;
-  final String? topBottom;
-  final String? number;
-  final String? manufacturer;
-  final String? manufacturerCode;
-  final String? color;
-  final String? condition;
-  final String? oemCode;
-  final String? supplierCode;
-  final String? transmissionModel;
-  final String? defect;
-  final String? transmission;
-  final String? drive;
-  final String? wearPercentage;
-  final String? season;
-  final String? diameter;
-  final String? width;
-  final String? profile;
-  final String? tireQuantity;
-  final String? drilling;
-  final String? offset;
-  final String? centerHoleDiameter;
-  final String? tireModel;
-  final String? vin;
-  final String? carReleasePeriod;
-  final String location;
-  final String address;
-  final String? salesman;
-  final List<String> photos;
-  final DateTime? createdAt;
-  final bool markedForDeletion;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  const Part({
-    required this.id,
-    required this.name,
-    this.description,
-    required this.category,
-    required this.price,
-    required this.quantity,
-    this.status,
-    this.brand,
-    this.model,
-    this.bodyBrand,
-    this.engineBrand,
-    this.carReleaseDate,
-    this.frontRear,
-    this.leftRight,
-    this.topBottom,
-    this.number,
-    this.manufacturer,
-    this.manufacturerCode,
-    this.color,
-    this.condition,
-    this.oemCode,
-    this.supplierCode,
-    this.transmissionModel,
-    this.defect,
-    this.transmission,
-    this.drive,
-    this.wearPercentage,
-    this.season,
-    this.diameter,
-    this.width,
-    this.profile,
-    this.tireQuantity,
-    this.drilling,
-    this.offset,
-    this.centerHoleDiameter,
-    this.tireModel,
-    this.vin,
-    this.carReleasePeriod,
-    this.location = '',
-    this.address = '',
-    this.salesman,
-    this.photos = const [],
-    this.createdAt,
-    this.markedForDeletion = false,
-  });
+part 'part.freezed.dart';
+part 'part.g.dart';
 
-  factory Part.fromJson(Map<String, dynamic> json) {
-    List<String> photosList = [];
-    final photosRaw = json['photos'];
-    if (photosRaw is List) {
-      photosList = photosRaw
-          .map((e) => e.toString())
-          .where((value) => value.isNotEmpty)
-          .toList();
-    }
-    final legacyPhoto = json['photo']?.toString();
-    if (photosList.isEmpty && legacyPhoto != null && legacyPhoto.isNotEmpty) {
-      photosList = [legacyPhoto];
-    }
-
-    return Part(
-      id: (json['id'] as num?)?.toInt() ?? 0,
-      name: json['name'] as String? ?? '',
-      description: json['description'] as String?,
-      category: json['category'] as String? ?? '',
-      price: (json['price'] as num?)?.toDouble() ?? 0.0,
-      quantity: (json['quantity'] as num?)?.toInt() ?? 0,
-      status: json['status'] as bool?,
-      brand: json['brand'] as String?,
-      model: json['model'] as String?,
-      bodyBrand: (json['body_brand'] ?? json['bodyBrand']) as String?,
-      engineBrand: (json['engine_brand'] ?? json['engineBrand']) as String?,
-      carReleaseDate: (json['car_release_date'] ?? json['carReleaseDate']) as String?,
-      frontRear: (json['front_rear'] ?? json['frontRear']) as String?,
-      leftRight: (json['left_right'] ?? json['leftRight']) as String?,
-      topBottom: (json['top_bottom'] ?? json['topBottom']) as String?,
-      number: json['number'] as String?,
-      manufacturer: json['manufacturer'] as String?,
-      manufacturerCode: (json['manufacturer_code'] ?? json['manufacturerCode']) as String?,
-      color: json['color'] as String?,
-      condition: json['condition'] as String?,
-      oemCode: (json['oem_code'] ?? json['oemCode']) as String?,
-      supplierCode: (json['supplier_code'] ?? json['supplierCode']) as String?,
-      transmissionModel:
-          (json['transmission_model'] ?? json['transmissionModel']) as String?,
-      defect: json['defect'] as String?,
-      transmission: json['transmission'] as String?,
-      drive: json['drive'] as String?,
-      wearPercentage: (json['wear_percentage'] ?? json['wearPercentage']) as String?,
-      season: json['season'] as String?,
-      diameter: json['diameter'] as String?,
-      width: json['width'] as String?,
-      profile: json['profile'] as String?,
-      tireQuantity: (json['tire_quantity'] ?? json['tireQuantity']) as String?,
-      drilling: json['drilling'] as String?,
-      offset: json['offset'] as String?,
-      centerHoleDiameter: (json['center_hole_diameter'] ?? json['centerHoleDiameter']) as String?,
-      tireModel: (json['tire_model'] ?? json['tireModel']) as String?,
-      vin: json['vin'] as String?,
-      carReleasePeriod: (json['car_release_period'] ?? json['carReleasePeriod']) as String?,
-      location: json['location'] as String? ?? '',
-      address: json['address'] as String? ?? '',
-      salesman: json['salesman'] as String?,
-      photos: photosList,
-      createdAt: (json['created_at'] ?? json['createdAt']) != null
-          ? DateTime.tryParse(
-              (json['created_at'] ?? json['createdAt']).toString(),
-            )
-          : null,
-      markedForDeletion:
-          (json['marked_for_deletion'] ?? json['markedForDeletion']) as bool? ??
-          false,
-    );
-  }
-
-  Map<String, dynamic> toJson() => {
-    'name': name,
-    'description': description,
-    'category': category,
-    'price': price,
-    'quantity': quantity,
-    'status': status,
-    'brand': brand,
-    'model': model,
-    'body_brand': bodyBrand,
-    'engine_brand': engineBrand,
-    'car_release_date': carReleaseDate,
-    'front_rear': frontRear,
-    'left_right': leftRight,
-    'top_bottom': topBottom,
-    'number': number,
-    'manufacturer': manufacturer,
-    'manufacturer_code': manufacturerCode,
-    'color': color,
-    'condition': condition,
-    'oem_code': oemCode,
-    'supplier_code': supplierCode,
-    'transmission_model': transmissionModel,
-    'defect': defect,
-    'transmission': transmission,
-    'drive': drive,
-    'wear_percentage': wearPercentage,
-    'season': season,
-    'diameter': diameter,
-    'width': width,
-    'profile': profile,
-    'tire_quantity': tireQuantity,
-    'drilling': drilling,
-    'offset': offset,
-    'center_hole_diameter': centerHoleDiameter,
-    'tire_model': tireModel,
-    'vin': vin,
-    'car_release_period': carReleasePeriod,
-    'location': location,
-    'address': address,
-    'salesman': salesman,
-  };
-
-  bool get isAvailable => status ?? quantity > 0;
+Object? _readPartField(Map json, String snakeKey, String camelKey) {
+  return json[snakeKey] ?? json[camelKey];
 }
 
-class InventoryResponse {
-  final List<Part> parts;
-  final int total;
-  final int page;
-  final int limit;
-  final bool isOffline;
+@freezed
+abstract class Part with _$Part {
+  const Part._();
 
-  const InventoryResponse({
-    required this.parts,
-    required this.total,
-    required this.page,
-    required this.limit,
-    this.isOffline = false,
-  });
+  @JsonSerializable(fieldRename: FieldRename.snake)
+  const factory Part({
+    @Default(0) int id,
+    @Default('') String name,
+    String? description,
+    @Default('') String category,
+    @Default(0.0) double price,
+    @Default(0) int quantity,
+    bool? status,
+    String? brand,
+    String? model,
+    @JsonKey(readValue: _readBodyBrand) String? bodyBrand,
+    @JsonKey(readValue: _readEngineBrand) String? engineBrand,
+    @JsonKey(readValue: _readCarReleaseDate) String? carReleaseDate,
+    @JsonKey(readValue: _readFrontRear) String? frontRear,
+    @JsonKey(readValue: _readLeftRight) String? leftRight,
+    @JsonKey(readValue: _readTopBottom) String? topBottom,
+    String? number,
+    String? manufacturer,
+    @JsonKey(readValue: _readManufacturerCode) String? manufacturerCode,
+    String? color,
+    String? condition,
+    @JsonKey(readValue: _readOemCode) String? oemCode,
+    @JsonKey(readValue: _readSupplierCode) String? supplierCode,
+    @JsonKey(readValue: _readTransmissionModel) String? transmissionModel,
+    String? defect,
+    String? transmission,
+    String? drive,
+    @JsonKey(readValue: _readWearPercentage) String? wearPercentage,
+    String? season,
+    String? diameter,
+    String? width,
+    String? profile,
+    @JsonKey(readValue: _readTireQuantity) String? tireQuantity,
+    String? drilling,
+    String? offset,
+    @JsonKey(readValue: _readCenterHoleDiameter) String? centerHoleDiameter,
+    @JsonKey(readValue: _readTireModel) String? tireModel,
+    String? vin,
+    @JsonKey(readValue: _readCarReleasePeriod) String? carReleasePeriod,
+    @Default('') String location,
+    @Default('') String address,
+    String? salesman,
+    @Default([]) List<String> photos,
+    @JsonKey(readValue: _readCreatedAt) DateTime? createdAt,
+    @JsonKey(readValue: _readMarkedForDeletion) @Default(false) bool markedForDeletion,
+  }) = _Part;
+
+  factory Part.fromJson(Map<String, dynamic> json) =>
+      _$PartFromJson(_normalizePartJson(json));
+
+  /// Доменные инварианты Avtoplaneta (из AGENTS.md):
+  /// - quantity > 0: в наличии на складе
+  /// - quantity == 0: дефектные ведомости / спецпозиции (видимы!)
+  /// - quantity == -1: полностью списанные/проданные детали
+  bool get isAvailable => status ?? quantity > 0;
+  bool get isSold => quantity == -1;
+  bool get isDefectReport => quantity == 0;
+  bool get isInStock => quantity >= 0;
+}
+
+Map<String, dynamic> _normalizePartJson(Map<String, dynamic> json) {
+  final normalized = Map<String, dynamic>.from(json);
+
+  // Поддержка legacy одиночного поля photo
+  final photosRaw = normalized['photos'];
+  List<String> photosList = [];
+  if (photosRaw is List) {
+    photosList = photosRaw
+        .map((e) => e.toString())
+        .where((value) => value.isNotEmpty)
+        .toList();
+  }
+  final legacyPhoto = normalized['photo']?.toString();
+  if (photosList.isEmpty && legacyPhoto != null && legacyPhoto.isNotEmpty) {
+    photosList = [legacyPhoto];
+  }
+  normalized['photos'] = photosList;
+
+  // Безопасное приведение числовых типов из JSON
+  if (normalized['price'] != null) {
+    normalized['price'] = (normalized['price'] as num).toDouble();
+  }
+  if (normalized['quantity'] != null) {
+    normalized['quantity'] = (normalized['quantity'] as num).toInt();
+  }
+  if (normalized['id'] != null) {
+    normalized['id'] = (normalized['id'] as num).toInt();
+  }
+
+  return normalized;
+}
+
+Object? _readBodyBrand(Map json, String key) => _readPartField(json, 'body_brand', 'bodyBrand');
+Object? _readEngineBrand(Map json, String key) => _readPartField(json, 'engine_brand', 'engineBrand');
+Object? _readCarReleaseDate(Map json, String key) => _readPartField(json, 'car_release_date', 'carReleaseDate');
+Object? _readFrontRear(Map json, String key) => _readPartField(json, 'front_rear', 'frontRear');
+Object? _readLeftRight(Map json, String key) => _readPartField(json, 'left_right', 'leftRight');
+Object? _readTopBottom(Map json, String key) => _readPartField(json, 'top_bottom', 'topBottom');
+Object? _readManufacturerCode(Map json, String key) => _readPartField(json, 'manufacturer_code', 'manufacturerCode');
+Object? _readOemCode(Map json, String key) => _readPartField(json, 'oem_code', 'oemCode');
+Object? _readSupplierCode(Map json, String key) => _readPartField(json, 'supplier_code', 'supplierCode');
+Object? _readTransmissionModel(Map json, String key) => _readPartField(json, 'transmission_model', 'transmissionModel');
+Object? _readWearPercentage(Map json, String key) => _readPartField(json, 'wear_percentage', 'wearPercentage');
+Object? _readTireQuantity(Map json, String key) => _readPartField(json, 'tire_quantity', 'tireQuantity');
+Object? _readCenterHoleDiameter(Map json, String key) => _readPartField(json, 'center_hole_diameter', 'centerHoleDiameter');
+Object? _readTireModel(Map json, String key) => _readPartField(json, 'tire_model', 'tireModel');
+Object? _readCarReleasePeriod(Map json, String key) => _readPartField(json, 'car_release_period', 'carReleasePeriod');
+Object? _readCreatedAt(Map json, String key) => _readPartField(json, 'created_at', 'createdAt');
+Object? _readMarkedForDeletion(Map json, String key) => _readPartField(json, 'marked_for_deletion', 'markedForDeletion');
+
+@freezed
+abstract class InventoryResponse with _$InventoryResponse {
+  const factory InventoryResponse({
+    @Default([]) List<Part> parts,
+    @Default(0) int total,
+    @Default(1) int page,
+    @Default(20) int limit,
+    @Default(false) bool isOffline,
+  }) = _InventoryResponse;
 
   factory InventoryResponse.fromJson(Map<String, dynamic> json) {
     final partsRaw = json['parts'] as List<dynamic>? ?? [];
@@ -230,7 +141,7 @@ class InventoryResponse {
       total: (json['total'] as num?)?.toInt() ?? 0,
       page: (json['page'] as num?)?.toInt() ?? 1,
       limit: (json['limit'] as num?)?.toInt() ?? 20,
-      isOffline: json['is_offline'] as bool? ?? false,
+      isOffline: (json['is_offline'] ?? json['isOffline']) as bool? ?? false,
     );
   }
 }

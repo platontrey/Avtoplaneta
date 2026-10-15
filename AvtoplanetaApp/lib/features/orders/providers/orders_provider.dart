@@ -1,38 +1,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/api/api_client.dart';
-import '../../../core/api/api_endpoints.dart';
 import '../../../core/models/order.dart';
+import '../repositories/orders_repository.dart';
 
+export '../repositories/orders_repository.dart';
+
+/// Провайдер активных заказов
 final ordersProvider = FutureProvider<OrdersResponse>((ref) async {
-  final response = await apiClient.dio.get(ApiEndpoints.orders);
-  final data = response.data;
-  if (data is List) {
-    final orders = data
-        .whereType<Map>()
-        .map((order) => Order.fromJson(Map<String, dynamic>.from(order)))
-        .toList();
-    return OrdersResponse(orders: orders, total: orders.length);
-  }
-  if (data is Map) {
-    return OrdersResponse.fromJson(Map<String, dynamic>.from(data));
-  }
-  throw Exception('Неверный формат ответа сервера при загрузке заказов: ${data.runtimeType}');
+  final repository = ref.watch(ordersRepositoryProvider);
+  return repository.fetchOrders();
 });
 
+/// Провайдер завершённых заказов
 final completedOrdersProvider = FutureProvider<OrdersResponse>((ref) async {
-  final response = await apiClient.dio.get(ApiEndpoints.orders, queryParameters: {'state': 'completed'});
-  final data = response.data;
-  if (data is List) {
-    final orders = data
-        .whereType<Map>()
-        .map((order) => Order.fromJson(Map<String, dynamic>.from(order)))
-        .toList();
-    return OrdersResponse(orders: orders, total: orders.length);
-  }
-  if (data is Map) {
-    return OrdersResponse.fromJson(Map<String, dynamic>.from(data));
-  }
-  throw Exception('Неверный формат ответа сервера при загрузке завершённых заказов: ${data.runtimeType}');
+  final repository = ref.watch(ordersRepositoryProvider);
+  return repository.fetchOrders(state: 'completed');
 });
-

@@ -24,6 +24,22 @@ if (!fs.existsSync(targetDocsDir)) {
   fs.mkdirSync(targetDocsDir, { recursive: true });
 }
 
+// Автогенерация мобильной документации перед копированием (если доступен Dart)
+const mobileToolPath = path.resolve(projectRoot, 'AvtoplanetaApp/tool/generate_docs.dart');
+if (fs.existsSync(mobileToolPath)) {
+  try {
+    const { execSync } = await import('node:child_process');
+    execSync('dart run tool/generate_docs.dart', {
+      cwd: path.resolve(projectRoot, 'AvtoplanetaApp'),
+      stdio: 'pipe',
+    });
+    console.log('[sync-docs] Generated fresh mobile-README.md via dart tool');
+  } catch (err) {
+    // В Docker или средах без Dart используем уже сгенерированный README.md
+    console.log('[sync-docs] Note: Could not run dart generator, using existing mobile README.md');
+  }
+}
+
 let copiedCount = 0;
 for (const item of docMappings) {
   const sourcePath = path.resolve(projectRoot, item.src);

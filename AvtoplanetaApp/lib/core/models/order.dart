@@ -1,90 +1,43 @@
-class Order {
-  final int id;
-  final int? customerId;
-  final String partName;
-  final int? partId;
-  final String location;
-  final String buyerNumber;
-  final String orderNumber;
-  final String status;
-  final String statusText;
-  final String source;
-  final String paymentStatus;
-  final String warehouseStatus;
-  final String deliveryMethod;
-  final String transportCompany;
-  final String trackingNumber;
-  final String notes;
-  final double discount;
-  final double totalAmount;
-  final String sellerName;
-  final String timeAgo;
-  final String createdAtFormatted;
-  final String completedAtFormatted;
-  final DateTime? createdAt;
-  final bool autoDeleted;
-  final List<OrderItem> items;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  const Order({
-    required this.id,
-    this.customerId,
-    required this.partName,
-    this.partId,
-    this.location = '',
-    this.buyerNumber = '',
-    this.orderNumber = '',
-    required this.status,
-    required this.statusText,
-    this.source = 'drom',
-    this.paymentStatus = 'unpaid',
-    this.warehouseStatus = 'inspecting',
-    this.deliveryMethod = 'tk',
-    this.transportCompany = '',
-    this.trackingNumber = '',
-    this.notes = '',
-    this.discount = 0,
-    this.totalAmount = 0,
-    this.sellerName = '',
-    this.timeAgo = '',
-    this.createdAtFormatted = '',
-    this.completedAtFormatted = '',
-    this.createdAt,
-    this.autoDeleted = false,
-    this.items = const [],
-  });
+part 'order.freezed.dart';
+part 'order.g.dart';
 
-  factory Order.fromJson(Map<String, dynamic> json) => Order(
-    id: (json['id'] as num?)?.toInt() ?? 0,
-    customerId: (json['customer_id'] as num?)?.toInt(),
-    partName: (json['part'] ?? json['part_name'] ?? '').toString(),
-    partId: (json['part_id'] as num?)?.toInt(),
-    location: json['location'] as String? ?? '',
-    buyerNumber: json['buyer_number'] as String? ?? '',
-    orderNumber: json['order_number'] as String? ?? '',
-    status: json['status'] as String? ?? 'Принят в обработку',
-    statusText: json['status_text'] as String? ?? '',
-    source: json['source'] as String? ?? 'drom',
-    paymentStatus: json['payment_status'] as String? ?? 'unpaid',
-    warehouseStatus: json['warehouse_status'] as String? ?? 'inspecting',
-    deliveryMethod: json['delivery_method'] as String? ?? 'tk',
-    transportCompany: json['transport_company'] as String? ?? '',
-    trackingNumber: json['tracking_number'] as String? ?? '',
-    notes: json['notes'] as String? ?? '',
-    discount: (json['discount'] as num?)?.toDouble() ?? 0,
-    totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0,
-    sellerName: (json['seller'] ?? json['seller_name']) as String? ?? '',
-    timeAgo: json['time_ago'] as String? ?? '',
-    createdAtFormatted: json['created_at_formatted'] as String? ?? '',
-    completedAtFormatted: json['completed_at_formatted'] as String? ?? '',
-    createdAt: json['created_at'] != null
-        ? DateTime.tryParse(json['created_at'].toString())
-        : null,
-    autoDeleted: json['auto_deleted'] as bool? ?? false,
-    items: (json['items'] as List<dynamic>? ?? const [])
-        .whereType<Map>()
-        .map((item) => OrderItem.fromJson(Map<String, dynamic>.from(item)))
-        .toList(),
-  );
+@freezed
+abstract class Order with _$Order {
+  const Order._();
+
+  @JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
+  const factory Order({
+    @Default(0) int id,
+    int? customerId,
+    @JsonKey(readValue: _readPartName) @Default('') String partName,
+    int? partId,
+    @Default('') String location,
+    @Default('') String buyerNumber,
+    @Default('') String orderNumber,
+    @Default('Принят в обработку') String status,
+    @Default('') String statusText,
+    @Default('drom') String source,
+    @Default('unpaid') String paymentStatus,
+    @Default('inspecting') String warehouseStatus,
+    @Default('tk') String deliveryMethod,
+    @Default('') String transportCompany,
+    @Default('') String trackingNumber,
+    @Default('') String notes,
+    @Default(0.0) double discount,
+    @Default(0.0) double totalAmount,
+    @JsonKey(readValue: _readSellerName) @Default('') String sellerName,
+    @Default('') String timeAgo,
+    @Default('') String createdAtFormatted,
+    @Default('') String completedAtFormatted,
+    DateTime? createdAt,
+    @Default(false) bool autoDeleted,
+    @Default([]) List<OrderItem> items,
+  }) = _Order;
+
+  factory Order.fromJson(Map<String, dynamic> json) =>
+      _$OrderFromJson(_normalizeOrderJson(json));
 
   int get totalQuantity =>
       items.isEmpty ? 1 : items.fold(0, (total, item) => total + item.quantity);
@@ -101,7 +54,7 @@ class Order {
     return null;
   }
 
-  // Цвет статуса для UI
+  // Цвета статусов для UI
   static const statusColors = {
     'Ожидает забора ТК': 0xFFFB8C00,
     'Требуется заказ ТК': 0xFFE53935,
@@ -136,44 +89,95 @@ class Order {
   }
 }
 
-class OrderItem {
-  final int id;
-  final int partId;
-  final String partName;
-  final String partNameSnapshot;
-  final int quantity;
-  final double price;
+Map<String, dynamic> _normalizeOrderJson(Map<String, dynamic> json) {
+  final normalized = Map<String, dynamic>.from(json);
 
-  const OrderItem({
-    required this.id,
-    required this.partId,
-    this.partName = '',
-    this.partNameSnapshot = '',
-    required this.quantity,
-    required this.price,
-  });
+  // Числовые типы
+  if (normalized['id'] != null) {
+    normalized['id'] = (normalized['id'] as num).toInt();
+  }
+  if (normalized['customer_id'] != null) {
+    normalized['customer_id'] = (normalized['customer_id'] as num).toInt();
+  }
+  if (normalized['part_id'] != null) {
+    normalized['part_id'] = (normalized['part_id'] as num).toInt();
+  }
+  if (normalized['discount'] != null) {
+    normalized['discount'] = (normalized['discount'] as num).toDouble();
+  }
+  if (normalized['total_amount'] != null) {
+    normalized['total_amount'] = (normalized['total_amount'] as num).toDouble();
+  }
 
-  factory OrderItem.fromJson(Map<String, dynamic> json) => OrderItem(
-    id: (json['id'] as num?)?.toInt() ?? 0,
-    partId: (json['part_id'] as num?)?.toInt() ?? 0,
-    partName: (json['part_name'] ?? json['part_name_snapshot'] ?? '').toString(),
-    partNameSnapshot: (json['part_name_snapshot'] ?? '').toString(),
-    quantity: (json['quantity'] as num?)?.toInt() ?? 0,
-    price: (json['price'] as num?)?.toDouble() ?? 0,
-  );
+  // Items
+  if (normalized['items'] is List) {
+    normalized['items'] = (normalized['items'] as List)
+        .whereType<Map>()
+        .map((item) => OrderItem.fromJson(Map<String, dynamic>.from(item)))
+        .map((item) => item.toJson())
+        .toList();
+  }
+
+  return normalized;
 }
 
-class OrdersResponse {
-  final List<Order> orders;
-  final int total;
+Object? _readPartName(Map json, String key) =>
+    json['part_name'] ?? json['part'] ?? json['partName'] ?? '';
 
-  const OrdersResponse({required this.orders, required this.total});
+Object? _readSellerName(Map json, String key) =>
+    json['seller_name'] ?? json['seller'] ?? json['sellerName'] ?? '';
+
+Map<String, dynamic> _normalizeOrderItemJson(Map<String, dynamic> json) {
+  final normalized = Map<String, dynamic>.from(json);
+  if (normalized['id'] != null) {
+    normalized['id'] = (normalized['id'] as num).toInt();
+  }
+  if (normalized['part_id'] != null) {
+    normalized['part_id'] = (normalized['part_id'] as num).toInt();
+  }
+  if (normalized['quantity'] != null) {
+    normalized['quantity'] = (normalized['quantity'] as num).toInt();
+  }
+  if (normalized['price'] != null) {
+    normalized['price'] = (normalized['price'] as num).toDouble();
+  }
+  return normalized;
+}
+
+@freezed
+abstract class OrderItem with _$OrderItem {
+  const OrderItem._();
+
+  @JsonSerializable(fieldRename: FieldRename.snake)
+  const factory OrderItem({
+    @Default(0) int id,
+    @Default(0) int partId,
+    @JsonKey(readValue: _readItemPartName) @Default('') String partName,
+    @Default('') String partNameSnapshot,
+    @Default(0) int quantity,
+    @Default(0.0) double price,
+  }) = _OrderItem;
+
+  factory OrderItem.fromJson(Map<String, dynamic> json) =>
+      _$OrderItemFromJson(_normalizeOrderItemJson(json));
+}
+
+Object? _readItemPartName(Map json, String key) =>
+    json['part_name'] ?? json['part_name_snapshot'] ?? json['partName'] ?? '';
+
+@freezed
+abstract class OrdersResponse with _$OrdersResponse {
+  const factory OrdersResponse({
+    @Default([]) List<Order> orders,
+    @Default(0) int total,
+  }) = _OrdersResponse;
 
   factory OrdersResponse.fromJson(Map<String, dynamic> json) {
     final ordersRaw = json['orders'] as List<dynamic>? ?? [];
     return OrdersResponse(
       orders: ordersRaw
-          .map((e) => Order.fromJson(e as Map<String, dynamic>))
+          .whereType<Map>()
+          .map((e) => Order.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
       total: (json['total'] as num?)?.toInt() ?? 0,
     );
