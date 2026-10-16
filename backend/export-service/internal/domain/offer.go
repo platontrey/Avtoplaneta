@@ -18,7 +18,7 @@ type Offer struct {
 	Name          string   `xml:"name"`
 	Available     bool     `xml:"available"`
 	Description   string   `xml:"description,omitempty"`
-	Price         float64  `xml:"price,omitempty"`
+	Price         float64  `xml:"price"`
 	CurrencyId    string   `xml:"currencyId,omitempty"`
 	Pictures      []string `xml:"picture,omitempty"`
 	Store         string   `xml:"store,omitempty"`
@@ -41,6 +41,28 @@ type Offer struct {
 	SupplierInn   string   `xml:"supplier_inn,omitempty"`
 	Sklad         string   `xml:"sklad,omitempty"`
 	SupplierArt   string   `xml:"supplier_art,omitempty"`
+}
+
+// IsEligibleForExport определяет критерии включения детали в XML выгрузку на Drom:
+// 1. Деталь не помечена на удаление (to_delete_at == nil)
+// 2. Деталь активна (status == true)
+// 3. Количество не менее 1 (quantity >= 1) — детали с quantity < 1 не выгружаются
+// 4. Есть хотя бы одна валидная фотография — детали без фото не выгружаются
+func IsEligibleForExport(part Part) bool {
+	if part.ToDeleteAt != nil || !part.Status || part.Quantity < 1 {
+		return false
+	}
+	return HasValidPhotos(part.Photos)
+}
+
+// HasValidPhotos проверяет наличие хотя бы одной непустой фотографии
+func HasValidPhotos(photos []string) bool {
+	for _, p := range photos {
+		if strings.TrimSpace(p) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // BuildOffer строит предложение Offer из Part и реквизитов продавца

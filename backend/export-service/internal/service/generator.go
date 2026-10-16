@@ -26,8 +26,8 @@ func GenerateXMLPriceList(parts []domain.Part, sellerINNs map[int64]string, base
 	}
 
 	for _, part := range parts {
-		// Пропускаем запчасти, помеченные к удалению
-		if part.ToDeleteAt != nil {
+		// Проверяем соответствие критериям выгрузки (наличие фото, quantity >= 1, активность, отсутствие метки удаления)
+		if !domain.IsEligibleForExport(part) {
 			continue
 		}
 		offers.Offers = append(offers.Offers, domain.BuildOffer(part, sellerINNs[part.SellerID], baseImageURL))

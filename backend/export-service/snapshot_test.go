@@ -32,6 +32,7 @@ func TestSnapshotStore_UpsertAndWriteFullXML(t *testing.T) {
 			Model:        "Corolla",
 			Condition:    "Новый",
 			SupplierCode: "AM-100",
+			Photos:       []string{"/photo1.jpg"},
 		},
 		{
 			ID:           2,
@@ -44,6 +45,7 @@ func TestSnapshotStore_UpsertAndWriteFullXML(t *testing.T) {
 			Model:        "Corolla",
 			Condition:    "Б/у",
 			SupplierCode: "HL-200",
+			Photos:       []string{"/photo2.jpg"},
 		},
 	}
 	sellerINNs := map[int64]string{10: "7701123456"}
@@ -107,6 +109,7 @@ func TestSnapshotStore_UpsertAndWriteFullXML(t *testing.T) {
 		SellerID:     10,
 		Condition:    "Новый",
 		SupplierCode: "BP-300",
+		Photos:       []string{"/photo3.jpg"},
 	}
 	if err := store.SaveOffer(part3, sellerINNs[10], baseURL); err != nil {
 		t.Fatalf("SaveOffer part3: %v", err)
@@ -174,6 +177,7 @@ func TestSnapshotStore_PersistenceAcrossReopen(t *testing.T) {
 		Quantity:  2,
 		Price:     950.0,
 		Condition: "Новый",
+		Photos:    []string{"/photo100.jpg"},
 	}
 	_ = store1.SaveOffer(part, "1234567890", "https://backend-server.ru")
 	_ = store1.SetVersion("version-xyz")

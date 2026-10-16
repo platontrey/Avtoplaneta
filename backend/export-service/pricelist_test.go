@@ -60,7 +60,10 @@ func newTestPriceListService(t *testing.T, source service.InventorySource) *serv
 
 // Первый вызов собирает файл, второй при том же отпечатке склада не должен вычитывать запчасти заново
 func TestBuildSkipsWhenInventoryUnchanged(t *testing.T) {
-	source := &fakeSource{version: "17-42", parts: []domain.Part{{Name: "Деталь", Status: true}}}
+	source := &fakeSource{
+		version: "17-42",
+		parts:   []domain.Part{{Name: "Деталь", Status: true, Quantity: 1, Photos: []string{"/part.jpg"}}},
+	}
 	svc := newTestPriceListService(t, source)
 
 	if _, rebuilt, err := svc.Build(context.Background()); err != nil || !rebuilt {
@@ -76,7 +79,10 @@ func TestBuildSkipsWhenInventoryUnchanged(t *testing.T) {
 
 // Отпечаток изменился — склад менялся, и файл пересобирается
 func TestBuildRebuildsWhenInventoryChanged(t *testing.T) {
-	source := &fakeSource{version: "17-42", parts: []domain.Part{{Name: "Деталь", Status: true}}}
+	source := &fakeSource{
+		version: "17-42",
+		parts:   []domain.Part{{Name: "Деталь", Status: true, Quantity: 1, Photos: []string{"/part.jpg"}}},
+	}
 	svc := newTestPriceListService(t, source)
 
 	if _, _, err := svc.Build(context.Background()); err != nil {
@@ -90,7 +96,10 @@ func TestBuildRebuildsWhenInventoryChanged(t *testing.T) {
 
 // Файл удалили, а отпечаток остался. Прайс-лист должен собраться снова.
 func TestBuildRebuildsWhenFileMissing(t *testing.T) {
-	source := &fakeSource{version: "17-42", parts: []domain.Part{{Name: "Деталь", Status: true}}}
+	source := &fakeSource{
+		version: "17-42",
+		parts:   []domain.Part{{Name: "Деталь", Status: true, Quantity: 1, Photos: []string{"/part.jpg"}}},
+	}
 	svc := newTestPriceListService(t, source)
 
 	if _, _, err := svc.Build(context.Background()); err != nil {
@@ -106,7 +115,10 @@ func TestBuildRebuildsWhenFileMissing(t *testing.T) {
 
 // Отпечаток не прочитался — сборка выполняется безусловно
 func TestBuildProceedsWhenVersionUnavailable(t *testing.T) {
-	source := &fakeSource{versionErr: errors.New("parts-service недоступен"), parts: []domain.Part{{Name: "Деталь", Status: true}}}
+	source := &fakeSource{
+		versionErr: errors.New("parts-service недоступен"),
+		parts:      []domain.Part{{Name: "Деталь", Status: true, Quantity: 1, Photos: []string{"/part.jpg"}}},
+	}
 	svc := newTestPriceListService(t, source)
 
 	if _, rebuilt, err := svc.Build(context.Background()); err != nil || !rebuilt {
@@ -121,7 +133,7 @@ func TestBuildProceedsWhenVersionUnavailable(t *testing.T) {
 func TestBuildSurvivesMissingSellerDirectory(t *testing.T) {
 	source := &fakeSource{
 		version: "17-42",
-		parts:   []domain.Part{{Name: "Деталь", SellerID: 5, Status: true}},
+		parts:   []domain.Part{{Name: "Деталь", SellerID: 5, Status: true, Quantity: 1, Photos: []string{"/part.jpg"}}},
 		innsErr: errors.New("auth-service недоступен"),
 	}
 	svc := newTestPriceListService(t, source)

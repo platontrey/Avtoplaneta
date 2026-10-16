@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/xml"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,13 +20,12 @@ func parse(t *testing.T, data []byte) domain.Offers {
 	return offers
 }
 
-// Запчасть, помеченную на удаление, площадка видеть не должна: её вот-вот не
-// станет, а заказ по ней уже не выполнить.
+// Запчасть, помеченную на удаление, площадка видеть не должна
 func TestGenerateXMLPriceListSkipsPartsMarkedForDeletion(t *testing.T) {
 	deleteAt := time.Now().Add(24 * time.Hour)
 	parts := []domain.Part{
-		{Name: "Живая", Status: true},
-		{Name: "Удаляется", Status: true, ToDeleteAt: &deleteAt},
+		{Name: "Живая", Status: true, Quantity: 1, Photos: []string{"/live.jpg"}},
+		{Name: "Удаляется", Status: true, Quantity: 1, Photos: []string{"/del.jpg"}, ToDeleteAt: &deleteAt},
 	}
 
 	data, err := service.GenerateXMLPriceList(parts, nil, "")
@@ -42,11 +42,82 @@ func TestGenerateXMLPriceListSkipsPartsMarkedForDeletion(t *testing.T) {
 	}
 }
 
-// ИНН берётся из справочника auth-service по идентификатору продавца.
+// Запчасти без фото не должны передаваться на Drom
+func TestGenerateXMLPriceListSkipsPartsWithoutPhotos(t *testing.T) {
+	parts := []domain.Part{
+		{Name: "С фото", Status: true, Quantity: 1, Photos: []string{"/photo.jpg"}},
+		{Name: "Без фото (пустой слайс)", Status: true, Quantity: 1, Photos: []string{}},
+		{Name: "Без фото (пробелы)", Status: true, Quantity: 1, Photos: []string{"   "}},
+		{Name: "Без фото (nil)", Status: true, Quantity: 1, Photos: nil},
+	}
+
+	data, err := service.GenerateXMLPriceList(parts, nil, "")
+	if err != nil {
+		t.Fatalf("GenerateXMLPriceList: %v", err)
+	}
+
+	offers := parse(t, data)
+	if len(offers.Offers) != 1 {
+		t.Fatalf("ожидалось ровно 1 предложение с фото, получено %d", len(offers.Offers))
+	}
+	if offers.Offers[0].Name != "С фото" {
+		t.Errorf("got %q, want 'С фото'", offers.Offers[0].Name)
+	}
+}
+
+// Запчасти, у которых количество меньше 1 (quantity < 1), не должны передаваться
+func TestGenerateXMLPriceListSkipsQuantityLessThanOne(t *testing.T) {
+	parts := []domain.Part{
+		{Name: "В наличии (1 шт)", Status: true, Quantity: 1, Photos: []string{"/1.jpg"}},
+		{Name: "В наличии (5 шт)", Status: true, Quantity: 5, Photos: []string{"/5.jpg"}},
+		{Name: "Нулевой остаток (0 шт)", Status: true, Quantity: 0, Photos: []string{"/0.jpg"}},
+		{Name: "Проданная (-1 шт)", Status: true, Quantity: -1, Photos: []string{"/m1.jpg"}},
+	}
+
+	data, err := service.GenerateXMLPriceList(parts, nil, "")
+	if err != nil {
+		t.Fatalf("GenerateXMLPriceList: %v", err)
+	}
+
+	offers := parse(t, data)
+	if len(offers.Offers) != 2 {
+		t.Fatalf("ожидалось 2 предложения (с quantity >= 1), получено %d", len(offers.Offers))
+	}
+	if offers.Offers[0].Name != "В наличии (1 шт)" || offers.Offers[1].Name != "В наличии (5 шт)" {
+		t.Errorf("неверный состав офферов: %+v", offers.Offers)
+	}
+}
+
+// Запчасти с ценой 0 должны передаваться с явным тегом <price>0</price>
+func TestGenerateXMLPriceListTransfersZeroPrice(t *testing.T) {
+	parts := []domain.Part{
+		{Name: "Бесплатная/без цены", Status: true, Quantity: 1, Price: 0.0, Photos: []string{"/free.jpg"}},
+	}
+
+	data, err := service.GenerateXMLPriceList(parts, nil, "")
+	if err != nil {
+		t.Fatalf("GenerateXMLPriceList: %v", err)
+	}
+
+	xmlStr := string(data)
+	if !strings.Contains(xmlStr, "<price>0</price>") {
+		t.Fatalf("в XML отсутствует обязательный тег <price>0</price>, XML:\n%s", xmlStr)
+	}
+
+	offers := parse(t, data)
+	if len(offers.Offers) != 1 {
+		t.Fatalf("ожидался 1 оффер, получено %d", len(offers.Offers))
+	}
+	if offers.Offers[0].Price != 0 {
+		t.Errorf("ожидалась цена 0, получено %v", offers.Offers[0].Price)
+	}
+}
+
+// ИНН берётся из справочника auth-service по идентификатору продавца
 func TestGenerateXMLPriceListFillsSupplierINN(t *testing.T) {
 	parts := []domain.Part{
-		{Name: "С реквизитами", SellerID: 7, Status: true},
-		{Name: "Без реквизитов", SellerID: 9, Status: true},
+		{Name: "С реквизитами", SellerID: 7, Status: true, Quantity: 1, Photos: []string{"/p1.jpg"}},
+		{Name: "Без реквизитов", SellerID: 9, Status: true, Quantity: 1, Photos: []string{"/p2.jpg"}},
 	}
 
 	data, err := service.GenerateXMLPriceList(parts, map[int64]string{7: "700123456789"}, "")
@@ -66,8 +137,8 @@ func TestGenerateXMLPriceListFillsSupplierINN(t *testing.T) {
 // Пустое состояние площадка понимает как «новая», поэтому дефолт «Б/у»
 func TestGenerateXMLPriceListDefaultsCondition(t *testing.T) {
 	parts := []domain.Part{
-		{Name: "Без состояния", Status: true},
-		{Name: "С состоянием", Status: true, Condition: "Новая"},
+		{Name: "Без состояния", Status: true, Quantity: 1, Photos: []string{"/p1.jpg"}},
+		{Name: "С состоянием", Status: true, Quantity: 1, Condition: "Новая", Photos: []string{"/p2.jpg"}},
 	}
 
 	offers := parse(t, mustGenerate(t, parts))
@@ -83,8 +154,8 @@ func TestGenerateXMLPriceListDefaultsCondition(t *testing.T) {
 // а относительные пути преобразуются в абсолютные по baseImageURL.
 func TestGenerateXMLPriceListMakesAbsolutePictureURL(t *testing.T) {
 	parts := []domain.Part{
-		{Name: "С фото", Status: true, Photos: []string{"/uploads/12_1700000000.jpg", "/uploads/12_1700000001.jpg"}},
-		{Name: "Без фото", Status: true},
+		{Name: "С фото", Status: true, Quantity: 1, Photos: []string{"/uploads/12_1700000000.jpg", "/uploads/12_1700000001.jpg"}},
+		{Name: "Без фото", Status: true, Quantity: 1, Photos: nil},
 	}
 
 	base := "https://custom-domain.ru"
@@ -94,8 +165,8 @@ func TestGenerateXMLPriceListMakesAbsolutePictureURL(t *testing.T) {
 	}
 
 	offers := parse(t, data)
-	if len(offers.Offers[0].Pictures) != 2 {
-		t.Fatalf("ожидалось 2 фотографии в выгрузке, получено %d", len(offers.Offers[0].Pictures))
+	if len(offers.Offers) != 1 {
+		t.Fatalf("ожидалась ровно 1 деталь с фото в выгрузке, получено %d", len(offers.Offers))
 	}
 	want1 := "https://custom-domain.ru/uploads/12_1700000000.jpg"
 	want2 := "https://custom-domain.ru/uploads/12_1700000001.jpg"
@@ -104,9 +175,6 @@ func TestGenerateXMLPriceListMakesAbsolutePictureURL(t *testing.T) {
 	}
 	if got := offers.Offers[0].Pictures[1]; got != want2 {
 		t.Fatalf("фото 2: ожидался адрес %q, получен %q", want2, got)
-	}
-	if len(offers.Offers[1].Pictures) != 0 {
-		t.Fatalf("у запчасти без фото появились адреса: %v", offers.Offers[1].Pictures)
 	}
 }
 
@@ -122,7 +190,7 @@ func mustGenerate(t *testing.T, parts []domain.Part) []byte {
 // Проверка наличия XML заголовка UTF-8 и корневого элемента offers
 func TestGenerateXMLPriceListHeaderAndRoot(t *testing.T) {
 	parts := []domain.Part{
-		{Name: "Тестовая запчасть", Status: true, Quantity: 1, Price: 1500},
+		{Name: "Тестовая запчасть", Status: true, Quantity: 1, Price: 1500, Photos: []string{"/p.jpg"}},
 	}
 	data, err := service.GenerateXMLPriceList(parts, nil, "")
 	if err != nil {
@@ -279,38 +347,6 @@ func TestGenerateXMLPriceListAllFieldsMapping(t *testing.T) {
 	}
 }
 
-// Проверка критического доменного инварианта quantity
-func TestGenerateXMLPriceListQuantitySemantics(t *testing.T) {
-	parts := []domain.Part{
-		{Name: "В наличии", Status: true, Quantity: 2},
-		{Name: "Дефектовка (ноль)", Status: true, Quantity: 0},
-		{Name: "Проданная (-1)", Status: true, Quantity: -1},
-		{Name: "Неактивная", Status: false, Quantity: 5},
-	}
-
-	offers := parse(t, mustGenerate(t, parts))
-	if len(offers.Offers) != 4 {
-		t.Fatalf("ожидалось 4 предложения, получено %d", len(offers.Offers))
-	}
-
-	// 1. Обычная запчасть
-	if !offers.Offers[0].Available {
-		t.Errorf("запчасть в наличии должна иметь available=true")
-	}
-	// 2. Дефектовочная ведомость (quantity == 0) ОБЯЗАНА быть available=true
-	if !offers.Offers[1].Available {
-		t.Errorf("дефектовка с quantity=0 обязана иметь available=true")
-	}
-	// 3. Проданная деталь (quantity == -1)
-	if offers.Offers[2].Available {
-		t.Errorf("проданная деталь с quantity=-1 должна иметь available=false")
-	}
-	// 4. Неактивная деталь (status == false)
-	if offers.Offers[3].Available {
-		t.Errorf("деталь со status=false должна иметь available=false")
-	}
-}
-
 // Проверка корректного экранирования спецсимволов XML в тексте
 func TestGenerateXMLPriceListEscaping(t *testing.T) {
 	parts := []domain.Part{
@@ -320,6 +356,7 @@ func TestGenerateXMLPriceListEscaping(t *testing.T) {
 			OEMCode:     "81150-12<34>&56",
 			Status:      true,
 			Quantity:    1,
+			Photos:      []string{"/p.jpg"},
 		},
 	}
 
@@ -399,7 +436,7 @@ func TestGenerateSampleXMLFile(t *testing.T) {
 		},
 		{
 			Name:           "Акт дефектовки: Бампер передний (трещина снизу)",
-			Quantity:       0,
+			Quantity:       0, // quantity = 0 не должно попасть в XML
 			Description:    "Дефектная позиция: трещина 5 см на нижней губе под пайку. Крепления целые.",
 			Price:          7000,
 			Salesman:       "Автопланета Томск",
@@ -429,8 +466,9 @@ func TestGenerateSampleXMLFile(t *testing.T) {
 	}
 
 	offers := parse(t, data)
-	if len(offers.Offers) != 3 {
-		t.Fatalf("Ожидалось 3 позиции, получено %d", len(offers.Offers))
+	// Третья позиция (quantity = 0) отфильтрована, должно быть ровно 2 позиции
+	if len(offers.Offers) != 2 {
+		t.Fatalf("Ожидалось 2 позиции (quantity >= 1), получено %d", len(offers.Offers))
 	}
 	if len(offers.Offers[0].Pictures) != 2 {
 		t.Fatalf("Ожидалось 2 фото у первой детали, получено %d", len(offers.Offers[0].Pictures))

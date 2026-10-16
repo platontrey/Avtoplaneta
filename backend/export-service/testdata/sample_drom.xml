@@ -51,24 +51,4 @@
     <sklad>Склад агрегатов №3</sklad>
     <supplier_art>ENG-1NZ-092</supplier_art>
   </offer>
-  <offer>
-    <name>Акт дефектовки: Бампер передний (трещина снизу)</name>
-    <available>true</available>
-    <description>Дефектная позиция: трещина 5 см на нижней губе под пайку. Крепления целые.</description>
-    <price>7000</price>
-    <currencyId>RUR</currencyId>
-    <picture>/uploads/parts/civic_bumper.jpg</picture>
-    <store>Автопланета Томск</store>
-    <ordercode>DEF-CIVIC-01</ordercode>
-    <condition>Б/у</condition>
-    <brandcars>Honda</brandcars>
-    <modelcars>Civic</modelcars>
-    <bodycars>FK7</bodycars>
-    <year>2018</year>
-    <fr>перед</fr>
-    <supplier>Автопланета Томск</supplier>
-    <supplier_inn>7017998877</supplier_inn>
-    <sklad>Зона дефектовки</sklad>
-    <supplier_art>DEF-CIVIC-01</supplier_art>
-  </offer>
 </offers>

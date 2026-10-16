@@ -93,7 +93,9 @@ func (r *BoltSnapshotRepository) SaveOffer(part domain.Part, sellerINN string, b
 
 	key := encodePartKey(part.ID)
 
-	if part.ToDeleteAt != nil {
+	// Если деталь не удовлетворяет критериям выгрузки на Drom (нет фото, quantity < 1, неактивна, удалена) —
+	// удаляем её из слепка
+	if !domain.IsEligibleForExport(part) {
 		return r.db.Update(func(tx *bbolt.Tx) error {
 			return tx.Bucket(bucketOffers).Delete(key)
 		})
@@ -137,7 +139,7 @@ func (r *BoltSnapshotRepository) BulkLoad(parts []domain.Part, sellerINNs map[in
 
 		count := 0
 		for _, part := range parts {
-			if part.ToDeleteAt != nil {
+			if !domain.IsEligibleForExport(part) {
 				continue
 			}
 			offer := domain.BuildOffer(part, sellerINNs[part.SellerID], baseImageURL)
