@@ -6,8 +6,8 @@
     <description>Оригинал, идеальное состояние. Без пробега по РФ.</description>
     <price>25000</price>
     <currencyId>RUR</currencyId>
-    <picture>https://backend-server.ru/uploads/parts/camry_light_front.jpg</picture>
-    <picture>https://backend-server.ru/uploads/parts/camry_light_back.jpg</picture>
+    <picture>/uploads/parts/camry_light_front.jpg</picture>
+    <picture>/uploads/parts/camry_light_back.jpg</picture>
     <store>Автопланета Томск</store>
     <quantity>2</quantity>
     <oem_number>81110-33D30</oem_number>
@@ -34,7 +34,7 @@
     <description>Контрактный ДВС в сборе с навесным оборудованием. Пробег 64 000 км по Японии. ГТД в комплекте.</description>
     <price>65000</price>
     <currencyId>RUR</currencyId>
-    <picture>https://backend-server.ru/uploads/parts/engine_1nz.jpg</picture>
+    <picture>/uploads/parts/engine_1nz.jpg</picture>
     <store>Автопланета Север</store>
     <quantity>1</quantity>
     <oem_number>19000-21010</oem_number>
@@ -57,7 +57,7 @@
     <description>Дефектная позиция: трещина 5 см на нижней губе под пайку. Крепления целые.</description>
     <price>7000</price>
     <currencyId>RUR</currencyId>
-    <picture>https://backend-server.ru/uploads/parts/civic_bumper.jpg</picture>
+    <picture>/uploads/parts/civic_bumper.jpg</picture>
     <store>Автопланета Томск</store>
     <ordercode>DEF-CIVIC-01</ordercode>
     <condition>Б/у</condition>

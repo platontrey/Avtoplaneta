@@ -46,9 +46,6 @@ type Offer struct {
 // BuildOffer строит предложение Offer из Part и реквизитов продавца
 func BuildOffer(part Part, sellerINN string, baseImageURL string) Offer {
 	baseImageURL = strings.TrimRight(strings.TrimSpace(baseImageURL), "/")
-	if baseImageURL == "" {
-		baseImageURL = "https://backend-server.ru"
-	}
 
 	pictures := make([]string, 0, len(part.Photos))
 	for _, photo := range part.Photos {
@@ -60,7 +57,11 @@ func BuildOffer(part Part, sellerINN string, baseImageURL string) Offer {
 			pictures = append(pictures, trimmed)
 		} else {
 			photoPath := "/" + strings.TrimPrefix(trimmed, "/")
-			pictures = append(pictures, baseImageURL+photoPath)
+			if baseImageURL != "" {
+				pictures = append(pictures, baseImageURL+photoPath)
+			} else {
+				pictures = append(pictures, photoPath)
+			}
 		}
 	}
 

@@ -71,16 +71,18 @@ func LoadConfig() *Config {
 }
 
 func resolveBaseImageURL() string {
-	raw := os.Getenv("BASE_IMAGE_URL")
+	// 1. Опциональный явный CDN/S3 оверрайд
+	raw := strings.TrimSpace(os.Getenv("BASE_IMAGE_URL"))
 	if raw == "" {
-		raw = os.Getenv("PUBLIC_DOMAIN")
+		// 2. В обычном режиме берём основной публичный домен приложения
+		raw = strings.TrimSpace(os.Getenv("PUBLIC_DOMAIN"))
 	}
 	if raw == "" {
-		raw = os.Getenv("DOMAIN")
+		raw = strings.TrimSpace(os.Getenv("DOMAIN"))
 	}
-	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return "https://backend-server.ru"
+		// 3. Локальный fallback для разработки без привязки к чужим внешним доменам
+		return "http://localhost:8085"
 	}
 
 	if !strings.HasPrefix(raw, "http://") && !strings.HasPrefix(raw, "https://") {
