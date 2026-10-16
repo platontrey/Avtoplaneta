@@ -49,6 +49,14 @@
 2. **Безопасность DDL:** `CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, обязательный `.down.sql`, версионирование через таблицу `schema_migrations`.
 3. **sqlc:** Запросы в `db/queries/*.sql`. Использовать явные аргументы `sqlc.arg(name)` / `sqlc.narg(name)`. После любых правок запускать `sqlc generate`.
 4. **pgx/v5:** Пул `*pgxpool.Pool`. Запрещены одиночные `INSERT` в цикле — только `pgx.Batch`. Для очередей — `FOR UPDATE SKIP LOCKED`.
+5. **Автоматическое индексирование сеньора:**
+   - **Индекс на каждый Foreign Key:** `CREATE INDEX IF NOT EXISTS idx_<table>_<fk> ON <table>(<fk>)` (Postgres не делает это автоматически; без индекса DELETE родителя блокирует дочернюю таблицу).
+   - **Частичные индексы (`WHERE ...`):** Для очередей (`WHERE status = 'pending'`), Soft-Delete (`WHERE deleted_at IS NULL`) и ETag (`WHERE deleted_at IS NULL` по `updated_at DESC`).
+   - **Составные индексы:** Правило левого префикса: сначала равенство (`=`), затем диапазоны (`>`, `<`) и сортировка (`ORDER BY`).
+   - **Покрывающие (`INCLUDE`):** Для Index-Only Scans без чтения Heap с диска.
+   - **Функциональные и GIN:** `LOWER(TRIM(email))`, `TRIM(phone)`, `USING GIN (photos)` для массивов/JSONB.
+   - **Constraints:** `CHECK (quantity >= -1)`, `CHECK (price >= 0)`, осознанный `ON DELETE RESTRICT/CASCADE`.
+   - **Пагинация:** Keyset pagination `WHERE (created_at, id) < ...` вместо антипаттерна `OFFSET`.
 
 ---
 

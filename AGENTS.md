@@ -292,6 +292,124 @@ DROP TABLE IF EXISTS customer_notes;
 2. **Конкурентная обработка очередей:**
    При выборке задач или событий из БД несколькими параллельными воркерами обязательно использовать `FOR UPDATE SKIP LOCKED`.
 
+### 3.4. SQL-инструменты сеньора: Индексы, Constraints и производительность PostgreSQL
+
+Сеньор **никогда не создает таблицы и не пишет запросы без автоматического проектирования индексов и ограничений**. Написание SQL без индексирования — признак джуниора.
+
+#### 1. Золотые правила индексирования (Index Automation Rules):
+
+1. **Каждый Foreign Key (FK) ОБЯЗАН иметь B-Tree индекс:**
+   - **Почему:** PostgreSQL **НЕ создает** индексы для внешних ключей автоматически.
+   - **Катастрофа без индекса:** При удалении или изменении строки в родительской таблице PostgreSQL блокирует дочернюю таблицу (`SHARE ROW EXCLUSIVE`) и сканирует её целиком (`Seq Scan`). При `JOIN` таблицы соединяются через медленный `Hash Join` или `Nested Loop` со сканированием всех страниц.
+   - **Автомат сеньора:** Объявил колонку `customer_id` или `order_id` $\rightarrow$ немедленно создал индекс:
+     ```sql
+     CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON orders(customer_id);
+     CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
+     CREATE INDEX IF NOT EXISTS idx_order_items_part_id ON order_items(part_id);
+     ```
+
+2. **Частичные индексы (Partial Indexes `WHERE ...`) — стандарт для очередей и Soft-Delete:**
+   - **Почему:** Индексировать миллионы неактивных или архивных строк — пустая трата RAM (Buffer Pool) и замедление записи (`write amplification`).
+   - **Применение в Avtoplaneta:**
+     - **Очереди Outbox:** в таблице `outbox_events` 99% записей уже обработаны (`status = 'processed'`). Полноразмерный индекс раздулся бы на гигабайты. Сеньор индексирует только то, что выбирает воркер:
+       ```sql
+       CREATE INDEX IF NOT EXISTS idx_outbox_events_pending 
+           ON outbox_events(status, created_at) 
+           WHERE status = 'pending';
+       ```
+     - **Мягкое удаление (Soft Delete):**
+       ```sql
+       CREATE INDEX IF NOT EXISTS idx_parts_seller_id_alive 
+           ON parts(seller_id) 
+           WHERE deleted_at IS NULL;
+       ```
+     - **ETag / InventoryVersion (вычисление MAX(updated_at)):**
+       ```sql
+       CREATE INDEX IF NOT EXISTS idx_parts_updated_at_alive 
+           ON parts(updated_at DESC) 
+           WHERE deleted_at IS NULL;
+       ```
+
+3. **Составные индексы (Composite Indexes) и Правило левого префикса (Leftmost Prefix Rule):**
+   - **Формула порядка колонок:** Сначала равенства (`=`, высокая селективность), затем диапазоны (`>`, `<`, `BETWEEN`) и сортировка (`ORDER BY`).
+   - **Пример:** Запрос фильтрует по продавцу и сортирует по дате создания:
+     `SELECT * FROM parts WHERE seller_id = $1 AND quantity >= 0 ORDER BY created_at DESC;`
+     $\rightarrow$ правильный составной индекс:
+     ```sql
+     CREATE INDEX IF NOT EXISTS idx_parts_seller_created 
+         ON parts (seller_id, created_at DESC) 
+         WHERE quantity >= 0;
+     ```
+   - Запрос `WHERE seller_id = $1` может использовать этот индекс. Запрос `WHERE created_at > ...` без `seller_id` — **НЕ может** (правило левого префикса).
+
+4. **Покрывающие индексы (`INCLUDE`) для Index-Only Scan:**
+   - Если частый запрос берет всего пару колонок в дополнение к условию:
+     `SELECT id, quantity, price FROM parts WHERE category = $1;`
+     Индекс с `INCLUDE` позволяет Postgres не обращаться к таблице на диске (Heap), а отдать всё прямо из памяти индекса:
+     ```sql
+     CREATE INDEX IF NOT EXISTS idx_parts_category_covering 
+         ON parts (category) 
+         INCLUDE (quantity, price) 
+         WHERE deleted_at IS NULL;
+     ```
+
+5. **Функциональные / Выраженческие индексы (Expression Indexes):**
+   - Для уникальности или поиска без учета регистра:
+     ```sql
+     -- Уникальность email без учета регистра:
+     CREATE UNIQUE INDEX IF NOT EXISTS idx_users_lower_email ON users (LOWER(TRIM(email)));
+
+     -- Уникальный номер клиента с очисткой пробелов и фильтрацией пустых:
+     CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_unique_phone 
+         ON customers (TRIM(phone)) 
+         WHERE phone IS NOT NULL AND TRIM(phone) != '';
+     ```
+
+6. **GIN-индексы для JSONB, массивов и полнотекстового поиска:**
+   - Для массивов строк (например, фото деталей `photos TEXT[]` или JSONB участников чата):
+     ```sql
+     CREATE INDEX IF NOT EXISTS idx_parts_photos ON parts USING GIN (photos);
+     CREATE INDEX IF NOT EXISTS idx_conversations_participants ON conversations USING GIN (participants);
+     ```
+
+#### 2. Ограничения целостности (Constraints — защита данных на уровне СУБД):
+Сеньор не надеется только на валидацию в Go-коде. Бизнес-инварианты фиксируются в схеме БД:
+1. **CHECK Constraints:**
+   ```sql
+   -- Защита доменного инварианта склада (quantity >= -1):
+   ALTER TABLE parts ADD CONSTRAINT chk_parts_quantity CHECK (quantity >= -1);
+   -- Защита от отрицательной цены:
+   ALTER TABLE parts ADD CONSTRAINT chk_parts_price CHECK (price >= 0);
+   ```
+2. **Осознанный выбор `ON DELETE` для внешних ключей:**
+   - `ON DELETE RESTRICT` (по умолчанию) — запретить удаление клиента или детали, если по ним есть заказы.
+   - `ON DELETE CASCADE` — использовать **только** для жестко связанных сущностей (позиции заказа `order_items` удаляются при удалении заказа `orders`).
+   - `ON DELETE SET NULL` — для опциональных связей при архивации.
+
+#### 3. Антипаттерны и золотые правила SQL-запросов:
+1. **Антипаттерн `OFFSET` $\rightarrow$ Keyset Pagination (Cursor Pagination):**
+   - **В чем проблема:** `OFFSET 100000 LIMIT 50` заставляет PostgreSQL просканировать 100 050 строк диска/памяти и выбросить первые 100 000. На глубоких страницах API начнет зависать.
+   - **Решение сеньора:** Пагинация по курсору с составным индексом:
+     ```sql
+     -- name: ListPartsCursor :many
+     SELECT * FROM parts 
+     WHERE (created_at, id) < (sqlc.arg(created_at), sqlc.arg(id))
+       AND quantity >= 0
+     ORDER BY created_at DESC, id DESC 
+     LIMIT sqlc.arg(page_size);
+     ```
+     Поддерживается составным индексом `CREATE INDEX IF NOT EXISTS idx_parts_cursor ON parts (created_at DESC, id DESC) WHERE quantity >= 0;`. Запрос выполняется за доли миллисекунды независимо от глубины страницы.
+2. **Идемпотентный UPSERT (`ON CONFLICT`):**
+   ```sql
+   INSERT INTO part_stock_operations (operation_id, part_id, operation_type, amount)
+   VALUES ($1, $2, $3, $4)
+   ON CONFLICT (operation_id) DO NOTHING;
+   ```
+3. **Профилирование через `EXPLAIN (ANALYZE, BUFFERS)`:**
+   - Перед отправкой тяжелого запроса в прод сеньор тестирует план:
+     - ❌ **Красный флаг:** `Seq Scan` на таблицах более 10 000 строк, большой `Buffers: shared read` (медленный диск).
+     -  **Идеал:** `Index Scan` или `Index Only Scan` со 100% `Buffers: shared hit` (быстрое чтение из RAM).
+
 ---
 
 ## 4. Elasticsearch: Полнотекстовый поиск, CQRS и отказоустойчивость
