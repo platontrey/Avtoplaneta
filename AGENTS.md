@@ -1,226 +1,297 @@
-# Архитектурные правила и контекст проекта Avtoplaneta (AGENTS.md)
+# Архитектурные правила, контекст и протокол сеньор-разработчика Avtoplaneta (AGENTS.md)
 
 Данный документ является **главным источником архитектурной истины** и обязательных инженерных правил для всех ИИ-ассистентов (агентов) и разработчиков, работающих с репозиторием **Avtoplaneta**.
 
-Все агенты **обязаны** строго следовать описанным стандартам, паттернам проектирования и доменным инвариантам во всех трёх ключевых частях системы: **Backend**, **Frontend** и **Mobile (Flutter)**.
+Все агенты **обязаны** строго следовать описанным стандартам, паттернам проектирования, протоколу диалога с пользователем и доменным инвариантам во всех частях системы: **Backend (Go)**, **Frontend (React)** и **Mobile (Flutter)**.
 
 ---
 
-## 1. Коммуникация и Git / CI/CD Workflow
+## 1. Золотой протокол сеньор-разработчика (Senior Mindset & Decision Protocol)
 
-- **Язык общения:** **ИСКЛЮЧИТЕЛЬНО РУССКИЙ ЯЗЫК** (Русский язык). Все ответы, описания шагов, комментарии к коду, отчеты и вопросы формулируются на русском языке.
-- **Локальные коммиты:** При любых существенных изменениях, рефакторинге или фиксе багов обязательно выполнять локальный коммит (`git add` и `git commit`) с осмысленным описанием в формате Conventional Commits или четким описанием на русском/английском.
-- **СТРОГИЙ ЗАПРЕТ НА `git push`:** **НИКОГДА не выполнять `git push` от имени пользователя.** Терминал требует аутентификации, а пользователь вручную пушит ветку для контроля деплоя и CI/CD пайплайна на продакшен-сервере.
-- **Docker Compose:** Всегда использовать синтаксис `docker compose` (с пробелом). Устаревшая команда с дефисом `docker-compose` запрещена.
+Агент никогда не действует «вслепую» и не бросается писать код с первой секунды. Агент мыслит и действует как **Senior Software Engineer / Solutions Architect**.
 
----
+### 1.1. Главное правило: АГЕНТ ОБЯЗАН СПРАШИВАТЬ ПОЛЬЗОВАТЕЛЯ
+Перед реализацией любой нетривиальной фичи, рефакторинга или изменения архитектуры агент **ОБЯЗАН остановиться, проанализировать задачу и задать пользователю уточняющие архитектурные вопросы**.
 
-## 2. Глобальная топология системы
+#### Триггеры, когда агент ОБЯЗАН спросить пользователя перед написанием кода:
+1. **Архитектурная развилка в транспорте:** Выбор между синхронным gRPC вызовом, асинхронным событием через Redis Streams или стандартными инструментами Go (goroutines / worker pool).
+2. **Изменения в схеме БД (DDL):** Добавление новых таблиц, внешних ключей, индексов, полей с дефолтными значениями, изменение существующих статусов или enum.
+3. **Фоновая обработка и задачи по расписанию:** Запуск воркера внутри текущего процесса (Go ticker/goroutine) vs надежная очередь через Transactional Outbox + Redis Streams vs внешний планировщик.
+4. **Контракты API и обратная совместимость:** Добавление или изменение Protobuf RPC-методов, полей в `.proto`, изменение REST-эндпоинтов, затрагивающее мобильное приложение или веб-клиент.
+5. **Поведение при сбоях (Fault Tolerance):** Что делать сервису при недоступности внешнего ресурса (например, Elasticsearch или соседнего микросервиса) — падать, блокировать запрос, отвечать частичными данными из PostgreSQL (fallback), или возвращать кэш.
 
-```
-┌────────────────────────┐      ┌────────────────────────┐
-│  Web Frontend (React)  │      │ Mobile App (Flutter)   │
-│  React 19 / Vite / TS  │      │ Riverpod / Dio / GoRtr │
-└───────────┬────────────┘      └───────────┬────────────┘
-            │                               │
-            └───────────────┬───────────────┘
-                            ▼
-     ┌─────────────────────────────────────────────────────────┐
-     │ Traefik Ingress (SSL/TLS, Routing, ForwardAuth Verify)  │
-     └───────────┬──────────────┬─────────────┬────────────┬───┘
-                 │ /auth/*      │ /orders/*   │ /api/v1/*  │ /api/messaging/*
-                 │              │             │ /uploads/* │
-          ┌──────▼───┐   ┌──────▼───┐  ┌──────▼───┐ ┌──────▼───┐
-          │ Auth     │   │ Orders   │  │ Parts    │ │Messaging │
-          │ Service  │   │ Service  │  │ Service  │ │ Service  │
-          │:8083/9083│   │:8082/9082│  │:8081/9081│ │:8084/9084│
-          └──────▲───┘   └──────┬───┘  └──────▲───┘ └──────▲───┘
-                 │              │             │            │
-                 │              │ gRPC        │ gRPC       │
-                 │              └────────────►│            │
-                 │                    gRPC    │            │
-                 ├────────────────────────────┴────────────┘
-                 │ (ValidateSession, GetUsers, Statistics)
-                 │
-                 │ Redis Streams (seller_renamed, orders)
-                 ▼
-          ┌─────────────────────────────────────────────────────┐
-          │ PostgreSQL (Database-per-Service / Fallback)        │
-          │ Redis (Кэш сессий, CSRF, WebSocket Hub, Streams)   │
-          │ Elasticsearch (Полнотекстовый поиск запчастей)      │
-          └─────────────────────────────────────────────────────┘
-```
+#### Формат формулировки вопроса пользователю:
+Агент обязан представлять вопрос структурированно:
+> **Архитектурный анализ задачи:** [Краткая суть]  
+> **Вариант 1 (Рекомендуемый сеньором):** [Суть решения, почему оно оптимально под наш стек, плюсы и риски]  
+> **Вариант 2 (Альтернативный):** [Суть альтернативы, компромиссы]  
+> **Вопрос к разработчику:** [Конкретный четкий вопрос, требующий утверждения или выбора]
 
 ---
 
-## 3. Бэкенд (Go Microservices)
+## 2. Матрица архитектурных решений под стек Avtoplaneta (The Senior Default Matrix)
 
-Бэкенд организован в виде микросервисов в каталоге `backend/` с использованием рабочего пространства Go (`go.work`).
+Сеньор автоматически знает, какой инструмент из нашего стека решает конкретный класс задач. Любые отклонения от матрицы должны быть согласованы с пользователем.
 
-### 3.1. Каталог микросервисов и зоны ответственности
-1. **Auth Service (`backend/auth-service/`)** — HTTP `:8083`, gRPC `:9083`:
-   - Локальная аутентификация (bcrypt) и Google OAuth (`gothic`).
-   - Управление сессиями (HttpOnly cookies, Redis session store).
-   - Traefik ForwardAuth верификация: `/auth/verify` и `/auth/verify-admin`.
-   - Справочник пользователей (`GetUsers` по gRPC) и аудит-лог активности (`LogActivity`).
-   - Публикация событий в Redis Streams (`seller_renamed`).
-2. **Parts Service (`backend/parts-service/`)** — HTTP `:8081`, gRPC `:9081`:
-   - Складской учет запчастей, карточки деталей, галереи изображений (`/uploads/*`).
-   - Полнотекстовый поиск с Elasticsearch (морфология, синонимы `synonyms.txt`, fuzzy search).
-   - Единый каталог дефектовок и шаблонов (`catalog.json`, `vehicles.json`).
-   - Пакетная вставка ведомостей (`pgx.Batch` + Elasticsearch `BulkIndexParts`).
-   - Идемпотентное списание/возврат остатков (`DecreasePartQuantity`, `IncreasePartQuantity`).
-   - ETag отпечаток склада (`InventoryVersion`).
-3. **Orders Service (`backend/orders-service/`)** — HTTP `:8082`, gRPC `:9082`:
-   - Жизненный цикл заказов (статусы: `red` -> `brown` -> `yellow` -> `green`).
-   - Автоматическое списание запчастей при закрытии заказа через gRPC вызов `DecreasePartQuantity` в `parts-service`.
-   - Встроенная CRM клиентов (`customers`), расчет LTV и персональных скидок.
-   - Нормализация телефонов (`+7XXXXXXXXXX`) и дедупликация клиентов.
-4. **Messaging Service (`backend/messaging-service/`)** — HTTP `:8084`, gRPC `:9084`:
-   - Внутренние чаты пользователей, WebSocket hub (`/api/messaging/ws`).
-   - Потоковая загрузка голосовых сообщений через gRPC streaming.
-   - Интеграция с Drom.ru (парсинг сообщений, отправка ответов).
-5. **Export Service (`backend/export-service/`)** — HTTP `:8085`:
-   - Генерация XML-фидов (`/uploads/pricelist.xml`) для Drom.ru и Avito.
-   - **НАМЕРЕННО НЕ ИМЕЕТ СВОЕЙ БД**: считывает склад потоком через gRPC из `parts-service` (`ListPartsForExport`) и реквизиты продавцов (ИНН) из `auth-service` (`GetUsers`).
-   - Интеллектуальный сборщик: перед пересборкой сверяет `InventoryVersion` отпечаток с `pricelist.meta.json`. Если склад не менялся — генерация пропускается.
+| Задача | Стандартное решение (Default) | Почему именно оно? |
+| :--- | :--- | :--- |
+| **Параллельная работа внутри одного сервиса** (сжатие 10 фото, парсинг Excel ведомости, fan-out I/O) | **Стандартные инструменты Go** (`errgroup.WithContext`, семафор на каналах `chan struct{}`, горутины) | Нулевые накладные расходы, изоляция внутри процесса, управление через `context.Context`. |
+| **Синхронный запрос между микросервисами** (списание остатка детали при заказе, получение профиля продавца) | **gRPC (Protobuf)** через HTTP/2 соединение | Строгая типизация, минимальный оверхед (protobuf бинарный), гарантированная немедленная согласованность (Strong Consistency). |
+| **Асинхронные события между сервисами** (переименование продавца `seller_renamed`, уведомления, аудит) | **Redis Streams** (`XADD`, Consumer Groups `XREADGROUP`, `XACK`) | Декаплинг сервисов, устойчивость к падениям получателей, возможность масштабирования воркеров, хранение истории сообщений. |
+| **Гарантированная отправка события из БД** (не потерять событие при падении сервиса, Dual-Write проблема) | **Transactional Outbox Pattern** (таблица `outbox_events` + PostgreSQL `LISTEN/NOTIFY` + Outbox Dispatcher) | Атомарность записи в бизнес-таблицу и таблицу аутбокса в единой транзакции `pgx.Tx`. Исключает рассинхрон между БД и брокером/поиском. |
+| **Полнотекстовый поиск запчастей, опечатки, фасеты** | **Elasticsearch** (морфология, стемминг, `synonyms.txt`) | PostgreSQL медленно и неэффективно ищет по нечетким фразам автозапчастей («тойота каролла стойка перед прав»). |
+| **Хранение состояния и транзакции** | **PostgreSQL** (`Database-per-Service`, `sqlc`, `pgx/v5`) | Строгие ACID транзакции, реляционная целостность, отсутствие тяжелых ORM. |
+| **Кэширование списков и частых запросов** | **Redis кэш + ETag / `If-None-Match`** | Снижение нагрузки на БД и Elasticsearch, моментальный ответ `304 Not Modified`. |
 
-### 3.2. Общие библиотеки (`backend/pkg/`)
-- `pkg/authcontext` — стандартизированное извлечение контекста пользователя (`X-User-ID`, `X-User-Role`, `X-User-Name`, `X-User-Email`), проброшенного Traefik ForwardAuth.
-- `pkg/httpcache` — вычисление `ETag` и быстрая обработка условных запросов `If-None-Match`.
-- `pkg/httpserver` — запуск HTTP сервера с поддержкой Graceful Shutdown.
-- `pkg/redisclient` — унифицированный клиент Redis и шины событий Redis Streams.
-- `pkg/tracing` — инициализация OpenTelemetry трейсинга с экспортом в Grafana Tempo.
-- `pkg/userdirectory` — потокобезопасный кэш справочника продавцов.
+### 2.1. Когда выбирать стандартные инструменты Go, а когда Брокер сообщений?
 
-### 3.3. Правила межсервисной коммуникации и API
-- **100% межсервисных вызовов — строго через gRPC (Protobuf):**
-  - Никаких внутренних прямых HTTP-вызовов между сервисами.
-  - Прямой доступ к БД соседнего сервиса строго запрещен.
-  - Контракты описаны в `backend/proto/`. При любых правках контрактов запускать `make proto` (из каталога `backend/`).
-- **Разделение маршрутов `/api/v1/*` и `/api/*`:**
-  - `/api/v1/*` — строго типизированные эндпоинты, сгенерированные через **gRPC-Gateway** (принимают/возвращают JSON представления protobuf-сообщений).
-  - `/api/*` — нативные REST эндпоинты Gin для задач, где Protobuf нецелесообразен:
-    - Multipart-загрузка фото (`/api/uploadpartphoto/:id`, `/api/v1/uploadpartphoto/:id`).
-    - Загрузка и парсинг Excel ведомостей (`/api/defect-reports`).
-    - Статические каталоги (`/api/part-catalog`, `/api/vehicle-catalog`).
-    - WebSocket подключение чата (`/api/messaging/ws`).
+#### Используй стандартные инструменты Go (`sync`, `errgroup`, `channel`, `goroutine`), если:
+- Задача **локальна для одного сервиса** и не должна переживать рестарт контейнера (например, пользователь загрузил пачку из 5 фотографий детали: сжать их параллельно в 5 горутинах через `errgroup` и сохранить на диск).
+- Фоновый сборщик внутри процесса, отменяемый по контексту: `select { case <-ctx.Done(): return; case <-ticker.C: ... }`.
+- In-memory rate limiting или локальный кэш справочников (`sync.RWMutex`).
 
-### 3.4. Базы данных и sqlc
-- **Database-per-Service:** Каждый сервис работает со своей строкой подключения (`AUTH_DATABASE_URL`, `PARTS_DATABASE_URL`, `ORDERS_DATABASE_URL`, `MESSAGING_DATABASE_URL`) с fallback на `DATABASE_URL`.
-- **Строгий запрет на тяжелые ORM:** Никакого GORM/Ent. Использовать связку **`sqlc` + `pgx/v5`**.
-- SQL-запросы хранятся в `db/queries/*.sql`. При изменении запросов обязательно запускать `sqlc generate`.
-- Таблица версионирования миграций: `schema_migrations`.
-- **Идемпотентность складских операций:** Таблица `part_stock_operations` фиксирует `(operation_id, part_id, operation_type, amount)`. Повторный вызов с тем же `operation_id` игнорируется.
+#### Используй Брокер сообщений (Redis Streams), если:
+- Событие должно быть доставлено **другим микросервисам** (Orders, Messaging, Export).
+- Нужна **гарантия доставки At-Least-Once** даже в случае падения или перезапуска сервиса-потребителя.
+- Требуется распределение нагрузки между несколькими репликами сервиса (Consumer Groups).
+- **Схема работы Redis Streams:**
+  1. Создание группы: `XGROUP CREATE stream_name group_name $ MKSTREAM` (игнорировать ошибку `BUSYGROUP`).
+  2. Вычитка пачками: `XREADGROUP GROUP group_name consumer_name BLOCK 2s COUNT 10 STREAMS stream_name >`.
+  3. Успешная обработка: обязательный `XACK stream_name group_name msg_id`.
+  4. Периодическое восстановление зависших сообщений (PEL — Pending Entries List) через `XAUTOCLAIM` или `XPENDING` + `XCLAIM`.
+
+#### Используй Transactional Outbox (PostgreSQL -> Dispatcher -> Redis / Elasticsearch), если:
+- Нельзя допустить ситуацию «В базу данных деталь записалась, а событие в Redis / Elasticsearch не ушло из-за сбоя сети» (Dual-Write Problem).
+- Вставка события в `outbox_events` выполняется строго **в той же транзакции БД**, что и сохранение бизнес-сущности.
+- Dispatcher слушает сигнал мгновенного пробуждения через `LISTEN outbox_events_channel` (PostgreSQL `pg_notify`), выбирает необработанные записи через `SELECT ... FOR UPDATE SKIP LOCKED` и отправляет в Redis / Elasticsearch.
 
 ---
 
-## 4. Критические доменные инварианты (Inventory & Orders)
+## 3. Стандарты работы с Базой Данных (PostgreSQL, sqlc, pgx/v5)
 
-### 4.1. Семантика поля `quantity` (КРИТИЧЕСКИ ВАЖНО)
+Каждый сервис изолирован по модели **Database-per-Service** (`AUTH_DATABASE_URL`, `PARTS_DATABASE_URL`, `ORDERS_DATABASE_URL`, `MESSAGING_DATABASE_URL` с fallback на `DATABASE_URL`). Использование чужих БД напрямую строго запрещено.
+
+### 3.1. Как правильно писать и организовывать миграции
+
+#### 1. Структура и наименование файлов:
+- Миграции именуются строго последовательно: `0000XX_name.up.sql` и `0000XX_name.down.sql`.
+- Номер версии состоит из 6 цифр (например, `000010_create_outbox_events_table.up.sql`).
+- **КРИТИЧЕСКОЕ ПРАВИЛО ДВОЙНОГО РАЗМЕЩЕНИЯ (Go embed):**
+  - В сервисах `parts-service`, `orders-service`, `auth-service` файл `database.go` находится в `internal/repository/`.
+  - Директива `//go:embed` в Go **не может подниматься в родительские папки (`../`)**.
+  - Поэтому ЛЮБАЯ новая миграция ОБЯЗАНА быть создана одновременно в двух каталогах:
+    1. `backend/<service>/db/migrations/` (отсюда читает генератор `sqlc.yaml`).
+    2. `backend/<service>/internal/repository/migrations/` (отсюда читает раннер приложения `//go:embed migrations/*.up.sql`).
+  *(В `messaging-service` `database.go` находится в корне сервиса и читает напрямую из `db/migrations/`).*
+
+#### 2. Идемпотентность и безопасность DDL:
+- Все операции в миграциях обязаны быть идемпотентными:
+  ```sql
+  -- ВСЕГДА:
+  CREATE TABLE IF NOT EXISTS my_table (...);
+  ALTER TABLE my_table ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'pending';
+  CREATE INDEX IF NOT EXISTS idx_my_table_status ON my_table (status);
+  DROP TABLE IF EXISTS old_table;
+  ```
+- **Безопасность для Production (Zero-Downtime):**
+  - При добавлении `NOT NULL` колонки в существующую большую таблицу всегда указывать `DEFAULT`, чтобы Postgres не блокировал таблицу монопольно.
+  - Каждая `.up.sql` миграция **ОБЯЗАНА** иметь соответствующую корректную `.down.sql`, которая полностью откатывает изменения.
+- Все миграции автоматически накатываются раннером сервиса при старте и фиксируются в системной таблице `schema_migrations`.
+
+### 3.2. Стандарты работы с `sqlc` и `pgx/v5`
+- Никаких тяжелых ORM (GORM, Ent). Только **`sqlc` + `pgx/v5`**.
+- SQL-запросы хранятся строго в `db/queries/<entity>.sql`.
+- **Аннотации sqlc:**
+  ```sql
+  -- name: GetPartByID :one
+  SELECT * FROM parts WHERE id = $1 AND quantity >= 0;
+
+  -- name: ListPartsBySeller :many
+  SELECT * FROM parts WHERE seller_id = $1 AND quantity >= 0 ORDER BY id DESC LIMIT $2 OFFSET $3;
+
+  -- name: UpdatePartStock :exec
+  UPDATE parts SET quantity = $2, updated_at = NOW() WHERE id = $1;
+  ```
+- Использовать явные именованные аргументы: `sqlc.arg(name)` или `sqlc.narg(name)` (для nullable аргументов).
+- **ОБЯЗАТЕЛЬНАЯ КОМАНДА:** После любых правок в `db/queries/*.sql` или файлах миграций запускать в каталоге сервиса:
+  ```bash
+  sqlc generate
+  ```
+
+### 3.3. Работа с транзакциями и батчами в Go коде
+- **Батч-операции (`pgx.Batch`):** Для массовой вставки строк (дефектовки, импорт каталога, синхронизация) **ЗАПРЕЩЕНО** делать одиночные `INSERT` в цикле. Использовать `pgx.Batch` или `CopyFrom`:
+  ```go
+  batch := &pgx.Batch{}
+  for _, item := range items {
+      batch.Queue(insertQuery, item.A, item.B)
+  }
+  br := pool.SendBatch(ctx, batch)
+  defer br.Close()
+  ```
+- **Транзакции:** Использовать транзакции для любых связанных изменений:
+  ```go
+  tx, err := pool.Begin(ctx)
+  if err != nil { return err }
+  defer tx.Rollback(ctx)
+  qtx := q.WithTx(tx)
+  // ... операции через qtx ...
+  return tx.Commit(ctx)
+  ```
+- **Блокировки очереди:** При выборке задач/событий из БД несколькими воркерами всегда использовать `FOR UPDATE SKIP LOCKED`.
+
+---
+
+## 4. Elasticsearch: Архитектура поиска, CQRS и отказоустойчивость
+
+### 4.1. Роль Elasticsearch в системе
+- **PostgreSQL — единственный Source of Truth (источник истины).**
+- **Elasticsearch — читающая проекция (CQRS Read Model)**, оптимизированная под быстрый полнотекстовый поиск, опечатки, фасетную фильтрацию и морфологию русского языка.
+- **СТРОГИЙ ЗАПРЕТ НА ДВОЙНУЮ ЗАПИСЬ (Dual-Write):** Обработчик HTTP-запроса не должен одновременно напрямую писать в PostgreSQL и Elasticsearch. Запись в Elasticsearch должна происходить надежно через **Transactional Outbox Dispatcher** (`parts-service/internal/outbox/dispatcher.go`).
+
+### 4.2. Морфология, синонимы и анализаторы
+- Поиск автозапчастей специфичен: пользователи вводят сленг («капот», «лобовуха», «ступица лев пер»).
+- Индекс настраивается с русским стеммером (`russian_stemmer`) и справочником синонимов `backend/parts-service/catalog/synonyms.txt`.
+- При пакетной переиндексации (`ReindexAllParts`) использовать Elasticsearch `BulkIndexParts` с чанками по 200-500 документов.
+
+### 4.3. Отказоустойчивость (Graceful Degradation / Fallback)
+- Если Elasticsearch недоступен или упал при старте контейнера, `parts-service` **НЕ ДОЛЖЕН падать в фатал**.
+- Сервис логирует `Warn("Elasticsearch is unavailable, running with database fallback")` и переключает поиск на SQL `ILIKE` / PostgreSQL full-text search.
+
+---
+
+## 5. Критические доменные инварианты (Inventory & Orders)
+
+### 5.1. Семантика поля `quantity` (НАРУШЕНИЕ КАРАЕТСЯ СБОЕМ БИЗНЕСА)
 В системе определены 3 фундаментальных состояния остатка деталей:
-1. `quantity > 0` — обычная запчасть в наличии на складе.
+1. `quantity > 0` — деталь в наличии на складе.
 2. `quantity == 0` — дефектная ведомость (акт дефектовки) или спецдеталь. **ОНИ ОБЯЗАНЫ ОСТАВАТЬСЯ ВИДИМЫМИ** в поиске, UI и XML-выгрузках.
-3. `quantity == -1` — запчасть полностью продана через `orders-service`. Служит маркером сокрытия из UI и XML-выгрузок, сохраняя историчность и целостность заказов.
+3. `quantity == -1` — деталь полностью продана через `orders-service`. Служит маркером сокрытия из выдачи, сохраняя целостность завершенных заказов.
 
-> ⚠️ **ПРАВИЛО ЗАПРОСОВ:** При выборке запчастей для отображения, полнотекстового поиска и генерации выгрузок ВСЕГДА использовать условие:
+> ⚠️ **ЖЕЛЕЗНОЕ ПРАВИЛО SQL И ELASTICSEARCH:**
+> При выборке деталей для отображения в каталоге, поиске и генерации выгрузок ВСЕГДА использовать условие:
 > ```sql
 > WHERE quantity >= 0 -- ПРАВИЛЬНО! Включает нулевые дефектовки и отсекает проданные (-1)
 > ```
-> ❌ **НИКОГДА НЕ ПИСАТЬ:** `quantity > 0` (это скроет дефектные ведомости!).
+> ❌ **НИКОГДА НЕ ПИСАТЬ:** `WHERE quantity > 0` (это скроет дефектные ведомости!).
 
-### 4.2. Списание остатков в `orders-service`
-```sql
--- DecreasePartQuantity:
-UPDATE parts
-SET quantity = CASE WHEN quantity - sqlc.arg(amount)::integer <= 0 THEN -1 ELSE quantity - sqlc.arg(amount)::integer END
-WHERE id = sqlc.arg(id);
+### 5.2. Списание остатков в `orders-service` и идемпотентность
+- Списание запчастей при закрытии заказа происходит через gRPC вызов `DecreasePartQuantity` в `parts-service`.
+- Таблица `part_stock_operations` фиксирует `(operation_id, part_id, operation_type, amount)`. Повторные вызовы с тем же `operation_id` игнорируются (идемпотентность).
+- При исчерпании остатка количество становится `-1`:
+  ```sql
+  UPDATE parts
+  SET quantity = CASE WHEN quantity - sqlc.arg(amount)::integer <= 0 THEN -1 ELSE quantity - sqlc.arg(amount)::integer END
+  WHERE id = sqlc.arg(id);
+  ```
 
--- IncreasePartQuantity (при отмене заказа/возврате):
-UPDATE parts
-SET quantity = CASE WHEN quantity = -1 THEN sqlc.arg(amount)::integer ELSE quantity + sqlc.arg(amount)::integer END
-WHERE id = sqlc.arg(id);
-```
-
-### 4.3. CRM, клиенты и дедупликация
-- Поле `buyer_number` нормализуется с помощью алгоритма `parseBuyerInfo(raw)`:
-  - Отсекаются служебные строки ("Самовывоз", "Продажа на месте", "Без контакта").
-  - Номер телефона приводится к каноническому формату `+7XXXXXXXXXX`.
-  - Из строки отсекаются лишние пометки (например, "Получатель: ...").
+### 5.3. CRM, клиенты и дедупликация
+- Поле `buyer_number` нормализуется с помощью `parseBuyerInfo(raw)` к формату `+7XXXXXXXXXX`.
 - На уровне БД действует ограничение `UNIQUE INDEX idx_customers_unique_phone`.
 - При попытке создания существующего номера API возвращает `409 Conflict`.
 
 ---
 
-## 5. Фронтенд (React 19 / Vite / TypeScript)
+## 6. Межсервисные контракты (gRPC, Protobuf, Traefik)
 
-Фронтенд расположен в каталоге `frontend/`.
+- **100% межсервисных вызовов — строго через gRPC (Protobuf):**
+  - Никаких внутренних прямых HTTP-вызовов между микросервисами.
+  - Прямой доступ к БД соседнего сервиса строго запрещен.
+  - Контракты описаны в `backend/proto/`. При любых правках контрактов запускать `make proto` (из каталога `backend/`).
+  - Команда `make proto` автоматически компилирует Go-код, gRPC-клиенты, gRPC-Gateway и копирует `swagger.json` во фронтенд (`frontend/src/data/swagger.json`).
+- **Разделение маршрутов:**
+  - `/api/v1/*` — строго типизированные gRPC-Gateway эндпоинты (JSON представление protobuf).
+  - `/api/*` — нативные REST эндпоинты Gin для multipart-загрузок фото, файлов Excel, статических каталогов и WebSocket (`/api/messaging/ws`).
+- **Безопасность:** Проверка сессий через Traefik ForwardAuth (`auth-service /auth/verify`). Заголовки `X-User-ID`, `X-User-Role`, `X-User-Name`, `X-User-Email` извлекаются через `pkg/authcontext`.
 
-### 5.1. Архитектура и стек
-- **Стек:** React 19, TypeScript, Vite, TanStack React Query v5, React Router v7, Tailwind CSS v4, Radix UI.
-- **Модульная структура:**
-  - `src/features/` — доменные модули: `auth`, `parts`, `orders`, `customers`, `defectReport`, `messaging`, `admin`, `catalog`, `vehicles`.
-  - `src/components/ui/` — дизайн-система и примитивы shadcn/radix.
-  - `src/lib/` — клиенты API (`api.ts`, `queryClient.ts`), безопасность (`csrf.ts`), телеметрия и кэш.
-  - `src/docs/` — встроенный интерактивный Swagger/OpenAPI проводник `/readme`.
+---
 
-### 5.2. Требования к производительности
+## 7. Frontend (React 19) и Mobile (Flutter)
+
+### 7.1. Frontend (React 19 / TypeScript / Vite / TanStack Query v5)
 - **INP (Interaction to Next Paint):** Целевое значение **< 200ms**.
-- **Параллельная загрузка фото:** Изображения в карточках и формах дефектовок должны обрабатываться и загружаться параллельно (`Promise.all`), а не блокирующей цепочкой.
-- **Отказ от тяжелых анимаций:** Запрещены тяжелые `whileHover`/`whileTap` эффекты на карточках в длинных списках запчастей.
-- **Debounced поиск:** Все поля ввода поиска обязаны использовать debounce во избежание флуда API и ре-рендеров.
+- **Параллельная загрузка медиа:** Фотографии карточек обрабатываются параллельно (`Promise.all`), а не по одной.
+- **Кэширование TanStack Query:** Инвалидировать соответствующие query-ключи (`queryClient.invalidateQueries({ queryKey: [...] })`) при мутациях данных.
+- **Debounced поиск:** Все поисковые поля обязаны использовать debounce.
+
+### 7.2. Mobile App (Flutter / Riverpod / Dio / GoRouter)
+- **Единый источник маршрутов:** `AvtoplanetaApp/lib/core/api/api_endpoints.dart`. При добавлении или изменении эндпоинтов на бэкенде обязательно синхронизировать их здесь.
+- **Отказоустойчивость:** Обработка оффлайн-режима через Hive кэш и перехват ошибок Dio (`DioException`).
 
 ---
 
-## 6. Мобильное приложение (AvtoplanetaApp / Flutter)
+## 8. Чеклист сеньор-разработчика при создании новой фичи
 
-Мобильное приложение расположено в каталоге `AvtoplanetaApp/`.
+Перед тем как считать задачу выполненной, сеньор проходит по шагам:
 
-### 6.1. Архитектура и стек
-- **Фреймворк:** Flutter 3.x / Dart (sdk `^3.11.4`).
-- **State Management:** `flutter_riverpod` (v2.6+) + `riverpod_annotation`.
-- **Навигация:** `go_router` (v15.1+), файл `lib/app/router.dart`.
-- **Сетевой клиент:** `dio` (v5.8+) с логированием `pretty_dio_logger`.
-- **Хранилище:** `flutter_secure_storage` (токены сессий) + `hive_flutter` (локальный кэш).
-- **In-App APK Updates:** Автообновление через `package_info_plus`, `path_provider`, `open_filex`.
-- **Сканер:** `mobile_scanner` для сканирования штрихкодов и QR-кодов запчастей.
-
-### 6.2. Организация кода
-- `lib/core/api/api_endpoints.dart` — **единый источник маршрутов API**. При добавлении эндпоинтов на бэкенде они обязательно синхронизируются здесь.
-- `lib/core/models/` — модели данных: `Part`, `Order`, `Customer`, `User`, `Statistics`.
-- `lib/features/` — фичи: `inventory`, `orders`, `auth`, `messaging`, `statistics`, `admin`, `updater`.
+```
+[ ] 1. АРХИТЕКТУРНЫЙ АНАЛИЗ И ВОПРОС ПОЛЬЗОВАТЕЛЮ:
+       - Сформулированы ли развилки? Получено ли подтверждение пользователя?
+[ ] 2. БАЗА ДАННЫХ И МИГРАЦИИ:
+       - Созданы 0000XX_name.up.sql и 0000XX_name.down.sql?
+       - Продублированы ли миграции в db/migrations/ И internal/repository/migrations/?
+       - Написаны ли запросы в db/queries/*.sql?
+       - Выполнен ли sqlc generate?
+[ ] 3. МЕЖСЕРВИСНЫЕ КОНТРАКТЫ (если меняется API):
+       - Обновлены proto-файлы в backend/proto/?
+       - Выполнен make proto из каталога backend/?
+       - Синхронизирован ли swagger.json с фронтендом?
+[ ] 4. БИЗНЕС-ЛОГИКА И РЕЗИЛЬЕНТНОСТЬ:
+       - Соблюден ли доменный инвариант quantity >= 0?
+       - Ошибки обернуты через fmt.Errorf("...: %w", err)?
+       - Контекст ctx context.Context проброшен первым аргументом во все вызовы?
+       - Обработана ли отмена контекста и Graceful Shutdown?
+       - Использован ли Transactional Outbox при синхронизации с ES или Redis?
+[ ] 5. КЛИЕНТСКИЕ ПРИЛОЖЕНИЯ:
+       - Проверена совместимость с Frontend и Flutter Mobile (api_endpoints.dart)?
+[ ] 6. ВЕРИФИКАЦИЯ И СБОРКА:
+       - make build-services проходит без ошибок?
+       - go test ./... проходит успешно?
+[ ] 7. ЛОКАЛЬНЫЙ КОММИТ:
+       - git add и git commit с осмысленным сообщением.
+       - НИКАКИХ git push!
+```
 
 ---
 
-## 7. Справочник команд для агента
+## 9. Коммуникация и Git / CI/CD Workflow
+
+- **Язык общения:** **ИСКЛЮЧИТЕЛЬНО РУССКИЙ ЯЗЫК**. Все ответы, комментарии к коду, вопросы к пользователю и отчеты формулируются на русском языке.
+- **Локальные коммиты:** Обязательно фиксировать изменения через `git add` и `git commit` с четким описанием в формате Conventional Commits (например, `feat(parts): add outbox dispatcher for search index`).
+- **СТРОГИЙ ЗАПРЕТ НА `git push`:** **НИКОГДА не выполнять `git push` от имени пользователя.** Пользователь вручную пушит ветку для контроля деплоя.
+- **Docker Compose:** Всегда использовать синтаксис `docker compose` (с пробелом). Команда `docker-compose` запрещена.
+
+---
+
+## 10. Справочник команд для агента
 
 ```bash
 # === BACKEND ===
 cd backend
 
-# 1. Генерация Protobuf и gRPC-Gateway кода:
+# 1. Генерация Protobuf и gRPC-Gateway кода + Swagger:
 make proto
 
-# 2. Генерация Go-кода SQL запросов (при изменении db/queries/*.sql):
-sqlc generate
+# 2. Генерация Go-кода SQL запросов (из каталога сервиса, где есть sqlc.yaml):
+cd parts-service && sqlc generate && cd ..
+cd orders-service && sqlc generate && cd ..
+cd auth-service && sqlc generate && cd ..
+cd messaging-service && sqlc generate && cd ..
 
-# 3. Запуск сервисов для локальной разработки:
+# 3. Проверка компиляции всех сервисов:
+make build-all
+
+# 4. Запуск всех юнит-тестов:
+make test
+
+# 5. Запуск сервисов для локальной разработки:
 make start-dev
 
 # === FRONTEND ===
 cd frontend
-
-# Установка зависимостей и запуск dev-сервера:
 npm install
-npm run dev
-
-# Проверка сборки и типов TypeScript:
 npm run build
 
 # === DOCKER / ИНФРАСТРУКТУРА ===
-# Запуск всей инфраструктуры (Traefik, БД, Redis, ES, сервисы):
 docker compose up -d
-
-# Логи конкретного сервиса:
 docker compose logs -f parts-service
 ```
