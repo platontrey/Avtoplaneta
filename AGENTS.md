@@ -410,6 +410,30 @@ DROP TABLE IF EXISTS customer_notes;
      - ❌ **Красный флаг:** `Seq Scan` на таблицах более 10 000 строк, большой `Buffers: shared read` (медленный диск).
      -  **Идеал:** `Index Scan` или `Index Only Scan` со 100% `Buffers: shared hit` (быстрое чтение из RAM).
 
+### 3.5. Стандарт создания новых микросервисов (Template & Scaffolding)
+
+Чтобы избежать ошибок с зависимостями в Docker, забытых директив `replace` и ручного дублирования бойлерплейта, в проекте внедрен эталонный шаблон и автоматический генератор:
+
+1. **Эталонный сервис (`backend/template-service`):**
+   - Компилируемый микросервис с чистой архитектурой (`domain`, `repository`, `service`, `handler`, `grpc`).
+   - Настроенный многоэтапный `Dockerfile` с кеш-моунтами `--mount=type=cache`, пользователем `appuser`, встроенным `HEALTHCHECK`.
+   - Полная интеграция с `sqlc`, PostgreSQL (`pgx/v5`), встроенным раннером миграций `schema_migrations`.
+   - Подключение `pkg/httpserver`, `pkg/authcontext`, `/health`, `/metrics` (Prometheus) и Graceful Shutdown через `errgroup`.
+   - Регулярно тестируется в `make test` и `make build-services` монорепозитория, что гарантирует 100% актуальность шаблона со временем.
+
+2. **Команда генерации (`make new-service`):**
+   ```bash
+   cd backend && make new-service NAME=<name> PORT=<http_port> GRPC_PORT=<grpc_port>
+   # Пример:
+   make new-service NAME=billing PORT=8086 GRPC_PORT=9086
+   ```
+   Скрипт автоматически:
+   - Клонирует эталонный шаблон в `backend/<name>-service`.
+   - Заменяет имена пакетов, модулей, портов и сущностей.
+   - Регистрирует сервис в корневом `go.work` и `backend/Makefile`.
+   - Запускает `go mod tidy`, `sqlc generate` и валидирует юнит-тесты `go test ./...`.
+   - Генерирует готовый блок конфигурации для вставки в `docker-compose.yml`.
+
 ---
 
 ## 4. Elasticsearch: Полнотекстовый поиск, CQRS и отказоустойчивость

@@ -57,6 +57,9 @@
    - **Функциональные и GIN:** `LOWER(TRIM(email))`, `TRIM(phone)`, `USING GIN (photos)` для массивов/JSONB.
    - **Constraints:** `CHECK (quantity >= -1)`, `CHECK (price >= 0)`, осознанный `ON DELETE RESTRICT/CASCADE`.
    - **Пагинация:** Keyset pagination `WHERE (created_at, id) < ...` вместо антипаттерна `OFFSET`.
+6. **Шаблон и генератор микросервисов (`make new-service`):**
+   - Эталонный сервис находится в `backend/template-service`. Содержит готовый `Dockerfile` с кэш-моунтами, `sqlc.yaml`, миграции `schema_migrations`, `/health`, `/metrics` (Prometheus) и Graceful Shutdown.
+   - Для создания нового микросервиса запускать: `cd backend && make new-service NAME=<name> PORT=<port> GRPC_PORT=<grpc_port>`. Скрипт сам пропишет модуль в `go.work`, `Makefile` и проверит сборку.
 
 ---
 

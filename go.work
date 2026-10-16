@@ -8,5 +8,6 @@ use (
 	./backend/orders-service
 	./backend/parts-service
 	./backend/pkg
+	./backend/template-service
 	./backend/tools/vehicle-catalog-sync
 )

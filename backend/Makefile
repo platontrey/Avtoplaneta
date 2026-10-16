@@ -51,6 +51,7 @@ build-services:
 	cd orders-service && go build -o /dev/null ./...
 	cd messaging-service && go build -o /dev/null ./...
 	cd export-service && go build -o /dev/null ./...
+	cd template-service && go build -o /dev/null ./...
 	cd pkg && go test -run=^$$ ./...
 	@echo "All services build OK"
 
@@ -66,6 +67,8 @@ build-binaries:
 	cd messaging-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o bin/messaging-service .
 	@echo "Building export-service static binary..."
 	cd export-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o bin/export-service .
+	@echo "Building template-service static binary..."
+	cd template-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o bin/template-service .
 	@echo "All static binaries built successfully."
 
 # Установка всех Go-зависимостей
@@ -75,6 +78,7 @@ deps:
 	cd orders-service && go mod download
 	cd messaging-service && go mod download
 	cd export-service && go mod download
+	cd template-service && go mod download
 	cd gen && go mod download
 	cd pkg && go mod download
 	@echo "All dependencies downloaded"
@@ -96,8 +100,14 @@ test:
 	cd orders-service && go test ./...
 	cd messaging-service && go test ./...
 	cd export-service && go test ./...
+	cd template-service && go test ./...
 	cd pkg && go test ./...
 	@echo "All unit tests passed!"
+
+# Генерация нового микросервиса из эталонного шаблона
+# Пример: make new-service NAME=billing PORT=8086 GRPC_PORT=9086
+new-service:
+	@bash scripts/new-service.sh "$(NAME)" "$(PORT)" "$(GRPC_PORT)"
 
 # Запуск интеграционных тестов (требуется запущенная БД)
 test-integration:
