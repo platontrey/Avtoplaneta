@@ -123,12 +123,18 @@ func GenerateXMLPriceList(parts []Part, sellerINNs map[int64]string, baseImageUR
 		offers.Offers = append(offers.Offers, offer)
 	}
 
-	xmlData, err := xml.MarshalIndent(offers, "", "  ")
-	if err != nil {
+	// Оцениваем средний размер XML оффера (~500 байт на запчасть) для однократного выделения буфера
+	var buf bytes.Buffer
+	buf.Grow(len(offers.Offers)*500 + len(xml.Header))
+	buf.WriteString(xml.Header)
+
+	enc := xml.NewEncoder(&buf)
+	enc.Indent("", "  ")
+	if err := enc.Encode(offers); err != nil {
 		return nil, fmt.Errorf("ошибка маршалинга XML: %v", err)
 	}
 
-	return []byte(xml.Header + string(xmlData)), nil
+	return buf.Bytes(), nil
 }
 
 // sendToDromAPI отправляет XML прайс-лист на API Drom.ru

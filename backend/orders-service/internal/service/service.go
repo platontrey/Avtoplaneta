@@ -201,11 +201,13 @@ func parseBuyerInfo(raw string) (phone string, name string) {
 		return "", ""
 	}
 
-	// Извлекаем все цифры
+	// Извлекаем все цифры с предварительно выделенной емкостью
 	var digits strings.Builder
-	for _, r := range raw {
-		if r >= '0' && r <= '9' {
-			digits.WriteRune(r)
+	digits.Grow(len(raw))
+	for i := 0; i < len(raw); i++ {
+		ch := raw[i]
+		if ch >= '0' && ch <= '9' {
+			digits.WriteByte(ch)
 		}
 	}
 	digitStr := digits.String()
@@ -231,14 +233,30 @@ func parseBuyerInfo(raw string) (phone string, name string) {
 	lower := strings.ToLower(namePart)
 	if strings.HasPrefix(lower, "получатель") {
 		namePart = strings.TrimSpace(namePart[len("получатель"):])
+		lower = strings.ToLower(namePart)
 	}
-	if strings.HasPrefix(strings.ToLower(namePart), "фио") {
-		namePart = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(namePart, "ФИО"), ":"))
+	if strings.HasPrefix(lower, "фио") {
+		namePart = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(namePart[len("фио"):], ":"), " "))
 	}
 
-	words := strings.Fields(namePart)
-	var nameWords []string
-	for _, w := range words {
+	// Парсим слова имени без аллокаций среза strings.Fields
+	var nameBuilder strings.Builder
+	nameBuilder.Grow(len(namePart))
+
+	for i := 0; i < len(namePart); {
+		// Пропускаем пробелы
+		for i < len(namePart) && (namePart[i] == ' ' || namePart[i] == '\t' || namePart[i] == '\n' || namePart[i] == '\r') {
+			i++
+		}
+		if i >= len(namePart) {
+			break
+		}
+		start := i
+		for i < len(namePart) && !(namePart[i] == ' ' || namePart[i] == '\t' || namePart[i] == '\n' || namePart[i] == '\r') {
+			i++
+		}
+		w := namePart[start:i]
+
 		cleanWord := strings.Trim(w, "+()- —–")
 		isNumeric := true
 		for _, ch := range cleanWord {
@@ -248,12 +266,14 @@ func parseBuyerInfo(raw string) (phone string, name string) {
 			}
 		}
 		if !isNumeric || len(cleanWord) < 6 {
-			nameWords = append(nameWords, w)
+			if nameBuilder.Len() > 0 {
+				nameBuilder.WriteByte(' ')
+			}
+			nameBuilder.WriteString(w)
 		}
 	}
 
-	name = strings.Join(nameWords, " ")
-	name = strings.TrimSpace(name)
+	name = strings.TrimSpace(nameBuilder.String())
 	if name == "" {
 		name = phone
 	}

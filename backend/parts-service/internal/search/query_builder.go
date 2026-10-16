@@ -4,56 +4,77 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"parts-service/internal/catalog"
 	"parts-service/internal/domain"
 )
 
-// TransliterateLatinToCyrillic преобразует транслит латиницы в кириллицу (sirena -> сирена, bamper -> бампер)
-func TransliterateLatinToCyrillic(text string) string {
-	text = strings.ToLower(text)
-	replacements := []struct {
-		from string
-		to   string
-	}{
-		{"shch", "щ"}, {"sh", "ш"}, {"ch", "ч"}, {"zh", "ж"},
-		{"ya", "я"}, {"yu", "ю"}, {"yo", "ё"}, {"ts", "ц"},
-		{"a", "а"}, {"b", "б"}, {"v", "в"}, {"g", "г"}, {"d", "д"},
-		{"e", "е"}, {"z", "з"}, {"i", "и"}, {"j", "й"}, {"k", "к"},
-		{"l", "л"}, {"m", "м"}, {"n", "н"}, {"o", "о"}, {"p", "п"},
-		{"r", "р"}, {"s", "с"}, {"t", "т"}, {"u", "у"}, {"f", "ф"},
-		{"h", "х"}, {"c", "к"}, {"y", "ы"}, {"w", "в"}, {"x", "кс"},
-	}
+var (
+	latinToCyrillicReplacer = strings.NewReplacer(
+		"shch", "щ", "sh", "ш", "ch", "ч", "zh", "ж",
+		"ya", "я", "yu", "ю", "yo", "ё", "ts", "ц",
+		"a", "а", "b", "б", "v", "в", "g", "г", "d", "д",
+		"e", "е", "z", "з", "i", "и", "j", "й", "k", "к",
+		"l", "л", "m", "м", "n", "н", "o", "о", "p", "п",
+		"r", "р", "s", "с", "t", "т", "u", "у", "f", "ф",
+		"h", "х", "c", "к", "y", "ы", "w", "в", "x", "кс",
+	)
 
-	res := text
-	for _, r := range replacements {
-		res = strings.ReplaceAll(res, r.from, r.to)
-	}
-	return res
-}
+	qwertyToRussianTable [128]rune
+)
 
-// ConvertQwertyToRussian переводит текст с неверной QWERTY раскладки на кириллицу (gthtlybq -> передний)
-func ConvertQwertyToRussian(text string) string {
+func init() {
 	qwertyMap := map[rune]rune{
 		'q': 'й', 'w': 'ц', 'e': 'у', 'r': 'к', 't': 'е', 'y': 'н', 'u': 'г', 'i': 'ш', 'o': 'щ', 'p': 'з', '[': 'х', ']': 'ъ',
 		'a': 'ф', 's': 'ы', 'd': 'в', 'f': 'а', 'g': 'п', 'h': 'р', 'j': 'о', 'k': 'л', 'l': 'д', ';': 'ж', '\'': 'э',
 		'z': 'я', 'x': 'ч', 'c': 'с', 'v': 'м', 'b': 'и', 'n': 'т', 'm': 'ь', ',': 'б', '.': 'ю',
 	}
-
-	var builder strings.Builder
-	for _, char := range strings.ToLower(text) {
-		if ruChar, ok := qwertyMap[char]; ok {
-			builder.WriteRune(ruChar)
-		} else {
-			builder.WriteRune(char)
+	for k, v := range qwertyMap {
+		if k < 128 {
+			qwertyToRussianTable[k] = v
 		}
+	}
+}
+
+// TransliterateLatinToCyrillic преобразует транслит латиницы в кириллицу (sirena -> сирена, bamper -> бампер)
+func TransliterateLatinToCyrillic(text string) string {
+	return latinToCyrillicReplacer.Replace(strings.ToLower(text))
+}
+
+// ConvertQwertyToRussian переводит текст с неверной QWERTY раскладки на кириллицу (gthtlybq -> передний)
+func ConvertQwertyToRussian(text string) string {
+	var builder strings.Builder
+	builder.Grow(len(text) * 2)
+	for _, char := range text {
+		lowerChar := unicode.ToLower(char)
+		if lowerChar < 128 {
+			if ruChar := qwertyToRussianTable[lowerChar]; ruChar != 0 {
+				builder.WriteRune(ruChar)
+				continue
+			}
+		}
+		builder.WriteRune(lowerChar)
 	}
 	return builder.String()
 }
 
 // escapeESQuery экранирует спецсимволы синтаксиса Lucene для безопасного использования в query_string
 func escapeESQuery(s string) string {
+	needEscape := false
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '+', '-', '=', '!', '(', ')', '{', '}', '[', ']', '^', '"', '~', '*', '?', ':', '\\', '/', '&', '|', '<', '>':
+			needEscape = true
+			break
+		}
+	}
+	if !needEscape {
+		return s
+	}
+
 	var sb strings.Builder
+	sb.Grow(len(s) + 4)
 	for _, r := range s {
 		switch r {
 		case '+', '-', '=', '!', '(', ')', '{', '}', '[', ']', '^', '"', '~', '*', '?', ':', '\\', '/', '&', '|', '<', '>':
@@ -217,17 +238,19 @@ var defaultSearchableFields = []string{
 }
 
 func buildTermQueries(term string, searchableFields []string) []map[string]interface{} {
-	variants := []string{term}
-	tTrans := TransliterateLatinToCyrillic(term)
-	if tTrans != strings.ToLower(term) {
+	variants := make([]string, 1, 3)
+	variants[0] = term
+	termLower := strings.ToLower(term)
+	tTrans := TransliterateLatinToCyrillic(termLower)
+	if tTrans != termLower {
 		variants = append(variants, tTrans)
 	}
-	tQwerty := ConvertQwertyToRussian(term)
-	if tQwerty != strings.ToLower(term) && tQwerty != tTrans {
+	tQwerty := ConvertQwertyToRussian(termLower)
+	if tQwerty != termLower && tQwerty != tTrans {
 		variants = append(variants, tQwerty)
 	}
 
-	termQueries := []map[string]interface{}{}
+	termQueries := make([]map[string]interface{}, 0, len(variants)*5)
 	for _, variant := range variants {
 		escapedVar := escapeESQuery(variant)
 
@@ -389,7 +412,7 @@ func buildSingleFragmentQuery(frag string, searchableFields []string) map[string
 		return nil
 	}
 
-	fragMust := []map[string]interface{}{}
+	fragMust := make([]map[string]interface{}, 0, len(terms))
 	for _, term := range terms {
 		if strings.TrimSpace(term) == "" {
 			continue
@@ -419,9 +442,9 @@ func buildSingleFragmentQuery(frag string, searchableFields []string) map[string
 
 // buildElasticsearchQuery строит запрос для Elasticsearch
 func BuildElasticsearchQuery(params domain.InventoryQueryParams) map[string]interface{} {
-	must := []map[string]interface{}{}
-	filter := []map[string]interface{}{}
-	should := []map[string]interface{}{}
+	must := make([]map[string]interface{}, 0, 8)
+	filter := make([]map[string]interface{}, 0, 8)
+	should := make([]map[string]interface{}, 0, 8)
 
 	// Фильтр для отображения валидных запчастей (quantity >= 0)
 	filter = append(filter, map[string]interface{}{
