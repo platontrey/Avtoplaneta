@@ -13,6 +13,9 @@ type Config struct {
 	AuthServiceGRPC  string
 	ExportDir        string
 
+	RedisURL      string
+	RedisPassword string
+
 	DromAPIURL   string
 	DromAPIKey   string
 	DromPacketID string
@@ -26,6 +29,8 @@ func LoadConfig() *Config {
 		PartsServiceGRPC: os.Getenv("PARTS_SERVICE_GRPC_URL"),
 		AuthServiceGRPC:  os.Getenv("AUTH_SERVICE_GRPC_URL"),
 		ExportDir:        os.Getenv("EXPORT_DIR"),
+		RedisURL:         os.Getenv("REDIS_URL"),
+		RedisPassword:    os.Getenv("REDIS_PASSWORD"),
 		DromAPIURL:       os.Getenv("DROM_API_URL"),
 		DromAPIKey:       os.Getenv("DROM_API_KEY"),
 		DromPacketID:     os.Getenv("DROM_PACKET_ID"),

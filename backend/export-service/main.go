@@ -9,7 +9,10 @@ import (
 	"syscall"
 	"time"
 
+	"avtoplaneta/pkg/redisclient"
+
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )
 
@@ -28,14 +31,28 @@ func main() {
 	}
 	defer clients.Close()
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	var rdb *redis.Client
+	if config.RedisURL != "" {
+		client, err := redisclient.New(config.RedisURL, config.RedisPassword)
+		if err != nil {
+			logrus.WithError(err).Warn("Не удалось подключиться к Redis, export-service работает на резервной локальной очереди")
+		} else {
+			rdb = client
+			defer rdb.Close()
+		}
+	}
+
 	builder := NewPriceListBuilder(clients, config)
-	handler := NewHandler(builder, config)
+	queue := NewExportQueue(rdb, builder, config)
+	queue.StartWorker(ctx)
+
+	handler := NewHandler(builder, queue, config)
 
 	router := gin.Default()
 	SetupRoutes(router, handler)
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	go StartPriceListScheduler(ctx, builder)
 

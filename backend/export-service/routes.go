@@ -22,6 +22,7 @@ func SetupRoutes(router *gin.Engine, handler *Handler) {
 
 	router.GET("/api/export/xml", handler.exportXMLPriceList)
 	router.POST("/api/export/drom", handler.sendPriceListToDrom)
+	router.GET("/api/export/status", handler.getExportStatus)
 
 	router.GET(priceListURL, handler.servePriceList)
 }

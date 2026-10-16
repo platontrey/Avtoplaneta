@@ -180,6 +180,7 @@ services:
       - GOGC=50
       - GOMEMLIMIT=128MiB
       - GOMAXPROCS=2
+      - REDIS_URL=redis:6379
     mem_limit: 128m
     deploy:
       resources:

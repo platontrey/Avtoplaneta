@@ -261,12 +261,14 @@ services:
       - BASE_IMAGE_URL=${BASE_IMAGE_URL}
       - DROM_API_KEY=${DROM_API_KEY}
       - DROM_PACKET_ID=${DROM_PACKET_ID}
+      - REDIS_URL=redis:6379
       - GOMEMLIMIT=512MiB
       - GOGC=400
       - GOMAXPROCS=4
     depends_on:
       - parts-service
       - auth-service
+      - redis
 
   messaging-service:
     image: avtoplaneta-messaging-service:latest
