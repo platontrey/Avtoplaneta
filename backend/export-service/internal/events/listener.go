@@ -1,4 +1,4 @@
-package main
+package events
 
 import (
 	"context"
@@ -10,6 +10,8 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+
+	"export-service/internal/service"
 )
 
 const (
@@ -18,8 +20,8 @@ const (
 )
 
 // StartCatalogEventListener подписывается на поток изменений склада из parts-service
-// и точечно обновляет инкрементальный слепок bbolt и XML на диске (~50 мс на деталь).
-func StartCatalogEventListener(ctx context.Context, client *redis.Client, builder *PriceListBuilder) {
+// и точечно обновляет инкрементальный слепок bbolt и XML на диске.
+func StartCatalogEventListener(ctx context.Context, client *redis.Client, svc *service.PriceListService) {
 	if client == nil {
 		logrus.Info("Redis не подключен: инкрементальный слушатель событий каталога отключен")
 		return
@@ -75,13 +77,13 @@ func StartCatalogEventListener(ctx context.Context, client *redis.Client, builde
 						if parseErr == nil {
 							switch eventType {
 							case "part_index_requested":
-								if updateErr := builder.UpdatePartInSnapshot(ctx, partID); updateErr != nil {
+								if updateErr := svc.UpdatePartInSnapshot(ctx, partID); updateErr != nil {
 									logrus.WithError(updateErr).WithField("part_id", partID).Warn("Ошибка инкрементального обновления детали в слепке")
 								} else {
 									logrus.WithField("part_id", partID).Info("Деталь точечно обновлена в слепке и XML")
 								}
 							case "part_delete_requested":
-								if delErr := builder.DeletePartFromSnapshot(ctx, partID); delErr != nil {
+								if delErr := svc.DeletePartFromSnapshot(ctx, partID); delErr != nil {
 									logrus.WithError(delErr).WithField("part_id", partID).Warn("Ошибка удаления детали из слепка")
 								} else {
 									logrus.WithField("part_id", partID).Info("Деталь точечно удалена из слепка и XML")

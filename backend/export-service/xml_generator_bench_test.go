@@ -3,15 +3,19 @@ package main
 import (
 	"fmt"
 	"testing"
+
+	"export-service/internal/domain"
+	"export-service/internal/repository"
+	"export-service/internal/service"
 )
 
 func BenchmarkGenerateXMLPriceList1000(b *testing.B) {
-	parts := make([]Part, 1000)
+	parts := make([]domain.Part, 1000)
 	sellerINNs := make(map[int64]string)
 	for i := 0; i < 1000; i++ {
 		sellerID := int64(i % 10)
 		sellerINNs[sellerID] = fmt.Sprintf("770123456%02d", sellerID)
-		parts[i] = Part{
+		parts[i] = domain.Part{
 			Name:         fmt.Sprintf("Бампер передний для Toyota Camry #%d", i),
 			Status:       true,
 			Quantity:     1,
@@ -33,7 +37,7 @@ func BenchmarkGenerateXMLPriceList1000(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_, err := GenerateXMLPriceList(parts, sellerINNs, "https://backend-server.ru")
+		_, err := service.GenerateXMLPriceList(parts, sellerINNs, "https://backend-server.ru")
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -42,18 +46,18 @@ func BenchmarkGenerateXMLPriceList1000(b *testing.B) {
 
 func BenchmarkSnapshotStore_WriteFullXML1000(b *testing.B) {
 	dir := b.TempDir()
-	store, err := NewSnapshotStore(dir + "/bench.db")
+	store, err := repository.NewBoltSnapshotRepository(dir + "/bench.db")
 	if err != nil {
 		b.Fatal(err)
 	}
 	defer store.Close()
 
-	parts := make([]Part, 1000)
+	parts := make([]domain.Part, 1000)
 	sellerINNs := make(map[int64]string)
 	for i := 0; i < 1000; i++ {
 		sellerID := int64(i % 10)
 		sellerINNs[sellerID] = fmt.Sprintf("770123456%02d", sellerID)
-		parts[i] = Part{
+		parts[i] = domain.Part{
 			ID:           int64(i + 1),
 			Name:         fmt.Sprintf("Бампер передний для Toyota Camry #%d", i),
 			Status:       true,

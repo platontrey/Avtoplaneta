@@ -5,19 +5,22 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"export-service/internal/domain"
+	"export-service/internal/repository"
 )
 
 func TestSnapshotStore_UpsertAndWriteFullXML(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test_catalog.db")
 
-	store, err := NewSnapshotStore(dbPath)
+	store, err := repository.NewBoltSnapshotRepository(dbPath)
 	if err != nil {
-		t.Fatalf("NewSnapshotStore: %v", err)
+		t.Fatalf("NewBoltSnapshotRepository: %v", err)
 	}
 	defer store.Close()
 
-	parts := []Part{
+	parts := []domain.Part{
 		{
 			ID:           1,
 			Name:         "Амортизатор передний",
@@ -73,7 +76,7 @@ func TestSnapshotStore_UpsertAndWriteFullXML(t *testing.T) {
 		t.Fatalf("ReadFile: %v", err)
 	}
 
-	var parsed Offers
+	var parsed domain.Offers
 	if err := xml.Unmarshal(xmlBytes, &parsed); err != nil {
 		t.Fatalf("ошибка разбора сгенерированного XML: %v", err)
 	}
@@ -87,15 +90,15 @@ func TestSnapshotStore_UpsertAndWriteFullXML(t *testing.T) {
 		t.Errorf("неверные данные второго оффера: %+v", parsed.Offers[1])
 	}
 
-	// 3. Точечное обновление (UpsertOffer) детали №2: цена изменилась с 12000 на 14500
+	// 3. Точечное обновление (SaveOffer) детали №2: цена изменилась с 12000 на 14500
 	updatedPart2 := parts[1]
 	updatedPart2.Price = 14500.0
-	if err := store.UpsertOffer(updatedPart2, sellerINNs[10], baseURL); err != nil {
-		t.Fatalf("UpsertOffer: %v", err)
+	if err := store.SaveOffer(updatedPart2, sellerINNs[10], baseURL); err != nil {
+		t.Fatalf("SaveOffer: %v", err)
 	}
 
 	// Точечное добавление детали №3
-	part3 := Part{
+	part3 := domain.Part{
 		ID:           3,
 		Name:         "Колодки тормозные",
 		Status:       true,
@@ -105,8 +108,8 @@ func TestSnapshotStore_UpsertAndWriteFullXML(t *testing.T) {
 		Condition:    "Новый",
 		SupplierCode: "BP-300",
 	}
-	if err := store.UpsertOffer(part3, sellerINNs[10], baseURL); err != nil {
-		t.Fatalf("UpsertOffer part3: %v", err)
+	if err := store.SaveOffer(part3, sellerINNs[10], baseURL); err != nil {
+		t.Fatalf("SaveOffer part3: %v", err)
 	}
 
 	if store.Count() != 3 {
@@ -123,12 +126,11 @@ func TestSnapshotStore_UpsertAndWriteFullXML(t *testing.T) {
 	}
 
 	xmlBytes, _ = os.ReadFile(xmlPath)
-	var parsed2 Offers
+	var parsed2 domain.Offers
 	_ = xml.Unmarshal(xmlBytes, &parsed2)
 	if len(parsed2.Offers) != 3 {
 		t.Fatalf("ожидалось 3 оффера, получено %d", len(parsed2.Offers))
 	}
-	// Проверяем, что цена фары изменилась в полном XML
 	if parsed2.Offers[1].Price != 14500.0 {
 		t.Errorf("цена детали 2 не обновилась: got %v, want 14500.0", parsed2.Offers[1].Price)
 	}
@@ -147,7 +149,7 @@ func TestSnapshotStore_UpsertAndWriteFullXML(t *testing.T) {
 	}
 
 	xmlBytes, _ = os.ReadFile(xmlPath)
-	var parsed3 Offers
+	var parsed3 domain.Offers
 	_ = xml.Unmarshal(xmlBytes, &parsed3)
 	for _, o := range parsed3.Offers {
 		if o.Name == "Амортизатор передний" {
@@ -160,12 +162,12 @@ func TestSnapshotStore_PersistenceAcrossReopen(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "persist.db")
 
-	store1, err := NewSnapshotStore(dbPath)
+	store1, err := repository.NewBoltSnapshotRepository(dbPath)
 	if err != nil {
-		t.Fatalf("NewSnapshotStore: %v", err)
+		t.Fatalf("NewBoltSnapshotRepository: %v", err)
 	}
 
-	part := Part{
+	part := domain.Part{
 		ID:        100,
 		Name:      "Стойка стабилизатора",
 		Status:    true,
@@ -173,14 +175,14 @@ func TestSnapshotStore_PersistenceAcrossReopen(t *testing.T) {
 		Price:     950.0,
 		Condition: "Новый",
 	}
-	_ = store1.UpsertOffer(part, "1234567890", "https://backend-server.ru")
+	_ = store1.SaveOffer(part, "1234567890", "https://backend-server.ru")
 	_ = store1.SetVersion("version-xyz")
 	_ = store1.Close()
 
 	// Открываем заново (симуляция рестарта контейнера)
-	store2, err := NewSnapshotStore(dbPath)
+	store2, err := repository.NewBoltSnapshotRepository(dbPath)
 	if err != nil {
-		t.Fatalf("reopen NewSnapshotStore: %v", err)
+		t.Fatalf("reopen NewBoltSnapshotRepository: %v", err)
 	}
 	defer store2.Close()
 
@@ -196,7 +198,7 @@ func TestSnapshotStore_PersistenceAcrossReopen(t *testing.T) {
 	if err != nil || count != 1 {
 		t.Fatalf("GenerateFullXMLBytes: count=%d, err=%v", count, err)
 	}
-	var parsed Offers
+	var parsed domain.Offers
 	if err := xml.Unmarshal(xmlData, &parsed); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}

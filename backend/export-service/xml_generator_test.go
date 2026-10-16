@@ -5,11 +5,14 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"export-service/internal/domain"
+	"export-service/internal/service"
 )
 
-func parse(t *testing.T, data []byte) Offers {
+func parse(t *testing.T, data []byte) domain.Offers {
 	t.Helper()
-	var offers Offers
+	var offers domain.Offers
 	if err := xml.Unmarshal(data, &offers); err != nil {
 		t.Fatalf("прайс-лист не разбирается как XML: %v", err)
 	}
@@ -17,16 +20,15 @@ func parse(t *testing.T, data []byte) Offers {
 }
 
 // Запчасть, помеченную на удаление, площадка видеть не должна: её вот-вот не
-// Запчасть, помеченную на удаление, площадка видеть не должна: её вот-вот не
 // станет, а заказ по ней уже не выполнить.
 func TestGenerateXMLPriceListSkipsPartsMarkedForDeletion(t *testing.T) {
 	deleteAt := time.Now().Add(24 * time.Hour)
-	parts := []Part{
+	parts := []domain.Part{
 		{Name: "Живая", Status: true},
 		{Name: "Удаляется", Status: true, ToDeleteAt: &deleteAt},
 	}
 
-	data, err := GenerateXMLPriceList(parts, nil, "")
+	data, err := service.GenerateXMLPriceList(parts, nil, "")
 	if err != nil {
 		t.Fatalf("GenerateXMLPriceList: %v", err)
 	}
@@ -41,14 +43,13 @@ func TestGenerateXMLPriceListSkipsPartsMarkedForDeletion(t *testing.T) {
 }
 
 // ИНН берётся из справочника auth-service по идентификатору продавца.
-// Своей копии реквизитов у сервиса выгрузки нет — и заводить её не нужно.
 func TestGenerateXMLPriceListFillsSupplierINN(t *testing.T) {
-	parts := []Part{
+	parts := []domain.Part{
 		{Name: "С реквизитами", SellerID: 7, Status: true},
 		{Name: "Без реквизитов", SellerID: 9, Status: true},
 	}
 
-	data, err := GenerateXMLPriceList(parts, map[int64]string{7: "700123456789"}, "")
+	data, err := service.GenerateXMLPriceList(parts, map[int64]string{7: "700123456789"}, "")
 	if err != nil {
 		t.Fatalf("GenerateXMLPriceList: %v", err)
 	}
@@ -57,16 +58,14 @@ func TestGenerateXMLPriceListFillsSupplierINN(t *testing.T) {
 	if got := offers.Offers[0].SupplierInn; got != "700123456789" {
 		t.Fatalf("ИНН продавца 7: ожидался 700123456789, получен %q", got)
 	}
-	// Неизвестный продавец не должен ронять выгрузку или подставлять чужой ИНН.
 	if got := offers.Offers[1].SupplierInn; got != "" {
 		t.Fatalf("ИНН продавца 9 неизвестен, но подставлен %q", got)
 	}
 }
 
-// Пустое состояние площадка понимает как «новая», а это не так:
-// на складе почти всё бывшее в употреблении.
+// Пустое состояние площадка понимает как «новая», поэтому дефолт «Б/у»
 func TestGenerateXMLPriceListDefaultsCondition(t *testing.T) {
-	parts := []Part{
+	parts := []domain.Part{
 		{Name: "Без состояния", Status: true},
 		{Name: "С состоянием", Status: true, Condition: "Новая"},
 	}
@@ -83,13 +82,13 @@ func TestGenerateXMLPriceListDefaultsCondition(t *testing.T) {
 // Все фотографии детали попадают в выгрузку в виде отдельных тегов <picture>,
 // а относительные пути преобразуются в абсолютные по baseImageURL.
 func TestGenerateXMLPriceListMakesAbsolutePictureURL(t *testing.T) {
-	parts := []Part{
+	parts := []domain.Part{
 		{Name: "С фото", Status: true, Photos: []string{"/uploads/12_1700000000.jpg", "/uploads/12_1700000001.jpg"}},
 		{Name: "Без фото", Status: true},
 	}
 
 	base := "https://custom-domain.ru"
-	data, err := GenerateXMLPriceList(parts, nil, base)
+	data, err := service.GenerateXMLPriceList(parts, nil, base)
 	if err != nil {
 		t.Fatalf("GenerateXMLPriceList: %v", err)
 	}
@@ -111,9 +110,9 @@ func TestGenerateXMLPriceListMakesAbsolutePictureURL(t *testing.T) {
 	}
 }
 
-func mustGenerate(t *testing.T, parts []Part) []byte {
+func mustGenerate(t *testing.T, parts []domain.Part) []byte {
 	t.Helper()
-	data, err := GenerateXMLPriceList(parts, nil, "")
+	data, err := service.GenerateXMLPriceList(parts, nil, "")
 	if err != nil {
 		t.Fatalf("GenerateXMLPriceList: %v", err)
 	}
@@ -122,10 +121,10 @@ func mustGenerate(t *testing.T, parts []Part) []byte {
 
 // Проверка наличия XML заголовка UTF-8 и корневого элемента offers
 func TestGenerateXMLPriceListHeaderAndRoot(t *testing.T) {
-	parts := []Part{
+	parts := []domain.Part{
 		{Name: "Тестовая запчасть", Status: true, Quantity: 1, Price: 1500},
 	}
-	data, err := GenerateXMLPriceList(parts, nil, "")
+	data, err := service.GenerateXMLPriceList(parts, nil, "")
 	if err != nil {
 		t.Fatalf("GenerateXMLPriceList: %v", err)
 	}
@@ -143,7 +142,7 @@ func TestGenerateXMLPriceListHeaderAndRoot(t *testing.T) {
 
 // Пустой склад формирует корректный XML без предложений
 func TestGenerateXMLPriceListEmpty(t *testing.T) {
-	data, err := GenerateXMLPriceList([]Part{}, nil, "")
+	data, err := service.GenerateXMLPriceList([]domain.Part{}, nil, "")
 	if err != nil {
 		t.Fatalf("GenerateXMLPriceList: %v", err)
 	}
@@ -160,7 +159,7 @@ func TestGenerateXMLPriceListAllFieldsMapping(t *testing.T) {
 		42: "7017123456",
 	}
 
-	part := Part{
+	part := domain.Part{
 		Name:           "Фара правая светодиодная",
 		Quantity:       3,
 		Description:    "Оригинал в отличном состоянии, все крепления целые",
@@ -186,7 +185,7 @@ func TestGenerateXMLPriceListAllFieldsMapping(t *testing.T) {
 	}
 
 	base := "https://backend-server.ru"
-	data, err := GenerateXMLPriceList([]Part{part}, sellerINNs, base)
+	data, err := service.GenerateXMLPriceList([]domain.Part{part}, sellerINNs, base)
 	if err != nil {
 		t.Fatalf("GenerateXMLPriceList: %v", err)
 	}
@@ -280,13 +279,9 @@ func TestGenerateXMLPriceListAllFieldsMapping(t *testing.T) {
 	}
 }
 
-// Проверка критического доменного инварианта quantity:
-// quantity > 0  -> available: true
-// quantity == 0 -> available: true (дефектная ведомость должна оставаться доступной)
-// quantity == -1 -> available: false (продана)
-// status == false -> available: false
+// Проверка критического доменного инварианта quantity
 func TestGenerateXMLPriceListQuantitySemantics(t *testing.T) {
-	parts := []Part{
+	parts := []domain.Part{
 		{Name: "В наличии", Status: true, Quantity: 2},
 		{Name: "Дефектовка (ноль)", Status: true, Quantity: 0},
 		{Name: "Проданная (-1)", Status: true, Quantity: -1},
@@ -318,7 +313,7 @@ func TestGenerateXMLPriceListQuantitySemantics(t *testing.T) {
 
 // Проверка корректного экранирования спецсимволов XML в тексте
 func TestGenerateXMLPriceListEscaping(t *testing.T) {
-	parts := []Part{
+	parts := []domain.Part{
 		{
 			Name:        "Фара левая <Хрусталь> & \"Линза\" 2.0",
 			Description: "Состояние: 100% OK & проверено > без трещин; цена < 5000",
@@ -328,12 +323,11 @@ func TestGenerateXMLPriceListEscaping(t *testing.T) {
 		},
 	}
 
-	data, err := GenerateXMLPriceList(parts, nil, "")
+	data, err := service.GenerateXMLPriceList(parts, nil, "")
 	if err != nil {
 		t.Fatalf("GenerateXMLPriceList с ошибкой: %v", err)
 	}
 
-	// Убедимся, что сгенерированный XML корректно распарсивается обратно
 	offers := parse(t, data)
 	if len(offers.Offers) != 1 {
 		t.Fatalf("ожидалось 1 предложение, получено %d", len(offers.Offers))
@@ -351,14 +345,14 @@ func TestGenerateXMLPriceListEscaping(t *testing.T) {
 	}
 }
 
-// Тест генерирует файл sample_drom.xml с типовыми деталями для визуальной проверки и валидации на Drom
+// Тест генерирует файл sample_drom.xml с типовыми деталями
 func TestGenerateSampleXMLFile(t *testing.T) {
 	sellerINNs := map[int64]string{
 		10: "7017998877",
 		20: "7017665544",
 	}
 
-	parts := []Part{
+	parts := []domain.Part{
 		{
 			Name:           "Фара правая LED",
 			Quantity:       2,
@@ -405,7 +399,7 @@ func TestGenerateSampleXMLFile(t *testing.T) {
 		},
 		{
 			Name:           "Акт дефектовки: Бампер передний (трещина снизу)",
-			Quantity:       0, // Дефектовка с нулевым остатком - должна быть available=true
+			Quantity:       0,
 			Description:    "Дефектная позиция: трещина 5 см на нижней губе под пайку. Крепления целые.",
 			Price:          7000,
 			Salesman:       "Автопланета Томск",
@@ -423,11 +417,12 @@ func TestGenerateSampleXMLFile(t *testing.T) {
 		},
 	}
 
-	data, err := GenerateXMLPriceList(parts, sellerINNs, "")
+	data, err := service.GenerateXMLPriceList(parts, sellerINNs, "")
 	if err != nil {
 		t.Fatalf("Ошибка генерации XML: %v", err)
 	}
 
+	_ = os.MkdirAll("testdata", 0o755)
 	outPath := "testdata/sample_drom.xml"
 	if err := os.WriteFile(outPath, data, 0o644); err != nil {
 		t.Fatalf("Не удалось записать sample_drom.xml: %v", err)
@@ -441,5 +436,3 @@ func TestGenerateSampleXMLFile(t *testing.T) {
 		t.Fatalf("Ожидалось 2 фото у первой детали, получено %d", len(offers.Offers[0].Pictures))
 	}
 }
-
-

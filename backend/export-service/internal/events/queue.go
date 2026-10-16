@@ -1,4 +1,4 @@
-package main
+package events
 
 import (
 	"context"
@@ -12,6 +12,10 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+
+	"export-service/internal/config"
+	"export-service/internal/domain"
+	"export-service/internal/service"
 )
 
 const (
@@ -20,51 +24,33 @@ const (
 	exportStatusKey = "export:status:last"
 )
 
-// ExportTask описывает задачу на экспорт каталога
-type ExportTask struct {
-	TaskID      string    `json:"task_id"`
-	Target      string    `json:"target"` // "drom", "xml"
-	TriggeredBy string    `json:"triggered_by,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
-}
-
-// ExportStatus описывает текущий или последний статус выполнения экспорта
-type ExportStatus struct {
-	TaskID      string     `json:"task_id"`
-	Status      string     `json:"status"` // "idle", "queued", "running", "success", "failed"
-	TriggeredBy string     `json:"triggered_by,omitempty"`
-	StartedAt   *time.Time `json:"started_at,omitempty"`
-	FinishedAt  *time.Time `json:"finished_at,omitempty"`
-	PartsCount  int        `json:"parts_count,omitempty"`
-	Error       string     `json:"error,omitempty"`
-}
-
-// ExportQueue управляет очередью задач через Redis Streams с плавным fallback на in-process воркер
+// ExportQueue управляет асинхронной очередью задач выгрузки каталога через Redis Streams
+// с автоматическим fallback на in-process очередь при недоступности брокера.
 type ExportQueue struct {
 	redisClient *redis.Client
-	builder     *PriceListBuilder
-	config      *Config
+	svc         *service.PriceListService
+	config      *config.Config
 
-	// Локальное состояние (fallback и защита от конкурентных запусков)
 	running    atomic.Bool
 	statusMu   sync.RWMutex
-	lastStatus ExportStatus
-	localQueue chan ExportTask
+	lastStatus domain.ExportStatus
+	localQueue chan domain.ExportTask
 }
 
-func NewExportQueue(redisClient *redis.Client, builder *PriceListBuilder, config *Config) *ExportQueue {
+// NewExportQueue создает экземпляр очереди экспорта
+func NewExportQueue(redisClient *redis.Client, svc *service.PriceListService, cfg *config.Config) *ExportQueue {
 	return &ExportQueue{
 		redisClient: redisClient,
-		builder:     builder,
-		config:      config,
-		localQueue:  make(chan ExportTask, 10),
-		lastStatus: ExportStatus{
+		svc:         svc,
+		config:      cfg,
+		localQueue:  make(chan domain.ExportTask, 10),
+		lastStatus: domain.ExportStatus{
 			Status: "idle",
 		},
 	}
 }
 
-// IsBusy проверяет, выполняется ли задача прямо сейчас
+// IsBusy сообщает, выполняется ли экспорт прямо сейчас
 func (q *ExportQueue) IsBusy() bool {
 	if q.running.Load() {
 		return true
@@ -74,7 +60,6 @@ func (q *ExportQueue) IsBusy() bool {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		status := q.GetStatus(ctx)
-		// Если статус queued или running, и задача запущена менее 30 минут назад (защита от падений)
 		if (status.Status == "running" || status.Status == "queued") && status.StartedAt != nil {
 			if time.Since(*status.StartedAt) < 30*time.Minute {
 				return true
@@ -85,12 +70,17 @@ func (q *ExportQueue) IsBusy() bool {
 	return false
 }
 
-// GetStatus возвращает статус последней/текущей задачи
-func (q *ExportQueue) GetStatus(ctx context.Context) ExportStatus {
+// ResetRunning сбрасывает флаг выполнения (используется при отмене или в тестах)
+func (q *ExportQueue) ResetRunning() {
+	q.running.Store(false)
+}
+
+// GetStatus возвращает статус текущей или последней выполненной задачи
+func (q *ExportQueue) GetStatus(ctx context.Context) domain.ExportStatus {
 	if q.redisClient != nil {
 		val, err := q.redisClient.Get(ctx, exportStatusKey).Result()
 		if err == nil {
-			var status ExportStatus
+			var status domain.ExportStatus
 			if jsonErr := json.Unmarshal([]byte(val), &status); jsonErr == nil {
 				return status
 			}
@@ -102,7 +92,7 @@ func (q *ExportQueue) GetStatus(ctx context.Context) ExportStatus {
 	return q.lastStatus
 }
 
-func (q *ExportQueue) setStatus(ctx context.Context, status ExportStatus) {
+func (q *ExportQueue) setStatus(ctx context.Context, status domain.ExportStatus) {
 	q.statusMu.Lock()
 	q.lastStatus = status
 	q.statusMu.Unlock()
@@ -116,16 +106,16 @@ func (q *ExportQueue) setStatus(ctx context.Context, status ExportStatus) {
 }
 
 // Enqueue ставит задачу на выгрузку в очередь
-func (q *ExportQueue) Enqueue(ctx context.Context, target string, triggeredBy string) (ExportTask, error) {
+func (q *ExportQueue) Enqueue(ctx context.Context, target string, triggeredBy string) (domain.ExportTask, error) {
 	if q.IsBusy() {
-		return ExportTask{}, errors.New("экспорт уже выполняется в данный момент")
+		return domain.ExportTask{}, errors.New("экспорт уже выполняется в данный момент")
 	}
 
 	if !q.running.CompareAndSwap(false, true) {
-		return ExportTask{}, errors.New("экспорт уже выполняется в данный момент")
+		return domain.ExportTask{}, errors.New("экспорт уже выполняется в данный момент")
 	}
 
-	task := ExportTask{
+	task := domain.ExportTask{
 		TaskID:      fmt.Sprintf("export-%d", time.Now().UnixNano()),
 		Target:      target,
 		TriggeredBy: triggeredBy,
@@ -133,7 +123,7 @@ func (q *ExportQueue) Enqueue(ctx context.Context, target string, triggeredBy st
 	}
 
 	now := time.Now()
-	q.setStatus(ctx, ExportStatus{
+	q.setStatus(ctx, domain.ExportStatus{
 		TaskID:      task.TaskID,
 		Status:      "queued",
 		TriggeredBy: triggeredBy,
@@ -158,18 +148,17 @@ func (q *ExportQueue) Enqueue(ctx context.Context, target string, triggeredBy st
 		}
 	}
 
-	// Fallback на локальную очередь
 	select {
 	case q.localQueue <- task:
 		logrus.WithField("task_id", task.TaskID).Info("Задача экспорта поставлена в локальную очередь")
 		return task, nil
 	default:
 		q.running.Store(false)
-		return ExportTask{}, errors.New("очередь задач переполнена")
+		return domain.ExportTask{}, errors.New("очередь задач переполнена")
 	}
 }
 
-// StartWorker запускает обработчик задач (Redis Streams и резервный локальный воркер)
+// StartWorker запускает обработку задач
 func (q *ExportQueue) StartWorker(ctx context.Context) {
 	go q.localWorker(ctx)
 
@@ -238,7 +227,7 @@ func (q *ExportQueue) redisStreamsWorker(ctx context.Context) {
 						continue
 					}
 
-					var task ExportTask
+					var task domain.ExportTask
 					if err := json.Unmarshal([]byte(payload), &task); err != nil {
 						_ = q.redisClient.XAck(ctx, exportStreamKey, exportGroupKey, msg.ID).Err()
 						continue
@@ -252,12 +241,12 @@ func (q *ExportQueue) redisStreamsWorker(ctx context.Context) {
 	}
 }
 
-func (q *ExportQueue) executeTask(ctx context.Context, task ExportTask) {
+func (q *ExportQueue) executeTask(ctx context.Context, task domain.ExportTask) {
 	q.running.Store(true)
 	defer q.running.Store(false)
 
 	startedAt := time.Now()
-	q.setStatus(ctx, ExportStatus{
+	q.setStatus(ctx, domain.ExportStatus{
 		TaskID:      task.TaskID,
 		Status:      "running",
 		TriggeredBy: task.TriggeredBy,
@@ -266,13 +255,12 @@ func (q *ExportQueue) executeTask(ctx context.Context, task ExportTask) {
 
 	logrus.WithField("task_id", task.TaskID).Info("Начало выполнения задачи экспорта на Drom")
 
-	// Сборка XML
-	xmlData, count, err := q.builder.Generate(ctx)
+	xmlData, count, err := q.svc.Generate(ctx)
 	if err != nil {
 		finishedAt := time.Now()
 		errMsg := fmt.Sprintf("ошибка сборки XML: %v", err)
 		logrus.WithError(err).WithField("task_id", task.TaskID).Error("Сборка XML завершилась неудачей")
-		q.setStatus(ctx, ExportStatus{
+		q.setStatus(ctx, domain.ExportStatus{
 			TaskID:      task.TaskID,
 			Status:      "failed",
 			TriggeredBy: task.TriggeredBy,
@@ -283,12 +271,11 @@ func (q *ExportQueue) executeTask(ctx context.Context, task ExportTask) {
 		return
 	}
 
-	// Отправка в Drom API
-	if err := sendToDromAPI(ctx, q.config, xmlData); err != nil {
+	if err := service.SendToDromAPI(ctx, q.config, xmlData); err != nil {
 		finishedAt := time.Now()
 		errMsg := fmt.Sprintf("ошибка отправки в Drom API: %v", err)
 		logrus.WithError(err).WithField("task_id", task.TaskID).Error("Отправка на Drom завершилась неудачей")
-		q.setStatus(ctx, ExportStatus{
+		q.setStatus(ctx, domain.ExportStatus{
 			TaskID:      task.TaskID,
 			Status:      "failed",
 			TriggeredBy: task.TriggeredBy,
@@ -307,7 +294,7 @@ func (q *ExportQueue) executeTask(ctx context.Context, task ExportTask) {
 		"duration":    time.Since(startedAt).String(),
 	}).Info("Экспорт на Drom успешно завершен")
 
-	q.setStatus(ctx, ExportStatus{
+	q.setStatus(ctx, domain.ExportStatus{
 		TaskID:      task.TaskID,
 		Status:      "success",
 		TriggeredBy: task.TriggeredBy,

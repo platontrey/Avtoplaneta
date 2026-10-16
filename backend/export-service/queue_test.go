@@ -8,6 +8,12 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+
+	"export-service/internal/config"
+	"export-service/internal/domain"
+	"export-service/internal/events"
+	"export-service/internal/handler"
+	"export-service/internal/service"
 )
 
 func init() {
@@ -15,8 +21,8 @@ func init() {
 }
 
 func TestExportQueue_EnqueueAndConflict(t *testing.T) {
-	builder := &PriceListBuilder{}
-	queue := NewExportQueue(nil, builder, &Config{})
+	svc := &service.PriceListService{}
+	queue := events.NewExportQueue(nil, svc, &config.Config{})
 
 	ctx := context.Background()
 
@@ -41,7 +47,7 @@ func TestExportQueue_EnqueueAndConflict(t *testing.T) {
 	}
 
 	// 3. После сброса running флаг освобождается
-	queue.running.Store(false)
+	queue.ResetRunning()
 	task2, err := queue.Enqueue(ctx, "drom", "127.0.0.1")
 	if err != nil {
 		t.Fatalf("после освобождения ожидался успешный enqueue: %v", err)
@@ -52,12 +58,13 @@ func TestExportQueue_EnqueueAndConflict(t *testing.T) {
 }
 
 func TestExportHandler_HTTP202AndStatus(t *testing.T) {
-	builder := &PriceListBuilder{}
-	queue := NewExportQueue(nil, builder, &Config{})
-	handler := NewHandler(builder, queue, &Config{})
+	cfg := &config.Config{}
+	svc := &service.PriceListService{}
+	queue := events.NewExportQueue(nil, svc, cfg)
+	h := handler.NewHandler(svc, queue, cfg)
 
 	router := gin.New()
-	SetupRoutes(router, handler)
+	handler.SetupRoutes(router, h)
 
 	// 1. Первый POST /api/export/drom -> 202 Accepted
 	w1 := httptest.NewRecorder()
@@ -96,7 +103,7 @@ func TestExportHandler_HTTP202AndStatus(t *testing.T) {
 	if w3.Code != http.StatusOK {
 		t.Fatalf("ожидался HTTP 200 OK для /api/export/status, получен: %d", w3.Code)
 	}
-	var statusResp ExportStatus
+	var statusResp domain.ExportStatus
 	if err := json.Unmarshal(w3.Body.Bytes(), &statusResp); err != nil {
 		t.Fatalf("ошибка парсинга статуса: %v", err)
 	}

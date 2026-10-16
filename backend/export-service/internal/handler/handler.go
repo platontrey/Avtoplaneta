@@ -1,28 +1,36 @@
-package main
+package handler
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+
+	"export-service/internal/config"
+	"export-service/internal/events"
+	"export-service/internal/service"
 )
 
-// Handler — HTTP-лицо сервиса. Вся работа лежит в PriceListBuilder и ExportQueue,
-// здесь только перевод результата в ответ.
+// Handler инкапсулирует обработчики входящих HTTP-запросов сервиса экспорта
 type Handler struct {
-	builder *PriceListBuilder
-	queue   *ExportQueue
-	config  *Config
+	svc    *service.PriceListService
+	queue  *events.ExportQueue
+	config *config.Config
 }
 
-func NewHandler(builder *PriceListBuilder, queue *ExportQueue, config *Config) *Handler {
-	return &Handler{builder: builder, queue: queue, config: config}
+// NewHandler создает экземпляр HTTP-обработчика
+func NewHandler(svc *service.PriceListService, queue *events.ExportQueue, cfg *config.Config) *Handler {
+	return &Handler{
+		svc:    svc,
+		queue:  queue,
+		config: cfg,
+	}
 }
 
-// exportXMLPriceList экспортирует прайс-лист в формате XML для Drom.
-// Файл пересобирается только если склад менялся с прошлой сборки.
-func (h *Handler) exportXMLPriceList(c *gin.Context) {
-	meta, rebuilt, err := h.builder.Build(c.Request.Context())
+// ExportXMLPriceList инициирует сборку XML прайс-листа и возвращает метаданные файла
+func (h *Handler) ExportXMLPriceList(c *gin.Context) {
+	meta, rebuilt, err := h.svc.Build(c.Request.Context())
 	if err != nil {
 		logrus.WithError(err).Error("Ошибка подготовки XML прайс-листа")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось подготовить прайс-лист"})
@@ -37,24 +45,23 @@ func (h *Handler) exportXMLPriceList(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":     message,
-		"file_url":    priceListURL,
+		"file_url":    service.PriceListURL,
 		"parts_count": meta.PartsCount,
 		"rebuilt":     rebuilt,
 	})
 }
 
-// sendPriceListToDrom ставит задачу на экспорт прайс-листа на API Drom.ru в очередь.
-// Отвечает 202 Accepted сразу, предотвращая долгие HTTP-таймауты и пиковые всплески RAM.
-func (h *Handler) sendPriceListToDrom(c *gin.Context) {
+// SendPriceListToDrom ставит асинхронную задачу на экспорт прайс-листа на API Drom.ru
+func (h *Handler) SendPriceListToDrom(c *gin.Context) {
 	if h.queue == nil {
-		xmlData, count, err := h.builder.Generate(c.Request.Context())
+		xmlData, count, err := h.svc.Generate(c.Request.Context())
 		if err != nil {
 			logrus.WithError(err).Error("Ошибка подготовки XML для Drom")
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось подготовить данные для отправки"})
 			return
 		}
 
-		if err := sendToDromAPI(c.Request.Context(), h.config, xmlData); err != nil {
+		if err := service.SendToDromAPI(c.Request.Context(), h.config, xmlData); err != nil {
 			logrus.WithError(err).Error("Ошибка отправки на Drom API")
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось отправить прайс-лист на Drom"})
 			return
@@ -85,8 +92,8 @@ func (h *Handler) sendPriceListToDrom(c *gin.Context) {
 	})
 }
 
-// getExportStatus возвращает статус последней или текущей задачи экспорта
-func (h *Handler) getExportStatus(c *gin.Context) {
+// GetExportStatus возвращает статус последней или текущей задачи экспорта
+func (h *Handler) GetExportStatus(c *gin.Context) {
 	if h.queue == nil {
 		c.JSON(http.StatusOK, gin.H{"status": "idle"})
 		return
@@ -94,7 +101,23 @@ func (h *Handler) getExportStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, h.queue.GetStatus(c.Request.Context()))
 }
 
-// healthCheck отвечает на проверку живости.
-func (h *Handler) healthCheck(c *gin.Context) {
+// HealthCheck отвечает на liveness/readiness проверки
+func (h *Handler) HealthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "export-service"})
+}
+
+// ServePriceList отдает с диска готовый файл прайс-листа
+func (h *Handler) ServePriceList(c *gin.Context) {
+	path := h.svc.Path()
+
+	if _, err := os.Stat(path); err != nil {
+		// Файла еще нет — первый запрос собирает его сам
+		if _, _, buildErr := h.svc.Build(c.Request.Context()); buildErr != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Прайс-лист пока недоступен"})
+			return
+		}
+	}
+
+	c.Header("Cache-Control", "no-cache")
+	c.File(path)
 }
