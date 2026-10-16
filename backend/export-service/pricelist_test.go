@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -29,13 +30,28 @@ func (s *fakeSource) PartsForExport(context.Context) ([]Part, error) {
 	return s.parts, nil
 }
 
+func (s *fakeSource) GetPart(_ context.Context, partID int64) (*Part, error) {
+	for _, p := range s.parts {
+		if p.ID == partID {
+			return &p, nil
+		}
+	}
+	return nil, errors.New("деталь не найдена")
+}
+
 func (s *fakeSource) SellerINNs(context.Context) (map[int64]string, error) {
 	return s.inns, s.innsErr
 }
 
 func newBuilder(t *testing.T, source InventorySource) *PriceListBuilder {
 	t.Helper()
-	return NewPriceListBuilder(source, &Config{ExportDir: t.TempDir()})
+	dir := t.TempDir()
+	store, err := NewSnapshotStore(filepath.Join(dir, "catalog.db"))
+	if err != nil {
+		t.Fatalf("NewSnapshotStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	return NewPriceListBuilder(source, store, &Config{ExportDir: dir})
 }
 
 // Первый вызов собирает файл, второй при том же отпечатке склада не должен

@@ -20,6 +20,8 @@ type Config struct {
 	DromAPIKey   string
 	DromPacketID string
 
+	CatalogDBPath string
+
 	BaseImageURL string
 }
 
@@ -29,6 +31,7 @@ func LoadConfig() *Config {
 		PartsServiceGRPC: os.Getenv("PARTS_SERVICE_GRPC_URL"),
 		AuthServiceGRPC:  os.Getenv("AUTH_SERVICE_GRPC_URL"),
 		ExportDir:        os.Getenv("EXPORT_DIR"),
+		CatalogDBPath:    os.Getenv("CATALOG_DB_PATH"),
 		RedisURL:         os.Getenv("REDIS_URL"),
 		RedisPassword:    os.Getenv("REDIS_PASSWORD"),
 		DromAPIURL:       os.Getenv("DROM_API_URL"),
@@ -50,6 +53,9 @@ func LoadConfig() *Config {
 		// Тот же путь, что раньше был у parts-service: адрес прайс-листа
 		// снаружи не меняется, меняется только кто его отдаёт.
 		config.ExportDir = "./uploads"
+	}
+	if config.CatalogDBPath == "" {
+		config.CatalogDBPath = config.ExportDir + "/catalog.db"
 	}
 	if config.DromAPIURL == "" {
 		config.DromAPIURL = "https://baza.drom.ru/good/packet/api/sync"

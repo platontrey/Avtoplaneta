@@ -34,18 +34,20 @@ type priceListMeta struct {
 type InventorySource interface {
 	InventoryVersion(ctx context.Context) (string, error)
 	PartsForExport(ctx context.Context) ([]Part, error)
+	GetPart(ctx context.Context, partID int64) (*Part, error)
 	SellerINNs(ctx context.Context) (map[int64]string, error)
 }
 
-// PriceListBuilder владеет файлом прайс-листа: знает, где он лежит, когда его
-// нужно пересобрать и из чего собирать.
+// PriceListBuilder владеет файлом прайс-листа и локальным слепком каталога:
+// знает, где он лежит, когда его нужно пересобрать и из чего собирать.
 type PriceListBuilder struct {
 	source InventorySource
+	store  *SnapshotStore
 	config *Config
 }
 
-func NewPriceListBuilder(source InventorySource, config *Config) *PriceListBuilder {
-	return &PriceListBuilder{source: source, config: config}
+func NewPriceListBuilder(source InventorySource, store *SnapshotStore, config *Config) *PriceListBuilder {
+	return &PriceListBuilder{source: source, store: store, config: config}
 }
 
 func (b *PriceListBuilder) Path() string {
@@ -68,6 +70,64 @@ func (b *PriceListBuilder) Build(ctx context.Context) (priceListMeta, bool, erro
 		version = ""
 	}
 
+	if b.store != nil {
+		storeCount := b.store.Count()
+		storeVersion := b.store.GetVersion()
+
+		// 1. Слепок актуален и файл на диске существует -> пересборка не требуется
+		if storeCount > 0 && version != "" && storeVersion == version {
+			if _, err := os.Stat(b.Path()); err == nil {
+				meta := priceListMeta{
+					Version:    version,
+					PartsCount: storeCount,
+					BuiltAt:    time.Now().UTC().Format(time.RFC3339),
+				}
+				return meta, false, nil
+			}
+			// Файл на диске случайно удален, но слепок в bbolt жив -> мгновенно сбрасываем без сети
+			count, writeErr := b.store.WriteFullXML(b.Path())
+			if writeErr == nil {
+				meta := priceListMeta{
+					Version:    version,
+					PartsCount: count,
+					BuiltAt:    time.Now().UTC().Format(time.RFC3339),
+				}
+				b.writeMeta(meta)
+				return meta, true, nil
+			}
+		}
+
+		// 2. Если слепок пуст или склад изменился без поштучных событий -> первоначальная загрузка слепка
+		if storeCount == 0 || (version != "" && storeVersion != version) {
+			parts, err := b.source.PartsForExport(ctx)
+			if err != nil {
+				return priceListMeta{}, false, fmt.Errorf("получить запчасти для слепка: %w", err)
+			}
+			sellerINNs, err := b.source.SellerINNs(ctx)
+			if err != nil {
+				sellerINNs = map[int64]string{}
+			}
+
+			if err := b.store.BulkLoad(parts, sellerINNs, b.config.BaseImageURL, version); err != nil {
+				return priceListMeta{}, false, fmt.Errorf("загрузить каталог в слепок: %w", err)
+			}
+
+			count, err := b.store.WriteFullXML(b.Path())
+			if err != nil {
+				return priceListMeta{}, false, fmt.Errorf("сохранить XML из слепка: %w", err)
+			}
+
+			meta := priceListMeta{
+				Version:    version,
+				PartsCount: count,
+				BuiltAt:    time.Now().UTC().Format(time.RFC3339),
+			}
+			b.writeMeta(meta)
+			return meta, true, nil
+		}
+	}
+
+	// Резервный путь при работе без bbolt (например в легких юнит-тестах)
 	if version != "" {
 		if meta, err := b.readMeta(); err == nil && meta.Version == version {
 			if _, err := os.Stat(b.Path()); err == nil {
@@ -93,24 +153,81 @@ func (b *PriceListBuilder) Build(ctx context.Context) (priceListMeta, bool, erro
 		PartsCount: count,
 		BuiltAt:    time.Now().UTC().Format(time.RFC3339),
 	}
-	// Отпечаток пишется последним: если файл записался, а отпечаток нет,
-	// следующий запуск просто пересоберёт прайс-лист заново.
-	if payload, err := json.Marshal(meta); err == nil {
-		_ = os.WriteFile(b.metaPath(), payload, 0o644)
-	}
+	b.writeMeta(meta)
 
 	return meta, true, nil
 }
 
+// UpdatePartInSnapshot точечно запрашивает одну деталь и обновляет её XML-кусочек в слепке
+func (b *PriceListBuilder) UpdatePartInSnapshot(ctx context.Context, partID int64) error {
+	if b.store == nil {
+		return nil
+	}
+
+	part, err := b.source.GetPart(ctx, partID)
+	if err != nil {
+		return fmt.Errorf("запросить обновленную деталь %d: %w", partID, err)
+	}
+
+	sellerINNs, err := b.source.SellerINNs(ctx)
+	if err != nil {
+		sellerINNs = map[int64]string{}
+	}
+
+	if err := b.store.UpsertOffer(*part, sellerINNs[part.SellerID], b.config.BaseImageURL); err != nil {
+		return fmt.Errorf("обновить оффер в слепке: %w", err)
+	}
+
+	// Атомарно обновляем XML на диске из готовых байт слепка (~30 мс)
+	count, err := b.store.WriteFullXML(b.Path())
+	if err != nil {
+		return fmt.Errorf("записать XML после обновления детали: %w", err)
+	}
+
+	meta := priceListMeta{
+		Version:    b.store.GetVersion(),
+		PartsCount: count,
+		BuiltAt:    time.Now().UTC().Format(time.RFC3339),
+	}
+	b.writeMeta(meta)
+	return nil
+}
+
+// DeletePartFromSnapshot удаляет деталь из локального слепка и мгновенно перезаписывает XML
+func (b *PriceListBuilder) DeletePartFromSnapshot(ctx context.Context, partID int64) error {
+	if b.store == nil {
+		return nil
+	}
+
+	if err := b.store.DeleteOffer(partID); err != nil {
+		return fmt.Errorf("удалить оффер из слепка: %w", err)
+	}
+
+	count, err := b.store.WriteFullXML(b.Path())
+	if err != nil {
+		return fmt.Errorf("записать XML после удаления детали: %w", err)
+	}
+
+	meta := priceListMeta{
+		Version:    b.store.GetVersion(),
+		PartsCount: count,
+		BuiltAt:    time.Now().UTC().Format(time.RFC3339),
+	}
+	b.writeMeta(meta)
+	return nil
+}
+
 // Generate собирает XML в памяти, ничего не записывая на диск.
 func (b *PriceListBuilder) Generate(ctx context.Context) ([]byte, int, error) {
+	if b.store != nil && b.store.Count() > 0 {
+		return b.store.GenerateFullXMLBytes()
+	}
+
 	parts, err := b.source.PartsForExport(ctx)
 	if err != nil {
 		return nil, 0, fmt.Errorf("получить запчасти для прайс-листа: %w", err)
 	}
 
-	// ИНН — обязательный реквизит площадки, но не повод ронять выгрузку:
-	// без него прайс-лист остаётся валидным, просто беднее.
 	sellerINNs, err := b.source.SellerINNs(ctx)
 	if err != nil {
 		sellerINNs = map[int64]string{}
@@ -122,6 +239,12 @@ func (b *PriceListBuilder) Generate(ctx context.Context) ([]byte, int, error) {
 	}
 
 	return xmlData, len(parts), nil
+}
+
+func (b *PriceListBuilder) writeMeta(meta priceListMeta) {
+	if payload, err := json.Marshal(meta); err == nil {
+		_ = os.WriteFile(b.metaPath(), payload, 0o644)
+	}
 }
 
 func (b *PriceListBuilder) readMeta() (priceListMeta, error) {

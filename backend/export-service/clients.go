@@ -90,6 +90,19 @@ func (c *Clients) PartsForExport(ctx context.Context) ([]Part, error) {
 	return parts, nil
 }
 
+// GetPart запрашивает одну конкретную деталь по идентификатору для точечного обновления слепка
+func (c *Clients) GetPart(ctx context.Context, partID int64) (*Part, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	resp, err := c.parts.GetPart(ctx, &partsv1.GetPartRequest{Id: uint32(partID)})
+	if err != nil {
+		return nil, fmt.Errorf("запросить деталь %d: %w", partID, err)
+	}
+	part := partFromProto(resp)
+	return &part, nil
+}
+
 // SellerINNs возвращает ИНН продавцов: в прайс-листе каждое предложение
 // привязано к конкретному ИП или юрлицу, это обязательный реквизит площадки.
 //

@@ -13,6 +13,7 @@ import (
 // Поэтому здесь нет ни id склада, ни шин, ни сроков удаления сверх нужного —
 // добавлять поле сюда имеет смысл только тогда, когда его требует площадка.
 type Part struct {
+	ID          int64
 	Name        string
 	Quantity    int
 	Description string
@@ -41,6 +42,7 @@ type Part struct {
 
 func partFromProto(p *partsv1.Part) Part {
 	part := Part{
+		ID:             int64(p.GetId()),
 		Name:           p.GetName(),
 		Quantity:       int(p.GetQuantity()),
 		Description:    p.GetDescription(),

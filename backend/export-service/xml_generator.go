@@ -21,6 +21,7 @@ type Offers struct {
 }
 
 type Offer struct {
+	XMLName       xml.Name `xml:"offer"`
 	Name          string   `xml:"name"`
 	Available     bool     `xml:"available"`
 	Description   string   `xml:"description,omitempty"`
@@ -49,17 +50,80 @@ type Offer struct {
 	SupplierArt   string   `xml:"supplier_art,omitempty"`
 }
 
+// BuildOffer преобразует Part в структуру Offer для XML Drom
+func BuildOffer(part Part, sellerINN string, baseImageURL string) Offer {
+	if baseImageURL == "" {
+		baseImageURL = resolveBaseImageURL()
+	}
+	baseImageURL = strings.TrimRight(baseImageURL, "/")
+
+	pictures := make([]string, 0, len(part.Photos))
+	for _, photo := range part.Photos {
+		trimmed := strings.TrimSpace(photo)
+		if trimmed == "" {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "http://") || strings.HasPrefix(trimmed, "https://") {
+			pictures = append(pictures, trimmed)
+		} else {
+			photoPath := "/" + strings.TrimPrefix(trimmed, "/")
+			pictures = append(pictures, baseImageURL+photoPath)
+		}
+	}
+
+	condition := strings.TrimSpace(part.Condition)
+	if condition == "" {
+		condition = "Б/у"
+	}
+
+	return Offer{
+		Name:          strings.TrimSpace(part.Name),
+		Available:     part.Status && part.Quantity >= 0,
+		Description:   strings.TrimSpace(part.Description),
+		Price:         part.Price,
+		CurrencyId:    "RUR",
+		Pictures:      pictures,
+		Store:         strings.TrimSpace(part.Salesman),
+		Quantity:      part.Quantity,
+		OemNumber:     strings.TrimSpace(part.OEMCode),
+		AnalogNumbers: "",
+		Manufacturer:  strings.TrimSpace(part.Manufacturer),
+		Ordercode:     strings.TrimSpace(part.SupplierCode),
+		Condition:     condition,
+		Brandcars:     strings.TrimSpace(part.Brand),
+		Modelcars:     strings.TrimSpace(part.Model),
+		Bodycars:      strings.TrimSpace(part.BodyBrand),
+		Engine:        strings.TrimSpace(part.EngineBrand),
+		Year:          strings.TrimSpace(part.CarReleaseDate),
+		Lr:            strings.TrimSpace(part.LeftRight),
+		Fr:            strings.TrimSpace(part.FrontRear),
+		Ud:            strings.TrimSpace(part.TopBottom),
+		Color:         strings.TrimSpace(part.Color),
+		Supplier:      strings.TrimSpace(part.Salesman),
+		SupplierInn:   sellerINN,
+		Sklad:         strings.TrimSpace(part.Location),
+		SupplierArt:   strings.TrimSpace(part.SupplierCode),
+	}
+}
+
+// RenderOfferXML сериализует одиночный оффер в XML-фрагмент с отступом для вставки в каталог
+func RenderOfferXML(offer Offer) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := xml.NewEncoder(&buf)
+	enc.Indent("  ", "  ")
+	if err := enc.Encode(offer); err != nil {
+		return nil, err
+	}
+	buf.WriteByte('\n')
+	return buf.Bytes(), nil
+}
+
 // GenerateXMLPriceList собирает XML прайс-лист Drom из уже полученных данных.
 //
 // Функция ничего не запрашивает сама: и запчасти, и ИНН продавцов передаются
 // аргументами. Так её можно проверить тестом без сети, а поход за данными
 // остаётся в одном месте — в Clients.
 func GenerateXMLPriceList(parts []Part, sellerINNs map[int64]string, baseImageURL string) ([]byte, error) {
-	if baseImageURL == "" {
-		baseImageURL = resolveBaseImageURL()
-	}
-	baseImageURL = strings.TrimRight(baseImageURL, "/")
-
 	offers := Offers{
 		Offers: make([]Offer, 0, len(parts)),
 	}
@@ -69,58 +133,7 @@ func GenerateXMLPriceList(parts []Part, sellerINNs map[int64]string, baseImageUR
 		if part.ToDeleteAt != nil {
 			continue
 		}
-
-		// Формируем полные URL для всех фотографий детали
-		pictures := make([]string, 0, len(part.Photos))
-		for _, photo := range part.Photos {
-			trimmed := strings.TrimSpace(photo)
-			if trimmed == "" {
-				continue
-			}
-			if strings.HasPrefix(trimmed, "http://") || strings.HasPrefix(trimmed, "https://") {
-				pictures = append(pictures, trimmed)
-			} else {
-				photoPath := "/" + strings.TrimPrefix(trimmed, "/")
-				pictures = append(pictures, baseImageURL+photoPath)
-			}
-		}
-
-		// Устанавливаем condition по умолчанию "Б/у" если не указано
-		condition := strings.TrimSpace(part.Condition)
-		if condition == "" {
-			condition = "Б/у"
-		}
-
-		offer := Offer{
-			Name:          strings.TrimSpace(part.Name),
-			Available:     part.Status && part.Quantity >= 0,
-			Description:   strings.TrimSpace(part.Description),
-			Price:         part.Price,
-			CurrencyId:    "RUR",
-			Pictures:      pictures,
-			Store:         strings.TrimSpace(part.Salesman),
-			Quantity:      part.Quantity,
-			OemNumber:     strings.TrimSpace(part.OEMCode),
-			AnalogNumbers: "", // Поле для аналогов не реализовано, оставить пустым
-			Manufacturer:  strings.TrimSpace(part.Manufacturer),
-			Ordercode:     strings.TrimSpace(part.SupplierCode),
-			Condition:     condition,
-			Brandcars:     strings.TrimSpace(part.Brand),
-			Modelcars:     strings.TrimSpace(part.Model),
-			Bodycars:      strings.TrimSpace(part.BodyBrand),
-			Engine:        strings.TrimSpace(part.EngineBrand),
-			Year:          strings.TrimSpace(part.CarReleaseDate),
-			Lr:            strings.TrimSpace(part.LeftRight),
-			Fr:            strings.TrimSpace(part.FrontRear),
-			Ud:            strings.TrimSpace(part.TopBottom),
-			Color:         strings.TrimSpace(part.Color),
-			Supplier:      strings.TrimSpace(part.Salesman),
-			SupplierInn:   sellerINNs[part.SellerID],
-			Sklad:         strings.TrimSpace(part.Location),
-			SupplierArt:   strings.TrimSpace(part.SupplierCode),
-		}
-
-		offers.Offers = append(offers.Offers, offer)
+		offers.Offers = append(offers.Offers, BuildOffer(part, sellerINNs[part.SellerID], baseImageURL))
 	}
 
 	// Оцениваем средний размер XML оффера (~500 байт на запчасть) для однократного выделения буфера

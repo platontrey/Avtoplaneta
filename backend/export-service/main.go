@@ -45,7 +45,13 @@ func main() {
 		}
 	}
 
-	builder := NewPriceListBuilder(clients, config)
+	store, err := NewSnapshotStore(config.CatalogDBPath)
+	if err != nil {
+		logrus.WithError(err).Fatal("Не удалось инициализировать базу слепка bbolt")
+	}
+	defer store.Close()
+
+	builder := NewPriceListBuilder(clients, store, config)
 	queue := NewExportQueue(rdb, builder, config)
 	queue.StartWorker(ctx)
 
@@ -55,6 +61,7 @@ func main() {
 	SetupRoutes(router, handler)
 
 	go StartPriceListScheduler(ctx, builder)
+	go StartCatalogEventListener(ctx, rdb, builder)
 
 	server := &http.Server{
 		Addr:              ":" + config.Port,
