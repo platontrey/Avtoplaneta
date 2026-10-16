@@ -1,0 +1,187 @@
+# ==============================================================================
+# Пример локальной конфигурации (Dev Mode) с минимальным потреблением RAM
+# Для использования скопируйте в docker-compose.override.yml:
+#   cp docker-compose.override.example.yml docker-compose.override.yml
+# ==============================================================================
+
+services:
+  # ==============================================================================
+  # 1. ТРЕЙСИНГ И МОНИТОРИНГ (Минимум RAM, retention 2h)
+  # ==============================================================================
+  prometheus:
+    cpuset: "0-11"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=2h'       # Храним метрики только за последние 2 часа
+      - '--storage.tsdb.retention.size=256MB'    # Лимит размера базы метрик
+      - '--storage.tsdb.wal-compression'
+    mem_limit: 150m
+    deploy:
+      resources:
+        limits:
+          memory: 150M
+
+  grafana:
+    cpuset: "0-11"
+    environment:
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+    mem_limit: 120m
+    deploy:
+      resources:
+        limits:
+          memory: 120M
+
+  tempo:
+    mem_limit: 100m
+    deploy:
+      resources:
+        limits:
+          memory: 100M
+
+  cadvisor:
+    command:
+      - '--docker_only=true'                     # Сканировать только Docker контейнеры
+      - '--housekeeping_interval=10s'            # Интервал опроса раз в 10с вместо 1с
+      - '--disable_metrics=disk,tcp,udp,percpu,sched,process'
+    mem_limit: 60m
+    deploy:
+      resources:
+        limits:
+          memory: 60M
+
+  node-exporter:
+    mem_limit: 30m
+    deploy:
+      resources:
+        limits:
+          memory: 30M
+
+  # ==============================================================================
+  # 2. ИНФРАСТРУКТУРА (PostgreSQL, Elasticsearch, Redis, Traefik, Frontend)
+  # ==============================================================================
+  traefik:
+    cpuset: "0-11"
+    mem_limit: 80m
+    deploy:
+      resources:
+        limits:
+          memory: 80M
+
+  frontend:
+    cpuset: "0-11"
+    mem_limit: 50m
+    deploy:
+      resources:
+        limits:
+          memory: 50M
+
+  postgres:
+    cpuset: "0-11"
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=128MB"                  # Срезано с 4GB до 128MB
+      - "-c"
+      - "effective_cache_size=512MB"            # Срезано с 12GB до 512MB
+      - "-c"
+      - "maintenance_work_mem=32MB"
+      - "-c"
+      - "work_mem=4MB"
+      - "-c"
+      - "wal_buffers=4MB"
+      - "-c"
+      - "max_parallel_workers=2"
+      - "-c"
+      - "max_parallel_workers_per_gather=1"
+      - "-c"
+      - "max_parallel_maintenance_workers=1"
+    mem_limit: 250m
+    deploy:
+      resources:
+        limits:
+          memory: 250M
+
+  elasticsearch:
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms256m -Xmx512m          # Heap 512MB вместо 2GB
+    mem_limit: 700m
+    deploy:
+      resources:
+        limits:
+          memory: 700M
+
+  redis:
+    cpuset: "0-11"
+    command: redis-server --save "" --appendonly no --maxmemory 64mb --maxmemory-policy allkeys-lru
+    mem_limit: 64m
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  # ==============================================================================
+  # 3. НАШИ GO МИКРОСЕРВИСЫ (Агрессивный GC, лимит памяти 128-192 MiB)
+  # ==============================================================================
+  auth-service:
+    cpuset: "0-11"
+    environment:
+      - GOGC=50
+      - GOMEMLIMIT=128MiB
+      - GOMAXPROCS=2
+    mem_limit: 128m
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  parts-service:
+    cpuset: "0-11"
+    environment:
+      - GOGC=50
+      - GOMEMLIMIT=192MiB
+      - GOMAXPROCS=2
+    mem_limit: 200m
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+
+  orders-service:
+    cpuset: "0-11"
+    environment:
+      - GOGC=50
+      - GOMEMLIMIT=128MiB
+      - GOMAXPROCS=2
+    mem_limit: 128m
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  messaging-service:
+    cpuset: "0-11"
+    environment:
+      - GOGC=50
+      - GOMEMLIMIT=128MiB
+      - GOMAXPROCS=2
+    mem_limit: 128m
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  export-service:
+    cpuset: "0-11"
+    environment:
+      - GOGC=50
+      - GOMEMLIMIT=128MiB
+      - GOMAXPROCS=2
+    mem_limit: 128m
+    deploy:
+      resources:
+        limits:
+          memory: 128M
