@@ -12,6 +12,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/sirupsen/logrus v1.9.3
+	golang.org/x/net v0.58.0
 	google.golang.org/grpc v1.82.0
 	google.golang.org/protobuf v1.36.11
 )
@@ -63,7 +64,6 @@ require (
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	golang.org/x/arch v0.27.0 // indirect
 	golang.org/x/crypto v0.55.0 // indirect
-	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
