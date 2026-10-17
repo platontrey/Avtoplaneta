@@ -7,7 +7,7 @@ require (
 	avtoplaneta/pkg v0.0.0-00010101000000-000000000000
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/gin-gonic/gin v1.12.0
-	github.com/jackc/pgx/v5 v5.10.0
+	github.com/jackc/pgx/v5 v5.11.0
 	github.com/joho/godotenv v1.5.1
 	github.com/prometheus/client_golang v1.23.2
 	github.com/redis/go-redis/v9 v9.22.0
