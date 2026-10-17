@@ -474,3 +474,138 @@ func TestGenerateSampleXMLFile(t *testing.T) {
 		t.Fatalf("Ожидалось 2 фото у первой детали, получено %d", len(offers.Offers[0].Pictures))
 	}
 }
+
+// Проверка формирования параметров шин и дисков для классифайда Drom
+func TestGenerateXMLPriceListTiresAndWheels(t *testing.T) {
+	tirePart := domain.Part{
+		ID:           328570,
+		Name:         "Шина",
+		Quantity:     4,
+		Price:        9500,
+		Status:       true,
+		Photos:       []string{"/uploads/tires/michelin.jpg"},
+		Season:       "Зимние",
+		Diameter:     "17",
+		Width:        "235",
+		Profile:      "65",
+		TireQuantity: "4",
+		TireModel:    "Michelin X-Ice North",
+	}
+
+	wheelPart := domain.Part{
+		ID:                 336214,
+		Name:               "Диск литой",
+		Quantity:           4,
+		Price:              6000,
+		Status:             true,
+		Photos:             []string{"/uploads/wheels/bbs.jpg"},
+		Diameter:           "16",
+		Width:              "7.5",
+		Drilling:           "5/120",
+		Offset:             "20",
+		CenterHoleDiameter: "72",
+	}
+
+	data, err := service.GenerateXMLPriceList([]domain.Part{tirePart, wheelPart}, nil, "https://backend-server.ru")
+	if err != nil {
+		t.Fatalf("GenerateXMLPriceList failed: %v", err)
+	}
+
+	offers := parse(t, data)
+	if len(offers.Offers) != 2 {
+		t.Fatalf("expected 2 offers, got %d", len(offers.Offers))
+	}
+
+	// Проверка шины
+	tireOffer := offers.Offers[0]
+	if tireOffer.Name != "Шина Michelin X-Ice North 235/65 R17" {
+		t.Errorf("tire Name: got %q, want %q", tireOffer.Name, "Шина Michelin X-Ice North 235/65 R17")
+	}
+	if tireOffer.Marking != "235/65R17" {
+		t.Errorf("tire Marking: got %q, want %q", tireOffer.Marking, "235/65R17")
+	}
+	if tireOffer.TireWidth != "235" {
+		t.Errorf("tire TireWidth: got %q, want 235", tireOffer.TireWidth)
+	}
+	if tireOffer.TireSectionRatio != "65" {
+		t.Errorf("tire TireSectionRatio: got %q, want 65", tireOffer.TireSectionRatio)
+	}
+	if tireOffer.WheelDiameter != "17" {
+		t.Errorf("tire WheelDiameter: got %q, want 17", tireOffer.WheelDiameter)
+	}
+	if tireOffer.Season != "Зимняя" {
+		t.Errorf("tire Season: got %q, want Зимняя", tireOffer.Season)
+	}
+	if tireOffer.TireSpike != "Шипованные" {
+		t.Errorf("tire TireSpike: got %q, want Шипованные", tireOffer.TireSpike)
+	}
+	if tireOffer.InSet != "4" || tireOffer.InSetQuantity != "4" {
+		t.Errorf("tire InSet: got %q / %q, want 4", tireOffer.InSet, tireOffer.InSetQuantity)
+	}
+
+	// Проверка диска
+	wheelOffer := offers.Offers[1]
+	if wheelOffer.Name != "Диск литой R16 5x120" {
+		t.Errorf("wheel Name: got %q, want %q", wheelOffer.Name, "Диск литой R16 5x120")
+	}
+	if wheelOffer.Marking != "7.5J R16 ET20 5x120 DIA72" {
+		t.Errorf("wheel Marking: got %q, want %q", wheelOffer.Marking, "7.5J R16 ET20 5x120 DIA72")
+	}
+	if wheelOffer.WheelWidth != "7.5" {
+		t.Errorf("wheel WheelWidth: got %q, want 7.5", wheelOffer.WheelWidth)
+	}
+	if wheelOffer.WheelDiameter != "16" {
+		t.Errorf("wheel WheelDiameter: got %q, want 16", wheelOffer.WheelDiameter)
+	}
+	if wheelOffer.DiscET != "20" {
+		t.Errorf("wheel DiscET: got %q, want 20", wheelOffer.DiscET)
+	}
+	if wheelOffer.DiscPCD != "5x120" {
+		t.Errorf("wheel DiscPCD: got %q, want 5x120", wheelOffer.DiscPCD)
+	}
+	if wheelOffer.DiscDia != "72" || wheelOffer.DiscHoleDiameter != "72" {
+		t.Errorf("wheel DiscDia: got %q / %q, want 72", wheelOffer.DiscDia, wheelOffer.DiscHoleDiameter)
+	}
+	if wheelOffer.InSet != "4" || wheelOffer.InSetQuantity != "4" {
+		t.Errorf("wheel InSet: got %q / %q, want 4", wheelOffer.InSet, wheelOffer.InSetQuantity)
+	}
+}
+
+// Проверка исправления опечаток лемматизатора Drom (no_lemma)
+func TestGenerateXMLPriceListTypoCorrection(t *testing.T) {
+	parts := []domain.Part{
+		{
+			ID:       1,
+			Name:     "Фиксатор ремня безопастности",
+			Quantity: 1,
+			Price:    500,
+			Status:   true,
+			Photos:   []string{"/p1.jpg"},
+		},
+		{
+			ID:       2,
+			Name:     "Стеклоподьемник передний правый",
+			Quantity: 1,
+			Price:    1500,
+			Status:   true,
+			Photos:   []string{"/p2.jpg"},
+		},
+	}
+
+	data, err := service.GenerateXMLPriceList(parts, nil, "")
+	if err != nil {
+		t.Fatalf("GenerateXMLPriceList failed: %v", err)
+	}
+
+	offers := parse(t, data)
+	if len(offers.Offers) != 2 {
+		t.Fatalf("expected 2 offers, got %d", len(offers.Offers))
+	}
+
+	if offers.Offers[0].Name != "Фиксатор ремня безопасности" {
+		t.Errorf("Name 0: got %q, want %q", offers.Offers[0].Name, "Фиксатор ремня безопасности")
+	}
+	if offers.Offers[1].Name != "Стеклоподъемник передний правый" {
+		t.Errorf("Name 1: got %q, want %q", offers.Offers[1].Name, "Стеклоподъемник передний правый")
+	}
+}

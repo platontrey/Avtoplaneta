@@ -29,4 +29,15 @@ type Part struct {
 	Color          string `json:"color,omitempty"`
 	Condition      string `json:"condition,omitempty"`
 	SupplierCode   string `json:"supplier_code,omitempty"`
+
+	// Параметры шин и дисков для Drom.ru
+	Season             string `json:"season,omitempty"`
+	Diameter           string `json:"diameter,omitempty"`
+	Width              string `json:"width,omitempty"`
+	Profile            string `json:"profile,omitempty"`
+	TireQuantity       string `json:"tire_quantity,omitempty"`
+	Drilling           string `json:"drilling,omitempty"`
+	Offset             string `json:"offset,omitempty"`
+	CenterHoleDiameter string `json:"center_hole_diameter,omitempty"`
+	TireModel          string `json:"tire_model,omitempty"`
 }

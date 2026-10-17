@@ -144,8 +144,19 @@ func partFromProto(p *partsv1.Part) domain.Part {
 		Manufacturer:   p.GetManufacturer(),
 		OEMCode:        p.GetOemCode(),
 		Color:          p.GetColor(),
-		Condition:      p.GetCondition(),
-		SupplierCode:   p.GetSupplierCode(),
+		Condition:          p.GetCondition(),
+		SupplierCode:       p.GetSupplierCode(),
+
+		// Параметры шин и дисков
+		Season:             p.GetSeason(),
+		Diameter:           p.GetDiameter(),
+		Width:              p.GetWidth(),
+		Profile:            p.GetProfile(),
+		TireQuantity:       p.GetTireQuantity(),
+		Drilling:           p.GetDrilling(),
+		Offset:             p.GetOffset(),
+		CenterHoleDiameter: p.GetCenterHoleDiameter(),
+		TireModel:          p.GetTireModel(),
 	}
 
 	if ts := p.GetToDeleteAt(); ts != nil {
