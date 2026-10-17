@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/Masterminds/squirrel"
@@ -245,6 +246,12 @@ func (r *orderRepository) Create(ctx context.Context, order *domain.Order) error
 		return err
 	}
 	order.ID = o.ID
+	if order.OrderNumber == "" {
+		order.OrderNumber = strconv.FormatInt(o.ID, 10)
+		if _, err := r.getExec(ctx).Exec(ctx, "UPDATE orders SET order_number = $1 WHERE id = $2", order.OrderNumber, o.ID); err != nil {
+			return fmt.Errorf("failed to set default order_number: %w", err)
+		}
+	}
 	return nil
 }
 

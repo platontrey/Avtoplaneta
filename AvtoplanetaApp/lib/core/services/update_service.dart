@@ -225,6 +225,7 @@ class UpdateCheckResult {
 class UpdateService {
   final String _baseUrl;
   final Dio _dio;
+  final Dio? _gitHubDio;
   final Dio? _downloadDio;
   final String githubRepo;
   final bool checkGitHubReleases;
@@ -233,11 +234,13 @@ class UpdateService {
   UpdateService({
     String? baseUrl,
     Dio? dio,
+    Dio? gitHubDio,
     Dio? downloadDio,
     this.githubRepo = 'platontrey/Avtoplaneta',
     this.checkGitHubReleases = true,
     this.checkPlatform = true,
   })  : _baseUrl = baseUrl ?? apiClient.dio.options.baseUrl,
+        _gitHubDio = gitHubDio,
         _downloadDio = downloadDio,
         _dio = dio ??
             Dio(BaseOptions(
@@ -271,20 +274,20 @@ class UpdateService {
     final normServerBuild = normalizeBuildNumber(serverBuild);
     final normCurrentBuild = normalizeBuildNumber(currentBuild);
 
-    // 1. Если сервер отдает валидный номер сборки > 0
-    if (normServerBuild > 0) {
-      if (normCurrentBuild > 0) {
-        if (normServerBuild > normCurrentBuild) return true;
-        if (normServerBuild < normCurrentBuild) return false;
-      } else {
-        // У клиента номер сборки не определен (0), но у сервера есть номер сборки > 0.
-        // Если семантическая версия сервера не меньше текущей, считаем сборку новой.
-        final cmp = compareSemver(serverVersion, currentVersion);
-        if (cmp >= 0) return true;
-      }
+    // 1. Если сервер и клиент имеют валидные номера сборок > 0
+    if (normServerBuild > 0 && normCurrentBuild > 0) {
+      // Номер сборки (CI run_number) — это строгий монотонный счетчик ревизий.
+      // Если номера равны (например 120 == 120) или серверная сборка меньше — обновления НЕТ.
+      return normServerBuild > normCurrentBuild;
     }
 
-    // 2. Сравнение по семантическим версиям (например "1.0.2" > "1.0.1")
+    // 2. Если у клиента сборка 0 (локальный dev билд), но серверная сборка > 0
+    if (normServerBuild > 0 && normCurrentBuild == 0) {
+      final cmp = compareSemver(serverVersion, currentVersion);
+      return cmp >= 0;
+    }
+
+    // 3. Fallback: сравнение чисто по семантическим версиям (когда номера сборок равны 0)
     return compareSemver(serverVersion, currentVersion) > 0;
   }
 
@@ -453,14 +456,15 @@ class UpdateService {
     required int currentBuild,
     String? targetAbi,
   }) async {
-    final client = Dio(BaseOptions(
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 15),
-      headers: {
-        'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'AvtoplanetaApp-Updater',
-      },
-    ));
+    final client = _gitHubDio ??
+        Dio(BaseOptions(
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 15),
+          headers: {
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'AvtoplanetaApp-Updater',
+          },
+        ));
 
     final urls = [
       'https://api.github.com/repos/$githubRepo/releases/tags/mobile-latest',

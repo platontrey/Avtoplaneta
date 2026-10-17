@@ -52,6 +52,12 @@ final customersProvider = FutureProvider<List<Customer>>((ref) async {
   );
 });
 
+/// Провайдер полного списка клиентов (без фильтров поиска) для селекторов и форм заказов
+final allCustomersProvider = FutureProvider<List<Customer>>((ref) async {
+  final repository = ref.watch(customersRepositoryProvider);
+  return repository.fetchCustomers();
+});
+
 /// Провайдер карточки клиента
 final customerDetailsProvider =
     FutureProvider.family<CustomerDetails, int>((ref, id) async {

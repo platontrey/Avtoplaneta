@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/theme.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/models/customer.dart';
 import '../../../core/models/part.dart';
@@ -44,6 +45,7 @@ Future<bool> showPartsOrderSheet(
     ref.invalidate(ordersProvider);
     ref.invalidate(completedOrdersProvider);
     ref.invalidate(customersProvider);
+    ref.invalidate(allCustomersProvider);
     ref.invalidate(inventoryProvider);
     for (final part in parts) {
       ref.invalidate(partProvider(part.id));

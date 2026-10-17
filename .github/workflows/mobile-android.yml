@@ -164,7 +164,7 @@ jobs:
           name: "Автопланета — сборка #${{ github.run_number }}"
           body: |
             Автоматическая сборка build: ${{ github.run_number }}
-            Версия: 1.0.2 (сборка #${{ github.run_number }})
+            Версия: 1.0.1 (сборка #${{ github.run_number }})
             Ветка: ${{ github.ref_name }} (${{ github.sha }}).
             • avtoplaneta-latest-arm64.apk — для 64-битных смартфонов (~22 МБ)
             • avtoplaneta-latest-armv7.apk — для 32-битных смартфонов (~20 МБ)

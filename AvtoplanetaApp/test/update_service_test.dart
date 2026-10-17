@@ -506,6 +506,7 @@ void main() {
 
       final service = UpdateService(
         dio: dio,
+        gitHubDio: dio,
         checkGitHubReleases: true,
         checkPlatform: false,
       );
