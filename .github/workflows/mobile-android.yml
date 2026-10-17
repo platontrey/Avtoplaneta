@@ -28,7 +28,10 @@ concurrency:
 jobs:
   quality:
     name: Analyze and test
-    runs-on: ubuntu-latest
+    runs-on:
+      - self-hosted
+      - Linux
+      - X64
     timeout-minutes: 15
 
     defaults:
@@ -102,74 +105,15 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build release APKs in parallel
+      - name: Build release APKs (split per ABI)
         shell: bash
         run: |
           BUILD_NUM="${{ github.run_number }}"
-          echo "=== Запуск параллельной компиляции APK (arm64-v8a и armeabi-v7a) ==="
-
-          # Создаем изолированные каталоги для исключения конфликтов блокировок
-          TEMP_ROOT=$(mktemp -d /tmp/flutter-build-XXXXXX)
-          mkdir -p "$TEMP_ROOT/arm64" "$TEMP_ROOT/armv7"
-
-          # Копирование исходников без кэша сборки
-          cp -R . "$TEMP_ROOT/arm64/"
-          cp -R . "$TEMP_ROOT/armv7/"
-
-          # Поток 1: arm64-v8a на ядрах 0-7
-          (
-            echo "[arm64] Старт сборки на ядрах 0-7..."
-            cd "$TEMP_ROOT/arm64"
-            taskset --cpu-list 0-7 flutter build apk --release --no-pub \
-              --target-platform android-arm64 \
-              --build-number="$BUILD_NUM"
-            echo "[arm64] Сборка успешно завершена!"
-          ) > "$TEMP_ROOT/arm64.log" 2>&1 &
-          PID_ARM64=$!
-
-          # Поток 2: armeabi-v7a на ядрах 8-15
-          (
-            echo "[armv7] Старт сборки на ядрах 8-15..."
-            cd "$TEMP_ROOT/armv7"
-            taskset --cpu-list 8-15 flutter build apk --release --no-pub \
-              --target-platform android-arm \
-              --build-number="$BUILD_NUM"
-            echo "[armv7] Сборка успешно завершена!"
-          ) > "$TEMP_ROOT/armv7.log" 2>&1 &
-          PID_ARMV7=$!
-
-          # Ожидание параллельного завершения
-          wait $PID_ARM64
-          STATUS_ARM64=$?
-
-          wait $PID_ARMV7
-          STATUS_ARMV7=$?
-
-          echo "--- Лог сборки arm64-v8a ---"
-          cat "$TEMP_ROOT/arm64.log"
-          echo "--- Лог сборки armeabi-v7a ---"
-          cat "$TEMP_ROOT/armv7.log"
-
-          if [ $STATUS_ARM64 -ne 0 ]; then
-            echo "Ошибка при сборке APK arm64-v8a (exit code $STATUS_ARM64)"
-            rm -rf "$TEMP_ROOT"
-            exit $STATUS_ARM64
-          fi
-
-          if [ $STATUS_ARMV7 -ne 0 ]; then
-            echo "Ошибка при сборке APK armeabi-v7a (exit code $STATUS_ARMV7)"
-            rm -rf "$TEMP_ROOT"
-            exit $STATUS_ARMV7
-          fi
-
-          # Копируем результаты в структуру build/
-          mkdir -p build/app/outputs/flutter-apk
-          cp "$TEMP_ROOT/arm64/build/app/outputs/flutter-apk/app-release.apk" \
-             build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
-          cp "$TEMP_ROOT/armv7/build/app/outputs/flutter-apk/app-release.apk" \
-             build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
-
-          rm -rf "$TEMP_ROOT"
+          echo "=== Сборка оптимизированных APK (arm64-v8a и armeabi-v7a) ==="
+          flutter build apk --release --no-pub \
+            --target-platform android-arm,android-arm64 \
+            --split-per-abi \
+            --build-number="$BUILD_NUM"
 
       - name: Prepare release asset
         if: github.event_name == 'push'
