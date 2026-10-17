@@ -4,46 +4,118 @@
 
 Avtoplaneta - это комплексная система управления инвентарем автозапчастей, разработанная с использованием современных технологий. Система включает веб-приложение, мобильное приложение и микросервисную backend архитектуру для эффективного управления запасами, заказами и пользователями.
 
-## Архитектура проекта
+## 🏛️ Архитектура проекта и сетевая модель
 
-Проект состоит из следующих основных компонентов:
+Система спроектирована по стандартам промышленной микросервисной архитектуры с жестким разделением на **два сетевых контура**:
 
-### 🖥️ Frontend (Веб-приложение)
-- **Технологии**: React 19, TypeScript, Vite, Tailwind CSS v4, Nginx (с Brotli & Gzip сжатием)
-- **Расположение**: `frontend/`
-- **Документация**: [frontend/README.md](frontend/README.md)
+```
+                       ВНЕШНИЙ КОНТУР (Интернет / Клиенты)
+   React (Web SPA)     Flutter (Mobile)      Drom.ru (Робот)      Prometheus (Scraper)
+        │                     │                     │                      │
+        │ HTTPS/JSON          │ HTTPS/JSON          │ GET /pricelist.xml   │ GET /metrics
+        ▼                     ▼                     ▼                      ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                      Traefik Edge API Gateway (Порты :80, :443)                        │
+│  • TLS Termination (Let's Encrypt)              • Dynamic Routing (Host/PathPrefix)   │
+│  • ForwardAuth (/auth/verify в auth-service)     • Rate Limiting (100 req/min)         │
+│  • Response Compression (Brotli & Gzip)         • Security Headers (HSTS, XSS, Frame) │
+└─────────────────────────────────────────┬──────────────────────────────────────────────┘
+                                          │ HTTP / JSON / Multipart
+                                          ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                   ФАСАДНЫЕ HTTP-СЕРВЕРЫ МИКРОСЕРВИСОВ (Порты 8081–8085)                 │
+│  auth-service (:8083)  parts-service (:8081)  orders-service (:8082) export-service(:8085) │
+└───────────────────────────────┬─────────────────────────┬──────────────────────────────┘
+                                │                         │
+════════════════════════════════╪═════════════════════════╪══════════════════════════════
+                                │                         │
+                                ▼                         ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│               ВНУТРЕННИЙ МЕЖСЕРВИСНЫЙ КОНТУР (gRPC HTTP/2, Порты 9081–9084)            │
+│  • 100% прямое межсервисное общение без посредников     • Строгие контракты Protobuf   │
+│  • Мультиплексирование потоков в одном TCP-соединении   • gRPC Streaming данных        │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
 
-### 📱 Mobile App (iOS / Android)
-- **Технологии**: Flutter, Dart, Android SDK, iOS SDK
-- **Расположение**: `AvtoplanetaApp/`
-- **Документация**: [AvtoplanetaApp/README.md](AvtoplanetaApp/README.md)
+### Основные компоненты:
 
-### 🔧 Backend (Микросервисы)
-- **Технологии**: Go, Gin Framework, gRPC, Protobuf, PostgreSQL (sqlc, pgx/v5), Elasticsearch, Redis Streams, OpenTelemetry, Grafana Tempo
-- **Расположение**: `backend/`
-- **Документация**: [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md)
+#### 🖥️ Frontend (Веб-приложение)
+- **Стек**: React 19, TypeScript, Vite, Tailwind CSS v4, Nginx (Brotli & Gzip)
+- **Расположение**: `frontend/` (документация: [frontend/README.md](frontend/README.md))
 
-#### Сервисы:
-- **Traefik Ingress** (порты 80, 443) — современный reverse proxy, SSL termination, прямая маршрутизация на сервисы и проверка авторизации через ForwardAuth (`/auth/verify`)
-- **Auth Service** (HTTP :8083, gRPC :9083) — аутентификация, ForwardAuth-проверка, управление пользователями, gRPC ValidateSession / GetUsers / ActivityLogs
-- **Parts Service** (HTTP :8081, gRPC :9081) — управление инвентарем, gRPC API и встроенный gRPC-Gateway (`/api/v1/*`), шаблоны каталога (`catalog.json`), Elasticsearch
-- **Orders Service** (HTTP :8082, gRPC :9082) — управление заказами, списание остатков (`quantity = -1`), аналитика продаж через gRPC
-- **Messaging Service** (HTTP :8084, gRPC :9084) — чаты, уведомления, интеграция с Drom.ru
-- **Export Service** (HTTP :8085) — генерация прайс-листов XML для Drom.ru через потоковый gRPC без прямого доступа к БД
+#### 📱 Mobile App (iOS / Android)
+- **Стек**: Flutter, Dart, Android SDK, iOS SDK
+- **Расположение**: `AvtoplanetaApp/` (документация: [AvtoplanetaApp/README.md](AvtoplanetaApp/README.md))
 
-#### Коммуникация и Наблюдаемость (Observability):
-- **REST/HTTP & gRPC-Gateway** — внешний веб-интерфейс через Traefik Ingress
-- **gRPC + Protobuf** — 100% межсервисной коммуникации между микросервисами (без внутренних HTTP-вызовов)
-- **Redis Streams** — для асинхронной доставки доменных событий (переименование продавцов, события заказов)
-- **OpenTelemetry & Grafana Tempo** — распределённый сквозной трейсинг запросов
-- **Prometheus & Grafana** — сбор метрик производительности, количества ошибок и системного мониторинга
+#### 🔧 Backend (Микросервисы на Go)
+- **Служебный шлюз Traefik** (HTTP :80, HTTPS :443) — единый Edge API Gateway, TLS-терминация, централизованная аутентификация через ForwardAuth (`/auth/verify`), rate limiting.
+- **Auth Service** (HTTP :8083, gRPC :9083) — аутентификация, ForwardAuth верификация сессий (<1 мс), роли (Admin, Manager, Operator), gRPC `ValidateSession` / `GetUsers`.
+- **Parts Service** (HTTP :8081, gRPC :9081) — складской инвентарь, загрузка фото, шаблоны каталога (`catalog.json`), CQRS с Elasticsearch, Transactional Outbox.
+- **Orders Service** (HTTP :8082, gRPC :9082) — оформление заказов, клиентская база с нормализацией телефонов, атомарное списание остатков (`quantity = -1`) через gRPC.
+- **Messaging Service** (HTTP :8084, gRPC :9084) — чаты, WebSocket/polling сообщения, уведомления.
+- **Export Service** (HTTP :8085) — генерация и отдача XML-каталогов для классифайдов (Drom.ru) с инкрементальным слепком на базе `bbolt` и фоновой очередью Redis Streams.
 
-## Инвентарь и статус количества (Quantity States)
+---
 
-В системе используется строгое распределение статусов количества запчастей:
-- `quantity > 0`: Обычные запчасти в наличии на складе.
-- `quantity == 0`: Дефектные ведомости или специальные запчасти. Они **должны оставаться видимыми** в интерфейсе и при генерации XML-выгрузок (`quantity >= 0`).
-- `quantity == -1`: Запчасти, полностью проданные через `orders-service`. Маркер `-1` отфильтровывает запчасть из выдачи UI и XML, сохраняя историчность базы данных.
+## 🧩 Ключевые архитектурные паттерны (Senior Architecture Patterns)
+
+В проекте строго соблюдаются архитектурные паттерны корпоративного уровня:
+
+1. **Edge API Gateway & ForwardAuth (Traefik):**
+   - Ни один микросервис не выставлен в интернет напрямую (порты закрыты внутри `avtoplaneta_network`).
+   - Все защищенные операции (`/api/addpart`, `/api/updatepart`, `/admin/*`) перехватываются Traefik и валидируются в `auth-service` через подзапрос `/auth/verify`. При успехе Traefik прозрачно инжектирует в заголовки сервиса доверенные `X-User-ID`, `X-User-Role`, `X-User-Email`.
+
+2. **Двухконтурная модель коммуникации (Dual Engine: HTTP + gRPC):**
+   - **Фасадный контур (HTTP/REST):** Микросервисы поднимают легковесный HTTP-сервер (`pkg/httpserver` на Gin) для внешних клиентов — React, Flutter, мобильных приложений, робота Drom.ru (`GET /uploads/pricelist.xml`) и загрузки фото (`multipart/form-data`).
+   - **Межсервисный контур (gRPC HTTP/2):** Общение между бэкендами (`service ↔ service`) на 100% выполняется по gRPC с бинарным Protobuf без накладных расходов на JSON, с мультиплексированием и строгими контрактами (`backend/proto/`). Межсервисный REST запрещен.
+
+3. **Изоляция данных: Database-per-Service:**
+   - Каждый микросервис изолированно владеет своей схемой БД (`AUTH_DATABASE_URL`, `PARTS_DATABASE_URL`, `ORDERS_DATABASE_URL`, `MESSAGING_DATABASE_URL`).
+   - Прямой доступ к чужим базам данных исключен — интеграция происходит только через публичные gRPC контракты.
+
+4. **Гарантированная синхронизация: Transactional Outbox Pattern (No Dual-Write):**
+   - Категорический запрет на двойную запись (Dual-Write) в PostgreSQL и Elasticsearch из HTTP-хэндлеров.
+   - Изменение сущности и запись события в таблицу `outbox_events` происходят в рамках **одной транзакции PostgreSQL** (`pgx.Tx`).
+   - Триггер БД моментально будит воркер через `PERFORM pg_notify('outbox_events_channel', ...)`, который асинхронно обновляет поисковый индекс Elasticsearch и кэш Redis.
+
+5. **CQRS (Command Query Responsibility Segregation):**
+   - **Write Model:** PostgreSQL (pgx/v5, sqlc) — единственный Source of Truth с поддержкой строгих ACID-транзакций.
+   - **Read Model:** Elasticsearch — денормализованная поисковая проекция со стеммингом русского языка, опечатками и синонимами (`synonyms.txt`). При отказе Elasticsearch сервис автоматически деградирует на fallback-поиск через PostgreSQL (`ILIKE`).
+   - **Кэширование витрины:** Redis с поддержкой ETag / `If-None-Match` для мгновенных ответов `304 Not Modified`.
+
+6. **Асинхронные события: Event-Driven Architecture (Redis Streams):**
+   - Слабосвязанная доставка событий между сервисами (`seller_renamed`, события смены статусов заказов) с гарантией At-Least-Once через Consumer Groups (`XREADGROUP`, `XACK`, `XAUTOCLAIM`).
+
+7. **Инкрементальный слепок каталога (Incremental Catalog Snapshot):**
+   - В `export-service` реализован встроенный ACID-слепок на `bbolt` (`/app/uploads/catalog.db`).
+   - При изменении детали через Redis Streams точечно обновляется ровно один XML-кусочек.
+   - Полный XML-каталог на 50 000 позиций собирается за **0.4 мс** линейным сбросом готовых байт на диск без единого запроса в PostgreSQL и без нагрузки на Go GC.
+
+8. **Идемпотентность списаний (Idempotent Consumer):**
+   - Списание складских остатков по заказу фиксируется с уникальным `operation_id` в таблице `part_stock_operations`, предотвращая повторные списания при сетевых сбоях.
+
+9. **Чистая слоистая архитектура (Clean Layered Architecture):**
+   - Микросервисы структурированы по доменным слоям:
+     - `internal/domain` — чистые сущности бизнеса.
+     - `internal/repository` — слой персистентности (sqlc, pgx/v5, bbolt).
+     - `internal/service` — сценарии и бизнес-логика.
+     - `internal/events` — очереди и стримы событий.
+     - `internal/grpc` — gRPC-клиенты и серверы.
+     - `internal/handler` — HTTP-хэндлеры и роуты.
+   - Общий код переиспользуется через `backend/pkg` (`httpserver`, `redisclient`, `authcontext`, `httpcache`, `tracing`).
+
+10. **Сквозная наблюдаемость (Distributed Tracing & Metrics):**
+    - Распределенный трейсинг по стандарту W3C Trace Context через **OpenTelemetry** и **Grafana Tempo**.
+    - Сбор системных и бизнес-метрик через **Prometheus** и дашборды **Grafana**.
+
+---
+
+## 📦 Инвентарь и статус количества (Quantity States)
+
+В системе действует строгий доменный инвариант семантики поля `quantity`:
+- `quantity > 0`: Запчасти в наличии на складе.
+- `quantity == 0`: Дефектные ведомости или спецпозиции. Они **ОБЯЗАНЫ ОСТАВАТЬСЯ ВИДИМЫМИ** в поиске, UI и XML-выгрузках для классифайдов (фильтр: `WHERE quantity >= 0`).
+- `quantity == -1`: Полностью списанные и проданные через `orders-service` детали. Служит маркером сокрытия из активной выдачи с сохранением историчности.
 
 ## Производительность и оптимизации
 

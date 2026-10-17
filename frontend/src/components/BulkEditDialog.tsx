@@ -37,6 +37,7 @@ interface BulkEditForm {
   priceValue: string;
   priceMode: PriceOperationMode;
   location?: string;
+  address?: string;
   status: boolean;
   salesman?: string;
   bodyBrand?: string;
@@ -44,6 +45,7 @@ interface BulkEditForm {
   applyCategory: boolean;
   applyPrice: boolean;
   applyLocation: boolean;
+  applyAddress: boolean;
   applyStatus: boolean;
   applySalesman: boolean;
   applyBodyBrand: boolean;
@@ -81,6 +83,7 @@ export default function BulkEditDialog({
     priceValue: '',
     priceMode: 'PRICE_OPERATION_MODE_SET',
     location: '',
+    address: '',
     status: true,
     salesman: '',
     bodyBrand: '',
@@ -88,6 +91,7 @@ export default function BulkEditDialog({
     applyCategory: false,
     applyPrice: false,
     applyLocation: false,
+    applyAddress: false,
     applyStatus: false,
     applySalesman: false,
     applyBodyBrand: false,
@@ -149,7 +153,7 @@ export default function BulkEditDialog({
 
     try {
       const hasAnyField =
-        form.applyPrice || form.applyCategory || form.applyLocation ||
+        form.applyPrice || form.applyCategory || form.applyLocation || form.applyAddress ||
         form.applyStatus || form.applySalesman || form.applyBodyBrand || form.applyEngineBrand;
 
       if (!hasAnyField) {
@@ -172,6 +176,7 @@ export default function BulkEditDialog({
 
       if (form.applyCategory && form.category) operations.category = form.category;
       if (form.applyLocation && form.location) operations.location = form.location;
+      if (form.applyAddress && form.address) operations.address = form.address;
       if (form.applySalesman && form.salesman) operations.salesman = form.salesman;
       if (form.applyStatus) operations.status = form.status;
       if (form.applyBodyBrand) operations.body_brand = form.bodyBrand || '';
@@ -352,13 +357,28 @@ export default function BulkEditDialog({
           <div className="rounded-lg border p-3.5 space-y-2 bg-card shadow-xs">
             <div className="flex items-center space-x-2">
               <Checkbox id="applyLocation" checked={form.applyLocation} onCheckedChange={(c) => updateForm('applyLocation', Boolean(c))} />
-              <Label htmlFor="applyLocation" className="text-sm font-semibold cursor-pointer">Местоположение / Склад</Label>
+              <Label htmlFor="applyLocation" className="text-sm font-semibold cursor-pointer">Местоположение</Label>
             </div>
             {form.applyLocation && (
               <Input
-                placeholder="Введите местоположение (ряд, полка, склад)"
+                placeholder="Стеллаж / ряд / полка"
                 value={form.location || ''}
                 onChange={(e) => updateForm('location', e.target.value)}
+              />
+            )}
+          </div>
+
+          {/* Адрес склада */}
+          <div className="rounded-lg border p-3.5 space-y-2 bg-card shadow-xs">
+            <div className="flex items-center space-x-2">
+              <Checkbox id="applyAddress" checked={form.applyAddress} onCheckedChange={(c) => updateForm('applyAddress', Boolean(c))} />
+              <Label htmlFor="applyAddress" className="text-sm font-semibold cursor-pointer">Адрес склада</Label>
+            </div>
+            {form.applyAddress && (
+              <Input
+                placeholder="Например, г. Владивосток, ул. Снеговая, 2Б"
+                value={form.address || ''}
+                onChange={(e) => updateForm('address', e.target.value)}
               />
             )}
           </div>

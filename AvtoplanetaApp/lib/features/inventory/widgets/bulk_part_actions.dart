@@ -27,6 +27,7 @@ Map<String, dynamic> buildBulkUpdatePayload({
   double? priceValue,
   String? category,
   String? location,
+  String? address,
   String? salesman,
   bool? status,
   String? bodyBrand,
@@ -44,6 +45,9 @@ Map<String, dynamic> buildBulkUpdatePayload({
   }
   if (location != null && location.isNotEmpty) {
     operations['location'] = location;
+  }
+  if (address != null && address.isNotEmpty) {
+    operations['address'] = address;
   }
   if (salesman != null && salesman.isNotEmpty) {
     operations['salesman'] = salesman;
@@ -288,6 +292,7 @@ class _BulkEditSheetState extends State<_BulkEditSheet> {
   final _formKey = GlobalKey<FormState>();
   final _price = TextEditingController();
   final _location = TextEditingController();
+  final _address = TextEditingController();
   final _salesman = TextEditingController();
   final _bodyBrand = TextEditingController();
   final _engineBrand = TextEditingController();
@@ -319,6 +324,7 @@ class _BulkEditSheetState extends State<_BulkEditSheet> {
   void dispose() {
     _price.dispose();
     _location.dispose();
+    _address.dispose();
     _salesman.dispose();
     _bodyBrand.dispose();
     _engineBrand.dispose();
@@ -366,6 +372,7 @@ class _BulkEditSheetState extends State<_BulkEditSheet> {
         priceValue: priceVal,
         category: _enabled.contains('category') ? _category : null,
         location: _enabled.contains('location') ? _location.text.trim() : null,
+        address: _enabled.contains('address') ? _address.text.trim() : null,
         salesman: _enabled.contains('salesman') ? _salesman.text.trim() : null,
         status: _enabled.contains('status') ? _status : null,
         bodyBrand: _enabled.contains('body_brand') ? _bodyBrand.text.trim() : null,
@@ -620,9 +627,26 @@ class _BulkEditSheetState extends State<_BulkEditSheet> {
               if (_enabled.contains('location'))
                 TextFormField(
                   controller: _location,
-                  decoration: const InputDecoration(labelText: 'Место / Склад *'),
+                  decoration: const InputDecoration(
+                    labelText: 'Местоположение *',
+                    hintText: 'Стеллаж, ряд, полка',
+                  ),
                   validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Укажите место'
+                      ? 'Укажите местоположение'
+                      : null,
+                ),
+
+              // Адрес склада
+              _fieldToggle('address', 'Адрес склада'),
+              if (_enabled.contains('address'))
+                TextFormField(
+                  controller: _address,
+                  decoration: const InputDecoration(
+                    labelText: 'Адрес склада *',
+                    hintText: 'Например: г. Владивосток, ул. Снеговая, 2Б',
+                  ),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Укажите адрес склада'
                       : null,
                 ),
 

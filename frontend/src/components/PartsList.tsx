@@ -420,7 +420,7 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                             <span className="font-medium text-blue-900 dark:text-blue-200 text-sm sm:text-base">
-                                В корзине выбора: {selectedParts.size} запч.
+                                {isAllMatchingFilterSelected ? '🎯 Выбраны ВСЕ детали по запросу' : `В корзине выбора: ${selectedParts.size} запч.`}
                             </span>
                             <div className="flex gap-2 flex-wrap items-center">
                                 <Button
