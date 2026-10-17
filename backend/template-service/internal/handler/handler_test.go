@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/mock"
@@ -96,4 +97,35 @@ func TestGetItem_NotFound(t *testing.T) {
 
 	require.Equal(t, http.StatusNotFound, w.Code)
 	svc.AssertExpectations(t)
+}
+
+func TestGetItem_SuccessAndETag(t *testing.T) {
+	svc := new(mockItemService)
+	now := time.Now()
+	item := &domain.Item{
+		ID:        1,
+		Name:      "Тестовый товар",
+		UpdatedAt: now,
+	}
+	svc.On("GetItem", mock.Anything, int64(1)).Return(item, nil)
+
+	router := setupTestRouter(svc)
+
+	// 1. Первый запрос без ETag -> 200 OK и заголовок ETag
+	w1 := httptest.NewRecorder()
+	req1, _ := http.NewRequest(http.MethodGet, "/api/v1/items/1", nil)
+	router.ServeHTTP(w1, req1)
+
+	require.Equal(t, http.StatusOK, w1.Code)
+	etag := w1.Header().Get("ETag")
+	require.NotEmpty(t, etag)
+
+	// 2. Повторный запрос с If-None-Match -> 304 Not Modified
+	w2 := httptest.NewRecorder()
+	req2, _ := http.NewRequest(http.MethodGet, "/api/v1/items/1", nil)
+	req2.Header.Set("If-None-Match", etag)
+	router.ServeHTTP(w2, req2)
+
+	require.Equal(t, http.StatusNotModified, w2.Code)
+	require.Empty(t, w2.Body.String())
 }

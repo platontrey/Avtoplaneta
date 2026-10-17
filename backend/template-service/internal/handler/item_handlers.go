@@ -2,11 +2,14 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
+	"avtoplaneta/pkg/httpcache"
 	"template-service/internal/domain"
 )
 
@@ -61,6 +64,12 @@ func (h *Handler) GetItem(c *gin.Context) {
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Внутренняя ошибка сервера"})
+		return
+	}
+
+	// Использование pkg/httpcache: если клиент прислал подходящий If-None-Match, возвращаем 304 Not Modified
+	version := fmt.Sprintf("%d", item.UpdatedAt.UnixNano())
+	if httpcache.ServeVersioned(c.Writer, c.Request, version, 5*time.Minute) {
 		return
 	}
 

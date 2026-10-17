@@ -11,6 +11,8 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"avtoplaneta/pkg/httpserver"
+	"avtoplaneta/pkg/redisclient"
+	"avtoplaneta/pkg/tracing"
 	"template-service/internal/config"
 	"template-service/internal/grpc"
 	"template-service/internal/handler"
@@ -26,7 +28,19 @@ func main() {
 	// 2. Загрузка конфигурации
 	cfg := config.LoadConfig()
 
-	// 3. Контекст graceful shutdown по сигналам ОС
+	// 3. Инициализация распределенной трассировки OpenTelemetry
+	tp, err := tracing.InitTracer("template-service")
+	if err != nil {
+		logrus.WithError(err).Warn("Трассировщик OpenTelemetry не запущен (продолжение без трассировки)")
+	} else {
+		defer func() {
+			if err := tp.Shutdown(context.Background()); err != nil {
+				logrus.WithError(err).Error("Ошибка при остановке трассировщика")
+			}
+		}()
+	}
+
+	// 4. Контекст graceful shutdown по сигналам ОС
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -36,14 +50,25 @@ func main() {
 		"env":       cfg.NodeEnv,
 	}).Info("Инициализация template-service...")
 
-	// 4. Подключение к PostgreSQL и запуск встроенных миграций
+	// 5. Подключение к PostgreSQL и запуск встроенных миграций
 	dbPool, err := repository.InitDB(cfg)
 	if err != nil {
 		logrus.WithError(err).Fatal("Не удалось инициализировать базу данных PostgreSQL")
 	}
 	defer dbPool.Close()
 
-	// 5. Сборка слоев (Dependency Injection)
+	// 6. Подключение к Redis (кэш, события, распределенные блокировки)
+	if cfg.RedisURL != "" {
+		redisClient, err := redisclient.New(cfg.RedisURL, cfg.RedisPassword)
+		if err != nil {
+			logrus.WithError(err).Warn("Не удалось подключиться к Redis (кэширование и события отключены)")
+		} else {
+			defer redisClient.Close()
+			logrus.Info("Подключение к Redis успешно установлено")
+		}
+	}
+
+	// 7. Сборка слоев (Dependency Injection)
 	itemRepo := repository.NewItemRepository(dbPool)
 	itemService := service.NewItemService(itemRepo)
 	h := handler.NewHandler(itemService)

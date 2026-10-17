@@ -8,12 +8,13 @@ import (
 )
 
 type Config struct {
-	Port        string
-	GRPCPort    string
-	DatabaseURL string
-	RedisURL    string
-	NodeEnv     string
-	LogLevel    string
+	Port          string
+	GRPCPort      string
+	DatabaseURL   string
+	RedisURL      string
+	RedisPassword string
+	NodeEnv       string
+	LogLevel      string
 }
 
 // LoadConfig загружает переменные окружения с fallback-значениями
@@ -23,12 +24,13 @@ func LoadConfig() *Config {
 	_ = godotenv.Load("../../.env")
 
 	cfg := &Config{
-		Port:        getEnv("PORT", "8090"),
-		GRPCPort:    getEnv("GRPC_PORT", "9090"),
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/template_db?sslmode=disable"),
-		RedisURL:    getEnv("REDIS_URL", "localhost:6379"),
-		NodeEnv:     getEnv("NODE_ENV", "development"),
-		LogLevel:    getEnv("LOG_LEVEL", "info"),
+		Port:          getEnv("PORT", "8090"),
+		GRPCPort:      getEnv("GRPC_PORT", "9090"),
+		DatabaseURL:   getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/template_db?sslmode=disable"),
+		RedisURL:      getEnv("REDIS_URL", "localhost:6379"),
+		RedisPassword: getEnv("REDIS_PASSWORD", ""),
+		NodeEnv:       getEnv("NODE_ENV", "development"),
+		LogLevel:      getEnv("LOG_LEVEL", "info"),
 	}
 
 	setupLogger(cfg.LogLevel, cfg.NodeEnv)

@@ -48,6 +48,15 @@ template-service/
    - Запуск под непривилегированным пользователем `appuser` (UID без root прав).
    - Встроенный Docker `HEALTHCHECK`.
 
+5. **Полная интеграция платформенного SDK (`avtoplaneta/pkg`):**
+   - **`pkg/httpserver`:** запуск HTTP с таймаутами и graceful shutdown.
+   - **`pkg/grpcserver`:** запуск gRPC со встроенным `grpc_health_v1` и reflection.
+   - **`pkg/postgres`:** подключение к БД и встроенный раннер миграций.
+   - **`pkg/authcontext`:** валидация пользователей и ролей из Traefik ForwardAuth.
+   - **`pkg/tracing`:** распределенная трассировка OpenTelemetry (Tempo/Jaeger).
+   - **`pkg/redisclient`:** клиент Redis для кэширования и Redis Streams.
+   - **`pkg/httpcache`:** HTTP кэширование по ETag / `If-None-Match` с ответом `304 Not Modified`.
+
 ---
 
 ## Как создать новый сервис из этого шаблона
