@@ -45,11 +45,10 @@
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
-        "orientation": "horizontal",
+        "orientation": "auto",
         "reduceOptions": {
           "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
+          "fields": ""
         },
         "textMode": "value_and_name"
       },
@@ -205,7 +204,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (job, status) (rate({__name__=~\"avtoplaneta.*_http_requests_errors_total\"}[2m])) or sum by (job, status) (rate({__name__=~\"avtoplaneta.*_http_requests_total\", status=~\"4..|5..\"}[2m]))",
+          "expr": "sum by (job, status) (rate({__name__=~\"avtoplaneta.*_http_requests_errors_total\"}[2m])) or sum by (job, status) (rate({__name__=~\"avtoplaneta.*_http_requests_total\", status=~\"4..|5..\"}[2m])) or on() vector(0)",
           "legendFormat": "Сервис: {{job}} | Код: {{status}}"
         }
       ],
@@ -235,7 +234,8 @@
             "showPoints": "auto",
             "spanNulls": false
           },
-          "unit": "ops"
+          "unit": "ops",
+          "noValue": "0"
         }
       },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
@@ -246,7 +246,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (job) (rate({__name__=~\"(parts|orders|auth)_outbox_processing_duration_seconds_count\"}[2m])) or sum by (event_type) (rate(parts_outbox_events_processed_total[2m])) or sum by (event_type) (rate(orders_outbox_events_processed_total[2m]))",
+          "expr": "sum by (job) (rate({__name__=~\"(parts|orders|auth)_outbox_processing_duration_seconds_count\"}[2m])) or sum by (event_type) (rate(parts_outbox_events_processed_total[2m])) or sum by (event_type) (rate(orders_outbox_events_processed_total[2m])) or on() vector(0)",
           "legendFormat": "Обработано: {{job}}"
         }
       ],
@@ -265,7 +265,8 @@
               { "color": "red", "value": 1 }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "noValue": "0"
         }
       },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
@@ -276,7 +277,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (event_type) (increase(parts_outbox_events_failed_total[5m])) or sum by (event_type) (increase(orders_outbox_events_failed_total[5m]))",
+          "expr": "sum by (event_type) (increase(parts_outbox_events_failed_total[5m])) or sum by (event_type) (increase(orders_outbox_events_failed_total[5m])) or on() vector(0)",
           "legendFormat": "Сбоев: {{event_type}}"
         }
       ],
@@ -294,6 +295,6 @@
   "timezone": "browser",
   "title": "Автопланета: Бизнес и Микросервисы",
   "uid": "avtoplaneta-services",
-  "version": 1,
+  "version": 2,
   "weekStart": "monday"
 }
