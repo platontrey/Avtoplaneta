@@ -4,173 +4,262 @@
   },
   "editable": true,
   "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
+  "graphTooltip": 1,
   "id": null,
   "links": [],
   "liveNow": false,
   "panels": [
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "🟢 Статус и доступность сервисов (Health Check)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "mappings": [],
+          "color": { "mode": "thresholds" },
+          "mappings": [
+            {
+              "options": {
+                "0": { "color": "red", "text": "НЕ ДОСТУПЕН" },
+                "1": { "color": "green", "text": "РАБОТАЕТ" }
+              },
+              "type": "value"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
             ]
-          },
-          "unit": "short"
+          }
         }
       },
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 1 },
       "id": 1,
       "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal",
         "reduceOptions": {
           "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "textMode": "value_and_name"
       },
       "targets": [
         {
-          "expr": "up{job=~\"gateway|parts-service|orders-service|messaging-service|auth-service|export-service\"}",
+          "expr": "up{job=~\"parts-service|orders-service|auth-service|export-service|messaging-service\"}",
           "legendFormat": "{{job}}"
         }
       ],
-      "title": "Services Status",
+      "title": "Текущее состояние микросервисов",
       "type": "stat"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "id": 200,
+      "title": "⚡ Нагрузка и скорость работы (RPS и Latency)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
+          "color": { "mode": "palette-classic" },
           "custom": {
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "",
             "axisPlacement": "auto",
-            "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
+            "fillOpacity": 15,
+            "lineWidth": 2,
             "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
             "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null }
-            ]
+            "spanNulls": false
           },
           "unit": "reqps"
         }
       },
-      "gridPos": { "h": 8, "w": 12, "x": 6, "y": 0 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
       "id": 2,
       "options": {
-        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "single", "sort": "none" }
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
       },
       "targets": [
         {
-          "expr": "rate(http_requests_total[5m])",
-          "legendFormat": "{{job}} - {{method}} {{path}}"
+          "expr": "sum by (job) (rate(avtoplaneta_http_requests_total[2m])) or sum by (job) (rate(avtoplaneta_orders_http_requests_total[2m])) or sum by (job) (rate(http_requests_total[2m]))",
+          "legendFormat": "{{job}} (запросов/сек)"
         }
       ],
-      "title": "Request Rate",
+      "title": "Интенсивность запросов (RPS по сервисам)",
       "type": "timeseries"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
+          "color": { "mode": "palette-classic" },
           "custom": {
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "",
             "axisPlacement": "auto",
-            "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
+            "fillOpacity": 15,
+            "lineWidth": 2,
             "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
             "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null }
-            ]
+            "spanNulls": false
           },
           "unit": "ms"
         }
       },
-      "gridPos": { "h": 8, "w": 12, "x": 6, "y": 8 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
       "id": 3,
       "options": {
-        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "single", "sort": "none" }
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
       },
       "targets": [
         {
-          "expr": "rate(http_request_duration_ms_sum[5m]) / rate(http_request_duration_ms_count[5m])",
-          "legendFormat": "{{job}} - {{path}}"
+          "expr": "histogram_quantile(0.95, sum by (job, le) (rate(avtoplaneta_http_request_duration_seconds_bucket[2m]))) * 1000 or histogram_quantile(0.95, sum by (job, le) (rate(avtoplaneta_orders_http_request_duration_seconds_bucket[2m]))) * 1000",
+          "legendFormat": "{{job}} (95% пользователей)"
         }
       ],
-      "title": "Response Time (avg)",
+      "title": "Скорость ответа API (Задержка p95 в мс)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+      "id": 300,
+      "title": "🛑 Ошибки и сбои в работе",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 25,
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false
+          },
+          "unit": "reqps"
+        }
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 15 },
+      "id": 4,
+      "options": {
+        "legend": { "calcs": ["sum"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "sum by (job, status) (rate(avtoplaneta_http_requests_errors_total[2m])) or sum by (job, status) (rate(avtoplaneta_orders_http_requests_errors_total[2m]))",
+          "legendFormat": "Сервис: {{job}} | Код ошибки: {{status}}"
+        }
+      ],
+      "title": "Ошибки API (Статус 4xx и 5xx)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
+      "id": 400,
+      "title": "📦 Синхронизация склада (Transactional Outbox в Elasticsearch / Redis)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false
+          },
+          "unit": "ops"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "id": 5,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "sum by (event_type) (rate(parts_outbox_events_processed_total[2m])) or sum by (event_type) (rate(orders_outbox_events_processed_total[2m]))",
+          "legendFormat": "Успешно: {{event_type}}"
+        }
+      ],
+      "title": "Успешно синхронизировано событий Outbox (событий/сек)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "id": 6,
+      "options": {
+        "legend": { "calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "sum by (event_type) (increase(parts_outbox_events_failed_total[5m])) or sum by (event_type) (increase(orders_outbox_events_failed_total[5m]))",
+          "legendFormat": "Сбоев: {{event_type}}"
+        }
+      ],
+      "title": "Сбои синхронизации Outbox (Зависшие события за 5 мин)",
       "type": "timeseries"
     }
   ],
   "refresh": "10s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": ["avtoplaneta"],
+  "tags": ["avtoplaneta", "services"],
   "templating": { "list": [] },
   "time": { "from": "now-1h", "to": "now" },
   "timepicker": {},
-  "timezone": "",
-  "title": "Avtoplaneta Services",
-  "uid": "avtoplaneta-main",
-  "version": 1,
-  "weekStart": ""
+  "timezone": "browser",
+  "title": "Автопланета: Бизнес и Микросервисы",
+  "uid": "avtoplaneta-services",
+  "version": 2,
+  "weekStart": "monday"
 }

@@ -465,6 +465,7 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
+      - GF_USERS_DEFAULT_LANGUAGE=ru-RU
 
   tempo:
     image: grafana/tempo:latest
