@@ -76,8 +76,6 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          sparse-checkout: AvtoplanetaApp
 
       - name: Set up Java
         uses: actions/setup-java@v4
