@@ -274,6 +274,16 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
         info: result.updateInfo!,
         updateService: updateService,
       );
+    } else if (result.hasError) {
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Не удалось проверить обновления: ${result.errorMessage}',
+          ),
+          backgroundColor: Colors.red.shade800,
+          duration: const Duration(seconds: 4),
+        ),
+      );
     } else {
       scaffoldMessenger.showSnackBar(
         SnackBar(

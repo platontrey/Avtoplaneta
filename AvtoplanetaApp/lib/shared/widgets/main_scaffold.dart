@@ -14,32 +14,53 @@ class MainScaffold extends ConsumerStatefulWidget {
   ConsumerState<MainScaffold> createState() => _MainScaffoldState();
 }
 
-class _MainScaffoldState extends ConsumerState<MainScaffold> {
-  static bool _hasCheckedForUpdates = false;
+class _MainScaffoldState extends ConsumerState<MainScaffold> with WidgetsBindingObserver {
+  static DateTime? _lastUpdateCheck;
 
   @override
   void initState() {
     super.initState();
-    if (!_hasCheckedForUpdates) {
-      _hasCheckedForUpdates = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _checkUpdates();
-      });
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkUpdatesIfNeeded();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkUpdatesIfNeeded();
     }
   }
 
-  Future<void> _checkUpdates() async {
-    final updateService = ref.read(updateServiceProvider);
-    final result = await updateService.checkForUpdates();
-    if (result.hasUpdate && result.updateInfo != null && mounted) {
-      final info = result.updateInfo!;
-      // Запускаем фоновую предзагрузку APK для ускорения установки
-      updateService.preDownloadUpdate(info);
-      UpdateDialog.show(
-        context: context,
-        info: info,
-        updateService: updateService,
-      );
+  Future<void> _checkUpdatesIfNeeded() async {
+    final now = DateTime.now();
+    if (_lastUpdateCheck != null && now.difference(_lastUpdateCheck!) < const Duration(minutes: 15)) {
+      return;
+    }
+    _lastUpdateCheck = now;
+
+    try {
+      final updateService = ref.read(updateServiceProvider);
+      final result = await updateService.checkForUpdates();
+      if (result.hasUpdate && result.updateInfo != null && mounted) {
+        final info = result.updateInfo!;
+        // Запускаем фоновую предзагрузку APK для ускорения установки
+        updateService.preDownloadUpdate(info);
+        UpdateDialog.show(
+          context: context,
+          info: info,
+          updateService: updateService,
+        );
+      }
+    } catch (e) {
+      debugPrint('Ошибка автопроверки обновлений: $e');
     }
   }
 

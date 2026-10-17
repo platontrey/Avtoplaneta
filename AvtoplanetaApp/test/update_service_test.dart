@@ -185,6 +185,18 @@ void main() {
         isTrue,
       );
     });
+
+    test('сравнение когда у клиента build_number равен 0 (dev билд), а на сервере есть сборка', () {
+      expect(
+        UpdateService.isVersionNewer(
+          serverVersion: '1.0.1',
+          serverBuild: 113,
+          currentVersion: '1.0.1',
+          currentBuild: 0,
+        ),
+        isTrue,
+      );
+    });
   });
 
   group('UpdateService Integration Flow Tests', () {

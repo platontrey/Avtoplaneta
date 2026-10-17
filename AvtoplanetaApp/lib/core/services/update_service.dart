@@ -135,6 +135,29 @@ class AppUpdateInfo {
       buildNumber = int.tryParse(parts[1]) ?? 0;
     }
 
+    // Если тег не содержит явной версии (например "mobile-latest" или "latest")
+    final isGenericTag = tagName.isEmpty ||
+        tagName == 'mobile-latest' ||
+        tagName == 'latest' ||
+        !RegExp(r'\d+\.\d+').hasMatch(version);
+
+    if (isGenericTag) {
+      // Ищем версию в name (например "Автопланета 1.0.1") или в body
+      final versionMatch = RegExp(r'v?(\d+\.\d+(?:\.\d+)?)', caseSensitive: false).firstMatch(name) ??
+          RegExp(r'(?:версия|version)[\s:=#]+v?(\d+\.\d+(?:\.\d+)?)', caseSensitive: false).firstMatch(body);
+      if (versionMatch != null) {
+        version = versionMatch.group(1)!;
+      } else {
+        version = '1.0.1';
+      }
+    }
+
+    // Извлекаем номер сборки из name (например "сборка #113" или "#113")
+    final nameBuildMatch = RegExp(r'(?:сборка|build|#)[\s:=#]*(\d+)', caseSensitive: false).firstMatch(name);
+    if (nameBuildMatch != null) {
+      buildNumber = int.tryParse(nameBuildMatch.group(1)!) ?? buildNumber;
+    }
+
     // Если в теле релиза есть указание сборки (например, run_number или build: 12)
     final buildMatch = RegExp(
       r'(?:build|сборка|run_number)[\s:=#]+(\d+)',
@@ -185,6 +208,9 @@ class UpdateCheckResult {
   final AppUpdateInfo? updateInfo;
   final String currentVersion;
   final int currentBuildNumber;
+  final String? errorMessage;
+
+  bool get hasError => errorMessage != null && errorMessage!.isNotEmpty;
 
   const UpdateCheckResult({
     required this.hasUpdate,
@@ -192,6 +218,7 @@ class UpdateCheckResult {
     this.updateInfo,
     required this.currentVersion,
     required this.currentBuildNumber,
+    this.errorMessage,
   });
 }
 
@@ -232,10 +259,17 @@ class UpdateService {
     required String currentVersion,
     required int currentBuild,
   }) {
-    // 1. Если сервер отдает номер сборки > 0 и у клиента есть номер сборки > 0
-    if (serverBuild > 0 && currentBuild > 0) {
-      if (serverBuild > currentBuild) return true;
-      if (serverBuild < currentBuild) return false;
+    // 1. Если сервер отдает валидный номер сборки > 0
+    if (serverBuild > 0) {
+      if (currentBuild > 0) {
+        if (serverBuild > currentBuild) return true;
+        if (serverBuild < currentBuild) return false;
+      } else {
+        // У клиента номер сборки не определен (0), но у сервера есть номер сборки > 0.
+        // Если семантическая версия сервера не меньше текущей, считаем сборку новой.
+        final cmp = compareSemver(serverVersion, currentVersion);
+        if (cmp >= 0) return true;
+      }
     }
 
     // 2. Сравнение по семантическим версиям (например "1.0.2" > "1.0.1")
@@ -322,6 +356,7 @@ class UpdateService {
     }
 
     final deviceAbi = await getDeviceAbi();
+    String? backendError;
 
     // 1. Сначала пробуем получить конфигурацию с собственного бэкенда
     try {
@@ -356,13 +391,26 @@ class UpdateService {
             currentVersion: currentVersion,
             currentBuildNumber: currentBuild,
           );
+        } else {
+          // Бэкенд ответил 200, и версия актуальна
+          return UpdateCheckResult(
+            hasUpdate: false,
+            isForced: false,
+            currentVersion: currentVersion,
+            currentBuildNumber: currentBuild,
+          );
         }
       }
+    } on DioException catch (e) {
+      backendError = 'Ошибка бэкенда: ${e.response?.statusCode ?? e.type.name}';
+      debugPrint('Проверка через бэкенд не удалась: $e');
     } catch (e) {
+      backendError = 'Ошибка бэкенда: $e';
       debugPrint('Проверка через бэкенд не удалась: $e');
     }
 
     // 2. Если бэкенд недоступен или включен fallback на GitHub Releases
+    String? githubError;
     if (checkGitHubReleases && githubRepo.isNotEmpty) {
       final githubResult = await checkGitHubUpdate(
         currentVersion: currentVersion,
@@ -372,6 +420,12 @@ class UpdateService {
       if (githubResult.hasUpdate) {
         return githubResult;
       }
+      if (githubResult.hasError) {
+        githubError = githubResult.errorMessage;
+      } else {
+        // GitHub ответил 200 OK, но обновление не требуется
+        return githubResult;
+      }
     }
 
     return UpdateCheckResult(
@@ -379,6 +433,7 @@ class UpdateService {
       isForced: false,
       currentVersion: currentVersion,
       currentBuildNumber: currentBuild,
+      errorMessage: githubError ?? backendError,
     );
   }
 
@@ -401,6 +456,8 @@ class UpdateService {
       'https://api.github.com/repos/$githubRepo/releases/tags/mobile-latest',
       'https://api.github.com/repos/$githubRepo/releases/latest',
     ];
+
+    String? lastError;
 
     for (final url in urls) {
       try {
@@ -426,10 +483,31 @@ class UpdateService {
                 currentVersion: currentVersion,
                 currentBuildNumber: currentBuild,
               );
+            } else {
+              // Успешно получили данные релиза, но установлена последняя версия
+              return UpdateCheckResult(
+                hasUpdate: false,
+                isForced: false,
+                currentVersion: currentVersion,
+                currentBuildNumber: currentBuild,
+              );
             }
           }
         }
+      } on DioException catch (e) {
+        if (e.response?.statusCode == 403) {
+          lastError = 'Превышен лимит запросов к GitHub API (403 Rate Limit)';
+        } else if (e.response?.statusCode == 404) {
+          lastError = 'Релиз не найден на GitHub (404)';
+        } else if (e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.receiveTimeout) {
+          lastError = 'Превышено время ожидания ответа GitHub';
+        } else {
+          lastError = 'Сбой сети GitHub (${e.message ?? e.type.name})';
+        }
+        debugPrint('Ошибка запроса GitHub Release ($url): $e');
       } catch (e) {
+        lastError = 'Ошибка запроса к GitHub: $e';
         debugPrint('Ошибка запроса GitHub Release ($url): $e');
       }
     }
@@ -439,6 +517,7 @@ class UpdateService {
       isForced: false,
       currentVersion: currentVersion,
       currentBuildNumber: currentBuild,
+      errorMessage: lastError,
     );
   }
 
