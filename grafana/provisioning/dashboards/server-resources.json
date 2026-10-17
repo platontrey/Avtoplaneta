@@ -253,7 +253,7 @@
       "id": 9,
       "title": "Docker контейнеры — CPU (%)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 20 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -264,7 +264,10 @@
         },
         "overrides": []
       },
-      "options": { "tooltip": { "mode": "multi" }, "legend": { "calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom" } },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "right" }
+      },
       "targets": [
         {
           "expr": "sum by (name) (rate(container_cpu_usage_seconds_total{name!=\"\",name!~\".*cadvisor.*\"}[2m])) * 100",
@@ -277,7 +280,7 @@
       "id": 10,
       "title": "Docker контейнеры — RAM",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 30 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -288,7 +291,10 @@
         },
         "overrides": []
       },
-      "options": { "tooltip": { "mode": "multi" }, "legend": { "calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom" } },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "calcs": ["lastNotNull"], "displayMode": "table", "placement": "right" }
+      },
       "targets": [
         {
           "expr": "max by (name) (container_memory_working_set_bytes{name!=\"\",name!~\".*cadvisor.*\"})",
@@ -299,7 +305,7 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 40 },
       "id": 100,
       "title": "⚡ Энергопотребление и мощность (Аппаратные датчики Intel RAPL)",
       "type": "row"
@@ -308,7 +314,7 @@
       "id": 11,
       "title": "Текущая мощность (Всего)",
       "type": "stat",
-      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 29 },
+      "gridPos": { "h": 7, "w": 6, "x": 0, "y": 41 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -340,14 +346,15 @@
     },
     {
       "id": 12,
-      "title": "Расход за 24ч (кВт⋅ч)",
+      "title": "Расход энергии за период",
+      "description": "Расход электроэнергии сервером за интервал времени, выбранный в шапке Grafana (1ч, 6ч, 24ч)",
       "type": "stat",
-      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 29 },
+      "gridPos": { "h": 7, "w": 6, "x": 6, "y": 41 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
-          "unit": "kwh",
-          "decimals": 2,
+          "unit": "watth",
+          "decimals": 1,
           "color": { "mode": "fixed", "fixedColor": "blue" }
         }
       },
@@ -359,7 +366,7 @@
       },
       "targets": [
         {
-          "expr": "(sum(increase(node_rapl_package_joules_total[24h])) + sum(increase(node_rapl_dram_joules_total[24h]))) / 3600000",
+          "expr": "(sum(increase(node_rapl_package_joules_total[$__range])) + sum(increase(node_rapl_dram_joules_total[$__range]))) / 3600",
           "legendFormat": "Расход энергии",
           "refId": "A"
         }
@@ -369,7 +376,7 @@
       "id": 13,
       "title": "Мощность по компонентам (Вт)",
       "type": "timeseries",
-      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 29 },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 41 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -380,32 +387,32 @@
       },
       "options": {
         "tooltip": { "mode": "multi" },
-        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" }
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "right" }
       },
       "targets": [
         {
           "expr": "rate(node_rapl_package_joules_total{index=\"0\"}[1m])",
-          "legendFormat": "CPU Socket 0 (Процессор 1)",
+          "legendFormat": "CPU Socket 0",
           "refId": "A"
         },
         {
           "expr": "rate(node_rapl_package_joules_total{index=\"1\"}[1m])",
-          "legendFormat": "CPU Socket 1 (Процессор 2)",
+          "legendFormat": "CPU Socket 1",
           "refId": "B"
         },
         {
           "expr": "rate(node_rapl_dram_joules_total{index=\"0\"}[1m])",
-          "legendFormat": "RAM Socket 0 (Память 1)",
+          "legendFormat": "RAM Socket 0",
           "refId": "C"
         },
         {
           "expr": "rate(node_rapl_dram_joules_total{index=\"1\"}[1m])",
-          "legendFormat": "RAM Socket 1 (Память 2)",
+          "legendFormat": "RAM Socket 1",
           "refId": "D"
         },
         {
           "expr": "sum(rate(node_rapl_package_joules_total[1m])) + sum(rate(node_rapl_dram_joules_total[1m]))",
-          "legendFormat": "Всего (CPU + RAM)",
+          "legendFormat": "Всего",
           "refId": "E"
         }
       ]
@@ -414,7 +421,7 @@
       "id": 14,
       "title": "Оценка мощности по Docker-контейнерам (Вт)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 35 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 48 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -425,7 +432,7 @@
       },
       "options": {
         "tooltip": { "mode": "multi" },
-        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" }
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "right" }
       },
       "targets": [
         {
@@ -445,5 +452,5 @@
   "timezone": "browser",
   "title": "Ресурсы сервера",
   "uid": "server-resources",
-  "version": 2
+  "version": 3
 }
