@@ -45,7 +45,7 @@ service MessagingService {
 // ─── Conversation ───────────────────────────────────────────────────────────
 
 message Conversation {
-  int32 id = 1;
+  int64 id = 1;
   repeated int64 participants = 2;
   string title = 3;
   google.protobuf.Timestamp created_at = 4;
@@ -59,33 +59,33 @@ message ConversationList {
 }
 
 message GetConversationsRequest {
-  int32 user_id = 1;
+  int64 user_id = 1;
 }
 
 message CreateConversationRequest {
-  repeated int32 participants = 1;
+  repeated int64 participants = 1;
   string title = 2;
 }
 
 message GetConversationRequest {
-  int32 id = 1;
+  int64 id = 1;
 }
 
 message UpdateConversationRequest {
-  int32 id = 1;
+  int64 id = 1;
   string title = 2;
 }
 
 message DeleteConversationRequest {
-  int32 id = 1;
+  int64 id = 1;
 }
 
 message DeleteConversationResponse {}
 
 message RemoveParticipantRequest {
-  int32 conversation_id = 1;
-  int32 user_id = 2;
-  int32 requester_id = 3; // кто удаляет
+  int64 conversation_id = 1;
+  int64 user_id = 2;
+  int64 requester_id = 3; // кто удаляет
 }
 
 message RemoveParticipantResponse {}
@@ -93,24 +93,24 @@ message RemoveParticipantResponse {}
 // ─── Message ────────────────────────────────────────────────────────────────
 
 message Mention {
-  int32 id = 1;
-  int32 message_id = 2;
+  int64 id = 1;
+  int64 message_id = 2;
   string type = 3; // "part" or "order"
-  int32 resource_id = 4;
+  int64 resource_id = 4;
   string text = 5;
 }
 
 message Reaction {
-  int32 id = 1;
-  int32 message_id = 2;
-  int32 user_id = 3;
+  int64 id = 1;
+  int64 message_id = 2;
+  int64 user_id = 3;
   string emoji = 4;
 }
 
 message Message {
-  int32 id = 1;
-  int32 conversation_id = 2;
-  int32 sender_id = 3;
+  int64 id = 1;
+  int64 conversation_id = 2;
+  int64 sender_id = 3;
   string content = 4;
   string message_type = 5; // "text", "voice"
   string voice_url = 6;
@@ -126,35 +126,35 @@ message MessageList {
 }
 
 message GetMessagesRequest {
-  int32 conversation_id = 1;
+  int64 conversation_id = 1;
   int32 limit = 2;
   int32 offset = 3;
 }
 
 message SendMessageRequest {
-  int32 conversation_id = 1;
-  int32 sender_id = 2;
+  int64 conversation_id = 1;
+  int64 sender_id = 2;
   string content = 3;
   repeated string attachments = 4;
 }
 
 message SendVoiceMessageChunk {
-  int32 conversation_id = 1;
-  int32 sender_id = 2;
+  int64 conversation_id = 1;
+  int64 sender_id = 2;
   string filename = 3;
   string content_type = 4;
   bytes data = 5;
 }
 
 message DeleteMessageRequest {
-  int32 id = 1;
+  int64 id = 1;
 }
 
 message DeleteMessageResponse {}
 
 message MarkMessageReadRequest {
-  int32 message_id = 1;
-  int32 user_id = 2;
+  int64 message_id = 1;
+  int64 user_id = 2;
 }
 
 message MarkMessageReadResponse {}
@@ -162,13 +162,13 @@ message MarkMessageReadResponse {}
 // ─── Reactions ──────────────────────────────────────────────────────────────
 
 message AddReactionRequest {
-  int32 message_id = 1;
-  int32 user_id = 2;
+  int64 message_id = 1;
+  int64 user_id = 2;
   string emoji = 3;
 }
 
 message RemoveReactionRequest {
-  int32 reaction_id = 1;
+  int64 reaction_id = 1;
 }
 
 message RemoveReactionResponse {}
@@ -176,13 +176,13 @@ message RemoveReactionResponse {}
 // ─── Notifications ──────────────────────────────────────────────────────────
 
 message Notification {
-  int32 id = 1;
-  int32 user_id = 2;
+  int64 id = 1;
+  int64 user_id = 2;
   string type = 3; // "message", "mention", "reaction"
   string message = 4;
   bool read = 5;
   google.protobuf.Timestamp created_at = 6;
-  int32 related_id = 7;
+  int64 related_id = 7;
 }
 
 message NotificationList {
@@ -190,17 +190,17 @@ message NotificationList {
 }
 
 message GetNotificationsRequest {
-  int32 user_id = 1;
+  int64 user_id = 1;
 }
 
 message MarkNotificationReadRequest {
-  int32 id = 1;
+  int64 id = 1;
 }
 
 message MarkNotificationReadResponse {}
 
 message MarkAllNotificationsReadRequest {
-  int32 user_id = 1;
+  int64 user_id = 1;
 }
 
 message MarkAllNotificationsReadResponse {}
@@ -208,8 +208,8 @@ message MarkAllNotificationsReadResponse {}
 // ─── User Status ────────────────────────────────────────────────────────────
 
 message UserStatus {
-  int32 id = 1;
-  int32 user_id = 2;
+  int64 id = 1;
+  int64 user_id = 2;
   bool is_online = 3;
   google.protobuf.Timestamp last_seen = 4;
 }
@@ -219,11 +219,11 @@ message UserStatusList {
 }
 
 message GetUserStatusesRequest {
-  repeated int32 user_ids = 1;
+  repeated int64 user_ids = 1;
 }
 
 message UpdateUserStatusRequest {
-  int32 user_id = 1;
+  int64 user_id = 1;
   bool is_online = 2;
 }
 
@@ -231,7 +231,7 @@ message UpdateUserStatusRequest {
 
 message SearchMessagesRequest {
   string query = 1;
-  int32 user_id = 2;
+  int64 user_id = 2;
   int32 limit = 3;
   int32 offset = 4;
 }
@@ -239,7 +239,7 @@ message SearchMessagesRequest {
 // ─── Drom Integration ───────────────────────────────────────────────────────
 
 message DromDialog {
-  int32 id = 1;
+  int64 id = 1;
   string dialog_id = 2;
   string interlocutor = 3;
   string created_at = 4;
@@ -260,7 +260,7 @@ message DromDialogList {
 }
 
 message DromMessage {
-  int32 id = 1;
+  int64 id = 1;
   string dialog_id = 2;
   string message_id = 3;
   string author = 4;

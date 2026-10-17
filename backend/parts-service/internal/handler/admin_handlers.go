@@ -34,10 +34,7 @@ func (h *Handler) BulkDeletePartsHandler(c *gin.Context) {
 		}
 		if errLegacy := json.Unmarshal(bodyBytes, &requestData); errLegacy == nil && len(requestData.IDs) > 0 {
 			protoReq.ConfirmEntireCatalog = requestData.ConfirmEntireCatalog
-			protoReq.Ids = make([]uint32, len(requestData.IDs))
-			for i, id := range requestData.IDs {
-				protoReq.Ids[i] = uint32(id)
-			}
+			protoReq.Ids = requestData.IDs
 		} else {
 			logrus.WithError(err).Error("BulkDeletePartsHandler: Failed to unmarshal request")
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный формат данных"})
@@ -84,7 +81,7 @@ func (h *Handler) BulkUpdatePartsHandler(c *gin.Context) {
 				for k, v := range item {
 					if k == "id" {
 						if idFloat, ok := v.(float64); ok {
-							partData.Id = uint32(idFloat)
+							partData.Id = int64(idFloat)
 						}
 					} else {
 						partData.Fields[k] = fmt.Sprintf("%v", v)

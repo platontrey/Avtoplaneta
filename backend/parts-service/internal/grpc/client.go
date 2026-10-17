@@ -72,7 +72,7 @@ func GetOrdersClient() ordersv1.OrdersServiceClient {
 }
 
 // LogUserActivityGRPC логирует активность пользователя в auth-service
-func LogUserActivityGRPC(ctx context.Context, userIDStr, userName, userEmail, action, resourceType, details string, resourceID uint32) {
+func LogUserActivityGRPC(ctx context.Context, userIDStr, userName, userEmail, action, resourceType, details string, resourceID int64) {
 	if authGRPCClient == nil {
 		logrus.Warn("auth gRPC client not initialized, skipping activity log")
 		return
@@ -90,8 +90,8 @@ func LogUserActivityGRPC(ctx context.Context, userIDStr, userName, userEmail, ac
 		UserEmail:    userEmail,
 	}
 
-	if uid, err := strconv.ParseUint(userIDStr, 10, 32); err == nil {
-		req.UserId = uint32(uid)
+	if uid, err := strconv.ParseInt(userIDStr, 10, 64); err == nil {
+		req.UserId = uid
 	}
 
 	if _, err := authGRPCClient.LogActivity(ctx, req); err != nil {

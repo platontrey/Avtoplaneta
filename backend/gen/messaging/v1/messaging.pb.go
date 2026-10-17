@@ -24,7 +24,7 @@ const (
 
 type Conversation struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	Participants  []int64                `protobuf:"varint,2,rep,packed,name=participants,proto3" json:"participants,omitempty"`
 	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -65,7 +65,7 @@ func (*Conversation) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Conversation) GetId() int32 {
+func (x *Conversation) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -160,7 +160,7 @@ func (x *ConversationList) GetConversations() []*Conversation {
 
 type GetConversationsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        int32                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -195,7 +195,7 @@ func (*GetConversationsRequest) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *GetConversationsRequest) GetUserId() int32 {
+func (x *GetConversationsRequest) GetUserId() int64 {
 	if x != nil {
 		return x.UserId
 	}
@@ -204,7 +204,7 @@ func (x *GetConversationsRequest) GetUserId() int32 {
 
 type CreateConversationRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Participants  []int32                `protobuf:"varint,1,rep,packed,name=participants,proto3" json:"participants,omitempty"`
+	Participants  []int64                `protobuf:"varint,1,rep,packed,name=participants,proto3" json:"participants,omitempty"`
 	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -240,7 +240,7 @@ func (*CreateConversationRequest) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *CreateConversationRequest) GetParticipants() []int32 {
+func (x *CreateConversationRequest) GetParticipants() []int64 {
 	if x != nil {
 		return x.Participants
 	}
@@ -256,7 +256,7 @@ func (x *CreateConversationRequest) GetTitle() string {
 
 type GetConversationRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -291,7 +291,7 @@ func (*GetConversationRequest) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *GetConversationRequest) GetId() int32 {
+func (x *GetConversationRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -300,7 +300,7 @@ func (x *GetConversationRequest) GetId() int32 {
 
 type UpdateConversationRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -336,7 +336,7 @@ func (*UpdateConversationRequest) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *UpdateConversationRequest) GetId() int32 {
+func (x *UpdateConversationRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -352,7 +352,7 @@ func (x *UpdateConversationRequest) GetTitle() string {
 
 type DeleteConversationRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -387,7 +387,7 @@ func (*DeleteConversationRequest) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *DeleteConversationRequest) GetId() int32 {
+func (x *DeleteConversationRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -432,9 +432,9 @@ func (*DeleteConversationResponse) Descriptor() ([]byte, []int) {
 
 type RemoveParticipantRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	ConversationId int32                  `protobuf:"varint,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
-	UserId         int32                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	RequesterId    int32                  `protobuf:"varint,3,opt,name=requester_id,json=requesterId,proto3" json:"requester_id,omitempty"` // кто удаляет
+	ConversationId int64                  `protobuf:"varint,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	UserId         int64                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RequesterId    int64                  `protobuf:"varint,3,opt,name=requester_id,json=requesterId,proto3" json:"requester_id,omitempty"` // кто удаляет
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -469,21 +469,21 @@ func (*RemoveParticipantRequest) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *RemoveParticipantRequest) GetConversationId() int32 {
+func (x *RemoveParticipantRequest) GetConversationId() int64 {
 	if x != nil {
 		return x.ConversationId
 	}
 	return 0
 }
 
-func (x *RemoveParticipantRequest) GetUserId() int32 {
+func (x *RemoveParticipantRequest) GetUserId() int64 {
 	if x != nil {
 		return x.UserId
 	}
 	return 0
 }
 
-func (x *RemoveParticipantRequest) GetRequesterId() int32 {
+func (x *RemoveParticipantRequest) GetRequesterId() int64 {
 	if x != nil {
 		return x.RequesterId
 	}
@@ -528,10 +528,10 @@ func (*RemoveParticipantResponse) Descriptor() ([]byte, []int) {
 
 type Mention struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	MessageId     int32                  `protobuf:"varint,2,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	MessageId     int64                  `protobuf:"varint,2,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
 	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"` // "part" or "order"
-	ResourceId    int32                  `protobuf:"varint,4,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ResourceId    int64                  `protobuf:"varint,4,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	Text          string                 `protobuf:"bytes,5,opt,name=text,proto3" json:"text,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -567,14 +567,14 @@ func (*Mention) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *Mention) GetId() int32 {
+func (x *Mention) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
 	return 0
 }
 
-func (x *Mention) GetMessageId() int32 {
+func (x *Mention) GetMessageId() int64 {
 	if x != nil {
 		return x.MessageId
 	}
@@ -588,7 +588,7 @@ func (x *Mention) GetType() string {
 	return ""
 }
 
-func (x *Mention) GetResourceId() int32 {
+func (x *Mention) GetResourceId() int64 {
 	if x != nil {
 		return x.ResourceId
 	}
@@ -604,9 +604,9 @@ func (x *Mention) GetText() string {
 
 type Reaction struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	MessageId     int32                  `protobuf:"varint,2,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
-	UserId        int32                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	MessageId     int64                  `protobuf:"varint,2,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Emoji         string                 `protobuf:"bytes,4,opt,name=emoji,proto3" json:"emoji,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -642,21 +642,21 @@ func (*Reaction) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *Reaction) GetId() int32 {
+func (x *Reaction) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
 	return 0
 }
 
-func (x *Reaction) GetMessageId() int32 {
+func (x *Reaction) GetMessageId() int64 {
 	if x != nil {
 		return x.MessageId
 	}
 	return 0
 }
 
-func (x *Reaction) GetUserId() int32 {
+func (x *Reaction) GetUserId() int64 {
 	if x != nil {
 		return x.UserId
 	}
@@ -672,9 +672,9 @@ func (x *Reaction) GetEmoji() string {
 
 type Message struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	Id             int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	ConversationId int32                  `protobuf:"varint,2,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
-	SenderId       int32                  `protobuf:"varint,3,opt,name=sender_id,json=senderId,proto3" json:"sender_id,omitempty"`
+	Id             int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	ConversationId int64                  `protobuf:"varint,2,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	SenderId       int64                  `protobuf:"varint,3,opt,name=sender_id,json=senderId,proto3" json:"sender_id,omitempty"`
 	Content        string                 `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
 	MessageType    string                 `protobuf:"bytes,5,opt,name=message_type,json=messageType,proto3" json:"message_type,omitempty"` // "text", "voice"
 	VoiceUrl       string                 `protobuf:"bytes,6,opt,name=voice_url,json=voiceUrl,proto3" json:"voice_url,omitempty"`
@@ -717,21 +717,21 @@ func (*Message) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *Message) GetId() int32 {
+func (x *Message) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
 	return 0
 }
 
-func (x *Message) GetConversationId() int32 {
+func (x *Message) GetConversationId() int64 {
 	if x != nil {
 		return x.ConversationId
 	}
 	return 0
 }
 
-func (x *Message) GetSenderId() int32 {
+func (x *Message) GetSenderId() int64 {
 	if x != nil {
 		return x.SenderId
 	}
@@ -840,7 +840,7 @@ func (x *MessageList) GetMessages() []*Message {
 
 type GetMessagesRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	ConversationId int32                  `protobuf:"varint,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	ConversationId int64                  `protobuf:"varint,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
 	Limit          int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
 	Offset         int32                  `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
 	unknownFields  protoimpl.UnknownFields
@@ -877,7 +877,7 @@ func (*GetMessagesRequest) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *GetMessagesRequest) GetConversationId() int32 {
+func (x *GetMessagesRequest) GetConversationId() int64 {
 	if x != nil {
 		return x.ConversationId
 	}
@@ -900,8 +900,8 @@ func (x *GetMessagesRequest) GetOffset() int32 {
 
 type SendMessageRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	ConversationId int32                  `protobuf:"varint,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
-	SenderId       int32                  `protobuf:"varint,2,opt,name=sender_id,json=senderId,proto3" json:"sender_id,omitempty"`
+	ConversationId int64                  `protobuf:"varint,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	SenderId       int64                  `protobuf:"varint,2,opt,name=sender_id,json=senderId,proto3" json:"sender_id,omitempty"`
 	Content        string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
 	Attachments    []string               `protobuf:"bytes,4,rep,name=attachments,proto3" json:"attachments,omitempty"`
 	unknownFields  protoimpl.UnknownFields
@@ -938,14 +938,14 @@ func (*SendMessageRequest) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *SendMessageRequest) GetConversationId() int32 {
+func (x *SendMessageRequest) GetConversationId() int64 {
 	if x != nil {
 		return x.ConversationId
 	}
 	return 0
 }
 
-func (x *SendMessageRequest) GetSenderId() int32 {
+func (x *SendMessageRequest) GetSenderId() int64 {
 	if x != nil {
 		return x.SenderId
 	}
@@ -968,8 +968,8 @@ func (x *SendMessageRequest) GetAttachments() []string {
 
 type SendVoiceMessageChunk struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	ConversationId int32                  `protobuf:"varint,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
-	SenderId       int32                  `protobuf:"varint,2,opt,name=sender_id,json=senderId,proto3" json:"sender_id,omitempty"`
+	ConversationId int64                  `protobuf:"varint,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	SenderId       int64                  `protobuf:"varint,2,opt,name=sender_id,json=senderId,proto3" json:"sender_id,omitempty"`
 	Filename       string                 `protobuf:"bytes,3,opt,name=filename,proto3" json:"filename,omitempty"`
 	ContentType    string                 `protobuf:"bytes,4,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
 	Data           []byte                 `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
@@ -1007,14 +1007,14 @@ func (*SendVoiceMessageChunk) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *SendVoiceMessageChunk) GetConversationId() int32 {
+func (x *SendVoiceMessageChunk) GetConversationId() int64 {
 	if x != nil {
 		return x.ConversationId
 	}
 	return 0
 }
 
-func (x *SendVoiceMessageChunk) GetSenderId() int32 {
+func (x *SendVoiceMessageChunk) GetSenderId() int64 {
 	if x != nil {
 		return x.SenderId
 	}
@@ -1044,7 +1044,7 @@ func (x *SendVoiceMessageChunk) GetData() []byte {
 
 type DeleteMessageRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1079,7 +1079,7 @@ func (*DeleteMessageRequest) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *DeleteMessageRequest) GetId() int32 {
+func (x *DeleteMessageRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -1124,8 +1124,8 @@ func (*DeleteMessageResponse) Descriptor() ([]byte, []int) {
 
 type MarkMessageReadRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MessageId     int32                  `protobuf:"varint,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
-	UserId        int32                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	MessageId     int64                  `protobuf:"varint,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	UserId        int64                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1160,14 +1160,14 @@ func (*MarkMessageReadRequest) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *MarkMessageReadRequest) GetMessageId() int32 {
+func (x *MarkMessageReadRequest) GetMessageId() int64 {
 	if x != nil {
 		return x.MessageId
 	}
 	return 0
 }
 
-func (x *MarkMessageReadRequest) GetUserId() int32 {
+func (x *MarkMessageReadRequest) GetUserId() int64 {
 	if x != nil {
 		return x.UserId
 	}
@@ -1212,8 +1212,8 @@ func (*MarkMessageReadResponse) Descriptor() ([]byte, []int) {
 
 type AddReactionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MessageId     int32                  `protobuf:"varint,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
-	UserId        int32                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	MessageId     int64                  `protobuf:"varint,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	UserId        int64                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Emoji         string                 `protobuf:"bytes,3,opt,name=emoji,proto3" json:"emoji,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1249,14 +1249,14 @@ func (*AddReactionRequest) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{21}
 }
 
-func (x *AddReactionRequest) GetMessageId() int32 {
+func (x *AddReactionRequest) GetMessageId() int64 {
 	if x != nil {
 		return x.MessageId
 	}
 	return 0
 }
 
-func (x *AddReactionRequest) GetUserId() int32 {
+func (x *AddReactionRequest) GetUserId() int64 {
 	if x != nil {
 		return x.UserId
 	}
@@ -1272,7 +1272,7 @@ func (x *AddReactionRequest) GetEmoji() string {
 
 type RemoveReactionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ReactionId    int32                  `protobuf:"varint,1,opt,name=reaction_id,json=reactionId,proto3" json:"reaction_id,omitempty"`
+	ReactionId    int64                  `protobuf:"varint,1,opt,name=reaction_id,json=reactionId,proto3" json:"reaction_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1307,7 +1307,7 @@ func (*RemoveReactionRequest) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{22}
 }
 
-func (x *RemoveReactionRequest) GetReactionId() int32 {
+func (x *RemoveReactionRequest) GetReactionId() int64 {
 	if x != nil {
 		return x.ReactionId
 	}
@@ -1352,13 +1352,13 @@ func (*RemoveReactionResponse) Descriptor() ([]byte, []int) {
 
 type Notification struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	UserId        int32                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	UserId        int64                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"` // "message", "mention", "reaction"
 	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
 	Read          bool                   `protobuf:"varint,5,opt,name=read,proto3" json:"read,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	RelatedId     int32                  `protobuf:"varint,7,opt,name=related_id,json=relatedId,proto3" json:"related_id,omitempty"`
+	RelatedId     int64                  `protobuf:"varint,7,opt,name=related_id,json=relatedId,proto3" json:"related_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1393,14 +1393,14 @@ func (*Notification) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{24}
 }
 
-func (x *Notification) GetId() int32 {
+func (x *Notification) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
 	return 0
 }
 
-func (x *Notification) GetUserId() int32 {
+func (x *Notification) GetUserId() int64 {
 	if x != nil {
 		return x.UserId
 	}
@@ -1435,7 +1435,7 @@ func (x *Notification) GetCreatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *Notification) GetRelatedId() int32 {
+func (x *Notification) GetRelatedId() int64 {
 	if x != nil {
 		return x.RelatedId
 	}
@@ -1488,7 +1488,7 @@ func (x *NotificationList) GetNotifications() []*Notification {
 
 type GetNotificationsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        int32                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1523,7 +1523,7 @@ func (*GetNotificationsRequest) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{26}
 }
 
-func (x *GetNotificationsRequest) GetUserId() int32 {
+func (x *GetNotificationsRequest) GetUserId() int64 {
 	if x != nil {
 		return x.UserId
 	}
@@ -1532,7 +1532,7 @@ func (x *GetNotificationsRequest) GetUserId() int32 {
 
 type MarkNotificationReadRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1567,7 +1567,7 @@ func (*MarkNotificationReadRequest) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{27}
 }
 
-func (x *MarkNotificationReadRequest) GetId() int32 {
+func (x *MarkNotificationReadRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -1612,7 +1612,7 @@ func (*MarkNotificationReadResponse) Descriptor() ([]byte, []int) {
 
 type MarkAllNotificationsReadRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        int32                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1647,7 +1647,7 @@ func (*MarkAllNotificationsReadRequest) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{29}
 }
 
-func (x *MarkAllNotificationsReadRequest) GetUserId() int32 {
+func (x *MarkAllNotificationsReadRequest) GetUserId() int64 {
 	if x != nil {
 		return x.UserId
 	}
@@ -1692,8 +1692,8 @@ func (*MarkAllNotificationsReadResponse) Descriptor() ([]byte, []int) {
 
 type UserStatus struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	UserId        int32                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	UserId        int64                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	IsOnline      bool                   `protobuf:"varint,3,opt,name=is_online,json=isOnline,proto3" json:"is_online,omitempty"`
 	LastSeen      *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=last_seen,json=lastSeen,proto3" json:"last_seen,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1730,14 +1730,14 @@ func (*UserStatus) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{31}
 }
 
-func (x *UserStatus) GetId() int32 {
+func (x *UserStatus) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
 	return 0
 }
 
-func (x *UserStatus) GetUserId() int32 {
+func (x *UserStatus) GetUserId() int64 {
 	if x != nil {
 		return x.UserId
 	}
@@ -1804,7 +1804,7 @@ func (x *UserStatusList) GetStatuses() []*UserStatus {
 
 type GetUserStatusesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserIds       []int32                `protobuf:"varint,1,rep,packed,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
+	UserIds       []int64                `protobuf:"varint,1,rep,packed,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1839,7 +1839,7 @@ func (*GetUserStatusesRequest) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{33}
 }
 
-func (x *GetUserStatusesRequest) GetUserIds() []int32 {
+func (x *GetUserStatusesRequest) GetUserIds() []int64 {
 	if x != nil {
 		return x.UserIds
 	}
@@ -1848,7 +1848,7 @@ func (x *GetUserStatusesRequest) GetUserIds() []int32 {
 
 type UpdateUserStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        int32                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	IsOnline      bool                   `protobuf:"varint,2,opt,name=is_online,json=isOnline,proto3" json:"is_online,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1884,7 +1884,7 @@ func (*UpdateUserStatusRequest) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{34}
 }
 
-func (x *UpdateUserStatusRequest) GetUserId() int32 {
+func (x *UpdateUserStatusRequest) GetUserId() int64 {
 	if x != nil {
 		return x.UserId
 	}
@@ -1901,7 +1901,7 @@ func (x *UpdateUserStatusRequest) GetIsOnline() bool {
 type SearchMessagesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
-	UserId        int32                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId        int64                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
 	Offset        int32                  `protobuf:"varint,4,opt,name=offset,proto3" json:"offset,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1945,7 +1945,7 @@ func (x *SearchMessagesRequest) GetQuery() string {
 	return ""
 }
 
-func (x *SearchMessagesRequest) GetUserId() int32 {
+func (x *SearchMessagesRequest) GetUserId() int64 {
 	if x != nil {
 		return x.UserId
 	}
@@ -1968,7 +1968,7 @@ func (x *SearchMessagesRequest) GetOffset() int32 {
 
 type DromDialog struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	DialogId      string                 `protobuf:"bytes,2,opt,name=dialog_id,json=dialogId,proto3" json:"dialog_id,omitempty"`
 	Interlocutor  string                 `protobuf:"bytes,3,opt,name=interlocutor,proto3" json:"interlocutor,omitempty"`
 	CreatedAt     string                 `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -2016,7 +2016,7 @@ func (*DromDialog) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{36}
 }
 
-func (x *DromDialog) GetId() int32 {
+func (x *DromDialog) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -2160,7 +2160,7 @@ func (x *DromDialogList) GetDialogs() []*DromDialog {
 
 type DromMessage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	DialogId      string                 `protobuf:"bytes,2,opt,name=dialog_id,json=dialogId,proto3" json:"dialog_id,omitempty"`
 	MessageId     string                 `protobuf:"bytes,3,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
 	Author        string                 `protobuf:"bytes,4,opt,name=author,proto3" json:"author,omitempty"`
@@ -2203,7 +2203,7 @@ func (*DromMessage) Descriptor() ([]byte, []int) {
 	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{38}
 }
 
-func (x *DromMessage) GetId() int32 {
+func (x *DromMessage) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -2500,7 +2500,7 @@ const file_messaging_v1_messaging_proto_rawDesc = "" +
 	"\n" +
 	"\x1cmessaging/v1/messaging.proto\x12\fmessaging.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9d\x02\n" +
 	"\fConversation\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x05R\x02id\x12\"\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\"\n" +
 	"\fparticipants\x18\x02 \x03(\x03R\fparticipants\x12\x14\n" +
 	"\x05title\x18\x03 \x01(\tR\x05title\x129\n" +
 	"\n" +
@@ -2511,41 +2511,41 @@ const file_messaging_v1_messaging_proto_rawDesc = "" +
 	"\x10ConversationList\x12@\n" +
 	"\rconversations\x18\x01 \x03(\v2\x1a.messaging.v1.ConversationR\rconversations\"2\n" +
 	"\x17GetConversationsRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x05R\x06userId\"U\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\"U\n" +
 	"\x19CreateConversationRequest\x12\"\n" +
-	"\fparticipants\x18\x01 \x03(\x05R\fparticipants\x12\x14\n" +
+	"\fparticipants\x18\x01 \x03(\x03R\fparticipants\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\"(\n" +
 	"\x16GetConversationRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x05R\x02id\"A\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"A\n" +
 	"\x19UpdateConversationRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x14\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\"+\n" +
 	"\x19DeleteConversationRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x05R\x02id\"\x1c\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\x1c\n" +
 	"\x1aDeleteConversationResponse\"\x7f\n" +
 	"\x18RemoveParticipantRequest\x12'\n" +
-	"\x0fconversation_id\x18\x01 \x01(\x05R\x0econversationId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\x05R\x06userId\x12!\n" +
-	"\frequester_id\x18\x03 \x01(\x05R\vrequesterId\"\x1b\n" +
+	"\x0fconversation_id\x18\x01 \x01(\x03R\x0econversationId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12!\n" +
+	"\frequester_id\x18\x03 \x01(\x03R\vrequesterId\"\x1b\n" +
 	"\x19RemoveParticipantResponse\"\x81\x01\n" +
 	"\aMention\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1d\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1d\n" +
 	"\n" +
-	"message_id\x18\x02 \x01(\x05R\tmessageId\x12\x12\n" +
+	"message_id\x18\x02 \x01(\x03R\tmessageId\x12\x12\n" +
 	"\x04type\x18\x03 \x01(\tR\x04type\x12\x1f\n" +
-	"\vresource_id\x18\x04 \x01(\x05R\n" +
+	"\vresource_id\x18\x04 \x01(\x03R\n" +
 	"resourceId\x12\x12\n" +
 	"\x04text\x18\x05 \x01(\tR\x04text\"h\n" +
 	"\bReaction\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1d\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1d\n" +
 	"\n" +
-	"message_id\x18\x02 \x01(\x05R\tmessageId\x12\x17\n" +
-	"\auser_id\x18\x03 \x01(\x05R\x06userId\x12\x14\n" +
+	"message_id\x18\x02 \x01(\x03R\tmessageId\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x14\n" +
 	"\x05emoji\x18\x04 \x01(\tR\x05emoji\"\x98\x03\n" +
 	"\aMessage\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x05R\x02id\x12'\n" +
-	"\x0fconversation_id\x18\x02 \x01(\x05R\x0econversationId\x12\x1b\n" +
-	"\tsender_id\x18\x03 \x01(\x05R\bsenderId\x12\x18\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12'\n" +
+	"\x0fconversation_id\x18\x02 \x01(\x03R\x0econversationId\x12\x1b\n" +
+	"\tsender_id\x18\x03 \x01(\x03R\bsenderId\x12\x18\n" +
 	"\acontent\x18\x04 \x01(\tR\acontent\x12!\n" +
 	"\fmessage_type\x18\x05 \x01(\tR\vmessageType\x12\x1b\n" +
 	"\tvoice_url\x18\x06 \x01(\tR\bvoiceUrl\x129\n" +
@@ -2559,78 +2559,78 @@ const file_messaging_v1_messaging_proto_rawDesc = "" +
 	"\vMessageList\x121\n" +
 	"\bmessages\x18\x01 \x03(\v2\x15.messaging.v1.MessageR\bmessages\"k\n" +
 	"\x12GetMessagesRequest\x12'\n" +
-	"\x0fconversation_id\x18\x01 \x01(\x05R\x0econversationId\x12\x14\n" +
+	"\x0fconversation_id\x18\x01 \x01(\x03R\x0econversationId\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
 	"\x06offset\x18\x03 \x01(\x05R\x06offset\"\x96\x01\n" +
 	"\x12SendMessageRequest\x12'\n" +
-	"\x0fconversation_id\x18\x01 \x01(\x05R\x0econversationId\x12\x1b\n" +
-	"\tsender_id\x18\x02 \x01(\x05R\bsenderId\x12\x18\n" +
+	"\x0fconversation_id\x18\x01 \x01(\x03R\x0econversationId\x12\x1b\n" +
+	"\tsender_id\x18\x02 \x01(\x03R\bsenderId\x12\x18\n" +
 	"\acontent\x18\x03 \x01(\tR\acontent\x12 \n" +
 	"\vattachments\x18\x04 \x03(\tR\vattachments\"\xb0\x01\n" +
 	"\x15SendVoiceMessageChunk\x12'\n" +
-	"\x0fconversation_id\x18\x01 \x01(\x05R\x0econversationId\x12\x1b\n" +
-	"\tsender_id\x18\x02 \x01(\x05R\bsenderId\x12\x1a\n" +
+	"\x0fconversation_id\x18\x01 \x01(\x03R\x0econversationId\x12\x1b\n" +
+	"\tsender_id\x18\x02 \x01(\x03R\bsenderId\x12\x1a\n" +
 	"\bfilename\x18\x03 \x01(\tR\bfilename\x12!\n" +
 	"\fcontent_type\x18\x04 \x01(\tR\vcontentType\x12\x12\n" +
 	"\x04data\x18\x05 \x01(\fR\x04data\"&\n" +
 	"\x14DeleteMessageRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x05R\x02id\"\x17\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\x17\n" +
 	"\x15DeleteMessageResponse\"P\n" +
 	"\x16MarkMessageReadRequest\x12\x1d\n" +
 	"\n" +
-	"message_id\x18\x01 \x01(\x05R\tmessageId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\x05R\x06userId\"\x19\n" +
+	"message_id\x18\x01 \x01(\x03R\tmessageId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\x03R\x06userId\"\x19\n" +
 	"\x17MarkMessageReadResponse\"b\n" +
 	"\x12AddReactionRequest\x12\x1d\n" +
 	"\n" +
-	"message_id\x18\x01 \x01(\x05R\tmessageId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\x05R\x06userId\x12\x14\n" +
+	"message_id\x18\x01 \x01(\x03R\tmessageId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x14\n" +
 	"\x05emoji\x18\x03 \x01(\tR\x05emoji\"8\n" +
 	"\x15RemoveReactionRequest\x12\x1f\n" +
-	"\vreaction_id\x18\x01 \x01(\x05R\n" +
+	"\vreaction_id\x18\x01 \x01(\x03R\n" +
 	"reactionId\"\x18\n" +
 	"\x16RemoveReactionResponse\"\xd3\x01\n" +
 	"\fNotification\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\x05R\x06userId\x12\x12\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x12\n" +
 	"\x04type\x18\x03 \x01(\tR\x04type\x12\x18\n" +
 	"\amessage\x18\x04 \x01(\tR\amessage\x12\x12\n" +
 	"\x04read\x18\x05 \x01(\bR\x04read\x129\n" +
 	"\n" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"related_id\x18\a \x01(\x05R\trelatedId\"T\n" +
+	"related_id\x18\a \x01(\x03R\trelatedId\"T\n" +
 	"\x10NotificationList\x12@\n" +
 	"\rnotifications\x18\x01 \x03(\v2\x1a.messaging.v1.NotificationR\rnotifications\"2\n" +
 	"\x17GetNotificationsRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x05R\x06userId\"-\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\"-\n" +
 	"\x1bMarkNotificationReadRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x05R\x02id\"\x1e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\x1e\n" +
 	"\x1cMarkNotificationReadResponse\":\n" +
 	"\x1fMarkAllNotificationsReadRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x05R\x06userId\"\"\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\"\"\n" +
 	" MarkAllNotificationsReadResponse\"\x8b\x01\n" +
 	"\n" +
 	"UserStatus\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\x05R\x06userId\x12\x1b\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x1b\n" +
 	"\tis_online\x18\x03 \x01(\bR\bisOnline\x127\n" +
 	"\tlast_seen\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\blastSeen\"F\n" +
 	"\x0eUserStatusList\x124\n" +
 	"\bstatuses\x18\x01 \x03(\v2\x18.messaging.v1.UserStatusR\bstatuses\"3\n" +
 	"\x16GetUserStatusesRequest\x12\x19\n" +
-	"\buser_ids\x18\x01 \x03(\x05R\auserIds\"O\n" +
+	"\buser_ids\x18\x01 \x03(\x03R\auserIds\"O\n" +
 	"\x17UpdateUserStatusRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x05R\x06userId\x12\x1b\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1b\n" +
 	"\tis_online\x18\x02 \x01(\bR\bisOnline\"t\n" +
 	"\x15SearchMessagesRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\x05R\x06userId\x12\x14\n" +
+	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x14\n" +
 	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x16\n" +
 	"\x06offset\x18\x04 \x01(\x05R\x06offset\"\xc6\x03\n" +
 	"\n" +
 	"DromDialog\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1b\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
 	"\tdialog_id\x18\x02 \x01(\tR\bdialogId\x12\"\n" +
 	"\finterlocutor\x18\x03 \x01(\tR\finterlocutor\x12\x1d\n" +
 	"\n" +
@@ -2654,7 +2654,7 @@ const file_messaging_v1_messaging_proto_rawDesc = "" +
 	"\x0eDromDialogList\x122\n" +
 	"\adialogs\x18\x01 \x03(\v2\x18.messaging.v1.DromDialogR\adialogs\"\xef\x01\n" +
 	"\vDromMessage\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1b\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
 	"\tdialog_id\x18\x02 \x01(\tR\bdialogId\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x03 \x01(\tR\tmessageId\x12\x16\n" +

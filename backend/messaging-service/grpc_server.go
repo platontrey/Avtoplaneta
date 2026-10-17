@@ -16,7 +16,6 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	msgv1 "avtoplaneta/gen/messaging/v1"
 )
@@ -34,81 +33,76 @@ func NewMessagingGRPCServer() *messagingGRPCServer {
 // ─── Conversations ──────────────────────────────────────────────────────────
 
 func (s *messagingGRPCServer) GetConversations(ctx context.Context, req *msgv1.GetConversationsRequest) (*msgv1.ConversationList, error) {
-	conversations, err := svc.GetConversations(ctx, int64(req.UserId))
+	conversations, err := svc.GetConversations(ctx, req.GetUserId())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось получить диалоги: %v", err)
 	}
 
 	protoConvs := make([]*msgv1.Conversation, len(conversations))
-	for i, c := range conversations {
-		protoConvs[i] = conversationToProto(&c)
+	for i := range conversations {
+		protoConvs[i] = conversations[i].ToProto()
 	}
 
 	return &msgv1.ConversationList{Conversations: protoConvs}, nil
 }
 
 func (s *messagingGRPCServer) CreateConversation(ctx context.Context, req *msgv1.CreateConversationRequest) (*msgv1.Conversation, error) {
-	participants := make([]int64, len(req.Participants))
-	for i, p := range req.Participants {
-		participants[i] = int64(p)
-	}
-
-	conv, err := svc.CreateConversation(ctx, req.Title, participants)
+	conv, err := svc.CreateConversation(ctx, req.GetTitle(), req.GetParticipants())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось создать диалог: %v", err)
 	}
 
-	return conversationToProto(conv), nil
+	return conv.ToProto(), nil
 }
 
 func (s *messagingGRPCServer) GetConversation(ctx context.Context, req *msgv1.GetConversationRequest) (*msgv1.Conversation, error) {
-	conv, err := svc.GetConversation(ctx, int64(req.Id), 0)
+	conv, err := svc.GetConversation(ctx, req.GetId(), 0)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "диалог не найден: %v", err)
 	}
-	return conversationToProto(conv), nil
+	return conv.ToProto(), nil
 }
 
 func (s *messagingGRPCServer) UpdateConversation(ctx context.Context, req *msgv1.UpdateConversationRequest) (*msgv1.Conversation, error) {
-	conv, err := svc.GetConversation(ctx, int64(req.Id), 0)
+	conv, err := svc.GetConversation(ctx, req.GetId(), 0)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "диалог не найден: %v", err)
 	}
 
 	title := conv.Title
-	if req.Title != "" {
-		title = req.Title
+	if req.GetTitle() != "" {
+		title = req.GetTitle()
 	}
 
-	updated, err := svc.UpdateConversation(ctx, int64(req.Id), title, conv.Participants)
+	updated, err := svc.UpdateConversation(ctx, req.GetId(), title, conv.Participants)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось обновить диалог: %v", err)
 	}
 
-	return conversationToProto(updated), nil
+	return updated.ToProto(), nil
 }
 
 func (s *messagingGRPCServer) DeleteConversation(ctx context.Context, req *msgv1.DeleteConversationRequest) (*msgv1.DeleteConversationResponse, error) {
-	if err := svc.DeleteConversation(ctx, int64(req.Id)); err != nil {
+	if err := svc.DeleteConversation(ctx, req.GetId()); err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось удалить диалог: %v", err)
 	}
 	return &msgv1.DeleteConversationResponse{}, nil
 }
 
 func (s *messagingGRPCServer) RemoveParticipant(ctx context.Context, req *msgv1.RemoveParticipantRequest) (*msgv1.RemoveParticipantResponse, error) {
-	conv, err := svc.GetConversation(ctx, int64(req.ConversationId), 0)
+	conv, err := svc.GetConversation(ctx, req.GetConversationId(), 0)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "диалог не найден: %v", err)
 	}
 
 	newParticipants := []int64{}
 	for _, p := range conv.Participants {
-		if p != int64(req.UserId) {
+		if p != req.GetUserId() {
 			newParticipants = append(newParticipants, p)
 		}
 	}
 
-	_, err = svc.UpdateConversation(ctx, int64(req.ConversationId), conv.Title, newParticipants)
+	_, err = svc.UpdateConversation(ctx, req.GetConversationId(), conv.Title, newParticipants)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось удалить участника: %v", err)
 	}
@@ -119,26 +113,26 @@ func (s *messagingGRPCServer) RemoveParticipant(ctx context.Context, req *msgv1.
 // ─── Messages ───────────────────────────────────────────────────────────────
 
 func (s *messagingGRPCServer) GetMessages(ctx context.Context, req *msgv1.GetMessagesRequest) (*msgv1.MessageList, error) {
-	messages, err := svc.GetMessages(ctx, int64(req.ConversationId))
+	messages, err := svc.GetMessages(ctx, req.GetConversationId())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось получить сообщения: %v", err)
 	}
 
 	protoMsgs := make([]*msgv1.Message, len(messages))
-	for i, m := range messages {
-		protoMsgs[i] = messageToProto(&m)
+	for i := range messages {
+		protoMsgs[i] = messages[i].ToProto()
 	}
 
 	return &msgv1.MessageList{Messages: protoMsgs}, nil
 }
 
 func (s *messagingGRPCServer) SendMessage(ctx context.Context, req *msgv1.SendMessageRequest) (*msgv1.Message, error) {
-	msg, err := svc.SendMessage(ctx, int64(req.ConversationId), int64(req.SenderId), req.Content, nil)
+	msg, err := svc.SendMessage(ctx, req.GetConversationId(), req.GetSenderId(), req.GetContent(), nil)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось отправить сообщение: %v", err)
 	}
 
-	return messageToProto(msg), nil
+	return msg.ToProto(), nil
 }
 
 func (s *messagingGRPCServer) SendVoiceMessage(stream msgv1.MessagingService_SendVoiceMessageServer) error {
@@ -154,8 +148,8 @@ func (s *messagingGRPCServer) SendVoiceMessage(stream msgv1.MessagingService_Sen
 		if err != nil {
 			return status.Errorf(codes.Internal, "ошибка чтения stream: %v", err)
 		}
-		conversationID = int64(chunk.ConversationId)
-		senderID = int64(chunk.SenderId)
+		conversationID = chunk.GetConversationId()
+		senderID = chunk.GetSenderId()
 		fileData = append(fileData, chunk.Data...)
 	}
 
@@ -177,18 +171,18 @@ func (s *messagingGRPCServer) SendVoiceMessage(stream msgv1.MessagingService_Sen
 		return status.Errorf(codes.Internal, "не удалось отправить голосовое сообщение: %v", err)
 	}
 
-	return stream.SendAndClose(messageToProto(msg))
+	return stream.SendAndClose(msg.ToProto())
 }
 
 func (s *messagingGRPCServer) DeleteMessage(ctx context.Context, req *msgv1.DeleteMessageRequest) (*msgv1.DeleteMessageResponse, error) {
-	if err := svc.DeleteMessage(ctx, int64(req.Id), 0); err != nil {
+	if err := svc.DeleteMessage(ctx, req.GetId(), 0); err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось удалить сообщение: %v", err)
 	}
 	return &msgv1.DeleteMessageResponse{}, nil
 }
 
 func (s *messagingGRPCServer) MarkMessageRead(ctx context.Context, req *msgv1.MarkMessageReadRequest) (*msgv1.MarkMessageReadResponse, error) {
-	if err := svc.MarkMessageRead(ctx, int64(req.MessageId), int64(req.UserId)); err != nil {
+	if err := svc.MarkMessageRead(ctx, req.GetMessageId(), req.GetUserId()); err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось отметить сообщение прочитанным: %v", err)
 	}
 	return &msgv1.MarkMessageReadResponse{}, nil
@@ -197,21 +191,16 @@ func (s *messagingGRPCServer) MarkMessageRead(ctx context.Context, req *msgv1.Ma
 // ─── Reactions ──────────────────────────────────────────────────────────────
 
 func (s *messagingGRPCServer) AddReaction(ctx context.Context, req *msgv1.AddReactionRequest) (*msgv1.Reaction, error) {
-	reaction, err := svc.AddReaction(ctx, int64(req.MessageId), int64(req.UserId), req.Emoji)
+	reaction, err := svc.AddReaction(ctx, req.GetMessageId(), req.GetUserId(), req.GetEmoji())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось добавить реакцию: %v", err)
 	}
 
-	return &msgv1.Reaction{
-		Id:        int32(reaction.ID),
-		MessageId: int32(reaction.MessageID),
-		UserId:    int32(reaction.UserID),
-		Emoji:     reaction.Emoji,
-	}, nil
+	return reaction.ToProto(), nil
 }
 
 func (s *messagingGRPCServer) RemoveReaction(ctx context.Context, req *msgv1.RemoveReactionRequest) (*msgv1.RemoveReactionResponse, error) {
-	if err := svc.RemoveReaction(ctx, int64(req.ReactionId), 0); err != nil {
+	if err := svc.RemoveReaction(ctx, req.GetReactionId(), 0); err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось удалить реакцию: %v", err)
 	}
 	return &msgv1.RemoveReactionResponse{}, nil
@@ -220,36 +209,28 @@ func (s *messagingGRPCServer) RemoveReaction(ctx context.Context, req *msgv1.Rem
 // ─── Notifications ──────────────────────────────────────────────────────────
 
 func (s *messagingGRPCServer) GetNotifications(ctx context.Context, req *msgv1.GetNotificationsRequest) (*msgv1.NotificationList, error) {
-	notifications, err := svc.GetNotifications(ctx, int64(req.UserId))
+	notifications, err := svc.GetNotifications(ctx, req.GetUserId())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось получить уведомления: %v", err)
 	}
 
 	protoNotifs := make([]*msgv1.Notification, len(notifications))
-	for i, n := range notifications {
-		protoNotifs[i] = &msgv1.Notification{
-			Id:        int32(n.ID),
-			UserId:    int32(n.UserID),
-			Type:      n.Type,
-			Message:   n.Message,
-			Read:      n.Read,
-			CreatedAt: timestamppb.New(n.CreatedAt),
-			RelatedId: int32(n.RelatedID),
-		}
+	for i := range notifications {
+		protoNotifs[i] = notifications[i].ToProto()
 	}
 
 	return &msgv1.NotificationList{Notifications: protoNotifs}, nil
 }
 
 func (s *messagingGRPCServer) MarkNotificationRead(ctx context.Context, req *msgv1.MarkNotificationReadRequest) (*msgv1.MarkNotificationReadResponse, error) {
-	if err := svc.MarkNotificationRead(ctx, int64(req.Id)); err != nil {
+	if err := svc.MarkNotificationRead(ctx, req.GetId()); err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось отметить уведомление: %v", err)
 	}
 	return &msgv1.MarkNotificationReadResponse{}, nil
 }
 
 func (s *messagingGRPCServer) MarkAllNotificationsRead(ctx context.Context, req *msgv1.MarkAllNotificationsReadRequest) (*msgv1.MarkAllNotificationsReadResponse, error) {
-	if err := svc.MarkAllNotificationsRead(ctx, int64(req.UserId)); err != nil {
+	if err := svc.MarkAllNotificationsRead(ctx, req.GetUserId()); err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось отметить все уведомления: %v", err)
 	}
 	return &msgv1.MarkAllNotificationsReadResponse{}, nil
@@ -258,63 +239,48 @@ func (s *messagingGRPCServer) MarkAllNotificationsRead(ctx context.Context, req 
 // ─── User Status ────────────────────────────────────────────────────────────
 
 func (s *messagingGRPCServer) GetUserStatuses(ctx context.Context, req *msgv1.GetUserStatusesRequest) (*msgv1.UserStatusList, error) {
-	userIDs := make([]int64, len(req.UserIds))
-	for i, id := range req.UserIds {
-		userIDs[i] = int64(id)
-	}
-
-	statuses, err := svc.GetUserStatuses(ctx, userIDs)
+	statuses, err := svc.GetUserStatuses(ctx, req.GetUserIds())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось получить статусы: %v", err)
 	}
 
 	protoStatuses := make([]*msgv1.UserStatus, len(statuses))
-	for i, us := range statuses {
-		protoStatuses[i] = &msgv1.UserStatus{
-			Id:       int32(us.ID),
-			UserId:   int32(us.UserID),
-			IsOnline: us.IsOnline,
-			LastSeen: timestamppb.New(us.LastSeen),
-		}
+	for i := range statuses {
+		protoStatuses[i] = statuses[i].ToProto()
 	}
 
 	return &msgv1.UserStatusList{Statuses: protoStatuses}, nil
 }
 
 func (s *messagingGRPCServer) UpdateUserStatus(ctx context.Context, req *msgv1.UpdateUserStatusRequest) (*msgv1.UserStatus, error) {
-	if err := svc.UpdateUserStatus(ctx, int64(req.UserId), req.IsOnline); err != nil {
+	if err := svc.UpdateUserStatus(ctx, req.GetUserId(), req.GetIsOnline()); err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось обновить статус: %v", err)
 	}
 
-	us, err := svc.GetUserStatus(ctx, int64(req.UserId))
+	us, err := svc.GetUserStatus(ctx, req.GetUserId())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось получить статус: %v", err)
 	}
 
-	return &msgv1.UserStatus{
-		Id:       int32(us.ID),
-		UserId:   int32(us.UserID),
-		IsOnline: us.IsOnline,
-		LastSeen: timestamppb.New(us.LastSeen),
-	}, nil
+	return us.ToProto(), nil
 }
 
 // ─── Search ─────────────────────────────────────────────────────────────────
 
 func (s *messagingGRPCServer) SearchMessages(ctx context.Context, req *msgv1.SearchMessagesRequest) (*msgv1.MessageList, error) {
-	limit := int(req.Limit)
+	limit := int(req.GetLimit())
 	if limit == 0 {
 		limit = 50
 	}
 
-	messages, err := svc.SearchMessages(ctx, int64(req.UserId), req.Query, limit, int(req.Offset))
+	messages, err := svc.SearchMessages(ctx, req.GetUserId(), req.GetQuery(), limit, int(req.GetOffset()))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось выполнить поиск: %v", err)
 	}
 
 	protoMsgs := make([]*msgv1.Message, len(messages))
-	for i, m := range messages {
-		protoMsgs[i] = messageToProto(&m)
+	for i := range messages {
+		protoMsgs[i] = messages[i].ToProto()
 	}
 
 	return &msgv1.MessageList{Messages: protoMsgs}, nil
@@ -335,7 +301,7 @@ func (s *messagingGRPCServer) GetDromDialogs(ctx context.Context, req *msgv1.Get
 			lastMsg = *d.LastMessage
 		}
 		protoDialogs[i] = &msgv1.DromDialog{
-			Id:            int32(d.ID),
+			Id:            d.ID,
 			DialogId:      d.DialogID,
 			Interlocutor:  d.Interlocutor,
 			LastMessageAt: d.LastMessageAt,
@@ -355,7 +321,7 @@ func (s *messagingGRPCServer) GetDromDialogs(ctx context.Context, req *msgv1.Get
 }
 
 func (s *messagingGRPCServer) GetDromMessages(ctx context.Context, req *msgv1.GetDromMessagesRequest) (*msgv1.DromMessageList, error) {
-	messages, dialogMeta, err := svc.GetDromMessages(ctx, req.DialogId)
+	messages, dialogMeta, err := svc.GetDromMessages(ctx, req.GetDialogId())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось получить сообщения Drom: %v", err)
 	}
@@ -363,7 +329,7 @@ func (s *messagingGRPCServer) GetDromMessages(ctx context.Context, req *msgv1.Ge
 	protoMsgs := make([]*msgv1.DromMessage, len(messages))
 	for i, m := range messages {
 		protoMsgs[i] = &msgv1.DromMessage{
-			Id:        int32(m.ID),
+			Id:        m.ID,
 			DialogId:  m.DialogID,
 			MessageId: m.MessageID,
 			Author:    m.Author,
@@ -382,7 +348,7 @@ func (s *messagingGRPCServer) GetDromMessages(ctx context.Context, req *msgv1.Ge
 			lastMsg = *dialogMeta.LastMessage
 		}
 		protoDialog = &msgv1.DromDialog{
-			Id:            int32(dialogMeta.ID),
+			Id:            dialogMeta.ID,
 			DialogId:      dialogMeta.DialogID,
 			Interlocutor:  dialogMeta.Interlocutor,
 			LastMessageAt: dialogMeta.LastMessageAt,
@@ -405,7 +371,7 @@ func (s *messagingGRPCServer) GetDromMessages(ctx context.Context, req *msgv1.Ge
 }
 
 func (s *messagingGRPCServer) SendDromMessage(ctx context.Context, req *msgv1.SendDromMessageRequest) (*msgv1.SendDromMessageResponse, error) {
-	_, err := svc.SendDromMessage(ctx, req.DialogId, req.Content)
+	_, err := svc.SendDromMessage(ctx, req.GetDialogId(), req.GetContent())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось отправить сообщение в Drom: %v", err)
 	}
@@ -416,60 +382,11 @@ func (s *messagingGRPCServer) SendDromMessage(ctx context.Context, req *msgv1.Se
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 func conversationToProto(c *Conversation) *msgv1.Conversation {
-	participants := make([]int64, len(c.Participants))
-	for i, p := range c.Participants {
-		participants[i] = p
-	}
-
-	return &msgv1.Conversation{
-		Id:            int32(c.ID),
-		Participants:  participants,
-		Title:         c.Title,
-		CreatedAt:     timestamppb.New(c.CreatedAt),
-		LastMessageAt: timestamppb.New(c.LastMessageAt),
-		LastMessage:   c.LastMessage,
-		UnreadCount:   int32(c.UnreadCount),
-	}
+	return c.ToProto()
 }
 
 func messageToProto(m *Message) *msgv1.Message {
-	readBy := make([]int64, len(m.ReadBy))
-	for i, r := range m.ReadBy {
-		readBy[i] = r
-	}
-
-	protoMsg := &msgv1.Message{
-		Id:             int32(m.ID),
-		ConversationId: int32(m.ConversationID),
-		SenderId:       int32(m.SenderID),
-		Content:        m.Content,
-		MessageType:    m.MessageType,
-		VoiceUrl:       m.VoiceURL,
-		CreatedAt:      timestamppb.New(m.CreatedAt),
-		ReadBy:         readBy,
-		Attachments:    m.Attachments,
-	}
-
-	for _, mention := range m.Mentions {
-		protoMsg.Mentions = append(protoMsg.Mentions, &msgv1.Mention{
-			Id:         int32(mention.ID),
-			MessageId:  int32(mention.MessageID),
-			Type:       mention.Type,
-			ResourceId: int32(mention.ResourceID),
-			Text:       mention.Text,
-		})
-	}
-
-	for _, reaction := range m.Reactions {
-		protoMsg.Reactions = append(protoMsg.Reactions, &msgv1.Reaction{
-			Id:        int32(reaction.ID),
-			MessageId: int32(reaction.MessageID),
-			UserId:    int32(reaction.UserID),
-			Emoji:     reaction.Emoji,
-		})
-	}
-
-	return protoMsg
+	return m.ToProto()
 }
 
 // ─── gRPC Server Startup ────────────────────────────────────────────────────

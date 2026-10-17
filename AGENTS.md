@@ -93,14 +93,23 @@
 #### Технический стандарт реализации:
 1. Контракт объявляется в `backend/proto/<service>/v1/<service>.proto`.
 2. После любых правок запускается компиляция: `cd backend && make proto`.
-3. Все вызовы gRPC-клиентов обязаны иметь явный таймаут:
+3. **Единый 64-битный стандарт первичных ключей (Bigint Standard):**
+   - Все идентификаторы сущностей (`id`, `user_id`, `part_id`, `order_id`, `seller_id`, `resource_id` и срезы `ids`, `user_ids`) в Protobuf контрактах объявляются строго как `int64`.
+   - **Запрет на неоднородность типов:** В PostgreSQL первичные ключи `BIGSERIAL`/`BIGINT` соответствуют типу `int64` в Go. Использование `uint32` или `int32` для идентификаторов строго запрещено, так как это приводит к нагромождению небезопасных приведений типов `uint32(...)`/`int64(...)` и риску переполнения.
+   - Числовые счетчики и пагинация (`quantity`, `page`, `limit`, `offset`, `total`) остаются `int32`.
+4. **Конвертеры доменных моделей (`ToProto()` / `FromProto()`):**
+   - Каждая доменная сущность обязана иметь метод `(m *Model) ToProto() *protov1.Model` (и при необходимости фабрики `ModelFromProto`).
+   - Запрещено перекладывать десятки полей вручную внутри gRPC-хэндлеров и создавать громоздкие локальные переменные под каждое поле.
+5. **Безопасные геттеры Protobuf (`.Get...()`):**
+   - Чтение полей входящих gRPC-запросов обязательно выполнять через безопасные сгенерированные геттеры Protobuf (`req.GetId()`, `req.GetEmail()`, `req.GetItems()`). Это гарантирует отсутствие `nil`-паник при чтении опциональных структур и дефолтных значений.
+6. Все вызовы gRPC-клиентов обязаны иметь явный таймаут:
    ```go
    callCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
    defer cancel()
    resp, err := partsClient.DecreasePartQuantity(callCtx, req)
    ```
-4. Идемпотентность: любые изменяющие команды обязаны передавать `operation_id` (например, `order-<id>-part-<part_id>`), а получатель обязан фиксировать его в таблице `part_stock_operations`.
-5. Ошибки маппятся в стандартные gRPC-статусы (`codes.NotFound`, `codes.AlreadyExists`, `codes.InvalidArgument`, `codes.Internal`).
+7. Идемпотентность: любые изменяющие команды обязаны передавать `operation_id` (например, `order-<id>-part-<part_id>`), а получатель обязан фиксировать его в таблице `part_stock_operations`.
+8. Ошибки маппятся в стандартные gRPC-статусы (`codes.NotFound`, `codes.AlreadyExists`, `codes.InvalidArgument`, `codes.Internal`).
 
 ---
 

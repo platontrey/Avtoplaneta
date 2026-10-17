@@ -46,7 +46,7 @@ func (c *partsGRPCClient) Close() error {
 }
 
 func (c *partsGRPCClient) GetPartByID(ctx context.Context, id int64) (*domain.Part, error) {
-	req := &partsv1.GetPartRequest{Id: uint32(id)}
+	req := &partsv1.GetPartRequest{Id: id}
 	resp, err := c.client.GetPart(ctx, req)
 	if err != nil {
 		return nil, err
@@ -58,18 +58,18 @@ func (c *partsGRPCClient) GetPartByID(ctx context.Context, id int64) (*domain.Pa
 	}
 
 	return &domain.Part{
-		ID:       int64(resp.Id),
-		Name:     resp.Name,
-		Quantity: int(resp.Quantity),
-		Price:    resp.Price,
-		Location: resp.Location,
+		ID:       resp.GetId(),
+		Name:     resp.GetName(),
+		Quantity: int(resp.GetQuantity()),
+		Price:    resp.GetPrice(),
+		Location: resp.GetLocation(),
 		Photo:    photo,
 	}, nil
 }
 
 func (c *partsGRPCClient) DecreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error {
 	req := &partsv1.ChangePartQuantityRequest{
-		Id:          uint32(id),
+		Id:          id,
 		Amount:      int32(amount),
 		OperationId: operationID,
 	}
@@ -79,7 +79,7 @@ func (c *partsGRPCClient) DecreaseQuantity(ctx context.Context, id int64, amount
 
 func (c *partsGRPCClient) IncreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error {
 	req := &partsv1.ChangePartQuantityRequest{
-		Id:          uint32(id),
+		Id:          id,
 		Amount:      int32(amount),
 		OperationId: operationID,
 	}
@@ -89,7 +89,7 @@ func (c *partsGRPCClient) IncreaseQuantity(ctx context.Context, id int64, amount
 
 func (c *partsGRPCClient) DeletePart(ctx context.Context, id int64) error {
 	req := &partsv1.DeletePartRequest{
-		Id: uint32(id),
+		Id: id,
 	}
 	_, err := c.client.DeletePart(ctx, req)
 	return err

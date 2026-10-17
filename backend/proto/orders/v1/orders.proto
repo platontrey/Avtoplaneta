@@ -17,20 +17,20 @@ service OrdersService {
 // ─── Order Model ────────────────────────────────────────────────────────────
 
 message OrderItem {
-  uint32 id = 1;
-  uint32 order_id = 2;
-  uint32 part_id = 3;
+  int64 id = 1;
+  int64 order_id = 2;
+  int64 part_id = 3;
   int32 quantity = 4;
   double price = 5;
 }
 
 message Order {
-  uint32 id = 1;
-  int32 customer_id = 2;
-  uint32 seller_id = 3;
+  int64 id = 1;
+  int64 customer_id = 2;
+  int64 seller_id = 3;
   string seller = 4;
   string part = 5;
-  uint32 part_id = 6;
+  int64 part_id = 6;
   string location = 7;
   string buyer_number = 8;
   string status = 9;
@@ -50,46 +50,46 @@ message OrderList {
 // ─── Requests ───────────────────────────────────────────────────────────────
 
 message CreateOrderItemInput {
-  uint32 part_id = 1;
+  int64 part_id = 1;
   int32 quantity = 2;
 }
 
 message CreateOrderRequest {
-  int32 customer_id = 1;
+  int64 customer_id = 1;
   string part = 2;
-  uint32 part_id = 3;
+  int64 part_id = 3;
   string buyer_number = 4;
-  uint32 seller_id = 5;
+  int64 seller_id = 5;
   repeated CreateOrderItemInput items = 6;
 }
 
 message GetOrdersRequest {
   // Фильтры
   string status = 1;
-  uint32 seller_id = 2;
+  int64 seller_id = 2;
   int32 limit = 3;
   int32 offset = 4;
   bool admin = 5; // если true — возвращает все заказы
 }
 
 message UpdateOrderStatusRequest {
-  uint32 id = 1;
+  int64 id = 1;
   string status = 2;
 }
 
 message CompleteOrderRequest {
-  uint32 id = 1;
+  int64 id = 1;
 }
 
 message DeleteOrderRequest {
-  uint32 id = 1;
+  int64 id = 1;
 }
 
 message DeleteOrderResponse {}
 
 message AddOrderItemRequest {
-  uint32 order_id = 1;
-  uint32 part_id = 2;
+  int64 order_id = 1;
+  int64 part_id = 2;
   int32 quantity = 3;
 }
 

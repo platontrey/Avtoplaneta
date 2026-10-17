@@ -94,7 +94,7 @@ func (c *Clients) GetPart(ctx context.Context, partID int64) (*domain.Part, erro
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	resp, err := c.parts.GetPart(ctx, &partsv1.GetPartRequest{Id: uint32(partID)})
+	resp, err := c.parts.GetPart(ctx, &partsv1.GetPartRequest{Id: partID})
 	if err != nil {
 		return nil, fmt.Errorf("запросить деталь %d: %w", partID, err)
 	}
@@ -115,7 +115,7 @@ func (c *Clients) SellerINNs(ctx context.Context) (map[int64]string, error) {
 	inns := make(map[int64]string, len(resp.Users))
 	for _, user := range resp.Users {
 		if user.Inn != "" {
-			inns[int64(user.Id)] = user.Inn
+			inns[user.GetId()] = user.GetInn()
 		}
 	}
 	return inns, nil
@@ -123,7 +123,7 @@ func (c *Clients) SellerINNs(ctx context.Context) (map[int64]string, error) {
 
 func partFromProto(p *partsv1.Part) domain.Part {
 	part := domain.Part{
-		ID:             int64(p.GetId()),
+		ID:             p.GetId(),
 		Name:           p.GetName(),
 		Quantity:       int(p.GetQuantity()),
 		Description:    p.GetDescription(),
@@ -134,7 +134,7 @@ func partFromProto(p *partsv1.Part) domain.Part {
 		Brand:          p.GetBrand(),
 		Model:          p.GetModel(),
 		Photos:         p.GetPhotos(),
-		SellerID:       int64(p.GetSellerId()),
+		SellerID:       p.GetSellerId(),
 		BodyBrand:      p.GetBodyBrand(),
 		EngineBrand:    p.GetEngineBrand(),
 		CarReleaseDate: p.GetCarReleaseDate(),

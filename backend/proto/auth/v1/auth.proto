@@ -90,7 +90,7 @@ message ValidateSessionResponse {
 // ─── User ───────────────────────────────────────────────────────────────────
 
 message User {
-  uint32 id = 1;
+  int64 id = 1;
   string email = 2;
   string name = 3;
   string role = 4;
@@ -106,7 +106,7 @@ message UserList {
 }
 
 message GetUserRequest {
-  uint32 id = 1;
+  int64 id = 1;
 }
 
 message GetUsersRequest {
@@ -125,7 +125,7 @@ message CreateUserRequest {
 }
 
 message UpdateUserRequest {
-  uint32 id = 1;
+  int64 id = 1;
   string name = 2;
   string email = 3;
   string role = 4;
@@ -136,7 +136,7 @@ message UpdateUserRequest {
 }
 
 message DeleteUserRequest {
-  uint32 id = 1;
+  int64 id = 1;
 }
 
 message DeleteUserResponse {}
@@ -144,12 +144,12 @@ message DeleteUserResponse {}
 // ─── Activity Logs ──────────────────────────────────────────────────────────
 
 message LogActivityRequest {
-  uint32 user_id = 1;
+  int64 user_id = 1;
   string user_name = 2;
   string user_email = 3;
   string action = 4;
   string resource_type = 5;
-  uint32 resource_id = 6;
+  int64 resource_id = 6;
   string details = 7;
   string ip_address = 8;
   string user_agent = 9;
@@ -158,7 +158,7 @@ message LogActivityRequest {
 message LogActivityResponse {}
 
 message GetActivityLogsRequest {
-  uint32 user_id = 1;
+  int64 user_id = 1;
   string action = 2;
   string resource_type = 3;
   google.protobuf.Timestamp start_date = 4;
@@ -168,13 +168,13 @@ message GetActivityLogsRequest {
 }
 
 message ActivityLog {
-  uint32 id = 1;
-  uint32 user_id = 2;
+  int64 id = 1;
+  int64 user_id = 2;
   string user_name = 3;
   string user_email = 4;
   string action = 5;
   string resource_type = 6;
-  uint32 resource_id = 7;
+  int64 resource_id = 7;
   string details = 8;
   string ip_address = 9;
   string user_agent = 10;

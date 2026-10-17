@@ -9,7 +9,7 @@
 | Класс задачи | Стандартное решение (Default) | Критерии применения |
 | :--- | :--- | :--- |
 | **Параллельная работа внутри одного сервиса** (сжатие пачки фото, парсинг ведомостей) | **Стандартные инструменты Go** (`errgroup.WithContext`, семафор на `chan struct{}`, горутины) | Задача локальна для памяти одного процесса, не требует выживания после рестарта. Обязательна передача `ctx` и лимитирование параллелизма. |
-| **Синхронный межсервисный вызов** (списание деталей при заказе `DecreasePartQuantity`, проверка прав) | **gRPC HTTP/2 (Protobuf)** | Требуется немедленная сильная согласованность (Strong Consistency). Таймаут `context.WithTimeout`, идемпотентный `operation_id`, контракты в `backend/proto/`. |
+| **Синхронный межсервисный вызов** (списание деталей при заказе `DecreasePartQuantity`, проверка прав) | **gRPC HTTP/2 (Protobuf)** | Требуется немедленная сильная согласованность (Strong Consistency). Идентификаторы сущностей строго `int64` (Bigint Standard), конвертеры `ToProto()` / `FromProto()`, безопасные геттеры `.Get...()`, таймаут `context.WithTimeout`, идемпотентный `operation_id`, контракты в `backend/proto/`. |
 | **Асинхронные события между сервисами** (`seller_renamed`, рассылка уведомлений клиентам) | **Redis Streams** (`XADD`, Consumer Groups `XREADGROUP`, `XACK`, `XAUTOCLAIM`) | Декаплинг сервисов, доставка At-Least-Once, распределение нагрузки по репликам, восстановление зависших сообщений (PEL). |
 | **Синхронизация БД с Elasticsearch или брокером (No Dual-Write)** | **Transactional Outbox Pattern** (`outbox_events` + PostgreSQL `LISTEN/NOTIFY` + Outbox Dispatcher) | Атомарная запись в бизнес-таблицу и таблицу `outbox_events` в одной `pgx.Tx`. Мгновенное пробуждение по `pg_notify`. Выборка через `FOR UPDATE SKIP LOCKED`. |
 | **Полнотекстовый поиск, опечатки, морфология** | **Elasticsearch** (русский стеммер, синонимы `synonyms.txt`, `QueryBuilder`) | PostgreSQL вторичен для сложного поиска автозапчастей. ES работает как CQRS Read Model. Фильтр `quantity >= 0` обязателен. |
@@ -60,6 +60,10 @@
 6. **Шаблон и генератор микросервисов (`make new-service`):**
    - Эталонный сервис находится в `backend/template-service`. Содержит готовый `Dockerfile` с кэш-моунтами, `sqlc.yaml`, миграции `schema_migrations`, `/health`, `/metrics` (Prometheus) и Graceful Shutdown.
    - Для создания нового микросервиса запускать: `cd backend && make new-service NAME=<name> PORT=<port> GRPC_PORT=<grpc_port>`. Скрипт сам пропишет модуль в `go.work`, `Makefile` и проверит сборку.
+7. **Стандарты gRPC и Protobuf (Bigint Standard & Clean Mappers):**
+   - **Bigint Standard (единый 64-битный ID):** Все идентификаторы сущностей (`id`, `user_id`, `part_id`, `order_id`, `seller_id`, `resource_id` и срезы `ids`, `user_ids`) в `.proto` объявляются строго как `int64`. Категорически запрещено использовать `uint32`/`int32` для PK/FK — в PostgreSQL это `BIGSERIAL`/`BIGINT` (`int64` в Go). Неоднородность типов порождает опасные и громоздкие касты `uint32(...)` / `int64(...)`.
+   - **Методы конвертеров `ToProto()` / `FromProto()`:** Каждая доменная модель (`internal/domain`) обязана иметь метод `(m *Model) ToProto() *protov1.Model`. gRPC-хэндлеры не должны заниматься ручной поэлементной перекладкой десятков полей и объявлением временных переменных.
+   - **Безопасные геттеры Protobuf:** Все чтения полей входящих запросов gRPC (`req`) производятся строго через сгенерированные геттеры (`req.GetId()`, `req.GetEmail()`, `req.GetItems()`), исключающие панику при `nil`-указателях.
 
 ---
 

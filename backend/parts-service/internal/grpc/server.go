@@ -15,7 +15,6 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	partsv1 "avtoplaneta/gen/parts/v1"
 	"parts-service/internal/catalog"
@@ -101,8 +100,8 @@ func (s *partsGRPCServer) GetInventory(ctx context.Context, req *partsv1.GetInve
 	}
 
 	protoParts := make([]*partsv1.Part, len(parts))
-	for i, p := range parts {
-		protoParts[i] = partToProto(&p)
+	for i := range parts {
+		protoParts[i] = parts[i].ToProto()
 	}
 
 	return &partsv1.InventoryResponse{
@@ -115,30 +114,30 @@ func (s *partsGRPCServer) GetInventory(ctx context.Context, req *partsv1.GetInve
 
 // GetPart возвращает запчасть по ID
 func (s *partsGRPCServer) GetPart(ctx context.Context, req *partsv1.GetPartRequest) (*partsv1.Part, error) {
-	part, err := s.service.GetPartByID(ctx, int64(req.Id))
+	part, err := s.service.GetPartByID(ctx, req.GetId())
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "запчасть не найдена: %v", err)
 	}
-	return partToProto(part), nil
+	return part.ToProto(), nil
 }
 
 // DuplicatePart дублирует существующую запчасть без фото
 func (s *partsGRPCServer) DuplicatePart(ctx context.Context, req *partsv1.DuplicatePartRequest) (*partsv1.Part, error) {
-	part, err := s.service.DuplicatePart(ctx, int64(req.Id))
+	part, err := s.service.DuplicatePart(ctx, req.GetId())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "ошибка дублирования запчасти: %v", err)
 	}
-	return partToProto(part), nil
+	return part.ToProto(), nil
 }
 
 // DecreasePartQuantity уменьшает количество запчастей
 func (s *partsGRPCServer) DecreasePartQuantity(ctx context.Context, req *partsv1.ChangePartQuantityRequest) (*partsv1.ChangePartQuantityResponse, error) {
-	err := s.service.DecreasePartQuantity(ctx, int64(req.Id), int(req.Amount), req.OperationId)
+	err := s.service.DecreasePartQuantity(ctx, req.GetId(), int(req.GetAmount()), req.GetOperationId())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "ошибка уменьшения количества: %v", err)
 	}
 
-	part, err := s.service.GetPartByID(ctx, int64(req.Id))
+	part, err := s.service.GetPartByID(ctx, req.GetId())
 	if err != nil {
 		return &partsv1.ChangePartQuantityResponse{Success: true}, nil
 	}
@@ -147,12 +146,12 @@ func (s *partsGRPCServer) DecreasePartQuantity(ctx context.Context, req *partsv1
 
 // IncreasePartQuantity увеличивает количество запчастей
 func (s *partsGRPCServer) IncreasePartQuantity(ctx context.Context, req *partsv1.ChangePartQuantityRequest) (*partsv1.ChangePartQuantityResponse, error) {
-	err := s.service.IncreasePartQuantity(ctx, int64(req.Id), int(req.Amount), req.OperationId)
+	err := s.service.IncreasePartQuantity(ctx, req.GetId(), int(req.GetAmount()), req.GetOperationId())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "ошибка увеличения количества: %v", err)
 	}
 
-	part, err := s.service.GetPartByID(ctx, int64(req.Id))
+	part, err := s.service.GetPartByID(ctx, req.GetId())
 	if err != nil {
 		return &partsv1.ChangePartQuantityResponse{Success: true}, nil
 	}
@@ -174,7 +173,7 @@ func (s *partsGRPCServer) AddPart(ctx context.Context, req *partsv1.AddPartReque
 			Status:      req.Status,
 			Brand:       req.Brand,
 			Model:       req.Model,
-			SellerID:    int64(req.SellerId),
+			SellerID:    req.GetSellerId(),
 			VIN:         req.Vin,
 		},
 		PartSpecifications: domain.PartSpecifications{
@@ -257,7 +256,7 @@ func (s *partsGRPCServer) UpdatePart(ctx context.Context, req *partsv1.UpdatePar
 		updates["model"] = *req.Model
 	}
 	if req.SellerId != nil {
-		updates["seller_id"] = uint(*req.SellerId)
+		updates["seller_id"] = req.GetSellerId()
 	}
 	if req.Vin != nil {
 		updates["vin"] = *req.Vin
@@ -353,22 +352,22 @@ func (s *partsGRPCServer) UpdatePart(ctx context.Context, req *partsv1.UpdatePar
 		return nil, status.Errorf(codes.InvalidArgument, "нет полей для обновления")
 	}
 
-	if err := s.service.UpdatePart(ctx, int64(req.Id), updates); err != nil {
+	if err := s.service.UpdatePart(ctx, req.GetId(), updates); err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось обновить запчасть: %v", err)
 	}
 
 	// Возвращаем обновлённую запчасть
-	updated, err := s.service.GetPartByID(ctx, int64(req.Id))
+	updated, err := s.service.GetPartByID(ctx, req.GetId())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "запчасть обновлена, но не удалось получить результат: %v", err)
 	}
 
-	return partToProto(updated), nil
+	return updated.ToProto(), nil
 }
 
 // DeletePart удаляет запчасть
 func (s *partsGRPCServer) DeletePart(ctx context.Context, req *partsv1.DeletePartRequest) (*partsv1.DeletePartResponse, error) {
-	if err := s.service.DeletePart(ctx, int64(req.Id)); err != nil {
+	if err := s.service.DeletePart(ctx, req.GetId()); err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось удалить запчасть: %v", err)
 	}
 	return &partsv1.DeletePartResponse{}, nil
@@ -376,21 +375,21 @@ func (s *partsGRPCServer) DeletePart(ctx context.Context, req *partsv1.DeletePar
 
 // MarkPartForDeletion отмечает запчасть для отложенного удаления
 func (s *partsGRPCServer) MarkPartForDeletion(ctx context.Context, req *partsv1.MarkPartForDeletionRequest) (*partsv1.Part, error) {
-	if err := s.service.MarkPartForDeletion(ctx, int64(req.Id)); err != nil {
+	if err := s.service.MarkPartForDeletion(ctx, req.GetId()); err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось отметить запчасть для удаления: %v", err)
 	}
 
-	part, err := s.service.GetPartByID(ctx, int64(req.Id))
+	part, err := s.service.GetPartByID(ctx, req.GetId())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось получить запчасть: %v", err)
 	}
 
-	return partToProto(part), nil
+	return part.ToProto(), nil
 }
 
 // UploadPartPhoto — streaming upload фото
 func (s *partsGRPCServer) UploadPartPhoto(stream partsv1.PartsService_UploadPartPhotoServer) error {
-	var partID uint32
+	var partID int64
 	var fileData []byte
 
 	for {
@@ -401,7 +400,7 @@ func (s *partsGRPCServer) UploadPartPhoto(stream partsv1.PartsService_UploadPart
 		if err != nil {
 			return status.Errorf(codes.Internal, "ошибка чтения stream: %v", err)
 		}
-		partID = chunk.PartId
+		partID = chunk.GetPartId()
 		fileData = append(fileData, chunk.Data...)
 	}
 
@@ -410,26 +409,26 @@ func (s *partsGRPCServer) UploadPartPhoto(stream partsv1.PartsService_UploadPart
 	}
 
 	// Сохраняем файл
-	photoPath, err := s.service.SavePhotoFromBytes(stream.Context(), int64(partID), fileData)
+	photoPath, err := s.service.SavePhotoFromBytes(stream.Context(), partID, fileData)
 	if err != nil {
 		return status.Errorf(codes.Internal, "не удалось сохранить фото: %v", err)
 	}
 
 	// Получаем обновлённую запчасть
-	part, err := s.service.GetPartByID(stream.Context(), int64(partID))
+	part, err := s.service.GetPartByID(stream.Context(), partID)
 	if err != nil {
 		return status.Errorf(codes.Internal, "фото сохранено, но не удалось получить запчасть: %v", err)
 	}
 
 	return stream.SendAndClose(&partsv1.UploadPartPhotoResponse{
 		PhotoUrl: photoPath,
-		Part:     partToProto(part),
+		Part:     part.ToProto(),
 	})
 }
 
 // DeletePartPhoto удаляет фото запчасти
 func (s *partsGRPCServer) DeletePartPhoto(ctx context.Context, req *partsv1.DeletePartPhotoRequest) (*partsv1.DeletePartPhotoResponse, error) {
-	if err := s.service.DeletePartPhoto(ctx, int64(req.PartId), req.PhotoUrl); err != nil {
+	if err := s.service.DeletePartPhoto(ctx, req.GetPartId(), req.GetPhotoUrl()); err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось удалить фото: %v", err)
 	}
 	return &partsv1.DeletePartPhotoResponse{}, nil
@@ -500,7 +499,7 @@ func defectReportRequestFromProto(req *partsv1.CreateDefectReportRequest) catalo
 		Drive:             req.Drive,
 		CatalogVersion:    req.CatalogVersion,
 		SellerName:        req.Salesman,
-		SellerID:          int64(req.SellerId),
+		SellerID:          req.GetSellerId(),
 		SelectedParts:     make([]catalog.DefectReportPart, 0, len(req.SelectedParts)),
 	}
 
@@ -687,62 +686,7 @@ func (s *partsGRPCServer) DeleteZeroQuantityParts(ctx context.Context, req *part
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 func partToProto(p *domain.Part) *partsv1.Part {
-	proto := &partsv1.Part{
-		Id:          uint32(p.ID),
-		Name:        p.Name,
-		Quantity:    int32(p.Quantity),
-		Description: p.Description,
-		Category:    p.Category,
-		Price:       p.Price,
-		Salesman:    p.Salesman,
-		Location:    p.Location,
-		Address:     p.Address,
-		Status:      p.Status,
-		Brand:       p.Brand,
-		Model:       p.Model,
-		Photos:      []string(p.Photos),
-		SellerId:    uint32(p.SellerID),
-		Vin:         p.VIN,
-		// Specifications
-		BodyBrand:         p.BodyBrand,
-		EngineBrand:       p.EngineBrand,
-		CarReleaseDate:    p.CarReleaseDate,
-		CarReleasePeriod:  p.CarReleasePeriod,
-		FrontRear:         p.FrontRear,
-		LeftRight:         p.LeftRight,
-		TopBottom:         p.TopBottom,
-		Number:            p.Number,
-		Manufacturer:      p.Manufacturer,
-		ManufacturerCode:  p.ManufacturerCode,
-		OemCode:           p.OEMCode,
-		Color:             p.Color,
-		Condition:         p.Condition,
-		SupplierCode:      p.SupplierCode,
-		Defect:            p.Defect,
-		Transmission:      p.Transmission,
-		TransmissionModel: p.TransmissionModel,
-		Drive:             p.Drive,
-		WearPercentage:    p.WearPercentage,
-		// Tire
-		Season:             p.Season,
-		Diameter:           p.Diameter,
-		Width:              p.Width,
-		Profile:            p.Profile,
-		TireQuantity:       p.TireQuantity,
-		Drilling:           p.Drilling,
-		Offset:             p.Offset,
-		CenterHoleDiameter: p.CenterHoleDiameter,
-		TireModel:          p.TireModel,
-		// Display
-		ToDeleteAtFormatted: p.ToDeleteAtFormatted,
-		TimeUntilDeletion:   p.TimeUntilDeletion,
-	}
-
-	if p.ToDeleteAt != nil {
-		proto.ToDeleteAt = timestamppb.New(*p.ToDeleteAt)
-	}
-
-	return proto
+	return p.ToProto()
 }
 
 // ─── gRPC Server Startup ────────────────────────────────────────────────────

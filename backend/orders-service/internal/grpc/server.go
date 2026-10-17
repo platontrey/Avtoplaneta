@@ -13,7 +13,6 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	ordersv1 "avtoplaneta/gen/orders/v1"
 	"orders-service/internal/domain"
@@ -38,20 +37,20 @@ func NewOrdersGRPCServer(service service.OrdersService, publisher domain.EventPu
 // CreateOrder создаёт новый заказ
 func (s *ordersGRPCServer) CreateOrder(ctx context.Context, req *ordersv1.CreateOrderRequest) (*ordersv1.Order, error) {
 	createReq := domain.CreateOrderRequest{
-		CustomerID:  int64(req.CustomerId),
-		Part:        req.Part,
-		PartID:      int64(req.PartId),
-		BuyerNumber: req.BuyerNumber,
+		CustomerID:  req.GetCustomerId(),
+		Part:        req.GetPart(),
+		PartID:      req.GetPartId(),
+		BuyerNumber: req.GetBuyerNumber(),
 	}
 
-	for _, item := range req.Items {
+	for _, item := range req.GetItems() {
 		createReq.Items = append(createReq.Items, domain.CreateOrderItemInput{
-			PartID:   int64(item.PartId),
-			Quantity: int(item.Quantity),
+			PartID:   item.GetPartId(),
+			Quantity: int(item.GetQuantity()),
 		})
 	}
 
-	order, err := s.service.CreateOrder(ctx, createReq, int64(req.SellerId), "")
+	order, err := s.service.CreateOrder(ctx, createReq, req.GetSellerId(), "")
 	if err != nil {
 		if domain.IsValidationError(err) {
 			return nil, status.Errorf(codes.InvalidArgument, "%v", err)
@@ -59,7 +58,7 @@ func (s *ordersGRPCServer) CreateOrder(ctx context.Context, req *ordersv1.Create
 		return nil, status.Errorf(codes.Internal, "не удалось создать заказ: %v", err)
 	}
 
-	return orderToProto(order), nil
+	return order.ToProto(), nil
 }
 
 // GetOrders возвращает список заказов
@@ -70,8 +69,8 @@ func (s *ordersGRPCServer) GetOrders(ctx context.Context, req *ordersv1.GetOrder
 	}
 
 	protoOrders := make([]*ordersv1.Order, len(orders))
-	for i, o := range orders {
-		protoOrders[i] = orderToProto(&o)
+	for i := range orders {
+		protoOrders[i] = orders[i].ToProto()
 	}
 
 	return &ordersv1.OrderList{
@@ -82,31 +81,31 @@ func (s *ordersGRPCServer) GetOrders(ctx context.Context, req *ordersv1.GetOrder
 
 // UpdateOrderStatus обновляет статус заказа
 func (s *ordersGRPCServer) UpdateOrderStatus(ctx context.Context, req *ordersv1.UpdateOrderStatusRequest) (*ordersv1.Order, error) {
-	if err := s.service.UpdateOrderStatus(ctx, int64(req.Id), req.Status); err != nil {
+	if err := s.service.UpdateOrderStatus(ctx, req.GetId(), req.GetStatus()); err != nil {
 		if domain.IsValidationError(err) {
 			return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 		}
 		return nil, status.Errorf(codes.Internal, "не удалось обновить статус заказа: %v", err)
 	}
 
-	return &ordersv1.Order{Id: req.Id, Status: req.Status}, nil
+	return &ordersv1.Order{Id: req.GetId(), Status: req.GetStatus()}, nil
 }
 
 // CompleteOrder завершает заказ
 func (s *ordersGRPCServer) CompleteOrder(ctx context.Context, req *ordersv1.CompleteOrderRequest) (*ordersv1.Order, error) {
-	if err := s.service.CompleteOrder(ctx, int64(req.Id)); err != nil {
+	if err := s.service.CompleteOrder(ctx, req.GetId()); err != nil {
 		if domain.IsNotFoundError(err) {
 			return nil, status.Errorf(codes.NotFound, "%v", err)
 		}
 		return nil, status.Errorf(codes.Internal, "не удалось завершить заказ: %v", err)
 	}
 
-	return &ordersv1.Order{Id: req.Id, Status: "green"}, nil
+	return &ordersv1.Order{Id: req.GetId(), Status: "green"}, nil
 }
 
 // DeleteOrder удаляет заказ
 func (s *ordersGRPCServer) DeleteOrder(ctx context.Context, req *ordersv1.DeleteOrderRequest) (*ordersv1.DeleteOrderResponse, error) {
-	if err := s.service.DeleteOrder(ctx, int64(req.Id)); err != nil {
+	if err := s.service.DeleteOrder(ctx, req.GetId()); err != nil {
 		if domain.IsNotFoundError(err) {
 			return nil, status.Errorf(codes.NotFound, "%v", err)
 		}
@@ -119,18 +118,18 @@ func (s *ordersGRPCServer) DeleteOrder(ctx context.Context, req *ordersv1.Delete
 // AddOrderItem добавляет позицию в заказ
 func (s *ordersGRPCServer) AddOrderItem(ctx context.Context, req *ordersv1.AddOrderItemRequest) (*ordersv1.Order, error) {
 	addReq := domain.AddOrderItemRequest{
-		PartID:   int64(req.PartId),
-		Quantity: int(req.Quantity),
+		PartID:   req.GetPartId(),
+		Quantity: int(req.GetQuantity()),
 	}
 
-	if err := s.service.AddOrderItem(ctx, int64(req.OrderId), addReq); err != nil {
+	if err := s.service.AddOrderItem(ctx, req.GetOrderId(), addReq); err != nil {
 		if domain.IsNotFoundError(err) {
 			return nil, status.Errorf(codes.NotFound, "%v", err)
 		}
 		return nil, status.Errorf(codes.Internal, "не удалось добавить позицию: %v", err)
 	}
 
-	return &ordersv1.Order{Id: req.OrderId}, nil
+	return &ordersv1.Order{Id: req.GetOrderId()}, nil
 }
 
 // GetMonthlySales возвращает продажи по месяцам
@@ -154,34 +153,7 @@ func (s *ordersGRPCServer) GetMonthlySales(ctx context.Context, req *ordersv1.Ge
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 func orderToProto(o *domain.Order) *ordersv1.Order {
-	proto := &ordersv1.Order{
-		Id:                 uint32(o.ID),
-		CustomerId:         int32(o.CustomerID),
-		SellerId:           uint32(o.SellerID),
-		Seller:             o.Seller,
-		Part:               o.Part,
-		PartId:             uint32(o.PartID),
-		Location:           o.Location,
-		BuyerNumber:        o.BuyerNumber,
-		Status:             o.Status,
-		StatusText:         o.StatusText,
-		AutoDeleted:        o.AutoDeleted,
-		CreatedAt:          timestamppb.New(o.CreatedAt),
-		CreatedAtFormatted: o.CreatedAtFormatted,
-		TimeAgo:            o.TimeAgo,
-	}
-
-	for _, item := range o.Items {
-		proto.Items = append(proto.Items, &ordersv1.OrderItem{
-			Id:       uint32(item.ID),
-			OrderId:  uint32(item.OrderID),
-			PartId:   uint32(item.PartID),
-			Quantity: int32(item.Quantity),
-			Price:    item.Price,
-		})
-	}
-
-	return proto
+	return o.ToProto()
 }
 
 // ─── gRPC Server Startup ────────────────────────────────────────────────────

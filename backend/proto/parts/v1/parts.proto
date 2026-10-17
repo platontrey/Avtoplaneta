@@ -143,7 +143,7 @@ service PartsService {
 // ─── Part Model ─────────────────────────────────────────────────────────────
 
 message Part {
-  uint32 id = 1;
+  int64 id = 1;
   string name = 2;
   int32 quantity = 3;
   string description = 4;
@@ -155,7 +155,7 @@ message Part {
   string brand = 10;
   string model = 11;
   repeated string photos = 12;
-  uint32 seller_id = 13;
+  int64 seller_id = 13;
   google.protobuf.Timestamp to_delete_at = 14;
   string vin = 15;
   string address = 16;
@@ -254,15 +254,15 @@ message InventoryResponse {
 }
 
 message GetPartRequest {
-  uint32 id = 1;
+  int64 id = 1;
 }
 
 message DuplicatePartRequest {
-  uint32 id = 1;
+  int64 id = 1;
 }
 
 message ChangePartQuantityRequest {
-  uint32 id = 1;
+  int64 id = 1;
   int32 amount = 2;
   string operation_id = 3;
 }
@@ -285,7 +285,7 @@ message AddPartRequest {
   bool status = 8;
   string brand = 9;
   string model = 10;
-  uint32 seller_id = 11;
+  int64 seller_id = 11;
   string vin = 12;
   string address = 13;
 
@@ -323,7 +323,7 @@ message AddPartRequest {
 }
 
 message UpdatePartRequest {
-  uint32 id = 1;
+  int64 id = 1;
   // Все поля опциональные — обновляется только то, что передано
   optional string name = 2;
   optional int32 quantity = 3;
@@ -335,7 +335,7 @@ message UpdatePartRequest {
   optional bool status = 9;
   optional string brand = 10;
   optional string model = 11;
-  optional uint32 seller_id = 12;
+  optional int64 seller_id = 12;
   optional string vin = 13;
   optional string address = 14;
 
@@ -371,19 +371,19 @@ message UpdatePartRequest {
 }
 
 message DeletePartRequest {
-  uint32 id = 1;
+  int64 id = 1;
 }
 
 message DeletePartResponse {}
 
 message MarkPartForDeletionRequest {
-  uint32 id = 1;
+  int64 id = 1;
 }
 
 // ─── Photos ─────────────────────────────────────────────────────────────────
 
 message UploadPartPhotoChunk {
-  uint32 part_id = 1;
+  int64 part_id = 1;
   string filename = 2;
   string content_type = 3;
   bytes data = 4;
@@ -395,7 +395,7 @@ message UploadPartPhotoResponse {
 }
 
 message DeletePartPhotoRequest {
-  uint32 part_id = 1;
+  int64 part_id = 1;
   string photo_url = 2;
 }
 
@@ -485,7 +485,7 @@ message CreateDefectReportRequest {
   string mileage = 5;
   string description = 6;
   string salesman = 7;
-  uint32 seller_id = 8;
+  int64 seller_id = 8;
   repeated DefectReportPart selected_parts = 9;
   string car_release_period = 10;
   string engine_brand = 11;
@@ -542,7 +542,7 @@ message InventoryVersionResponse {
 // ─── Admin Bulk Operations ──────────────────────────────────────────────────
 
 message BulkDeletePartsRequest {
-  repeated uint32 ids = 1;
+  repeated int64 ids = 1;
   BulkUpdateScope scope = 2;
   bool confirm_entire_catalog = 3;
 }
@@ -582,12 +582,12 @@ enum BulkScopeType {
 
 message BulkUpdateScope {
   BulkScopeType type = 1;
-  repeated uint32 ids = 2;
+  repeated int64 ids = 2;
   GetInventoryRequest filter = 3;
 }
 
 message BulkUpdatePartData {
-  uint32 id = 1;
+  int64 id = 1;
   map<string, string> fields = 2;
 }
 

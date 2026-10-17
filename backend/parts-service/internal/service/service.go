@@ -844,12 +844,8 @@ func (s *inventoryService) resolvePartIDsFromFilter(ctx context.Context, f *part
 
 // BulkDeleteParts удаляет несколько запчастей с использованием worker pool для параллельной обработки
 func (s *inventoryService) BulkDeleteParts(ctx context.Context, ids []int64) error {
-	protoIds := make([]uint32, len(ids))
-	for i, id := range ids {
-		protoIds[i] = uint32(id)
-	}
 	_, err := s.BulkDeletePartsWithProto(ctx, &partsv1.BulkDeletePartsRequest{
-		Ids: protoIds,
+		Ids: ids,
 	})
 	return err
 }
@@ -872,15 +868,9 @@ func (s *inventoryService) BulkDeletePartsWithProto(ctx context.Context, req *pa
 		}
 		ids = resolved
 	} else if req.Scope != nil && (req.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_IDS || len(req.Scope.Ids) > 0) {
-		ids = make([]int64, len(req.Scope.Ids))
-		for i, id := range req.Scope.Ids {
-			ids[i] = int64(id)
-		}
+		ids = req.Scope.Ids
 	} else if len(req.Ids) > 0 {
-		ids = make([]int64, len(req.Ids))
-		for i, id := range req.Ids {
-			ids[i] = int64(id)
-		}
+		ids = req.Ids
 	}
 
 	if len(ids) == 0 {
@@ -983,10 +973,7 @@ func (s *inventoryService) BulkUpdateParts(ctx context.Context, req *partsv1.Bul
 					return 0, nil
 				}
 				req.Scope.Type = partsv1.BulkScopeType_BULK_SCOPE_TYPE_IDS
-				req.Scope.Ids = make([]uint32, len(resolvedIDs))
-				for i, id := range resolvedIDs {
-					req.Scope.Ids[i] = uint32(id)
-				}
+				req.Scope.Ids = resolvedIDs
 			}
 		}
 
@@ -1011,8 +998,8 @@ func (s *inventoryService) BulkUpdateParts(ctx context.Context, req *partsv1.Bul
 		ids := make([]int64, len(req.Parts))
 		for i, p := range req.Parts {
 			m := make(map[string]interface{})
-			m["id"] = int64(p.Id)
-			ids[i] = int64(p.Id)
+			m["id"] = p.Id
+			ids[i] = p.Id
 			for k, v := range p.Fields {
 				m[k] = v
 			}

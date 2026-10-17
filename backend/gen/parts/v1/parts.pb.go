@@ -126,7 +126,7 @@ func (BulkScopeType) EnumDescriptor() ([]byte, []int) {
 
 type Part struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
-	Id          uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id          int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name        string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Quantity    int32                  `protobuf:"varint,3,opt,name=quantity,proto3" json:"quantity,omitempty"`
 	Description string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
@@ -138,7 +138,7 @@ type Part struct {
 	Brand       string                 `protobuf:"bytes,10,opt,name=brand,proto3" json:"brand,omitempty"`
 	Model       string                 `protobuf:"bytes,11,opt,name=model,proto3" json:"model,omitempty"`
 	Photos      []string               `protobuf:"bytes,12,rep,name=photos,proto3" json:"photos,omitempty"`
-	SellerId    uint32                 `protobuf:"varint,13,opt,name=seller_id,json=sellerId,proto3" json:"seller_id,omitempty"`
+	SellerId    int64                  `protobuf:"varint,13,opt,name=seller_id,json=sellerId,proto3" json:"seller_id,omitempty"`
 	ToDeleteAt  *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=to_delete_at,json=toDeleteAt,proto3" json:"to_delete_at,omitempty"`
 	Vin         string                 `protobuf:"bytes,15,opt,name=vin,proto3" json:"vin,omitempty"`
 	Address     string                 `protobuf:"bytes,16,opt,name=address,proto3" json:"address,omitempty"`
@@ -209,7 +209,7 @@ func (*Part) Descriptor() ([]byte, []int) {
 	return file_parts_v1_parts_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Part) GetId() uint32 {
+func (x *Part) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -293,7 +293,7 @@ func (x *Part) GetPhotos() []string {
 	return nil
 }
 
-func (x *Part) GetSellerId() uint32 {
+func (x *Part) GetSellerId() int64 {
 	if x != nil {
 		return x.SellerId
 	}
@@ -989,7 +989,7 @@ func (x *InventoryResponse) GetLimit() int32 {
 
 type GetPartRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1024,7 +1024,7 @@ func (*GetPartRequest) Descriptor() ([]byte, []int) {
 	return file_parts_v1_parts_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GetPartRequest) GetId() uint32 {
+func (x *GetPartRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -1033,7 +1033,7 @@ func (x *GetPartRequest) GetId() uint32 {
 
 type DuplicatePartRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1068,7 +1068,7 @@ func (*DuplicatePartRequest) Descriptor() ([]byte, []int) {
 	return file_parts_v1_parts_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *DuplicatePartRequest) GetId() uint32 {
+func (x *DuplicatePartRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -1077,7 +1077,7 @@ func (x *DuplicatePartRequest) GetId() uint32 {
 
 type ChangePartQuantityRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	Amount        int32                  `protobuf:"varint,2,opt,name=amount,proto3" json:"amount,omitempty"`
 	OperationId   string                 `protobuf:"bytes,3,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1114,7 +1114,7 @@ func (*ChangePartQuantityRequest) Descriptor() ([]byte, []int) {
 	return file_parts_v1_parts_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *ChangePartQuantityRequest) GetId() uint32 {
+func (x *ChangePartQuantityRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -1199,7 +1199,7 @@ type AddPartRequest struct {
 	Status      bool                   `protobuf:"varint,8,opt,name=status,proto3" json:"status,omitempty"`
 	Brand       string                 `protobuf:"bytes,9,opt,name=brand,proto3" json:"brand,omitempty"`
 	Model       string                 `protobuf:"bytes,10,opt,name=model,proto3" json:"model,omitempty"`
-	SellerId    uint32                 `protobuf:"varint,11,opt,name=seller_id,json=sellerId,proto3" json:"seller_id,omitempty"`
+	SellerId    int64                  `protobuf:"varint,11,opt,name=seller_id,json=sellerId,proto3" json:"seller_id,omitempty"`
 	Vin         string                 `protobuf:"bytes,12,opt,name=vin,proto3" json:"vin,omitempty"`
 	Address     string                 `protobuf:"bytes,13,opt,name=address,proto3" json:"address,omitempty"`
 	// Specifications
@@ -1336,7 +1336,7 @@ func (x *AddPartRequest) GetModel() string {
 	return ""
 }
 
-func (x *AddPartRequest) GetSellerId() uint32 {
+func (x *AddPartRequest) GetSellerId() int64 {
 	if x != nil {
 		return x.SellerId
 	}
@@ -1555,7 +1555,7 @@ func (x *AddPartRequest) GetTireModel() string {
 
 type UpdatePartRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	Id    uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id    int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Все поля опциональные — обновляется только то, что передано
 	Name               *string  `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
 	Quantity           *int32   `protobuf:"varint,3,opt,name=quantity,proto3,oneof" json:"quantity,omitempty"`
@@ -1567,7 +1567,7 @@ type UpdatePartRequest struct {
 	Status             *bool    `protobuf:"varint,9,opt,name=status,proto3,oneof" json:"status,omitempty"`
 	Brand              *string  `protobuf:"bytes,10,opt,name=brand,proto3,oneof" json:"brand,omitempty"`
 	Model              *string  `protobuf:"bytes,11,opt,name=model,proto3,oneof" json:"model,omitempty"`
-	SellerId           *uint32  `protobuf:"varint,12,opt,name=seller_id,json=sellerId,proto3,oneof" json:"seller_id,omitempty"`
+	SellerId           *int64   `protobuf:"varint,12,opt,name=seller_id,json=sellerId,proto3,oneof" json:"seller_id,omitempty"`
 	Vin                *string  `protobuf:"bytes,13,opt,name=vin,proto3,oneof" json:"vin,omitempty"`
 	Address            *string  `protobuf:"bytes,14,opt,name=address,proto3,oneof" json:"address,omitempty"`
 	BodyBrand          *string  `protobuf:"bytes,20,opt,name=body_brand,json=bodyBrand,proto3,oneof" json:"body_brand,omitempty"`
@@ -1632,7 +1632,7 @@ func (*UpdatePartRequest) Descriptor() ([]byte, []int) {
 	return file_parts_v1_parts_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *UpdatePartRequest) GetId() uint32 {
+func (x *UpdatePartRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -1709,7 +1709,7 @@ func (x *UpdatePartRequest) GetModel() string {
 	return ""
 }
 
-func (x *UpdatePartRequest) GetSellerId() uint32 {
+func (x *UpdatePartRequest) GetSellerId() int64 {
 	if x != nil && x.SellerId != nil {
 		return *x.SellerId
 	}
@@ -1928,7 +1928,7 @@ func (x *UpdatePartRequest) GetTireModel() string {
 
 type DeletePartRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1963,7 +1963,7 @@ func (*DeletePartRequest) Descriptor() ([]byte, []int) {
 	return file_parts_v1_parts_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *DeletePartRequest) GetId() uint32 {
+func (x *DeletePartRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -2008,7 +2008,7 @@ func (*DeletePartResponse) Descriptor() ([]byte, []int) {
 
 type MarkPartForDeletionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2043,7 +2043,7 @@ func (*MarkPartForDeletionRequest) Descriptor() ([]byte, []int) {
 	return file_parts_v1_parts_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *MarkPartForDeletionRequest) GetId() uint32 {
+func (x *MarkPartForDeletionRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -2052,7 +2052,7 @@ func (x *MarkPartForDeletionRequest) GetId() uint32 {
 
 type UploadPartPhotoChunk struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	PartId        uint32                 `protobuf:"varint,1,opt,name=part_id,json=partId,proto3" json:"part_id,omitempty"`
+	PartId        int64                  `protobuf:"varint,1,opt,name=part_id,json=partId,proto3" json:"part_id,omitempty"`
 	Filename      string                 `protobuf:"bytes,2,opt,name=filename,proto3" json:"filename,omitempty"`
 	ContentType   string                 `protobuf:"bytes,3,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
 	Data          []byte                 `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
@@ -2090,7 +2090,7 @@ func (*UploadPartPhotoChunk) Descriptor() ([]byte, []int) {
 	return file_parts_v1_parts_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *UploadPartPhotoChunk) GetPartId() uint32 {
+func (x *UploadPartPhotoChunk) GetPartId() int64 {
 	if x != nil {
 		return x.PartId
 	}
@@ -2172,7 +2172,7 @@ func (x *UploadPartPhotoResponse) GetPart() *Part {
 
 type DeletePartPhotoRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	PartId        uint32                 `protobuf:"varint,1,opt,name=part_id,json=partId,proto3" json:"part_id,omitempty"`
+	PartId        int64                  `protobuf:"varint,1,opt,name=part_id,json=partId,proto3" json:"part_id,omitempty"`
 	PhotoUrl      string                 `protobuf:"bytes,2,opt,name=photo_url,json=photoUrl,proto3" json:"photo_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2208,7 +2208,7 @@ func (*DeletePartPhotoRequest) Descriptor() ([]byte, []int) {
 	return file_parts_v1_parts_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *DeletePartPhotoRequest) GetPartId() uint32 {
+func (x *DeletePartPhotoRequest) GetPartId() int64 {
 	if x != nil {
 		return x.PartId
 	}
@@ -2935,7 +2935,7 @@ type CreateDefectReportRequest struct {
 	Mileage           string                 `protobuf:"bytes,5,opt,name=mileage,proto3" json:"mileage,omitempty"`
 	Description       string                 `protobuf:"bytes,6,opt,name=description,proto3" json:"description,omitempty"`
 	Salesman          string                 `protobuf:"bytes,7,opt,name=salesman,proto3" json:"salesman,omitempty"`
-	SellerId          uint32                 `protobuf:"varint,8,opt,name=seller_id,json=sellerId,proto3" json:"seller_id,omitempty"`
+	SellerId          int64                  `protobuf:"varint,8,opt,name=seller_id,json=sellerId,proto3" json:"seller_id,omitempty"`
 	SelectedParts     []*DefectReportPart    `protobuf:"bytes,9,rep,name=selected_parts,json=selectedParts,proto3" json:"selected_parts,omitempty"`
 	CarReleasePeriod  string                 `protobuf:"bytes,10,opt,name=car_release_period,json=carReleasePeriod,proto3" json:"car_release_period,omitempty"`
 	EngineBrand       string                 `protobuf:"bytes,11,opt,name=engine_brand,json=engineBrand,proto3" json:"engine_brand,omitempty"`
@@ -3029,7 +3029,7 @@ func (x *CreateDefectReportRequest) GetSalesman() string {
 	return ""
 }
 
-func (x *CreateDefectReportRequest) GetSellerId() uint32 {
+func (x *CreateDefectReportRequest) GetSellerId() int64 {
 	if x != nil {
 		return x.SellerId
 	}
@@ -3512,7 +3512,7 @@ func (x *InventoryVersionResponse) GetVersion() string {
 
 type BulkDeletePartsRequest struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
-	Ids                  []uint32               `protobuf:"varint,1,rep,packed,name=ids,proto3" json:"ids,omitempty"`
+	Ids                  []int64                `protobuf:"varint,1,rep,packed,name=ids,proto3" json:"ids,omitempty"`
 	Scope                *BulkUpdateScope       `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
 	ConfirmEntireCatalog bool                   `protobuf:"varint,3,opt,name=confirm_entire_catalog,json=confirmEntireCatalog,proto3" json:"confirm_entire_catalog,omitempty"`
 	unknownFields        protoimpl.UnknownFields
@@ -3549,7 +3549,7 @@ func (*BulkDeletePartsRequest) Descriptor() ([]byte, []int) {
 	return file_parts_v1_parts_proto_rawDescGZIP(), []int{30}
 }
 
-func (x *BulkDeletePartsRequest) GetIds() []uint32 {
+func (x *BulkDeletePartsRequest) GetIds() []int64 {
 	if x != nil {
 		return x.Ids
 	}
@@ -3769,7 +3769,7 @@ func (x *BulkFieldOperations) GetEngineBrand() string {
 type BulkUpdateScope struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Type          BulkScopeType          `protobuf:"varint,1,opt,name=type,proto3,enum=parts.v1.BulkScopeType" json:"type,omitempty"`
-	Ids           []uint32               `protobuf:"varint,2,rep,packed,name=ids,proto3" json:"ids,omitempty"`
+	Ids           []int64                `protobuf:"varint,2,rep,packed,name=ids,proto3" json:"ids,omitempty"`
 	Filter        *GetInventoryRequest   `protobuf:"bytes,3,opt,name=filter,proto3" json:"filter,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3812,7 +3812,7 @@ func (x *BulkUpdateScope) GetType() BulkScopeType {
 	return BulkScopeType_BULK_SCOPE_TYPE_UNSPECIFIED
 }
 
-func (x *BulkUpdateScope) GetIds() []uint32 {
+func (x *BulkUpdateScope) GetIds() []int64 {
 	if x != nil {
 		return x.Ids
 	}
@@ -3828,7 +3828,7 @@ func (x *BulkUpdateScope) GetFilter() *GetInventoryRequest {
 
 type BulkUpdatePartData struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	Fields        map[string]string      `protobuf:"bytes,2,rep,name=fields,proto3" json:"fields,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3864,7 +3864,7 @@ func (*BulkUpdatePartData) Descriptor() ([]byte, []int) {
 	return file_parts_v1_parts_proto_rawDescGZIP(), []int{35}
 }
 
-func (x *BulkUpdatePartData) GetId() uint32 {
+func (x *BulkUpdatePartData) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -4164,7 +4164,7 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\n" +
 	"\x14parts/v1/parts.proto\x12\bparts.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/api/annotations.proto\"\xa6\v\n" +
 	"\x04Part\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\rR\x02id\x12\x12\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
 	"\bquantity\x18\x03 \x01(\x05R\bquantity\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1a\n" +
@@ -4177,7 +4177,7 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	" \x01(\tR\x05brand\x12\x14\n" +
 	"\x05model\x18\v \x01(\tR\x05model\x12\x16\n" +
 	"\x06photos\x18\f \x03(\tR\x06photos\x12\x1b\n" +
-	"\tseller_id\x18\r \x01(\rR\bsellerId\x12<\n" +
+	"\tseller_id\x18\r \x01(\x03R\bsellerId\x12<\n" +
 	"\fto_delete_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"toDeleteAt\x12\x10\n" +
 	"\x03vin\x18\x0f \x01(\tR\x03vin\x12\x18\n" +
@@ -4275,11 +4275,11 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x04page\x18\x03 \x01(\x05R\x04page\x12\x14\n" +
 	"\x05limit\x18\x04 \x01(\x05R\x05limit\" \n" +
 	"\x0eGetPartRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\rR\x02id\"&\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"&\n" +
 	"\x14DuplicatePartRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\rR\x02id\"f\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"f\n" +
 	"\x19ChangePartQuantityRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\rR\x02id\x12\x16\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x16\n" +
 	"\x06amount\x18\x02 \x01(\x05R\x06amount\x12!\n" +
 	"\foperation_id\x18\x03 \x01(\tR\voperationId\"Y\n" +
 	"\x1aChangePartQuantityResponse\x12\x18\n" +
@@ -4297,7 +4297,7 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x05brand\x18\t \x01(\tR\x05brand\x12\x14\n" +
 	"\x05model\x18\n" +
 	" \x01(\tR\x05model\x12\x1b\n" +
-	"\tseller_id\x18\v \x01(\rR\bsellerId\x12\x10\n" +
+	"\tseller_id\x18\v \x01(\x03R\bsellerId\x12\x10\n" +
 	"\x03vin\x18\f \x01(\tR\x03vin\x12\x18\n" +
 	"\aaddress\x18\r \x01(\tR\aaddress\x12\x1d\n" +
 	"\n" +
@@ -4334,7 +4334,7 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\n" +
 	"tire_model\x180 \x01(\tR\ttireModel\"\x90\x10\n" +
 	"\x11UpdatePartRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\rR\x02id\x12\x17\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12\x1f\n" +
 	"\bquantity\x18\x03 \x01(\x05H\x01R\bquantity\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\x04 \x01(\tH\x02R\vdescription\x88\x01\x01\x12\x1f\n" +
@@ -4346,7 +4346,7 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x05brand\x18\n" +
 	" \x01(\tH\bR\x05brand\x88\x01\x01\x12\x19\n" +
 	"\x05model\x18\v \x01(\tH\tR\x05model\x88\x01\x01\x12 \n" +
-	"\tseller_id\x18\f \x01(\rH\n" +
+	"\tseller_id\x18\f \x01(\x03H\n" +
 	"R\bsellerId\x88\x01\x01\x12\x15\n" +
 	"\x03vin\x18\r \x01(\tH\vR\x03vin\x88\x01\x01\x12\x1d\n" +
 	"\aaddress\x18\x0e \x01(\tH\fR\aaddress\x88\x01\x01\x12\"\n" +
@@ -4429,12 +4429,12 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x15_center_hole_diameterB\r\n" +
 	"\v_tire_model\"#\n" +
 	"\x11DeletePartRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\rR\x02id\"\x14\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\x14\n" +
 	"\x12DeletePartResponse\",\n" +
 	"\x1aMarkPartForDeletionRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\rR\x02id\"\x82\x01\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\x82\x01\n" +
 	"\x14UploadPartPhotoChunk\x12\x17\n" +
-	"\apart_id\x18\x01 \x01(\rR\x06partId\x12\x1a\n" +
+	"\apart_id\x18\x01 \x01(\x03R\x06partId\x12\x1a\n" +
 	"\bfilename\x18\x02 \x01(\tR\bfilename\x12!\n" +
 	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\x12\x12\n" +
 	"\x04data\x18\x04 \x01(\fR\x04data\"Z\n" +
@@ -4442,7 +4442,7 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\tphoto_url\x18\x01 \x01(\tR\bphotoUrl\x12\"\n" +
 	"\x04part\x18\x02 \x01(\v2\x0e.parts.v1.PartR\x04part\"N\n" +
 	"\x16DeletePartPhotoRequest\x12\x17\n" +
-	"\apart_id\x18\x01 \x01(\rR\x06partId\x12\x1b\n" +
+	"\apart_id\x18\x01 \x01(\x03R\x06partId\x12\x1b\n" +
 	"\tphoto_url\x18\x02 \x01(\tR\bphotoUrl\"\x19\n" +
 	"\x17DeletePartPhotoResponse\"\x16\n" +
 	"\x14GetStatisticsRequest\"9\n" +
@@ -4523,7 +4523,7 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\amileage\x18\x05 \x01(\tR\amileage\x12 \n" +
 	"\vdescription\x18\x06 \x01(\tR\vdescription\x12\x1a\n" +
 	"\bsalesman\x18\a \x01(\tR\bsalesman\x12\x1b\n" +
-	"\tseller_id\x18\b \x01(\rR\bsellerId\x12A\n" +
+	"\tseller_id\x18\b \x01(\x03R\bsellerId\x12A\n" +
 	"\x0eselected_parts\x18\t \x03(\v2\x1a.parts.v1.DefectReportPartR\rselectedParts\x12,\n" +
 	"\x12car_release_period\x18\n" +
 	" \x01(\tR\x10carReleasePeriod\x12!\n" +
@@ -4570,7 +4570,7 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x18InventoryVersionResponse\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\"\x91\x01\n" +
 	"\x16BulkDeletePartsRequest\x12\x10\n" +
-	"\x03ids\x18\x01 \x03(\rR\x03ids\x12/\n" +
+	"\x03ids\x18\x01 \x03(\x03R\x03ids\x12/\n" +
 	"\x05scope\x18\x02 \x01(\v2\x19.parts.v1.BulkUpdateScopeR\x05scope\x124\n" +
 	"\x16confirm_entire_catalog\x18\x03 \x01(\bR\x14confirmEntireCatalog\">\n" +
 	"\x17BulkDeletePartsResponse\x12#\n" +
@@ -4598,10 +4598,10 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\r_engine_brand\"\x87\x01\n" +
 	"\x0fBulkUpdateScope\x12+\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x17.parts.v1.BulkScopeTypeR\x04type\x12\x10\n" +
-	"\x03ids\x18\x02 \x03(\rR\x03ids\x125\n" +
+	"\x03ids\x18\x02 \x03(\x03R\x03ids\x125\n" +
 	"\x06filter\x18\x03 \x01(\v2\x1d.parts.v1.GetInventoryRequestR\x06filter\"\xa1\x01\n" +
 	"\x12BulkUpdatePartData\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\rR\x02id\x12@\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12@\n" +
 	"\x06fields\x18\x02 \x03(\v2(.parts.v1.BulkUpdatePartData.FieldsEntryR\x06fields\x1a9\n" +
 	"\vFieldsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +

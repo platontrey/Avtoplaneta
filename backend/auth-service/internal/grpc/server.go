@@ -16,7 +16,6 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	authv1 "avtoplaneta/gen/auth/v1"
 
@@ -63,7 +62,7 @@ func (s *AuthGRPCServer) ValidateSession(ctx context.Context, req *authv1.Valida
 		}
 		return &authv1.ValidateSessionResponse{
 			Valid: true,
-			User:  userToProto(user),
+			User:  user.ToProto(),
 		}, nil
 	}
 
@@ -78,7 +77,7 @@ func (s *AuthGRPCServer) ValidateSession(ctx context.Context, req *authv1.Valida
 		}
 		return &authv1.ValidateSessionResponse{
 			Valid: true,
-			User:  userToProto(user),
+			User:  user.ToProto(),
 		}, nil
 	}
 
@@ -86,11 +85,11 @@ func (s *AuthGRPCServer) ValidateSession(ctx context.Context, req *authv1.Valida
 }
 
 func (s *AuthGRPCServer) GetUser(ctx context.Context, req *authv1.GetUserRequest) (*authv1.User, error) {
-	user, err := s.authService.GetCurrentUser(int64(req.Id))
+	user, err := s.authService.GetCurrentUser(req.GetId())
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "пользователь не найден: %v", err)
 	}
-	return userToProto(user), nil
+	return user.ToProto(), nil
 }
 
 func (s *AuthGRPCServer) GetUsers(ctx context.Context, req *authv1.GetUsersRequest) (*authv1.UserList, error) {
@@ -101,82 +100,52 @@ func (s *AuthGRPCServer) GetUsers(ctx context.Context, req *authv1.GetUsersReque
 
 	protoUsers := make([]*authv1.User, len(users))
 	for i, u := range users {
-		protoUsers[i] = &authv1.User{
-			Id:       uint32(u.ID),
-			Username: u.Username,
-			Email:    u.Email,
-			Name:     u.Name,
-			Role:     u.Role,
-			Initials: u.Initials,
-			Inn:      u.INN,
-			Provider: u.Provider,
-		}
+		protoUsers[i] = u.ToProto()
 	}
 
 	return &authv1.UserList{Users: protoUsers}, nil
 }
 
 func (s *AuthGRPCServer) CreateUser(ctx context.Context, req *authv1.CreateUserRequest) (*authv1.User, error) {
-	createReq := domain.CreateUserRequest{
-		Username: req.Username,
-		Email:    req.Email,
-		Name:     req.Name,
-		Password: req.Password,
-		Role:     req.Role,
-		Initials: req.Initials,
-		INN:      req.Inn,
-		AvatarURL: req.AvatarUrl,
-	}
-
-	user, err := s.authService.CreateUser(createReq)
+	user, err := s.authService.CreateUser(domain.UserFromCreateProto(req))
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	return userToProto(user), nil
+	return user.ToProto(), nil
 }
 
 func (s *AuthGRPCServer) UpdateUser(ctx context.Context, req *authv1.UpdateUserRequest) (*authv1.User, error) {
-	updateReq := domain.UpdateUserRequest{
-		Username: req.Username,
-		Name:     req.Name,
-		Email:    req.Email,
-		Role:     req.Role,
-		Initials: req.Initials,
-		INN:      req.Inn,
-		AvatarURL: req.AvatarUrl,
-	}
-
-	user, err := s.authService.UpdateUser(int64(req.Id), updateReq)
+	user, err := s.authService.UpdateUser(req.GetId(), domain.UserFromUpdateProto(req))
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	return userToProto(user), nil
+	return user.ToProto(), nil
 }
 
 func (s *AuthGRPCServer) DeleteUser(ctx context.Context, req *authv1.DeleteUserRequest) (*authv1.DeleteUserResponse, error) {
-	if err := s.authService.DeleteUser(int64(req.Id)); err != nil {
+	if err := s.authService.DeleteUser(req.GetId()); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 	return &authv1.DeleteUserResponse{}, nil
 }
 
 func (s *AuthGRPCServer) LogActivity(ctx context.Context, req *authv1.LogActivityRequest) (*authv1.LogActivityResponse, error) {
-	user, err := s.authService.GetCurrentUser(int64(req.UserId))
+	user, err := s.authService.GetCurrentUser(req.GetUserId())
 	if err != nil {
 		user = &domain.User{
-			ID:    int64(req.UserId),
-			Name:  req.UserName,
-			Email: req.UserEmail,
+			ID:    req.GetUserId(),
+			Name:  req.GetUserName(),
+			Email: req.GetUserEmail(),
 		}
 	}
 
 	var resourceID *int64
-	if req.ResourceId != 0 {
-		rid := int64(req.ResourceId)
+	if req.GetResourceId() != 0 {
+		rid := req.GetResourceId()
 		resourceID = &rid
 	}
 
-	if err := s.authService.LogUserActivity(user, req.Action, req.ResourceType, resourceID, req.Details, req.IpAddress, req.UserAgent); err != nil {
+	if err := s.authService.LogUserActivity(user, req.GetAction(), req.GetResourceType(), resourceID, req.GetDetails(), req.GetIpAddress(), req.GetUserAgent()); err != nil {
 		logrus.WithError(err).Warn("Failed to log activity via gRPC")
 	}
 
@@ -185,22 +154,22 @@ func (s *AuthGRPCServer) LogActivity(ctx context.Context, req *authv1.LogActivit
 
 func (s *AuthGRPCServer) GetActivityLogs(ctx context.Context, req *authv1.GetActivityLogsRequest) (*authv1.ActivityLogList, error) {
 	filters := domain.ActivityLogFilters{
-		Action:       req.Action,
-		ResourceType: req.ResourceType,
-		Limit:        int(req.Limit),
-		Offset:       int(req.Offset),
+		Action:       req.GetAction(),
+		ResourceType: req.GetResourceType(),
+		Limit:        int(req.GetLimit()),
+		Offset:       int(req.GetOffset()),
 	}
 
-	if req.UserId != 0 {
-		uid := int64(req.UserId)
+	if req.GetUserId() != 0 {
+		uid := req.GetUserId()
 		filters.UserID = &uid
 	}
-	if req.StartDate != nil {
-		t := req.StartDate.AsTime()
+	if req.GetStartDate() != nil {
+		t := req.GetStartDate().AsTime()
 		filters.StartDate = &t
 	}
-	if req.EndDate != nil {
-		t := req.EndDate.AsTime()
+	if req.GetEndDate() != nil {
+		t := req.GetEndDate().AsTime()
 		filters.EndDate = &t
 	}
 
@@ -215,22 +184,7 @@ func (s *AuthGRPCServer) GetActivityLogs(ctx context.Context, req *authv1.GetAct
 
 	protoLogs := make([]*authv1.ActivityLog, len(logs))
 	for i, l := range logs {
-		protoLog := &authv1.ActivityLog{
-			Id:           uint32(l.ID),
-			UserId:       uint32(l.UserID),
-			UserName:     l.UserName,
-			UserEmail:    l.UserEmail,
-			Action:       l.Action,
-			ResourceType: l.ResourceType,
-			Details:      l.Details,
-			IpAddress:    l.IPAddress,
-			UserAgent:    l.UserAgent,
-			CreatedAt:    timestamppb.New(l.CreatedAt),
-		}
-		if l.ResourceID != nil {
-			protoLog.ResourceId = uint32(*l.ResourceID)
-		}
-		protoLogs[i] = protoLog
+		protoLogs[i] = l.ToProto()
 	}
 
 	return &authv1.ActivityLogList{
@@ -273,20 +227,6 @@ func (s *AuthGRPCServer) GetServerLogs(ctx context.Context, req *authv1.GetServe
 		},
 	}
 	return &authv1.ServerLogsResponse{Logs: logs}, nil
-}
-
-func userToProto(u *domain.User) *authv1.User {
-	return &authv1.User{
-		Id:       uint32(u.ID),
-		Username: u.Username,
-		Email:    u.Email,
-		Name:     u.Name,
-		Role:     u.Role,
-		Initials:  u.Initials,
-		Inn:       u.INN,
-		Provider:  u.Provider,
-		AvatarUrl: u.AvatarURL,
-	}
 }
 
 // NewGRPCServer создает настроенный gRPC сервер

@@ -129,7 +129,7 @@ func (x *ValidateSessionResponse) GetUser() *User {
 
 type User struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	Email         string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Role          string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
@@ -172,7 +172,7 @@ func (*User) Descriptor() ([]byte, []int) {
 	return file_auth_v1_auth_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *User) GetId() uint32 {
+func (x *User) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -281,7 +281,7 @@ func (x *UserList) GetUsers() []*User {
 
 type GetUserRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -316,7 +316,7 @@ func (*GetUserRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_auth_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *GetUserRequest) GetId() uint32 {
+func (x *GetUserRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -461,7 +461,7 @@ func (x *CreateUserRequest) GetAvatarUrl() string {
 
 type UpdateUserRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Email         string                 `protobuf:"bytes,3,opt,name=email,proto3" json:"email,omitempty"`
 	Role          string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
@@ -503,7 +503,7 @@ func (*UpdateUserRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_auth_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *UpdateUserRequest) GetId() uint32 {
+func (x *UpdateUserRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -561,7 +561,7 @@ func (x *UpdateUserRequest) GetAvatarUrl() string {
 
 type DeleteUserRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -596,7 +596,7 @@ func (*DeleteUserRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_auth_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *DeleteUserRequest) GetId() uint32 {
+func (x *DeleteUserRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -641,12 +641,12 @@ func (*DeleteUserResponse) Descriptor() ([]byte, []int) {
 
 type LogActivityRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        uint32                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	UserName      string                 `protobuf:"bytes,2,opt,name=user_name,json=userName,proto3" json:"user_name,omitempty"`
 	UserEmail     string                 `protobuf:"bytes,3,opt,name=user_email,json=userEmail,proto3" json:"user_email,omitempty"`
 	Action        string                 `protobuf:"bytes,4,opt,name=action,proto3" json:"action,omitempty"`
 	ResourceType  string                 `protobuf:"bytes,5,opt,name=resource_type,json=resourceType,proto3" json:"resource_type,omitempty"`
-	ResourceId    uint32                 `protobuf:"varint,6,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ResourceId    int64                  `protobuf:"varint,6,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	Details       string                 `protobuf:"bytes,7,opt,name=details,proto3" json:"details,omitempty"`
 	IpAddress     string                 `protobuf:"bytes,8,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
 	UserAgent     string                 `protobuf:"bytes,9,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
@@ -684,7 +684,7 @@ func (*LogActivityRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_auth_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *LogActivityRequest) GetUserId() uint32 {
+func (x *LogActivityRequest) GetUserId() int64 {
 	if x != nil {
 		return x.UserId
 	}
@@ -719,7 +719,7 @@ func (x *LogActivityRequest) GetResourceType() string {
 	return ""
 }
 
-func (x *LogActivityRequest) GetResourceId() uint32 {
+func (x *LogActivityRequest) GetResourceId() int64 {
 	if x != nil {
 		return x.ResourceId
 	}
@@ -785,7 +785,7 @@ func (*LogActivityResponse) Descriptor() ([]byte, []int) {
 
 type GetActivityLogsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        uint32                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Action        string                 `protobuf:"bytes,2,opt,name=action,proto3" json:"action,omitempty"`
 	ResourceType  string                 `protobuf:"bytes,3,opt,name=resource_type,json=resourceType,proto3" json:"resource_type,omitempty"`
 	StartDate     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=start_date,json=startDate,proto3" json:"start_date,omitempty"`
@@ -826,7 +826,7 @@ func (*GetActivityLogsRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_auth_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *GetActivityLogsRequest) GetUserId() uint32 {
+func (x *GetActivityLogsRequest) GetUserId() int64 {
 	if x != nil {
 		return x.UserId
 	}
@@ -877,13 +877,13 @@ func (x *GetActivityLogsRequest) GetOffset() int32 {
 
 type ActivityLog struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	UserId        uint32                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	UserId        int64                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	UserName      string                 `protobuf:"bytes,3,opt,name=user_name,json=userName,proto3" json:"user_name,omitempty"`
 	UserEmail     string                 `protobuf:"bytes,4,opt,name=user_email,json=userEmail,proto3" json:"user_email,omitempty"`
 	Action        string                 `protobuf:"bytes,5,opt,name=action,proto3" json:"action,omitempty"`
 	ResourceType  string                 `protobuf:"bytes,6,opt,name=resource_type,json=resourceType,proto3" json:"resource_type,omitempty"`
-	ResourceId    uint32                 `protobuf:"varint,7,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ResourceId    int64                  `protobuf:"varint,7,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	Details       string                 `protobuf:"bytes,8,opt,name=details,proto3" json:"details,omitempty"`
 	IpAddress     string                 `protobuf:"bytes,9,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
 	UserAgent     string                 `protobuf:"bytes,10,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
@@ -922,14 +922,14 @@ func (*ActivityLog) Descriptor() ([]byte, []int) {
 	return file_auth_v1_auth_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *ActivityLog) GetId() uint32 {
+func (x *ActivityLog) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
 	return 0
 }
 
-func (x *ActivityLog) GetUserId() uint32 {
+func (x *ActivityLog) GetUserId() int64 {
 	if x != nil {
 		return x.UserId
 	}
@@ -964,7 +964,7 @@ func (x *ActivityLog) GetResourceType() string {
 	return ""
 }
 
-func (x *ActivityLog) GetResourceId() uint32 {
+func (x *ActivityLog) GetResourceId() int64 {
 	if x != nil {
 		return x.ResourceId
 	}
@@ -1355,7 +1355,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x12!\n" +
 	"\x04user\x18\x02 \x01(\v2\r.auth.v1.UserR\x04user\"\xd9\x01\n" +
 	"\x04User\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\rR\x02id\x12\x14\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12\x12\n" +
 	"\x04role\x18\x04 \x01(\tR\x04role\x12\x1a\n" +
@@ -1368,7 +1368,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\bUserList\x12#\n" +
 	"\x05users\x18\x01 \x03(\v2\r.auth.v1.UserR\x05users\" \n" +
 	"\x0eGetUserRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\rR\x02id\"\x11\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\x11\n" +
 	"\x0fGetUsersRequest\"\xd6\x01\n" +
 	"\x11CreateUserRequest\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12\x12\n" +
@@ -1381,7 +1381,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\n" +
 	"avatar_url\x18\b \x01(\tR\tavatarUrl\"\xca\x01\n" +
 	"\x11UpdateUserRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\rR\x02id\x12\x12\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
 	"\x05email\x18\x03 \x01(\tR\x05email\x12\x12\n" +
 	"\x04role\x18\x04 \x01(\tR\x04role\x12\x1a\n" +
@@ -1391,16 +1391,16 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\n" +
 	"avatar_url\x18\b \x01(\tR\tavatarUrl\"#\n" +
 	"\x11DeleteUserRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\rR\x02id\"\x14\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\x14\n" +
 	"\x12DeleteUserResponse\"\x9f\x02\n" +
 	"\x12LogActivityRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\rR\x06userId\x12\x1b\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1b\n" +
 	"\tuser_name\x18\x02 \x01(\tR\buserName\x12\x1d\n" +
 	"\n" +
 	"user_email\x18\x03 \x01(\tR\tuserEmail\x12\x16\n" +
 	"\x06action\x18\x04 \x01(\tR\x06action\x12#\n" +
 	"\rresource_type\x18\x05 \x01(\tR\fresourceType\x12\x1f\n" +
-	"\vresource_id\x18\x06 \x01(\rR\n" +
+	"\vresource_id\x18\x06 \x01(\x03R\n" +
 	"resourceId\x12\x18\n" +
 	"\adetails\x18\a \x01(\tR\adetails\x12\x1d\n" +
 	"\n" +
@@ -1409,7 +1409,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"user_agent\x18\t \x01(\tR\tuserAgent\"\x15\n" +
 	"\x13LogActivityResponse\"\x8e\x02\n" +
 	"\x16GetActivityLogsRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\rR\x06userId\x12\x16\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x16\n" +
 	"\x06action\x18\x02 \x01(\tR\x06action\x12#\n" +
 	"\rresource_type\x18\x03 \x01(\tR\fresourceType\x129\n" +
 	"\n" +
@@ -1418,14 +1418,14 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x05limit\x18\x06 \x01(\x05R\x05limit\x12\x16\n" +
 	"\x06offset\x18\a \x01(\x05R\x06offset\"\xe3\x02\n" +
 	"\vActivityLog\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\rR\x02id\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\rR\x06userId\x12\x1b\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x1b\n" +
 	"\tuser_name\x18\x03 \x01(\tR\buserName\x12\x1d\n" +
 	"\n" +
 	"user_email\x18\x04 \x01(\tR\tuserEmail\x12\x16\n" +
 	"\x06action\x18\x05 \x01(\tR\x06action\x12#\n" +
 	"\rresource_type\x18\x06 \x01(\tR\fresourceType\x12\x1f\n" +
-	"\vresource_id\x18\a \x01(\rR\n" +
+	"\vresource_id\x18\a \x01(\x03R\n" +
 	"resourceId\x12\x18\n" +
 	"\adetails\x18\b \x01(\tR\adetails\x12\x1d\n" +
 	"\n" +

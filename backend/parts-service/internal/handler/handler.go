@@ -46,9 +46,9 @@ func (h *Handler) logUserActivity(c *gin.Context, action, resourceType, details 
 		return
 	}
 
-	var rid uint32
+	var rid int64
 	if resourceID != nil {
-		rid = uint32(*resourceID)
+		rid = *resourceID
 	}
 	grpc.LogUserActivityGRPC(c.Request.Context(), userIDStr, userName, userEmail, action, resourceType, details, rid)
 }

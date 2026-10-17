@@ -68,6 +68,7 @@ Avtoplaneta - это комплексная система управления 
 2. **Двухконтурная модель коммуникации (Dual Engine: HTTP + gRPC):**
    - **Фасадный контур (HTTP/REST):** Микросервисы поднимают легковесный HTTP-сервер (`pkg/httpserver` на Gin) для внешних клиентов — React, Flutter, мобильных приложений, робота Drom.ru (`GET /uploads/pricelist.xml`) и загрузки фото (`multipart/form-data`).
    - **Межсервисный контур (gRPC HTTP/2):** Общение между бэкендами (`service ↔ service`) на 100% выполняется по gRPC с бинарным Protobuf без накладных расходов на JSON, с мультиплексированием и строгими контрактами (`backend/proto/`). Межсервисный REST запрещен.
+   - **Bigint Standard & Clean Mappers:** Первичные ключи в Protobuf строго выровнены со схемой PostgreSQL (`BIGSERIAL`/`BIGINT`) как `int64`. Доменные модели реализуют методы `ToProto()` / `FromProto()`, а доступ к полям запросов осуществляется через безопасные геттеры `.Get...()`, что исключает раздувание кода и нагромождение кастов `uint32(...)` / `int64(...)`.
 
 3. **Изоляция данных: Database-per-Service:**
    - Каждый микросервис изолированно владеет своей схемой БД (`AUTH_DATABASE_URL`, `PARTS_DATABASE_URL`, `ORDERS_DATABASE_URL`, `MESSAGING_DATABASE_URL`).

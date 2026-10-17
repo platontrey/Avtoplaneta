@@ -477,7 +477,7 @@ func (suite *ServiceTestSuite) TestBulkUpdateParts() {
 	req := &partsv1.BulkUpdatePartsRequest{
 		Scope: &partsv1.BulkUpdateScope{
 			Type: partsv1.BulkScopeType_BULK_SCOPE_TYPE_IDS,
-			Ids:  []uint32{uint32(suite.testPart.ID)},
+			Ids:  []int64{suite.testPart.ID},
 		},
 		Operations: &partsv1.BulkFieldOperations{
 			Price: &partsv1.BulkPriceOperation{

@@ -24,9 +24,9 @@ const (
 
 type OrderItem struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	OrderId       uint32                 `protobuf:"varint,2,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
-	PartId        uint32                 `protobuf:"varint,3,opt,name=part_id,json=partId,proto3" json:"part_id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	OrderId       int64                  `protobuf:"varint,2,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	PartId        int64                  `protobuf:"varint,3,opt,name=part_id,json=partId,proto3" json:"part_id,omitempty"`
 	Quantity      int32                  `protobuf:"varint,4,opt,name=quantity,proto3" json:"quantity,omitempty"`
 	Price         float64                `protobuf:"fixed64,5,opt,name=price,proto3" json:"price,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -63,21 +63,21 @@ func (*OrderItem) Descriptor() ([]byte, []int) {
 	return file_orders_v1_orders_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *OrderItem) GetId() uint32 {
+func (x *OrderItem) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
 	return 0
 }
 
-func (x *OrderItem) GetOrderId() uint32 {
+func (x *OrderItem) GetOrderId() int64 {
 	if x != nil {
 		return x.OrderId
 	}
 	return 0
 }
 
-func (x *OrderItem) GetPartId() uint32 {
+func (x *OrderItem) GetPartId() int64 {
 	if x != nil {
 		return x.PartId
 	}
@@ -100,12 +100,12 @@ func (x *OrderItem) GetPrice() float64 {
 
 type Order struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
-	Id                 uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	CustomerId         int32                  `protobuf:"varint,2,opt,name=customer_id,json=customerId,proto3" json:"customer_id,omitempty"`
-	SellerId           uint32                 `protobuf:"varint,3,opt,name=seller_id,json=sellerId,proto3" json:"seller_id,omitempty"`
+	Id                 int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	CustomerId         int64                  `protobuf:"varint,2,opt,name=customer_id,json=customerId,proto3" json:"customer_id,omitempty"`
+	SellerId           int64                  `protobuf:"varint,3,opt,name=seller_id,json=sellerId,proto3" json:"seller_id,omitempty"`
 	Seller             string                 `protobuf:"bytes,4,opt,name=seller,proto3" json:"seller,omitempty"`
 	Part               string                 `protobuf:"bytes,5,opt,name=part,proto3" json:"part,omitempty"`
-	PartId             uint32                 `protobuf:"varint,6,opt,name=part_id,json=partId,proto3" json:"part_id,omitempty"`
+	PartId             int64                  `protobuf:"varint,6,opt,name=part_id,json=partId,proto3" json:"part_id,omitempty"`
 	Location           string                 `protobuf:"bytes,7,opt,name=location,proto3" json:"location,omitempty"`
 	BuyerNumber        string                 `protobuf:"bytes,8,opt,name=buyer_number,json=buyerNumber,proto3" json:"buyer_number,omitempty"`
 	Status             string                 `protobuf:"bytes,9,opt,name=status,proto3" json:"status,omitempty"`
@@ -149,21 +149,21 @@ func (*Order) Descriptor() ([]byte, []int) {
 	return file_orders_v1_orders_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *Order) GetId() uint32 {
+func (x *Order) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
 	return 0
 }
 
-func (x *Order) GetCustomerId() int32 {
+func (x *Order) GetCustomerId() int64 {
 	if x != nil {
 		return x.CustomerId
 	}
 	return 0
 }
 
-func (x *Order) GetSellerId() uint32 {
+func (x *Order) GetSellerId() int64 {
 	if x != nil {
 		return x.SellerId
 	}
@@ -184,7 +184,7 @@ func (x *Order) GetPart() string {
 	return ""
 }
 
-func (x *Order) GetPartId() uint32 {
+func (x *Order) GetPartId() int64 {
 	if x != nil {
 		return x.PartId
 	}
@@ -308,7 +308,7 @@ func (x *OrderList) GetTotal() int32 {
 
 type CreateOrderItemInput struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	PartId        uint32                 `protobuf:"varint,1,opt,name=part_id,json=partId,proto3" json:"part_id,omitempty"`
+	PartId        int64                  `protobuf:"varint,1,opt,name=part_id,json=partId,proto3" json:"part_id,omitempty"`
 	Quantity      int32                  `protobuf:"varint,2,opt,name=quantity,proto3" json:"quantity,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -344,7 +344,7 @@ func (*CreateOrderItemInput) Descriptor() ([]byte, []int) {
 	return file_orders_v1_orders_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *CreateOrderItemInput) GetPartId() uint32 {
+func (x *CreateOrderItemInput) GetPartId() int64 {
 	if x != nil {
 		return x.PartId
 	}
@@ -360,11 +360,11 @@ func (x *CreateOrderItemInput) GetQuantity() int32 {
 
 type CreateOrderRequest struct {
 	state         protoimpl.MessageState  `protogen:"open.v1"`
-	CustomerId    int32                   `protobuf:"varint,1,opt,name=customer_id,json=customerId,proto3" json:"customer_id,omitempty"`
+	CustomerId    int64                   `protobuf:"varint,1,opt,name=customer_id,json=customerId,proto3" json:"customer_id,omitempty"`
 	Part          string                  `protobuf:"bytes,2,opt,name=part,proto3" json:"part,omitempty"`
-	PartId        uint32                  `protobuf:"varint,3,opt,name=part_id,json=partId,proto3" json:"part_id,omitempty"`
+	PartId        int64                   `protobuf:"varint,3,opt,name=part_id,json=partId,proto3" json:"part_id,omitempty"`
 	BuyerNumber   string                  `protobuf:"bytes,4,opt,name=buyer_number,json=buyerNumber,proto3" json:"buyer_number,omitempty"`
-	SellerId      uint32                  `protobuf:"varint,5,opt,name=seller_id,json=sellerId,proto3" json:"seller_id,omitempty"`
+	SellerId      int64                   `protobuf:"varint,5,opt,name=seller_id,json=sellerId,proto3" json:"seller_id,omitempty"`
 	Items         []*CreateOrderItemInput `protobuf:"bytes,6,rep,name=items,proto3" json:"items,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -400,7 +400,7 @@ func (*CreateOrderRequest) Descriptor() ([]byte, []int) {
 	return file_orders_v1_orders_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *CreateOrderRequest) GetCustomerId() int32 {
+func (x *CreateOrderRequest) GetCustomerId() int64 {
 	if x != nil {
 		return x.CustomerId
 	}
@@ -414,7 +414,7 @@ func (x *CreateOrderRequest) GetPart() string {
 	return ""
 }
 
-func (x *CreateOrderRequest) GetPartId() uint32 {
+func (x *CreateOrderRequest) GetPartId() int64 {
 	if x != nil {
 		return x.PartId
 	}
@@ -428,7 +428,7 @@ func (x *CreateOrderRequest) GetBuyerNumber() string {
 	return ""
 }
 
-func (x *CreateOrderRequest) GetSellerId() uint32 {
+func (x *CreateOrderRequest) GetSellerId() int64 {
 	if x != nil {
 		return x.SellerId
 	}
@@ -446,7 +446,7 @@ type GetOrdersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Фильтры
 	Status        string `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	SellerId      uint32 `protobuf:"varint,2,opt,name=seller_id,json=sellerId,proto3" json:"seller_id,omitempty"`
+	SellerId      int64  `protobuf:"varint,2,opt,name=seller_id,json=sellerId,proto3" json:"seller_id,omitempty"`
 	Limit         int32  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
 	Offset        int32  `protobuf:"varint,4,opt,name=offset,proto3" json:"offset,omitempty"`
 	Admin         bool   `protobuf:"varint,5,opt,name=admin,proto3" json:"admin,omitempty"` // если true — возвращает все заказы
@@ -491,7 +491,7 @@ func (x *GetOrdersRequest) GetStatus() string {
 	return ""
 }
 
-func (x *GetOrdersRequest) GetSellerId() uint32 {
+func (x *GetOrdersRequest) GetSellerId() int64 {
 	if x != nil {
 		return x.SellerId
 	}
@@ -521,7 +521,7 @@ func (x *GetOrdersRequest) GetAdmin() bool {
 
 type UpdateOrderStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -557,7 +557,7 @@ func (*UpdateOrderStatusRequest) Descriptor() ([]byte, []int) {
 	return file_orders_v1_orders_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *UpdateOrderStatusRequest) GetId() uint32 {
+func (x *UpdateOrderStatusRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -573,7 +573,7 @@ func (x *UpdateOrderStatusRequest) GetStatus() string {
 
 type CompleteOrderRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -608,7 +608,7 @@ func (*CompleteOrderRequest) Descriptor() ([]byte, []int) {
 	return file_orders_v1_orders_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *CompleteOrderRequest) GetId() uint32 {
+func (x *CompleteOrderRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -617,7 +617,7 @@ func (x *CompleteOrderRequest) GetId() uint32 {
 
 type DeleteOrderRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -652,7 +652,7 @@ func (*DeleteOrderRequest) Descriptor() ([]byte, []int) {
 	return file_orders_v1_orders_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *DeleteOrderRequest) GetId() uint32 {
+func (x *DeleteOrderRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -697,8 +697,8 @@ func (*DeleteOrderResponse) Descriptor() ([]byte, []int) {
 
 type AddOrderItemRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	OrderId       uint32                 `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
-	PartId        uint32                 `protobuf:"varint,2,opt,name=part_id,json=partId,proto3" json:"part_id,omitempty"`
+	OrderId       int64                  `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	PartId        int64                  `protobuf:"varint,2,opt,name=part_id,json=partId,proto3" json:"part_id,omitempty"`
 	Quantity      int32                  `protobuf:"varint,3,opt,name=quantity,proto3" json:"quantity,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -734,14 +734,14 @@ func (*AddOrderItemRequest) Descriptor() ([]byte, []int) {
 	return file_orders_v1_orders_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *AddOrderItemRequest) GetOrderId() uint32 {
+func (x *AddOrderItemRequest) GetOrderId() int64 {
 	if x != nil {
 		return x.OrderId
 	}
 	return 0
 }
 
-func (x *AddOrderItemRequest) GetPartId() uint32 {
+func (x *AddOrderItemRequest) GetPartId() int64 {
 	if x != nil {
 		return x.PartId
 	}
@@ -893,19 +893,19 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\n" +
 	"\x16orders/v1/orders.proto\x12\torders.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x81\x01\n" +
 	"\tOrderItem\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\rR\x02id\x12\x19\n" +
-	"\border_id\x18\x02 \x01(\rR\aorderId\x12\x17\n" +
-	"\apart_id\x18\x03 \x01(\rR\x06partId\x12\x1a\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x19\n" +
+	"\border_id\x18\x02 \x01(\x03R\aorderId\x12\x17\n" +
+	"\apart_id\x18\x03 \x01(\x03R\x06partId\x12\x1a\n" +
 	"\bquantity\x18\x04 \x01(\x05R\bquantity\x12\x14\n" +
 	"\x05price\x18\x05 \x01(\x01R\x05price\"\xe9\x03\n" +
 	"\x05Order\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\rR\x02id\x12\x1f\n" +
-	"\vcustomer_id\x18\x02 \x01(\x05R\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
+	"\vcustomer_id\x18\x02 \x01(\x03R\n" +
 	"customerId\x12\x1b\n" +
-	"\tseller_id\x18\x03 \x01(\rR\bsellerId\x12\x16\n" +
+	"\tseller_id\x18\x03 \x01(\x03R\bsellerId\x12\x16\n" +
 	"\x06seller\x18\x04 \x01(\tR\x06seller\x12\x12\n" +
 	"\x04part\x18\x05 \x01(\tR\x04part\x12\x17\n" +
-	"\apart_id\x18\x06 \x01(\rR\x06partId\x12\x1a\n" +
+	"\apart_id\x18\x06 \x01(\x03R\x06partId\x12\x1a\n" +
 	"\blocation\x18\a \x01(\tR\blocation\x12!\n" +
 	"\fbuyer_number\x18\b \x01(\tR\vbuyerNumber\x12\x16\n" +
 	"\x06status\x18\t \x01(\tR\x06status\x12\x1f\n" +
@@ -922,33 +922,33 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x06orders\x18\x01 \x03(\v2\x10.orders.v1.OrderR\x06orders\x12\x14\n" +
 	"\x05total\x18\x02 \x01(\x05R\x05total\"K\n" +
 	"\x14CreateOrderItemInput\x12\x17\n" +
-	"\apart_id\x18\x01 \x01(\rR\x06partId\x12\x1a\n" +
+	"\apart_id\x18\x01 \x01(\x03R\x06partId\x12\x1a\n" +
 	"\bquantity\x18\x02 \x01(\x05R\bquantity\"\xd9\x01\n" +
 	"\x12CreateOrderRequest\x12\x1f\n" +
-	"\vcustomer_id\x18\x01 \x01(\x05R\n" +
+	"\vcustomer_id\x18\x01 \x01(\x03R\n" +
 	"customerId\x12\x12\n" +
 	"\x04part\x18\x02 \x01(\tR\x04part\x12\x17\n" +
-	"\apart_id\x18\x03 \x01(\rR\x06partId\x12!\n" +
+	"\apart_id\x18\x03 \x01(\x03R\x06partId\x12!\n" +
 	"\fbuyer_number\x18\x04 \x01(\tR\vbuyerNumber\x12\x1b\n" +
-	"\tseller_id\x18\x05 \x01(\rR\bsellerId\x125\n" +
+	"\tseller_id\x18\x05 \x01(\x03R\bsellerId\x125\n" +
 	"\x05items\x18\x06 \x03(\v2\x1f.orders.v1.CreateOrderItemInputR\x05items\"\x8b\x01\n" +
 	"\x10GetOrdersRequest\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x1b\n" +
-	"\tseller_id\x18\x02 \x01(\rR\bsellerId\x12\x14\n" +
+	"\tseller_id\x18\x02 \x01(\x03R\bsellerId\x12\x14\n" +
 	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x16\n" +
 	"\x06offset\x18\x04 \x01(\x05R\x06offset\x12\x14\n" +
 	"\x05admin\x18\x05 \x01(\bR\x05admin\"B\n" +
 	"\x18UpdateOrderStatusRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\rR\x02id\x12\x16\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\"&\n" +
 	"\x14CompleteOrderRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\rR\x02id\"$\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"$\n" +
 	"\x12DeleteOrderRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\rR\x02id\"\x15\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\x15\n" +
 	"\x13DeleteOrderResponse\"e\n" +
 	"\x13AddOrderItemRequest\x12\x19\n" +
-	"\border_id\x18\x01 \x01(\rR\aorderId\x12\x17\n" +
-	"\apart_id\x18\x02 \x01(\rR\x06partId\x12\x1a\n" +
+	"\border_id\x18\x01 \x01(\x03R\aorderId\x12\x17\n" +
+	"\apart_id\x18\x02 \x01(\x03R\x06partId\x12\x1a\n" +
 	"\bquantity\x18\x03 \x01(\x05R\bquantity\"\x18\n" +
 	"\x16GetMonthlySalesRequest\"?\n" +
 	"\x11MonthlySalesEntry\x12\x14\n" +

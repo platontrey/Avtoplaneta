@@ -52,7 +52,7 @@ func (s *GRPCServerTestSuite) TestValidateSession_ValidJWT() {
 
 	s.NoError(err)
 	s.True(resp.Valid)
-	s.Equal(uint32(10), resp.User.Id)
+	s.Equal(int64(10), resp.User.Id)
 	s.Equal("admin@example.com", resp.User.Email)
 }
 
@@ -85,7 +85,7 @@ func (s *GRPCServerTestSuite) TestGetUser_Success() {
 
 	resp, err := s.grpcServer.GetUser(context.Background(), &authv1.GetUserRequest{Id: 1})
 	s.NoError(err)
-	s.Equal(uint32(1), resp.Id)
+	s.Equal(int64(1), resp.Id)
 	s.Equal("user@example.com", resp.Email)
 }
 
@@ -125,7 +125,7 @@ func (s *GRPCServerTestSuite) TestCreateUser_Success() {
 		Role:  "operator",
 	})
 	s.NoError(err)
-	s.Equal(uint32(5), resp.Id)
+	s.Equal(int64(5), resp.Id)
 }
 
 func (s *GRPCServerTestSuite) TestUpdateUser_Success() {
