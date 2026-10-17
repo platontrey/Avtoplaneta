@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import ThemeToggle from './ThemeToggle';
-import { cn } from "@/lib/utils";
+import { cn, getUserInitials } from "@/lib/utils";
 
 import type { User } from '../features/auth/types';
 import { ProfileModal } from '@/features/auth/components/ProfileModal';
@@ -205,25 +205,25 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex items-center space-x-1.5 sm:space-x-2 px-2" onClick={() => console.log('Profile menu trigger clicked')}>
                     <Avatar className="w-7 h-7 text-xs">
-                      {user.avatar_url && <AvatarImage src={user.avatar_url} alt={user.name} className="object-cover" />}
+                      {user.avatar_url && <AvatarImage src={user.avatar_url} alt={user.name || user.username || ''} className="object-cover" />}
                       <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                        {user.initials || user.name.slice(0, 2).toUpperCase()}
+                        {getUserInitials(user)}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="hidden sm:inline font-medium text-sm">{user.name}</span>
+                    <span className="hidden sm:inline font-medium text-sm">{user.name || user.username || 'Пользователь'}</span>
                     <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" side="bottom" style={{ zIndex: 9999 }} onPointerDownOutside={(e) => e.preventDefault()}>
                   <div className="px-3 py-2 flex items-center gap-3">
                     <Avatar className="w-10 h-10 text-sm">
-                      {user.avatar_url && <AvatarImage src={user.avatar_url} alt={user.name} className="object-cover" />}
+                      {user.avatar_url && <AvatarImage src={user.avatar_url} alt={user.name || user.username || ''} className="object-cover" />}
                       <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                        {user.initials || user.name.slice(0, 2).toUpperCase()}
+                        {getUserInitials(user)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="text-sm overflow-hidden">
-                      <p className="font-medium truncate">{user.name}</p>
+                      <p className="font-medium truncate">{user.name || user.username || 'Пользователь'}</p>
                       <p className="text-xs text-muted-foreground truncate">{user.email || user.username || ''}</p>
                       {user.role === 'admin' && (
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 mt-1">

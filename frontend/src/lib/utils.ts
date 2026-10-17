@@ -29,3 +29,19 @@ export function formatCarReleasePeriod(value: string): string {
   }
   return digits;
 }
+
+/**
+ * Безопасно извлекает инициалы пользователя (до 2 символов в верхнем регистре).
+ * Защищает от исключений при отсутствии имени или пустых полях.
+ */
+export function getUserInitials(user?: { name?: string; username?: string; email?: string; initials?: string } | null): string {
+  if (!user) return 'U';
+  if (user.initials && user.initials.trim().length > 0) return user.initials.trim();
+  const source = (user.name || user.username || user.email || 'U').trim();
+  if (source.length === 0) return 'U';
+  const parts = source.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2 && parts[0][0] && parts[1][0]) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return source.slice(0, 2).toUpperCase();
+}

@@ -10,6 +10,7 @@ import AIAgent from './components/AIAgent';
 import MobileBottomNav from './components/MobileBottomNav';
 import { useAuth } from './features/auth/hooks/useAuth';
 import { preloadSecondaryRoutes } from './lib/prefetch';
+import Login from './components/Login';
 
 // Lazy loading для компонентов
 const Inventory = lazy(() => import('./components/Inventory'));
@@ -21,13 +22,12 @@ const AdminPanel = lazy(() => import('./components/AdminPanel'));
 const Readme = lazy(() => import('./components/Readme'));
 const OperatorInstructions = lazy(() => import('./components/OperatorInstructions'));
 const ManagerInstructions = lazy(() => import('./components/ManagerInstructions'));
-const Login = lazy(() => import('./components/Login'));
 const Orders = lazy(() => import('./components/Orders'));
 const MessagesPage = lazy(() => import('./components/MessagesPage'));
 
 // Компонент загрузки для lazy loading
 const LoadingSpinner = () => (
-  <div className="min-h-screen flex items-center justify-center">
+  <div className="min-h-screen flex items-center justify-center bg-background">
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-foreground"></div>
   </div>
 );
@@ -43,15 +43,15 @@ function App() {
   }, [user]);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-foreground"></div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (!user) {
-    return <Login />;
+    return (
+      <ErrorBoundary>
+        <Login />
+      </ErrorBoundary>
+    );
   }
 
   return (

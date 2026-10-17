@@ -21,6 +21,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { getUserInitials } from '@/lib/utils';
 
 interface ProfileModalProps {
   user: User;
@@ -214,9 +215,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ user, isOpen, onClos
             <div className="flex flex-col items-center justify-center p-4 bg-muted/40 rounded-xl border border-dashed border-border/80">
               <div className="relative group">
                 <Avatar className="w-24 h-24 text-2xl font-semibold shadow-md ring-2 ring-background">
-                  {user.avatar_url && <AvatarImage src={user.avatar_url} alt={user.name} className="object-cover" />}
+                  {user.avatar_url && <AvatarImage src={user.avatar_url} alt={user.name || user.username || ''} className="object-cover" />}
                   <AvatarFallback className="bg-primary/10 text-primary">
-                    {user.initials || user.name.slice(0, 2).toUpperCase()}
+                    {getUserInitials(user)}
                   </AvatarFallback>
                 </Avatar>
 

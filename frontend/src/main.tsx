@@ -10,11 +10,17 @@ import { queryClient } from './lib/queryClient'
 import { pushManager } from './lib/pushNotifications'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { initGlobalErrorHandlers } from './lib/telemetry'
+import ErrorBoundary from './components/ErrorBoundary'
 import './index.css'
 import App from './App.tsx'
 
 // Инициализируем корпоративный перехватчик рантайм-ошибок и асинхронных сбоев
 initGlobalErrorHandlers()
+
+// Сбрасываем флаг аварийной перезагрузки при успешном старте бандла
+try {
+  sessionStorage.removeItem('avtoplaneta_asset_retry')
+} catch {}
 
 // Auto-recover from stale cached chunk mismatches upon new deployments
 window.addEventListener('vite:preloadError', () => {
@@ -27,7 +33,9 @@ createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="system" storageKey="avtoplaneta-theme">
         <BrowserRouter>
-          <App />
+          <ErrorBoundary>
+            <App />
+          </ErrorBoundary>
         </BrowserRouter>
       </ThemeProvider>
     </QueryClientProvider>

@@ -22,6 +22,31 @@
         } catch (e) {}
       })();
     </script>
+    <script>
+      // Защита от сбоев загрузки ассетов и устаревших чанков Service Worker после новых деплоев
+      window.addEventListener('error', function(e) {
+        if (e && e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) {
+          var src = e.target.src || e.target.href || '';
+          if (src.indexOf('/assets/') !== -1) {
+            var retryKey = 'avtoplaneta_asset_retry';
+            if (!sessionStorage.getItem(retryKey)) {
+              sessionStorage.setItem(retryKey, '1');
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(regs) {
+                  for (var i = 0; i < regs.length; i++) regs[i].unregister();
+                });
+              }
+              if ('caches' in window) {
+                caches.keys().then(function(names) {
+                  for (var i = 0; i < names.length; i++) caches.delete(names[i]);
+                });
+              }
+              window.location.reload();
+            }
+          }
+        }
+      }, true);
+    </script>
   </head>
   <body>
     <div id="root"></div>
