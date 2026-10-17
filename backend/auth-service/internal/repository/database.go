@@ -4,9 +4,7 @@ import (
 	"context"
 	"embed"
 	"fmt"
-	"io/fs"
 	"os"
-	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -15,78 +13,36 @@ import (
 	"auth-service/internal/config"
 	"auth-service/internal/domain"
 	"auth-service/internal/security"
+	"avtoplaneta/pkg/postgres"
 )
 
 //go:embed migrations/*.up.sql
 var migrationsFS embed.FS
 
-// InitDB инициализирует пул соединений с базой данных и накатывает миграции
+// InitDB инициализирует пул соединений с базой данных и накатывает миграции через pkg/postgres
 func InitDB(cfg *config.Config) (*pgxpool.Pool, error) {
-	poolConfig, err := pgxpool.ParseConfig(cfg.DatabaseURL)
-	if err != nil {
-		return nil, fmt.Errorf("не удалось разобрать DatabaseURL: %w", err)
-	}
-
-	poolConfig.MaxConns = 100
-	poolConfig.MinConns = 5
-	poolConfig.MaxConnLifetime = 30 * time.Minute
-	poolConfig.MaxConnIdleTime = 5 * time.Minute
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	pgCfg := postgres.Config{
+		DatabaseURL:     cfg.DatabaseURL,
+		MaxConns:        100,
+		MinConns:        5,
+		MaxConnLifetime: 30 * time.Minute,
+		MaxConnIdleTime: 5 * time.Minute,
+	}
+
+	pool, err := postgres.Connect(ctx, pgCfg)
 	if err != nil {
-		return nil, fmt.Errorf("не удалось подключиться к базе данных: %w", err)
+		return nil, fmt.Errorf("не удалось подключиться к базе данных auth: %w", err)
 	}
 
-	if err := pool.Ping(ctx); err != nil {
+	if err := postgres.RunMigrations(ctx, pool, migrationsFS, "migrations"); err != nil {
 		pool.Close()
-		return nil, fmt.Errorf("не удалось проверить подключение к базе данных: %w", err)
-	}
-
-	logrus.Info("Database connection pool established")
-
-	if err := runMigrations(pool); err != nil {
-		logrus.WithError(err).Warn("Failed to run migrations")
+		return nil, fmt.Errorf("ошибка выполнения миграций auth: %w", err)
 	}
 
 	return pool, nil
-}
-
-func runMigrations(pool *pgxpool.Pool) error {
-	entries, err := fs.ReadDir(migrationsFS, "migrations")
-	if err != nil {
-		return fmt.Errorf("не удалось прочитать директорию миграций: %w", err)
-	}
-
-	var upFiles []string
-	for _, entry := range entries {
-		name := entry.Name()
-		if len(name) > 7 && name[len(name)-7:] == ".up.sql" {
-			upFiles = append(upFiles, name)
-		}
-	}
-	sort.Strings(upFiles)
-
-	for _, fileName := range upFiles {
-		data, err := migrationsFS.ReadFile("migrations/" + fileName)
-		if err != nil {
-			return fmt.Errorf("не удалось прочитать миграцию %s: %w", fileName, err)
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		_, err = pool.Exec(ctx, string(data))
-		cancel()
-
-		if err != nil {
-			logrus.WithError(err).WithField("file", fileName).Warn("Warning executing migration")
-		} else {
-			logrus.WithField("file", fileName).Info("Migration applied successfully")
-		}
-	}
-
-	return nil
 }
 
 // CreateDefaultUser создает администратора по умолчанию, если таблица пользователей пуста
@@ -122,6 +78,7 @@ func CreateDefaultUser(ctx context.Context, repo UserRepository) {
 	}
 
 	defaultUser := &domain.User{
+		Username: "admin",
 		Email:    adminEmail,
 		Name:     adminName,
 		Provider: "local",
@@ -134,5 +91,5 @@ func CreateDefaultUser(ctx context.Context, repo UserRepository) {
 		return
 	}
 
-	logrus.Infof("Default администратор успешно создан (%s). Пароль установлен из переменной окружения DEFAULT_ADMIN_PASSWORD.", adminEmail)
+	logrus.Infof("Default администратор успешно создан (%s / @admin). Пароль установлен из переменной окружения DEFAULT_ADMIN_PASSWORD.", adminEmail)
 }

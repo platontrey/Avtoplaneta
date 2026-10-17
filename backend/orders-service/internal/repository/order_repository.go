@@ -12,6 +12,8 @@ import (
 
 	"orders-service/db/sqlc"
 	"orders-service/internal/domain"
+
+	"avtoplaneta/pkg/postgres"
 )
 
 // OrderRepository определяет интерфейс для работы с заказами и клиентами
@@ -70,14 +72,14 @@ func NewOrderRepository(pool *pgxpool.Pool) OrderRepository {
 }
 
 func (r *orderRepository) getQueries(ctx context.Context) *sqlc.Queries {
-	if tx, ok := ctx.Value(txKey).(pgx.Tx); ok {
+	if tx, ok := postgres.TxFromContext(ctx); ok {
 		return r.queries.WithTx(tx)
 	}
 	return r.queries
 }
 
 func (r *orderRepository) getExec(ctx context.Context) sqlc.DBTX {
-	if tx, ok := ctx.Value(txKey).(pgx.Tx); ok {
+	if tx, ok := postgres.TxFromContext(ctx); ok {
 		return tx
 	}
 	return r.pool

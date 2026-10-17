@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
 )
@@ -140,6 +141,49 @@ func RunMigrations(ctx context.Context, pool *pgxpool.Pool, fsys fs.FS, dir stri
 		}
 
 		logrus.WithField("version", fileName).Info("Миграция БД успешно применена")
+	}
+
+	return nil
+}
+
+type txContextKey struct{}
+
+var txKey = txContextKey{}
+
+// WithTx помещает транзакцию pgx.Tx в контекст
+func WithTx(ctx context.Context, tx pgx.Tx) context.Context {
+	return context.WithValue(ctx, txKey, tx)
+}
+
+// TxFromContext извлекает транзакцию pgx.Tx из контекста, если она присутствует
+func TxFromContext(ctx context.Context) (pgx.Tx, bool) {
+	tx, ok := ctx.Value(txKey).(pgx.Tx)
+	return tx, ok
+}
+
+// RunInTransaction выполняет функцию fn в рамках транзакции базы данных.
+// Если в контексте уже открыта транзакция, fn выполняется в ней без открытия вложенной.
+func RunInTransaction(ctx context.Context, pool *pgxpool.Pool, fn func(ctx context.Context) error) error {
+	if pool == nil {
+		return fn(ctx)
+	}
+
+	if _, ok := TxFromContext(ctx); ok {
+		return fn(ctx)
+	}
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("postgres begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if err := fn(WithTx(ctx, tx)); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("postgres commit tx: %w", err)
 	}
 
 	return nil

@@ -24,3 +24,20 @@ func TestRunMigrations_NilPool(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "postgres pool cannot be nil")
 }
+
+func TestRunInTransaction_NilPool(t *testing.T) {
+	called := false
+	err := RunInTransaction(context.Background(), nil, func(ctx context.Context) error {
+		called = true
+		return nil
+	})
+	require.NoError(t, err)
+	require.True(t, called)
+}
+
+func TestTxFromContext_Empty(t *testing.T) {
+	tx, ok := TxFromContext(context.Background())
+	require.False(t, ok)
+	require.Nil(t, tx)
+}
+

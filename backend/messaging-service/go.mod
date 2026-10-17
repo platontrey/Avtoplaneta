@@ -4,6 +4,7 @@ go 1.26.2
 
 require (
 	avtoplaneta/gen v0.0.0
+	avtoplaneta/pkg v0.0.0
 	github.com/PuerkitoBio/goquery v1.11.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/gorilla/websocket v1.5.3
@@ -17,7 +18,10 @@ require (
 	google.golang.org/protobuf v1.36.11
 )
 
-replace avtoplaneta/gen => ../gen
+replace (
+	avtoplaneta/gen => ../gen
+	avtoplaneta/pkg => ../pkg
+)
 
 require (
 	github.com/andybalholm/cascadia v1.3.3 // indirect
