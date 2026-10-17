@@ -424,6 +424,7 @@ services:
     container_name: avtoplaneta-node-exporter
     restart: unless-stopped
     pid: host
+    user: "0:0"
     networks:
       - avtoplaneta_network
     volumes:
@@ -434,6 +435,7 @@ services:
       - '--path.procfs=/host/proc'
       - '--path.sysfs=/host/sys'
       - '--path.rootfs=/rootfs'
+      - '--collector.rapl'
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
 
   cadvisor:
