@@ -136,10 +136,15 @@ export const topBottomOptions: SelectOption[] = [
   { value: 'Середина', label: 'Середина' },
 ];
 
+export const conditionOptions: SelectOption[] = [
+  { value: 'Б/У', label: 'Б/У' },
+  { value: 'Новое', label: 'Новое' },
+];
+
 export const seasonOptions: SelectOption[] = [
-  { value: 'Лето', label: 'Лето' },
-  { value: 'Зима', label: 'Зима' },
-  { value: 'Всесезонная', label: 'Всесезонная' },
+  { value: 'Зимние', label: 'Зимние' },
+  { value: 'Летние', label: 'Летние' },
+  { value: 'Всесезонные', label: 'Всесезонные' },
 ];
 
 export interface FilterDescriptor {

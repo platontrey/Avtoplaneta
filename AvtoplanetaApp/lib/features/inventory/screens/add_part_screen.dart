@@ -110,6 +110,16 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
       _partCatalog?.optionsForAttribute('transmission') ?? const [];
   List<String> get _driveOptions =>
       _partCatalog?.optionsForAttribute('drive') ?? const [];
+  List<String> get _conditionOptions {
+    final opts = _partCatalog?.optionsForAttribute('condition');
+    if (opts != null && opts.isNotEmpty) return opts;
+    return const ['Б/У', 'Новое'];
+  }
+  List<String> get _seasonOptions {
+    final opts = _partCatalog?.optionsForAttribute('season');
+    if (opts != null && opts.isNotEmpty) return opts;
+    return const ['Зимние', 'Летние', 'Всесезонные'];
+  }
 
   Set<String> get _visibleSpecificationFields {
     final catalog = _partCatalog;
@@ -627,7 +637,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
             if (_shows('oem_code')) _field(_oemCtrl, 'OEM код'),
             if (_shows('supplier_code'))
               _field(_supplierCtrl, 'Код поставки'),
-            if (_shows('condition')) _field(_conditionCtrl, 'Состояние'),
+            if (_shows('condition')) _conditionField(),
             if (_shows('defect')) _field(_defectCtrl, 'Дефект'),
             if (_shows('transmission')) _transmissionField(),
             if (_shows('transmission_model'))
@@ -644,7 +654,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
                 'Процент износа (%)',
                 keyboard: TextInputType.number,
               ),
-            if (_shows('season')) _field(_seasonCtrl, 'Сезон'),
+            if (_shows('season')) _seasonField(),
             if (_shows('diameter')) _field(_diameterCtrl, 'Диаметр'),
             if (_shows('width')) _field(_widthCtrl, 'Ширина'),
             if (_shows('profile')) _field(_profileCtrl, 'Профиль'),
@@ -1149,6 +1159,69 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
         decoration: const InputDecoration(labelText: 'Верх / низ'),
         items: items,
         onChanged: (value) => _topBottomCtrl.text = value ?? '',
+      ),
+    );
+  }
+
+  Widget _conditionField() {
+    final current = _conditionCtrl.text.trim();
+    String normalized = current;
+    if (current.toLowerCase() == 'б/у' || current.toLowerCase() == 'бу') {
+      normalized = 'Б/У';
+    } else if (current.toLowerCase() == 'новое' || current.toLowerCase() == 'новый' || current.toLowerCase() == 'новая') {
+      normalized = 'Новое';
+    }
+
+    final options = _conditionOptions;
+    final items = [
+      const DropdownMenuItem(value: '', child: Text('Не указано')),
+      ...options.map((opt) => DropdownMenuItem(value: opt, child: Text(opt))),
+      if (normalized.isNotEmpty && !options.contains(normalized))
+        DropdownMenuItem(value: normalized, child: Text(normalized)),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<String>(
+        key: ValueKey('condition_$normalized'),
+        initialValue: normalized,
+        isExpanded: true,
+        decoration: const InputDecoration(labelText: 'Состояние'),
+        items: items,
+        onChanged: (value) => _conditionCtrl.text = value ?? '',
+      ),
+    );
+  }
+
+  Widget _seasonField() {
+    final current = _seasonCtrl.text.trim();
+    String normalized = current;
+    final lower = current.toLowerCase();
+    if (lower.contains('всесез')) {
+      normalized = 'Всесезонные';
+    } else if (lower.contains('зим')) {
+      normalized = 'Зимние';
+    } else if (lower.contains('лет')) {
+      normalized = 'Летние';
+    }
+
+    final options = _seasonOptions;
+    final items = [
+      const DropdownMenuItem(value: '', child: Text('Не указано')),
+      ...options.map((opt) => DropdownMenuItem(value: opt, child: Text(opt))),
+      if (normalized.isNotEmpty && !options.contains(normalized))
+        DropdownMenuItem(value: normalized, child: Text(normalized)),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<String>(
+        key: ValueKey('season_$normalized'),
+        initialValue: normalized,
+        isExpanded: true,
+        decoration: const InputDecoration(labelText: 'Сезон'),
+        items: items,
+        onChanged: (value) => _seasonCtrl.text = value ?? '',
       ),
     );
   }

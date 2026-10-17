@@ -36,6 +36,14 @@ export function PartSpecificationsFields({ brand: propBrand, model: propModel }:
         (attr) => attr.code === "drive"
     )?.options ?? ["Передний", "Задний", "Полный"];
 
+    const conditionOptions = partCatalog?.attributes?.find(
+        (attr) => attr.code === "condition"
+    )?.options ?? ["Б/У", "Новое"];
+
+    const seasonOptions = partCatalog?.attributes?.find(
+        (attr) => attr.code === "season"
+    )?.options ?? ["Зимние", "Летние", "Всесезонные"];
+
     return (
         <div className="grid gap-3 sm:gap-4 py-4">
             {/* Марка кузова */}
@@ -184,18 +192,30 @@ export function PartSpecificationsFields({ brand: propBrand, model: propModel }:
                     <Controller
                         name="condition"
                         control={control}
-                        render={({ field }) => (
-                            <Select value={field.value || ""} onValueChange={field.onChange}>
-                                <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Выберите состояние" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Новый">Новый</SelectItem>
-                                    <SelectItem value="Б/У">Б/У</SelectItem>
-                                    <SelectItem value="Восстановленный">Восстановленный</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        )}
+                        render={({ field }) => {
+                            const val = (field.value || "").trim();
+                            let normalized = val;
+                            if (val.toLowerCase() === "б/у" || val.toLowerCase() === "бу") {
+                                normalized = "Б/У";
+                            } else if (val.toLowerCase() === "новое" || val.toLowerCase() === "новый") {
+                                normalized = "Новое";
+                            }
+                            return (
+                                <Select value={normalized} onValueChange={field.onChange}>
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Выберите состояние" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {conditionOptions.map((opt) => (
+                                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                        ))}
+                                        {normalized && !conditionOptions.includes(normalized) && (
+                                            <SelectItem value={normalized}>{normalized}</SelectItem>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            );
+                        }}
                     />
                 </FormRow>
             )}
@@ -319,18 +339,33 @@ export function PartSpecificationsFields({ brand: propBrand, model: propModel }:
                     <Controller
                         name="season"
                         control={control}
-                        render={({ field }) => (
-                            <Select value={field.value || ""} onValueChange={field.onChange}>
-                                <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Выберите сезон" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Лето">Лето</SelectItem>
-                                    <SelectItem value="Зима">Зима</SelectItem>
-                                    <SelectItem value="Всесезонная">Всесезонная</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        )}
+                        render={({ field }) => {
+                            const val = (field.value || "").trim();
+                            const lower = val.toLowerCase();
+                            let normalized = val;
+                            if (lower.includes("всесез")) {
+                                normalized = "Всесезонные";
+                            } else if (lower.includes("зим")) {
+                                normalized = "Зимние";
+                            } else if (lower.includes("лет")) {
+                                normalized = "Летние";
+                            }
+                            return (
+                                <Select value={normalized} onValueChange={field.onChange}>
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Выберите сезон" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {seasonOptions.map((opt) => (
+                                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                        ))}
+                                        {normalized && !seasonOptions.includes(normalized) && (
+                                            <SelectItem value={normalized}>{normalized}</SelectItem>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            );
+                        }}
                     />
                 </FormRow>
             )}

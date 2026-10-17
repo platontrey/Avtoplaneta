@@ -28,6 +28,7 @@ import { WheelsFiltersTab } from './WheelsFiltersTab';
 import {
   type SearchFiltersState,
   initialSearchFiltersState,
+  conditionOptions,
   statusOptions,
   photoOptions,
   transmissionOptions,
@@ -881,6 +882,7 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
                             categoryOptions={categoryOptions}
                             statusOptions={statusOptions}
                             photoOptions={photoOptions}
+                            conditionOptions={conditionOptions}
                           />
                         </TabsContent>
 

@@ -1094,7 +1094,6 @@ class _InventoryFilterSheetState extends ConsumerState<_InventoryFilterSheet> {
   late final TextEditingController _bodyBrandController;
   late final TextEditingController _engineBrandController;
   late final TextEditingController _carReleaseDateController;
-  late final TextEditingController _conditionController;
   late final TextEditingController _manufacturerController;
   late final TextEditingController _defectController;
   late final TextEditingController _colorController;
@@ -1120,6 +1119,7 @@ class _InventoryFilterSheetState extends ConsumerState<_InventoryFilterSheet> {
   late String _frontRear;
   late String _leftRight;
   late String _topBottom;
+  late String _condition;
   late String _season;
   late String _status;
   late String _hasPhoto;
@@ -1140,7 +1140,6 @@ class _InventoryFilterSheetState extends ConsumerState<_InventoryFilterSheet> {
     _bodyBrandController = TextEditingController(text: widget.current.bodyBrand);
     _engineBrandController = TextEditingController(text: widget.current.engineBrand);
     _carReleaseDateController = TextEditingController(text: widget.current.carReleaseDate);
-    _conditionController = TextEditingController(text: widget.current.condition);
     _manufacturerController = TextEditingController(text: widget.current.manufacturer);
     _defectController = TextEditingController(text: widget.current.defect);
     _colorController = TextEditingController(text: widget.current.color);
@@ -1177,7 +1176,23 @@ class _InventoryFilterSheetState extends ConsumerState<_InventoryFilterSheet> {
     if (_topBottom.toLowerCase() == 'низ') _topBottom = 'Низ';
     if (_topBottom.toLowerCase() == 'середина') _topBottom = 'Середина';
 
+    _condition = widget.current.condition;
+    final condLower = _condition.toLowerCase();
+    if (condLower == 'б/у' || condLower == 'бу') {
+      _condition = 'Б/У';
+    } else if (condLower == 'новое' || condLower == 'новый' || condLower == 'новая') {
+      _condition = 'Новое';
+    }
+
     _season = widget.current.season;
+    final seasonLower = _season.toLowerCase();
+    if (seasonLower.contains('всесез')) {
+      _season = 'Всесезонные';
+    } else if (seasonLower.contains('зим')) {
+      _season = 'Зимние';
+    } else if (seasonLower.contains('лет')) {
+      _season = 'Летние';
+    }
     _status = widget.current.status;
     _hasPhoto = widget.current.hasPhoto;
     _pageSize = widget.current.pageSize;
@@ -1197,7 +1212,6 @@ class _InventoryFilterSheetState extends ConsumerState<_InventoryFilterSheet> {
     _bodyBrandController.dispose();
     _engineBrandController.dispose();
     _carReleaseDateController.dispose();
-    _conditionController.dispose();
     _manufacturerController.dispose();
     _defectController.dispose();
     _colorController.dispose();
@@ -1234,7 +1248,6 @@ class _InventoryFilterSheetState extends ConsumerState<_InventoryFilterSheet> {
       _bodyBrandController.clear();
       _engineBrandController.clear();
       _carReleaseDateController.clear();
-      _conditionController.clear();
       _manufacturerController.clear();
       _defectController.clear();
       _colorController.clear();
@@ -1260,6 +1273,7 @@ class _InventoryFilterSheetState extends ConsumerState<_InventoryFilterSheet> {
       _frontRear = '';
       _leftRight = '';
       _topBottom = '';
+      _condition = '';
       _season = '';
       _status = '';
       _hasPhoto = 'with';
@@ -1286,7 +1300,7 @@ class _InventoryFilterSheetState extends ConsumerState<_InventoryFilterSheet> {
         carReleaseDate: _carReleaseDateController.text.trim(),
         transmission: _transmission,
         drive: _drive,
-        condition: _conditionController.text.trim(),
+        condition: _condition,
         manufacturer: _manufacturerController.text.trim(),
         defect: _defectController.text.trim(),
         color: _colorController.text.trim(),
@@ -1324,7 +1338,7 @@ class _InventoryFilterSheetState extends ConsumerState<_InventoryFilterSheet> {
     if (_modelController.text.trim().isNotEmpty) count++;
     if (_category.isNotEmpty) count++;
     if (_carReleaseDateController.text.trim().isNotEmpty) count++;
-    if (_conditionController.text.trim().isNotEmpty) count++;
+    if (_condition.isNotEmpty) count++;
     if (_minPriceController.text.trim().isNotEmpty || _maxPriceController.text.trim().isNotEmpty) count++;
     if (_minQuantityController.text.trim().isNotEmpty || _maxQuantityController.text.trim().isNotEmpty) count++;
     if (_status.isNotEmpty) count++;
@@ -1552,13 +1566,19 @@ class _InventoryFilterSheetState extends ConsumerState<_InventoryFilterSheet> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: _conditionController,
-                      onChanged: (_) => setState(() {}),
-                      decoration: const InputDecoration(
-                        labelText: 'Состояние',
-                        hintText: 'Контрактная, б/у, новая…',
-                      ),
+                    DropdownButtonFormField<String>(
+                      key: ValueKey('condition-$_condition'),
+                      initialValue: _condition,
+                      isExpanded: true,
+                      decoration: const InputDecoration(labelText: 'Состояние'),
+                      items: [
+                        const DropdownMenuItem(value: '', child: Text('Все состояния')),
+                        const DropdownMenuItem(value: 'Б/У', child: Text('Б/У')),
+                        const DropdownMenuItem(value: 'Новое', child: Text('Новое')),
+                        if (_condition.isNotEmpty && _condition != 'Б/У' && _condition != 'Новое')
+                          DropdownMenuItem(value: _condition, child: Text(_condition)),
+                      ],
+                      onChanged: (value) => setState(() => _condition = value ?? ''),
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -1934,14 +1954,18 @@ class _InventoryFilterSheetState extends ConsumerState<_InventoryFilterSheet> {
                     DropdownButtonFormField<String>(
                       key: ValueKey('season-$_season'),
                       initialValue: _season,
+                      isExpanded: true,
                       decoration: const InputDecoration(labelText: 'Сезонность шин'),
-                      items: const [
-                        DropdownMenuItem(value: '', child: Text('Все сезоны')),
-                        DropdownMenuItem(value: 'лето', child: Text('Лето')),
-                        DropdownMenuItem(value: 'зима', child: Text('Зима')),
-                        DropdownMenuItem(value: 'всесезонные', child: Text('Всесезонные')),
-                        DropdownMenuItem(value: 'зима шипованные', child: Text('Зима шипованные')),
-                        DropdownMenuItem(value: 'зима нешипованные (липучка)', child: Text('Зима нешипованные (липучка)')),
+                      items: [
+                        const DropdownMenuItem(value: '', child: Text('Все сезоны')),
+                        const DropdownMenuItem(value: 'Зимние', child: Text('Зимние')),
+                        const DropdownMenuItem(value: 'Летние', child: Text('Летние')),
+                        const DropdownMenuItem(value: 'Всесезонные', child: Text('Всесезонные')),
+                        if (_season.isNotEmpty &&
+                            _season != 'Зимние' &&
+                            _season != 'Летние' &&
+                            _season != 'Всесезонные')
+                          DropdownMenuItem(value: _season, child: Text(_season)),
                       ],
                       onChanged: (value) => setState(() => _season = value ?? ''),
                     ),

@@ -287,8 +287,16 @@ final inventoryProvider =
           }
           if (filter.condition.isNotEmpty) {
             final value = filter.condition.toLowerCase();
+            final isBu = value.contains('б/у') || value.contains('бу');
+            final isNew = value.contains('нов');
             filteredList = filteredList
-                .where((part) => part.condition?.toLowerCase().contains(value) == true)
+                .where((part) {
+                  final c = part.condition?.toLowerCase();
+                  if (c == null) return false;
+                  if (isBu && (c.contains('б/у') || c.contains('бу') || c.contains('б.у'))) return true;
+                  if (isNew && c.contains('нов')) return true;
+                  return c.contains(value);
+                })
                 .toList();
           }
           if (filter.manufacturer.isNotEmpty) {
@@ -380,8 +388,13 @@ final inventoryProvider =
           }
           if (filter.season.isNotEmpty) {
             final value = filter.season.toLowerCase();
+            final stem = value.length > 3 ? value.substring(0, 3) : value;
             filteredList = filteredList
-                .where((part) => part.season?.toLowerCase().contains(value) == true)
+                .where((part) {
+                  final s = part.season?.toLowerCase();
+                  if (s == null) return false;
+                  return s.contains(value) || s.contains(stem);
+                })
                 .toList();
           }
           if (filter.diameter.isNotEmpty) {

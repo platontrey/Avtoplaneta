@@ -76,7 +76,11 @@
     {
       "code": "condition",
       "label": "Состояние",
-      "input_type": "text",
+      "input_type": "select",
+      "options": [
+        "Б/У",
+        "Новое"
+      ],
       "sort_order": 12
     },
     {
@@ -129,7 +133,12 @@
     {
       "code": "season",
       "label": "Сезон",
-      "input_type": "text",
+      "input_type": "select",
+      "options": [
+        "Зимние",
+        "Летние",
+        "Всесезонные"
+      ],
       "sort_order": 19
     },
     {

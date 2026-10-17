@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import type { SelectOption } from '@/components/ui/searchable-select';
+import { conditionOptions as defaultConditionOptions } from './searchTypes';
 import type { SearchFiltersState } from './searchTypes';
 
 export interface GeneralFiltersTabProps {
@@ -17,6 +18,7 @@ export interface GeneralFiltersTabProps {
   categoryOptions: SelectOption[];
   statusOptions: SelectOption[];
   photoOptions: SelectOption[];
+  conditionOptions?: SelectOption[];
 }
 
 export const GeneralFiltersTab: React.FC<GeneralFiltersTabProps> = ({
@@ -27,6 +29,7 @@ export const GeneralFiltersTab: React.FC<GeneralFiltersTabProps> = ({
   categoryOptions,
   statusOptions,
   photoOptions,
+  conditionOptions = defaultConditionOptions,
 }) => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -99,14 +102,17 @@ export const GeneralFiltersTab: React.FC<GeneralFiltersTabProps> = ({
       {/* Состояние */}
       <div>
         <Label htmlFor="condition-filter">Состояние</Label>
-        <Input
-          id="condition-filter"
-          type="text"
-          value={filters.condition}
-          onChange={(e) => onChange('condition', e.target.value)}
-          placeholder="Контрактная, б/у, новая..."
-          className="mt-1.5 bg-transparent border border-gray-300"
-        />
+        <div className="mt-1.5">
+          <SearchableSelect
+            value={filters.condition}
+            onValueChange={(val) => onChange('condition', val)}
+            options={conditionOptions}
+            placeholder="Все состояния"
+            searchPlaceholder="Поиск состояния..."
+            emptyMessage="Состояние не найдено"
+            className="bg-transparent border border-gray-300"
+          />
+        </div>
       </div>
 
       {/* Сдвоенный диапазон: Цена */}
