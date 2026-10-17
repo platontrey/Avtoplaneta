@@ -17,4 +17,5 @@ func SetupRoutes(router *gin.Engine, h *Handler) {
 	router.GET("/api/export/status", h.GetExportStatus)
 
 	router.GET(service.PriceListURL, h.ServePriceList)
+	router.HEAD(service.PriceListURL, h.ServePriceList)
 }
