@@ -125,6 +125,7 @@ func (s *AuthGRPCServer) CreateUser(ctx context.Context, req *authv1.CreateUserR
 		Role:     req.Role,
 		Initials: req.Initials,
 		INN:      req.Inn,
+		AvatarURL: req.AvatarUrl,
 	}
 
 	user, err := s.authService.CreateUser(createReq)
@@ -142,6 +143,7 @@ func (s *AuthGRPCServer) UpdateUser(ctx context.Context, req *authv1.UpdateUserR
 		Role:     req.Role,
 		Initials: req.Initials,
 		INN:      req.Inn,
+		AvatarURL: req.AvatarUrl,
 	}
 
 	user, err := s.authService.UpdateUser(int64(req.Id), updateReq)
@@ -280,9 +282,10 @@ func userToProto(u *domain.User) *authv1.User {
 		Email:    u.Email,
 		Name:     u.Name,
 		Role:     u.Role,
-		Initials: u.Initials,
-		Inn:      u.INN,
-		Provider: u.Provider,
+		Initials:  u.Initials,
+		Inn:       u.INN,
+		Provider:  u.Provider,
+		AvatarUrl: u.AvatarURL,
 	}
 }
 

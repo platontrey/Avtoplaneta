@@ -423,6 +423,104 @@ func (suite *ServiceTestSuite) TestLogout() {
 	assert.NoError(suite.T(), err)
 }
 
+// ─── Self-Service Profile & Password ────────────────────────────────────────
+
+func (suite *ServiceTestSuite) TestUpdateProfile_Success() {
+	existingUser := &domain.User{
+		ID:       10,
+		Username: "olduser",
+		Name:     "Old Name",
+	}
+	suite.mockUserRepo.On("FindByID", int64(10)).Return(existingUser, nil)
+	suite.mockUserRepo.On("ExistsByUsername", "newuser").Return(false, nil)
+
+	updatedUser := &domain.User{
+		ID:       10,
+		Username: "newuser",
+		Name:     "New Name",
+		INN:      "1234567890",
+	}
+	suite.mockUserRepo.On("UpdateProfile", int64(10), "New Name", "newuser", "1234567890").Return(updatedUser, nil)
+
+	req := domain.UpdateProfileRequest{
+		Name:     "New Name",
+		Username: "newuser",
+		INN:      "1234567890",
+	}
+	res, err := suite.service.UpdateProfile(10, req)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "New Name", res.Name)
+	assert.Equal(suite.T(), "newuser", res.Username)
+}
+
+func (suite *ServiceTestSuite) TestChangePassword_Success() {
+	hashed := testPasswordHash("current_password123")
+	user := &domain.User{
+		ID:       10,
+		Provider: "local",
+		Password: hashed,
+	}
+	suite.mockUserRepo.On("FindByID", int64(10)).Return(user, nil)
+	suite.mockUserRepo.On("UpdatePassword", int64(10), mock.AnythingOfType("string")).Return(nil)
+	suite.mockActivityRepo.On("Create", mock.Anything).Return(&domain.UserActivityLog{ID: 1}, nil)
+
+	err := suite.service.ChangePassword(10, "current_password123", "new_secure_password123")
+	assert.NoError(suite.T(), err)
+}
+
+func (suite *ServiceTestSuite) TestChangePassword_WrongOldPassword() {
+	hashed := testPasswordHash("current_password123")
+	user := &domain.User{
+		ID:       10,
+		Provider: "local",
+		Password: hashed,
+	}
+	suite.mockUserRepo.On("FindByID", int64(10)).Return(user, nil)
+
+	err := suite.service.ChangePassword(10, "wrong_password", "new_secure_password123")
+	assert.Error(suite.T(), err)
+	assert.Contains(suite.T(), err.Error(), "неверный текущий пароль")
+}
+
+func (suite *ServiceTestSuite) TestChangePassword_GoogleProviderBlocked() {
+	user := &domain.User{
+		ID:       10,
+		Provider: "google",
+	}
+	suite.mockUserRepo.On("FindByID", int64(10)).Return(user, nil)
+
+	err := suite.service.ChangePassword(10, "anything", "new_secure_password123")
+	assert.Error(suite.T(), err)
+	assert.Contains(suite.T(), err.Error(), "смена пароля недоступна для учетных записей через google")
+}
+
+func (suite *ServiceTestSuite) TestUpdateAvatar() {
+	user := &domain.User{
+		ID: 10,
+	}
+	suite.mockUserRepo.On("FindByID", int64(10)).Return(user, nil)
+	suite.mockUserRepo.On("UpdateAvatar", int64(10), "/auth/avatars/avatar_10.jpg").Return(&domain.User{ID: 10, AvatarURL: "/auth/avatars/avatar_10.jpg"}, nil)
+	suite.mockActivityRepo.On("Create", mock.Anything).Return(&domain.UserActivityLog{ID: 2}, nil)
+
+	res, err := suite.service.UpdateAvatar(10, "/auth/avatars/avatar_10.jpg")
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "/auth/avatars/avatar_10.jpg", res.AvatarURL)
+}
+
+func (suite *ServiceTestSuite) TestDeleteAvatar() {
+	user := &domain.User{
+		ID:        10,
+		AvatarURL: "/auth/avatars/avatar_10.jpg",
+	}
+	suite.mockUserRepo.On("FindByID", int64(10)).Return(user, nil)
+	suite.mockUserRepo.On("UpdateAvatar", int64(10), "").Return(&domain.User{ID: 10, AvatarURL: ""}, nil)
+	suite.mockActivityRepo.On("Create", mock.Anything).Return(&domain.UserActivityLog{ID: 3}, nil)
+
+	res, err := suite.service.DeleteAvatar(10)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "", res.AvatarURL)
+}
+
 func TestServiceTestSuite(t *testing.T) {
 	suite.Run(t, new(ServiceTestSuite))
 }

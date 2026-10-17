@@ -27,6 +27,11 @@ type AuthService interface {
 	DeleteUser(userID int64) error
 	GetTotalUsersCount() (int, error)
 
+	UpdateProfile(userID int64, req domain.UpdateProfileRequest) (*domain.User, error)
+	ChangePassword(userID int64, oldPassword, newPassword string) error
+	UpdateAvatar(userID int64, avatarURL string) (*domain.User, error)
+	DeleteAvatar(userID int64) (*domain.User, error)
+
 	LogUserActivity(user *domain.User, action, resourceType string, resourceID *int64, details, ip, userAgent string) error
 	GetUserActivityLogs(filters domain.ActivityLogFilters) ([]domain.UserActivityLog, error)
 
@@ -200,14 +205,15 @@ func (s *authService) CreateUser(req domain.CreateUserRequest) (*domain.User, er
 	}
 
 	user := &domain.User{
-		Username: req.Username,
-		Email:    req.Email,
-		Name:     req.Name,
-		Initials: req.Initials,
-		INN:      req.INN,
-		Provider: "local",
-		Role:     req.Role,
-		Password: hashedPassword,
+		Username:  req.Username,
+		Email:     req.Email,
+		Name:      req.Name,
+		Initials:  req.Initials,
+		INN:       req.INN,
+		Provider:  "local",
+		Role:      req.Role,
+		Password:  hashedPassword,
+		AvatarURL: req.AvatarURL,
 	}
 
 	if _, err := s.userRepo.Create(user); err != nil {
@@ -269,18 +275,24 @@ func (s *authService) UpdateUser(userID int64, req domain.UpdateUserRequest) (*d
 		}
 	}
 
+	var avatarURLPtr *string
+	if req.AvatarURL != "" {
+		avatarURLPtr = &req.AvatarURL
+	}
+
 	updateParams := domain.UpdateUserParams{
-		Username: req.Username,
-		Name:     req.Name,
-		Email:    req.Email,
-		Initials: req.Initials,
-		INN:      req.INN,
-		Role:     req.Role,
+		Username:  req.Username,
+		Name:      req.Name,
+		Email:     req.Email,
+		Initials:  req.Initials,
+		INN:       req.INN,
+		Role:      req.Role,
+		AvatarURL: avatarURLPtr,
 	}
 
 	if updateParams.Username == "" && updateParams.Name == "" && updateParams.Email == "" &&
 		updateParams.Initials == "" && updateParams.INN == "" &&
-		updateParams.Role == "" {
+		updateParams.Role == "" && updateParams.AvatarURL == nil {
 		return nil, fmt.Errorf("нет полей для обновления")
 	}
 
@@ -366,3 +378,108 @@ func (s *authService) GenerateCSRFToken(userID *int64) (string, error) {
 	}
 	return "", nil
 }
+
+func (s *authService) UpdateProfile(userID int64, req domain.UpdateProfileRequest) (*domain.User, error) {
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("пользователь не найден")
+	}
+
+	req.Username = strings.ToLower(strings.TrimSpace(req.Username))
+	if req.Username != "" && req.Username != user.Username {
+		exists, err := s.userRepo.ExistsByUsername(req.Username)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			return nil, fmt.Errorf("пользователь с таким логином уже существует")
+		}
+	}
+
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		name = user.Name
+	}
+
+	oldName := user.Name
+	updatedUser, err := s.userRepo.UpdateProfile(userID, name, req.Username, strings.TrimSpace(req.INN))
+	if err != nil {
+		logrus.WithError(err).WithField("user_id", userID).Error("Failed to update profile")
+		return nil, err
+	}
+
+	updatedUser.Password = ""
+
+	if s.eventPublisher != nil && updatedUser.Name != "" && updatedUser.Name != oldName {
+		if err := s.eventPublisher.PublishUserRenamed(context.Background(), userID, updatedUser.Name); err != nil {
+			logrus.WithError(err).WithField("user_id", userID).Warn("Failed to publish seller_renamed event")
+		}
+	}
+
+	return updatedUser, nil
+}
+
+func (s *authService) ChangePassword(userID int64, oldPassword, newPassword string) error {
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return fmt.Errorf("пользователь не найден")
+	}
+
+	if strings.ToLower(strings.TrimSpace(user.Provider)) != "local" {
+		return fmt.Errorf("смена пароля недоступна для учетных записей через %s", user.Provider)
+	}
+
+	if !security.VerifyPassword(user.Password, oldPassword) {
+		return fmt.Errorf("неверный текущий пароль")
+	}
+
+	newPassword = strings.TrimSpace(newPassword)
+	if len(newPassword) < 8 {
+		return fmt.Errorf("новый пароль должен содержать минимум 8 символов")
+	}
+
+	hashed, err := security.HashPassword(newPassword)
+	if err != nil {
+		return fmt.Errorf("ошибка хеширования пароля: %w", err)
+	}
+
+	if err := s.userRepo.UpdatePassword(userID, hashed); err != nil {
+		return fmt.Errorf("ошибка сохранения пароля: %w", err)
+	}
+
+	_ = s.LogUserActivity(user, "change_password", "user", &userID, "Пользователь успешно сменил пароль", "", "")
+	return nil
+}
+
+func (s *authService) UpdateAvatar(userID int64, avatarURL string) (*domain.User, error) {
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("пользователь не найден")
+	}
+
+	updatedUser, err := s.userRepo.UpdateAvatar(userID, strings.TrimSpace(avatarURL))
+	if err != nil {
+		return nil, fmt.Errorf("ошибка обновления аватара: %w", err)
+	}
+
+	updatedUser.Password = ""
+	_ = s.LogUserActivity(user, "update_avatar", "user", &userID, "Пользователь обновил аватарку", "", "")
+	return updatedUser, nil
+}
+
+func (s *authService) DeleteAvatar(userID int64) (*domain.User, error) {
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("пользователь не найден")
+	}
+
+	updatedUser, err := s.userRepo.UpdateAvatar(userID, "")
+	if err != nil {
+		return nil, fmt.Errorf("ошибка удаления аватара: %w", err)
+	}
+
+	updatedUser.Password = ""
+	_ = s.LogUserActivity(user, "delete_avatar", "user", &userID, "Пользователь удалил аватарку", "", "")
+	return updatedUser, nil
+}
+

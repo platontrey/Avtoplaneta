@@ -116,6 +116,8 @@ services:
       - GOMEMLIMIT=1024MiB
       - GOGC=400
       - GOMAXPROCS=8
+    volumes:
+      - auth-avatars:/app/uploads/avatars
     depends_on:
       - postgres
       - redis
@@ -495,6 +497,7 @@ volumes:
   postgres-data:
   redis-data:
   parts-uploads:
+  auth-avatars:
   messaging-uploads:
   export-uploads:
   prometheus-data:

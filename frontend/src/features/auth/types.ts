@@ -10,6 +10,8 @@ export interface User {
   provider: string;
   role: string;
   initials?: string;
+  inn?: string;
+  avatar_url?: string;
 }
 
 export interface LoginCredentials {

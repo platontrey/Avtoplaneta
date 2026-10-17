@@ -14,3 +14,9 @@ func HashPassword(password string) (string, error) {
 func CheckPassword(hashedPassword, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }
+
+// VerifyPassword возвращает true, если пароль совпадает с хэшем
+func VerifyPassword(hashedPassword, password string) bool {
+	return CheckPassword(hashedPassword, password) == nil
+}
+

@@ -54,6 +54,27 @@ func (m *MockUserRepository) Update(id int64, params domain.UpdateUserParams) (*
 	return args.Get(0).(*domain.User), args.Error(1)
 }
 
+func (m *MockUserRepository) UpdateProfile(id int64, name, username, inn string) (*domain.User, error) {
+	args := m.Called(id, name, username, inn)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.User), args.Error(1)
+}
+
+func (m *MockUserRepository) UpdatePassword(id int64, passwordHash string) error {
+	args := m.Called(id, passwordHash)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) UpdateAvatar(id int64, avatarURL string) (*domain.User, error) {
+	args := m.Called(id, avatarURL)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.User), args.Error(1)
+}
+
 func (m *MockUserRepository) Delete(id int64) error {
 	args := m.Called(id)
 	return args.Error(0)

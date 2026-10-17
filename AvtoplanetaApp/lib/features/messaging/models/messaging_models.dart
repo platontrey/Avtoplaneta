@@ -189,6 +189,7 @@ class ChatUser {
   final String email;
   final String role;
   final String initials;
+  final String avatarUrl;
 
   const ChatUser({
     required this.id,
@@ -197,6 +198,7 @@ class ChatUser {
     required this.email,
     required this.role,
     this.initials = '',
+    this.avatarUrl = '',
   });
 
   factory ChatUser.fromJson(Map<String, dynamic> json) {
@@ -210,6 +212,7 @@ class ChatUser {
       initials: (json['initials']?.toString().isNotEmpty == true)
           ? json['initials'].toString()
           : (name.isNotEmpty ? name[0].toUpperCase() : '?'),
+      avatarUrl: json['avatar_url']?.toString() ?? '',
     );
   }
 }

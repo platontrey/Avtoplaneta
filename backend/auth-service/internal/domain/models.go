@@ -15,6 +15,20 @@ type User struct {
 	Provider string `json:"provider"`
 	Role     string `json:"role"`
 	Password string `json:"-"`
+	AvatarURL string `json:"avatar_url,omitempty"`
+}
+
+// UpdateProfileRequest запрос на редактирование собственного профиля
+type UpdateProfileRequest struct {
+	Name     string `json:"name" binding:"required"`
+	Username string `json:"username"`
+	INN      string `json:"inn"`
+}
+
+// ChangePasswordRequest запрос на смену собственного пароля
+type ChangePasswordRequest struct {
+	OldPassword string `json:"old_password" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required,min=8"`
 }
 
 // LoginResponse ответ при успешной аутентификации
@@ -42,33 +56,36 @@ type UserActivityLog struct {
 
 // CreateUserRequest запрос на создание пользователя
 type CreateUserRequest struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Name     string `json:"name"`
-	Initials string `json:"initials"`
-	INN      string `json:"inn"`
-	Password string `json:"password"`
-	Role     string `json:"role"`
+	Username  string `json:"username"`
+	Email     string `json:"email"`
+	Name      string `json:"name"`
+	Initials  string `json:"initials"`
+	INN       string `json:"inn"`
+	Password  string `json:"password"`
+	Role      string `json:"role"`
+	AvatarURL string `json:"avatar_url,omitempty"`
 }
 
 // UpdateUserRequest запрос на обновление пользователя
 type UpdateUserRequest struct {
-	Username string `json:"username"`
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Initials string `json:"initials"`
-	INN      string `json:"inn"`
-	Role     string `json:"role"`
+	Username  string `json:"username"`
+	Name      string `json:"name"`
+	Email     string `json:"email"`
+	Initials  string `json:"initials"`
+	INN       string `json:"inn"`
+	Role      string `json:"role"`
+	AvatarURL string `json:"avatar_url,omitempty"`
 }
 
 // UpdateUserParams параметры для репозитория обновления пользователя
 type UpdateUserParams struct {
-	Username string
-	Name     string
-	Email    string
-	Initials string
-	INN      string
-	Role     string
+	Username  string
+	Name      string
+	Email     string
+	Initials  string
+	INN       string
+	Role      string
+	AvatarURL *string
 }
 
 // ActivityLogFilters фильтры для выборки логов активности

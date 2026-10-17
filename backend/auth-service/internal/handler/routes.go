@@ -40,6 +40,22 @@ func SetupRoutes(r *gin.Engine, h *Handler) {
 	r.GET("/api/users", h.AuthMiddleware, h.RequireMinRole("operator"), h.GetUsersHandler)
 	r.GET("/api/users/me", h.AuthMiddleware, h.GetCurrentUserHandler)
 
+	// Управление личным профилем текущего пользователя
+	r.PUT("/auth/profile", h.AuthMiddleware, h.UpdateProfileHandler)
+	r.PUT("/auth/me", h.AuthMiddleware, h.UpdateProfileHandler)
+	r.POST("/auth/change-password", h.AuthMiddleware, h.ChangePasswordHandler)
+	r.POST("/auth/avatar", h.AuthMiddleware, h.UploadAvatarHandler)
+	r.DELETE("/auth/avatar", h.AuthMiddleware, h.DeleteAvatarHandler)
+
+	// Зеркалирование для API клиентов /api/users/me
+	r.PUT("/api/users/me", h.AuthMiddleware, h.UpdateProfileHandler)
+	r.POST("/api/users/me/password", h.AuthMiddleware, h.ChangePasswordHandler)
+	r.POST("/api/users/me/avatar", h.AuthMiddleware, h.UploadAvatarHandler)
+	r.DELETE("/api/users/me/avatar", h.AuthMiddleware, h.DeleteAvatarHandler)
+
+	// Раздача статических аватаров
+	r.Static("/auth/avatars", "./uploads/avatars")
+
 	// Автообновление мобильного приложения
 	r.GET("/api/app/version", h.GetAppVersionHandler)
 	r.GET("/api/app/download", h.DownloadAppHandler)

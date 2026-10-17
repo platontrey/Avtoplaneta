@@ -1240,6 +1240,9 @@
         },
         "username": {
           "type": "string"
+        },
+        "avatarUrl": {
+          "type": "string"
         }
       }
     },
@@ -1894,6 +1897,9 @@
           "type": "string"
         },
         "username": {
+          "type": "string"
+        },
+        "avatarUrl": {
           "type": "string"
         }
       }
@@ -2651,6 +2657,9 @@
           "type": "string"
         },
         "username": {
+          "type": "string"
+        },
+        "avatarUrl": {
           "type": "string"
         }
       }

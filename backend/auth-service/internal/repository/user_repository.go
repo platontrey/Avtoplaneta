@@ -25,6 +25,9 @@ type UserRepository interface {
 	ExistsByUsername(username string) (bool, error)
 	CountAll() (int, error)
 	FindByEmail(email string) (*domain.User, error)
+	UpdateProfile(id int64, name, username, inn string) (*domain.User, error)
+	UpdatePassword(id int64, passwordHash string) error
+	UpdateAvatar(id int64, avatarURL string) (*domain.User, error)
 
 	// Outbox
 	CreateOutboxEvent(ctx context.Context, aggregateType string, aggregateID int64, eventType string, payload []byte) error
@@ -49,20 +52,22 @@ func NewUserRepository(pool *pgxpool.Pool) UserRepository {
 
 func (r *userRepository) Create(user *domain.User) (*domain.User, error) {
 	result, err := r.queries.CreateUser(context.Background(), sqlc.CreateUserParams{
-		Username: strings.TrimSpace(user.Username),
-		Email:    strings.TrimSpace(user.Email),
-		Name:     user.Name,
-		Initials: user.Initials,
-		Inn:      user.INN,
-		Provider: user.Provider,
-		Role:     user.Role,
-		Password: user.Password,
+		Username:  strings.TrimSpace(user.Username),
+		Email:     strings.TrimSpace(user.Email),
+		Name:      user.Name,
+		Initials:  user.Initials,
+		Inn:       user.INN,
+		Provider:  user.Provider,
+		Role:      user.Role,
+		Password:  user.Password,
+		AvatarUrl: pgtype.Text{String: user.AvatarURL, Valid: user.AvatarURL != ""},
 	})
 	if err != nil {
 		return nil, err
 	}
 	user.ID = result.ID
 	user.Username = result.Username
+	user.AvatarURL = result.AvatarUrl
 	return user, nil
 }
 
@@ -76,15 +81,16 @@ func (r *userRepository) FindByID(id int64) (*domain.User, error) {
 		emailStr = result.Email.String
 	}
 	return &domain.User{
-		ID:       result.ID,
-		Username: result.Username,
-		Email:    emailStr,
-		Name:     result.Name,
-		Initials: result.Initials,
-		INN:      result.Inn,
-		Provider: result.Provider,
-		Role:     result.Role,
-		Password: result.Password,
+		ID:        result.ID,
+		Username:  result.Username,
+		Email:     emailStr,
+		Name:      result.Name,
+		Initials:  result.Initials,
+		INN:       result.Inn,
+		Provider:  result.Provider,
+		Role:      result.Role,
+		Password:  result.Password,
+		AvatarURL: result.AvatarUrl,
 	}, nil
 }
 
@@ -99,15 +105,16 @@ func (r *userRepository) FindByEmailOrName(identifier string) (*domain.User, err
 		emailStr = result.Email.String
 	}
 	return &domain.User{
-		ID:       result.ID,
-		Username: result.Username,
-		Email:    emailStr,
-		Name:     result.Name,
-		Initials: result.Initials,
-		INN:      result.Inn,
-		Provider: result.Provider,
-		Role:     result.Role,
-		Password: result.Password,
+		ID:        result.ID,
+		Username:  result.Username,
+		Email:     emailStr,
+		Name:      result.Name,
+		Initials:  result.Initials,
+		INN:       result.Inn,
+		Provider:  result.Provider,
+		Role:      result.Role,
+		Password:  result.Password,
+		AvatarURL: result.AvatarUrl,
 	}, nil
 }
 
@@ -125,15 +132,16 @@ func (r *userRepository) FindByEmail(email string) (*domain.User, error) {
 		return nil, sql.ErrNoRows
 	}
 	return &domain.User{
-		ID:       result.ID,
-		Username: result.Username,
-		Email:    emailStr,
-		Name:     result.Name,
-		Initials: result.Initials,
-		INN:      result.Inn,
-		Provider: result.Provider,
-		Role:     result.Role,
-		Password: result.Password,
+		ID:        result.ID,
+		Username:  result.Username,
+		Email:     emailStr,
+		Name:      result.Name,
+		Initials:  result.Initials,
+		INN:       result.Inn,
+		Provider:  result.Provider,
+		Role:      result.Role,
+		Password:  result.Password,
+		AvatarURL: result.AvatarUrl,
 	}, nil
 }
 
@@ -145,15 +153,21 @@ func (r *userRepository) Update(id int64, params domain.UpdateUserParams) (*doma
 	}
 	defer tx.Rollback(ctx)
 
+	var avatarText pgtype.Text
+	if params.AvatarURL != nil {
+		avatarText = pgtype.Text{String: *params.AvatarURL, Valid: true}
+	}
+
 	qtx := r.queries.WithTx(tx)
 	err = qtx.UpdateUser(ctx, sqlc.UpdateUserParams{
-		ID:       id,
-		Username: params.Username,
-		Name:     params.Name,
-		Email:    params.Email,
-		Initials: params.Initials,
-		Inn:      params.INN,
-		Role:     params.Role,
+		ID:        id,
+		Username:  params.Username,
+		Name:      params.Name,
+		Email:     params.Email,
+		Initials:  params.Initials,
+		Inn:       params.INN,
+		Role:      params.Role,
+		AvatarUrl: avatarText,
 	})
 	if err != nil {
 		return nil, err
@@ -182,6 +196,66 @@ func (r *userRepository) Update(id int64, params domain.UpdateUserParams) (*doma
 	return r.FindByID(id)
 }
 
+func (r *userRepository) UpdateProfile(id int64, name, username, inn string) (*domain.User, error) {
+	ctx := context.Background()
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := r.queries.WithTx(tx)
+	err = qtx.UpdateUserProfile(ctx, sqlc.UpdateUserProfileParams{
+		ID:       id,
+		Name:     strings.TrimSpace(name),
+		Username: strings.TrimSpace(username),
+		Inn:      strings.TrimSpace(inn),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if strings.TrimSpace(name) != "" {
+		payload, _ := json.Marshal(map[string]interface{}{
+			"seller_id": id,
+			"name":      strings.TrimSpace(name),
+		})
+		_, err = qtx.CreateAuthOutboxEvent(ctx, sqlc.CreateAuthOutboxEventParams{
+			AggregateType: "user",
+			AggregateID:   id,
+			EventType:     "seller_renamed",
+			Payload:       payload,
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+
+	return r.FindByID(id)
+}
+
+func (r *userRepository) UpdatePassword(id int64, passwordHash string) error {
+	return r.queries.UpdateUserPassword(context.Background(), sqlc.UpdateUserPasswordParams{
+		ID:       id,
+		Password: passwordHash,
+	})
+}
+
+func (r *userRepository) UpdateAvatar(id int64, avatarURL string) (*domain.User, error) {
+	err := r.queries.UpdateUserAvatar(context.Background(), sqlc.UpdateUserAvatarParams{
+		ID:        id,
+		AvatarUrl: avatarURL,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return r.FindByID(id)
+}
+
 func (r *userRepository) Delete(id int64) error {
 	return r.queries.DeleteUser(context.Background(), id)
 }
@@ -198,15 +272,16 @@ func (r *userRepository) FindAll() ([]domain.User, error) {
 			emailStr = u.Email.String
 		}
 		users[i] = domain.User{
-			ID:       u.ID,
-			Username: u.Username,
-			Email:    emailStr,
-			Name:     u.Name,
-			Initials: u.Initials,
-			INN:      u.Inn,
-			Provider: u.Provider,
-			Role:     u.Role,
-			Password: u.Password,
+			ID:        u.ID,
+			Username:  u.Username,
+			Email:     emailStr,
+			Name:      u.Name,
+			Initials:  u.Initials,
+			INN:       u.Inn,
+			Provider:  u.Provider,
+			Role:      u.Role,
+			Password:  u.Password,
+			AvatarURL: u.AvatarUrl,
 		}
 	}
 	return users, nil

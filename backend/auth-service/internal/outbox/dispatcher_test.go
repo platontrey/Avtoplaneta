@@ -71,6 +71,23 @@ func (m *MockUserRepo) FindByEmail(email string) (*domain.User, error) {
 	}
 	return args.Get(0).(*domain.User), args.Error(1)
 }
+func (m *MockUserRepo) UpdateProfile(id int64, name, username, inn string) (*domain.User, error) {
+	args := m.Called(id, name, username, inn)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.User), args.Error(1)
+}
+func (m *MockUserRepo) UpdatePassword(id int64, passwordHash string) error {
+	return m.Called(id, passwordHash).Error(0)
+}
+func (m *MockUserRepo) UpdateAvatar(id int64, avatarURL string) (*domain.User, error) {
+	args := m.Called(id, avatarURL)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.User), args.Error(1)
+}
 func (m *MockUserRepo) CreateOutboxEvent(ctx context.Context, aggregateType string, aggregateID int64, eventType string, payload []byte) error {
 	return m.Called(ctx, aggregateType, aggregateID, eventType, payload).Error(0)
 }

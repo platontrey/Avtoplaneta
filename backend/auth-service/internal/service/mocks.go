@@ -91,3 +91,33 @@ func (m *MockAuthService) GenerateCSRFToken(userID *int64) (string, error) {
 	args := m.Called(userID)
 	return args.String(0), args.Error(1)
 }
+
+func (m *MockAuthService) UpdateProfile(userID int64, req domain.UpdateProfileRequest) (*domain.User, error) {
+	args := m.Called(userID, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.User), args.Error(1)
+}
+
+func (m *MockAuthService) ChangePassword(userID int64, oldPassword, newPassword string) error {
+	args := m.Called(userID, oldPassword, newPassword)
+	return args.Error(0)
+}
+
+func (m *MockAuthService) UpdateAvatar(userID int64, avatarURL string) (*domain.User, error) {
+	args := m.Called(userID, avatarURL)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.User), args.Error(1)
+}
+
+func (m *MockAuthService) DeleteAvatar(userID int64) (*domain.User, error) {
+	args := m.Called(userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.User), args.Error(1)
+}
+

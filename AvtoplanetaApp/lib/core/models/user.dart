@@ -7,6 +7,7 @@ class User {
   final String inn;
   final String provider;
   final String role;
+  final String avatarUrl;
 
   const User({
     required this.id,
@@ -17,6 +18,7 @@ class User {
     this.inn = '',
     this.provider = 'local',
     required this.role,
+    this.avatarUrl = '',
   });
 
   factory User.fromJson(Map<String, dynamic> json) => User(
@@ -28,6 +30,7 @@ class User {
         inn: json['inn'] as String? ?? '',
         provider: json['provider'] as String? ?? 'local',
         role: json['role'] as String? ?? 'operator',
+        avatarUrl: json['avatar_url'] as String? ?? '',
       );
 
   Map<String, dynamic> toJson() => {
@@ -39,6 +42,7 @@ class User {
         'inn': inn,
         'provider': provider,
         'role': role,
+        'avatar_url': avatarUrl,
       };
 
   bool get isAdmin => role == 'admin';

@@ -25,7 +25,7 @@ WORKDIR /app
 
 COPY --from=builder /auth-service .
 
-RUN adduser -D -g '' appuser
+RUN adduser -D -g '' appuser && mkdir -p /app/uploads/avatars && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8083

@@ -2,22 +2,23 @@
  * Copyright (c) 2025 Avtoplaneta. All rights reserved.
  */
 
-import React from 'react';
-import { Package, BarChart3, Plus, LogOut, User as UserIcon, Settings, ChevronDown, BookOpen, MessageCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Package, BarChart3, Plus, LogOut, Settings, ChevronDown, BookOpen, MessageCircle, UserCog } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import ThemeToggle from './ThemeToggle';
 import { cn } from "@/lib/utils";
 
 import type { User } from '../features/auth/types';
+import { ProfileModal } from '@/features/auth/components/ProfileModal';
 import {
   prefetchInventory,
   prefetchStatistics,
@@ -44,6 +45,7 @@ interface HeaderProps {
  */
 const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
   const location = useLocation();
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   /**
    * Определяет, активна ли текущая страница для данной кнопки
@@ -198,71 +200,95 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
 
           {/* User profile dropdown */}
           {user && (
-            <DropdownMenu modal={false} onOpenChange={(open) => console.log('Profile menu open state:', open)}>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center space-x-1 sm:space-x-2" onClick={() => console.log('Profile menu trigger clicked')}>
-                  <UserIcon size={16} />
-                  <span className="hidden sm:inline">{user.name}</span>
-                  <ChevronDown className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" side="bottom" style={{ zIndex: 9999 }} onPointerDownOutside={(e) => e.preventDefault()}>
-                <DropdownMenuLabel>Мой профиль</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <div className="px-2 py-1.5 text-sm">
-                  <p className="font-medium">{user.name}</p>
-                  <p className="text-muted-foreground">{user.email}</p>
-                  {user.role === 'admin' && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 mt-1">
-                      Администратор
-                    </span>
+            <>
+              <DropdownMenu modal={false} onOpenChange={(open) => console.log('Profile menu open state:', open)}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="flex items-center space-x-1.5 sm:space-x-2 px-2" onClick={() => console.log('Profile menu trigger clicked')}>
+                    <Avatar className="w-7 h-7 text-xs">
+                      {user.avatar_url && <AvatarImage src={user.avatar_url} alt={user.name} className="object-cover" />}
+                      <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                        {user.initials || user.name.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="hidden sm:inline font-medium text-sm">{user.name}</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" side="bottom" style={{ zIndex: 9999 }} onPointerDownOutside={(e) => e.preventDefault()}>
+                  <div className="px-3 py-2 flex items-center gap-3">
+                    <Avatar className="w-10 h-10 text-sm">
+                      {user.avatar_url && <AvatarImage src={user.avatar_url} alt={user.name} className="object-cover" />}
+                      <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                        {user.initials || user.name.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="text-sm overflow-hidden">
+                      <p className="font-medium truncate">{user.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{user.email || user.username || ''}</p>
+                      {user.role === 'admin' && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 mt-1">
+                          Администратор
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setIsProfileModalOpen(true)} className="cursor-pointer">
+                    <UserCog className="w-4 h-4 mr-2" />
+                    Личный кабинет
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/messages" className="flex items-center">
+                      <MessageCircle className="w-4 h-4 mr-2" />
+                      Сообщения
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/readme" className="flex items-center">
+                      <BookOpen className="w-4 h-4 mr-2" />
+                      Документация и API
+                    </Link>
+                  </DropdownMenuItem>
+                  {user.role === 'operator' && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/operator-instructions" className="flex items-center">
+                        <BookOpen className="w-4 h-4 mr-2" />
+                        Инструкция оператора
+                      </Link>
+                    </DropdownMenuItem>
                   )}
-                </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/messages" className="flex items-center">
-                    <MessageCircle className="w-4 h-4 mr-2" />
-                    Сообщения
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/readme" className="flex items-center">
-                    <BookOpen className="w-4 h-4 mr-2" />
-                    Документация и API
-                  </Link>
-                </DropdownMenuItem>
-                {user.role === 'operator' && (
-                  <DropdownMenuItem asChild>
-                    <Link to="/operator-instructions" className="flex items-center">
-                      <BookOpen className="w-4 h-4 mr-2" />
-                      Инструкция оператора
-                    </Link>
+                  {user.role === 'manager' && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/manager-instructions" className="flex items-center">
+                        <BookOpen className="w-4 h-4 mr-2" />
+                        Инструкция менеджера
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  {user.role === 'admin' && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin" className="flex items-center">
+                        <Settings className="w-4 h-4 mr-2" />
+                        Админ панель
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={onLogout} className="text-red-600 dark:text-red-400">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Выйти
                   </DropdownMenuItem>
-                )}
-                {user.role === 'manager' && (
-                  <DropdownMenuItem asChild>
-                    <Link to="/manager-instructions" className="flex items-center">
-                      <BookOpen className="w-4 h-4 mr-2" />
-                      Инструкция менеджера
-                    </Link>
-                  </DropdownMenuItem>
-                )}
-                {user.role === 'admin' && (
-                  <DropdownMenuItem asChild>
-                    <Link to="/admin" className="flex items-center">
-                      <Settings className="w-4 h-4 mr-2" />
-                      Админ панель
-                    </Link>
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onLogout} className="text-red-600 dark:text-red-400">
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Выйти
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <ProfileModal
+                user={user}
+                isOpen={isProfileModalOpen}
+                onClose={() => setIsProfileModalOpen(false)}
+              />
+            </>
           )}
         </div>
       </div>

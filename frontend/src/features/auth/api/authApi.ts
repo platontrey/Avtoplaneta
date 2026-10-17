@@ -65,4 +65,82 @@ export const authApi = {
 
     return response.json();
   },
+
+  updateProfile: async (data: { name: string; username?: string; inn?: string }): Promise<User> => {
+    const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: 'Не удалось обновить профиль' }));
+      throw new Error(err.error || 'Не удалось обновить профиль');
+    }
+
+    const res = await response.json();
+    return res.user;
+  },
+
+  changePassword: async (data: { old_password: string; new_password: string }): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: 'Не удалось сменить пароль' }));
+      throw new Error(err.error || 'Не удалось сменить пароль');
+    }
+  },
+
+  uploadAvatar: async (file: File): Promise<{ avatar_url: string; user: User }> => {
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const headers: Record<string, string> = {};
+    const csrfToken = localStorage.getItem('csrf_token');
+    if (csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/auth/avatar`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: 'Не удалось загрузить аватар' }));
+      throw new Error(err.error || 'Не удалось загрузить аватар');
+    }
+
+    return response.json();
+  },
+
+  deleteAvatar: async (): Promise<User> => {
+    const headers: Record<string, string> = {};
+    const csrfToken = localStorage.getItem('csrf_token');
+    if (csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/auth/avatar`, {
+      method: 'DELETE',
+      headers,
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: 'Не удалось удалить аватар' }));
+      throw new Error(err.error || 'Не удалось удалить аватар');
+    }
+
+    const res = await response.json();
+    return res.user;
+  },
 };
