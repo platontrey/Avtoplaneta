@@ -82,7 +82,8 @@ func TestMetricsEndpoint(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusOK, w.Code)
-	require.Contains(t, w.Body.String(), "template_service_http_requests_total")
+	require.Contains(t, w.Body.String(), "http_requests_total")
+	require.Contains(t, w.Body.String(), `service="template-service"`)
 }
 
 func TestGetItem_NotFound(t *testing.T) {

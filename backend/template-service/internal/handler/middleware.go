@@ -2,40 +2,14 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 
 	"avtoplaneta/pkg/authcontext"
+	"avtoplaneta/pkg/metrics"
 )
-
-var (
-	httpRequestsTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "template_service_http_requests_total",
-			Help: "Общее количество HTTP-запросов",
-		},
-		[]string{"method", "endpoint", "status"},
-	)
-	httpRequestDuration = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "template_service_http_request_duration_seconds",
-			Help:    "Длительность обработки HTTP-запросов в секундах",
-			Buckets: prometheus.DefBuckets,
-		},
-		[]string{"method", "endpoint"},
-	)
-)
-
-func init() {
-	prometheus.MustRegister(
-		httpRequestsTotal,
-		httpRequestDuration,
-	)
-}
 
 // CORSMiddleware стандартная настройка CORS для веб-клиента и шлюза Traefik
 func CORSMiddleware() gin.HandlerFunc {
@@ -54,22 +28,9 @@ func CORSMiddleware() gin.HandlerFunc {
 	}
 }
 
-// MetricsMiddleware собирает Prometheus метрики по каждому эндпоинту
+// MetricsMiddleware собирает Prometheus метрики по каждому эндпоинту через shared pkg/metrics
 func MetricsMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		start := time.Now()
-		c.Next()
-
-		duration := time.Since(start).Seconds()
-		status := strconv.Itoa(c.Writer.Status())
-		endpoint := c.FullPath()
-		if endpoint == "" {
-			endpoint = "unknown"
-		}
-
-		httpRequestsTotal.WithLabelValues(c.Request.Method, endpoint, status).Inc()
-		httpRequestDuration.WithLabelValues(c.Request.Method, endpoint).Observe(duration)
-	}
+	return metrics.GinMiddleware("template-service")
 }
 
 // LoggingMiddleware логирует каждый запрос с задержкой и статусом

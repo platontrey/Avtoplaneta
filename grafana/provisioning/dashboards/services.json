@@ -95,8 +95,8 @@
       },
       "targets": [
         {
-          "expr": "sum by (job) (rate({__name__=~\"avtoplaneta.*_http_requests_total\"}[2m]))",
-          "legendFormat": "{{job}} (запросов/сек)"
+          "expr": "sum by (service) (rate(http_requests_total[2m])) or sum by (job) (rate({__name__=~\"avtoplaneta.*_http_requests_total\"}[2m]))",
+          "legendFormat": "{{service}}{{job}} (запросов/сек)"
         }
       ],
       "title": "Интенсивность запросов (RPS по сервисам)",
@@ -129,8 +129,8 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (job, le) (rate({__name__=~\"avtoplaneta.*_http_request_duration_seconds_bucket\"}[2m]))) * 1000",
-          "legendFormat": "{{job}} (p95)"
+          "expr": "histogram_quantile(0.95, sum by (service, le) (rate(http_request_duration_seconds_bucket[2m]))) * 1000 or histogram_quantile(0.95, sum by (job, le) (rate({__name__=~\"avtoplaneta.*_http_request_duration_seconds_bucket\"}[2m]))) * 1000",
+          "legendFormat": "{{service}}{{job}} (p95)"
         }
       ],
       "title": "Скорость ответа API (Задержка p95 в мс)",
@@ -163,8 +163,8 @@
       },
       "targets": [
         {
-          "expr": "(sum by (job) (rate({__name__=~\"avtoplaneta.*_http_request_duration_seconds_sum\"}[2m])) / sum by (job) (rate({__name__=~\"avtoplaneta.*_http_request_duration_seconds_count\"}[2m]))) * 1000",
-          "legendFormat": "{{job}} (avg)"
+          "expr": "((sum by (service) (rate(http_request_duration_seconds_sum[2m])) / sum by (service) (rate(http_request_duration_seconds_count[2m]))) * 1000) or ((sum by (job) (rate({__name__=~\"avtoplaneta.*_http_request_duration_seconds_sum\"}[2m])) / sum by (job) (rate({__name__=~\"avtoplaneta.*_http_request_duration_seconds_count\"}[2m]))) * 1000)",
+          "legendFormat": "{{service}}{{job}} (avg)"
         }
       ],
       "title": "Среднее время ответа (мс)",
@@ -204,8 +204,8 @@
       },
       "targets": [
         {
-          "expr": "sum by (job, status) (rate({__name__=~\"avtoplaneta.*_http_requests_errors_total\"}[2m])) or sum by (job, status) (rate({__name__=~\"avtoplaneta.*_http_requests_total\", status=~\"4..|5..\"}[2m])) or on() vector(0)",
-          "legendFormat": "Сервис: {{job}} | Код: {{status}}"
+          "expr": "sum by (service, status) (rate(http_requests_errors_total[2m])) or sum by (job, status) (rate({__name__=~\"avtoplaneta.*_http_requests_errors_total\"}[2m])) or sum by (job, status) (rate({__name__=~\"avtoplaneta.*_http_requests_total\", status=~\"4..|5..\"}[2m])) or on() vector(0)",
+          "legendFormat": "Сервис: {{service}}{{job}} | Код: {{status}}"
         }
       ],
       "title": "Ошибки API (Статус 4xx и 5xx)",
