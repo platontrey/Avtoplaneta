@@ -252,6 +252,15 @@ class UpdateService {
     return await PackageInfo.fromPlatform();
   }
 
+  /// Нормализует номер сборки, устраняя смещение архитектуры процессора из Flutter split-per-abi
+  /// (например: arm64 добавляет 2000 -> 2114 превращается в 114; armv7 добавляет 1000 -> 1114 превращается в 114)
+  static int normalizeBuildNumber(int build) {
+    if (build >= 1000 && build < 5000) {
+      return build % 1000;
+    }
+    return build;
+  }
+
   /// Утилита сравнения семантических версий и номеров сборок
   static bool isVersionNewer({
     required String serverVersion,
@@ -259,11 +268,14 @@ class UpdateService {
     required String currentVersion,
     required int currentBuild,
   }) {
+    final normServerBuild = normalizeBuildNumber(serverBuild);
+    final normCurrentBuild = normalizeBuildNumber(currentBuild);
+
     // 1. Если сервер отдает валидный номер сборки > 0
-    if (serverBuild > 0) {
-      if (currentBuild > 0) {
-        if (serverBuild > currentBuild) return true;
-        if (serverBuild < currentBuild) return false;
+    if (normServerBuild > 0) {
+      if (normCurrentBuild > 0) {
+        if (normServerBuild > normCurrentBuild) return true;
+        if (normServerBuild < normCurrentBuild) return false;
       } else {
         // У клиента номер сборки не определен (0), но у сервера есть номер сборки > 0.
         // Если семантическая версия сервера не меньше текущей, считаем сборку новой.
@@ -333,13 +345,14 @@ class UpdateService {
     bool? overrideCheckPlatform,
   }) async {
     String currentVersion = overrideCurrentVersion ?? '1.0.0';
-    int currentBuild = overrideCurrentBuild ?? 0;
+    int currentBuild = normalizeBuildNumber(overrideCurrentBuild ?? 0);
 
     if (overrideCurrentVersion == null || overrideCurrentBuild == null) {
       try {
         final packageInfo = await getCurrentPackageInfo();
         currentVersion = packageInfo.version;
-        currentBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
+        final rawBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
+        currentBuild = normalizeBuildNumber(rawBuild);
       } catch (e) {
         debugPrint('Не удалось получить локальную версию PackageInfo: $e');
       }
@@ -358,6 +371,8 @@ class UpdateService {
     final deviceAbi = await getDeviceAbi();
     String? backendError;
 
+    AppUpdateInfo? latestServerInfo;
+
     // 1. Сначала пробуем получить конфигурацию с собственного бэкенда
     try {
       final response = await _dio.get(
@@ -372,6 +387,7 @@ class UpdateService {
             ? Map<String, dynamic>.from(data)
             : <String, dynamic>{};
         final serverInfo = AppUpdateInfo.fromJson(jsonMap, targetAbi: deviceAbi);
+        latestServerInfo = serverInfo;
 
         final hasNewer = isVersionNewer(
           serverVersion: serverInfo.version,
@@ -391,16 +407,8 @@ class UpdateService {
             currentVersion: currentVersion,
             currentBuildNumber: currentBuild,
           );
-        } else {
-          // Бэкенд ответил 200, и версия актуальна
-          return UpdateCheckResult(
-            hasUpdate: false,
-            isForced: false,
-            updateInfo: serverInfo,
-            currentVersion: currentVersion,
-            currentBuildNumber: currentBuild,
-          );
         }
+        // Если на собственном бэкенде нет более новой версии, продолжаем проверку через GitHub Releases
       }
     } on DioException catch (e) {
       backendError = 'Ошибка бэкенда: ${e.response?.statusCode ?? e.type.name}';
@@ -432,6 +440,7 @@ class UpdateService {
     return UpdateCheckResult(
       hasUpdate: false,
       isForced: false,
+      updateInfo: latestServerInfo,
       currentVersion: currentVersion,
       currentBuildNumber: currentBuild,
       errorMessage: githubError ?? backendError,

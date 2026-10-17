@@ -197,6 +197,35 @@ void main() {
         isTrue,
       );
     });
+
+    test('нормализация номеров сборок с архитектурным смещением split-per-abi (2114 -> 114)', () {
+      expect(UpdateService.normalizeBuildNumber(2114), 114);
+      expect(UpdateService.normalizeBuildNumber(1114), 114);
+      expect(UpdateService.normalizeBuildNumber(117), 117);
+      expect(UpdateService.normalizeBuildNumber(0), 0);
+
+      // Телефон с arm64 билдом 114 (versionCode=2114) должен обнаружить обновление до 117
+      expect(
+        UpdateService.isVersionNewer(
+          serverVersion: '1.0.1',
+          serverBuild: 117,
+          currentVersion: '1.0.1',
+          currentBuild: 2114,
+        ),
+        isTrue,
+      );
+
+      // Телефон с arm64 билдом 117 (versionCode=2117) при сервере 117 не требует обновления
+      expect(
+        UpdateService.isVersionNewer(
+          serverVersion: '1.0.1',
+          serverBuild: 117,
+          currentVersion: '1.0.1',
+          currentBuild: 2117,
+        ),
+        isFalse,
+      );
+    });
   });
 
   group('UpdateService Integration Flow Tests', () {
@@ -432,6 +461,63 @@ void main() {
       expect(result.updateInfo, isNotNull);
       expect(result.updateInfo!.buildNumber, 117);
       expect(result.updateInfo!.downloadUrl, '/api/app/download');
+    });
+
+    test('проверка GitHub Releases когда на бэкенде старая версия', () async {
+      final dio = Dio();
+      dio.httpClientAdapter = _MockHttpAdapter((options) {
+        if (options.path.contains('/api/app/version')) {
+          // На бэкенде старая версия (build 2)
+          return ResponseBody.fromString(
+            '''{
+              "version": "1.0.1",
+              "build_number": 2,
+              "download_url": "/api/app/download"
+            }''',
+            200,
+            headers: {
+              Headers.contentTypeHeader: [Headers.jsonContentType],
+            },
+          );
+        }
+        if (options.path.contains('mobile-latest')) {
+          // На GitHub новый релиз (build 118)
+          return ResponseBody.fromString(
+            '''{
+              "tag_name": "mobile-latest",
+              "name": "Автопланета — сборка #118",
+              "body": "Автоматическая сборка build: 118",
+              "assets": [
+                {
+                  "name": "avtoplaneta-latest.apk",
+                  "browser_download_url": "https://github.com/platontrey/Avtoplaneta/releases/download/v1.0.2/avtoplaneta-latest.apk",
+                  "size": 22000000
+                }
+              ]
+            }''',
+            200,
+            headers: {
+              Headers.contentTypeHeader: [Headers.jsonContentType],
+            },
+          );
+        }
+        return ResponseBody.fromString('', 404);
+      });
+
+      final service = UpdateService(
+        dio: dio,
+        checkGitHubReleases: true,
+        checkPlatform: false,
+      );
+
+      final result = await service.checkForUpdates(
+        overrideCurrentVersion: '1.0.1',
+        overrideCurrentBuild: 117,
+      );
+
+      expect(result.hasUpdate, isTrue);
+      expect(result.updateInfo, isNotNull);
+      expect(result.updateInfo!.buildNumber, 118);
     });
   });
 }

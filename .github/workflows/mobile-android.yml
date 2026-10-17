@@ -128,9 +128,28 @@ jobs:
             cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk "release/avtoplaneta-latest-armv7.apk"
             cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "release/avtoplaneta-latest.apk"
           fi
+          BUILD_NUM="${{ github.run_number }}"
           if [ -d "/opt/avtoplaneta/backend/downloads" ]; then
             mkdir -p /opt/avtoplaneta/backend/downloads
             cp release/avtoplaneta-*.apk /opt/avtoplaneta/backend/downloads/ 2>/dev/null || true
+          fi
+          if [ -d "/opt/avtoplaneta/backend/config" ]; then
+            mkdir -p /opt/avtoplaneta/backend/config
+            cat <<EOF > /opt/avtoplaneta/backend/config/app_version.json
+{
+  "version": "1.0.1",
+  "build_number": ${BUILD_NUM},
+  "download_url": "/api/app/download",
+  "download_urls": {
+    "arm64-v8a": "/api/app/download?abi=arm64",
+    "armeabi-v7a": "/api/app/download?abi=armv7"
+  },
+  "force_update": false,
+  "min_supported_build": 1,
+  "changelog": "Автоматическая сборка #${BUILD_NUM}",
+  "published_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+EOF
           fi
 
       - name: Publish tag release
