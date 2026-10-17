@@ -135,21 +135,7 @@ jobs:
           fi
           if [ -d "/opt/avtoplaneta/backend/config" ]; then
             mkdir -p /opt/avtoplaneta/backend/config
-            cat <<EOF > /opt/avtoplaneta/backend/config/app_version.json
-{
-  "version": "1.0.1",
-  "build_number": ${BUILD_NUM},
-  "download_url": "/api/app/download",
-  "download_urls": {
-    "arm64-v8a": "/api/app/download?abi=arm64",
-    "armeabi-v7a": "/api/app/download?abi=armv7"
-  },
-  "force_update": false,
-  "min_supported_build": 1,
-  "changelog": "Автоматическая сборка #${BUILD_NUM}",
-  "published_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-}
-EOF
+            python3 -c "import json, datetime; cfg = {'version': '1.0.1', 'build_number': int('${BUILD_NUM}'), 'download_url': '/api/app/download', 'download_urls': {'arm64-v8a': '/api/app/download?abi=arm64', 'armeabi-v7a': '/api/app/download?abi=armv7'}, 'force_update': False, 'min_supported_build': 1, 'changelog': 'Автоматическая сборка #${BUILD_NUM}', 'published_at': datetime.datetime.now(datetime.timezone.utc).isoformat()}; open('/opt/avtoplaneta/backend/config/app_version.json', 'w').write(json.dumps(cfg, indent=2, ensure_ascii=False))"
           fi
 
       - name: Publish tag release
