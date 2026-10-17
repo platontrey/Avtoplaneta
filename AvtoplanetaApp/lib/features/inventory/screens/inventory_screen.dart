@@ -115,14 +115,22 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     });
   }
 
-  void _toggleSelection(Part part) {
+  void _toggleSelection(Part part, [List<Part>? currentDisplayParts]) {
     HapticFeedback.selectionClick();
     setState(() {
       _selectionMode = true;
-      if (!_selectedPartIds.add(part.id)) _selectedPartIds.remove(part.id);
-      if (_selectedPartIds.isEmpty) {
-        _selectionMode = false;
+      if (_selectAllByQuery) {
         _selectAllByQuery = false;
+        _selectedPartIds.clear();
+        if (currentDisplayParts != null) {
+          _selectedPartIds.addAll(currentDisplayParts.map((p) => p.id));
+        }
+        _selectedPartIds.remove(part.id);
+      } else {
+        if (!_selectedPartIds.add(part.id)) _selectedPartIds.remove(part.id);
+      }
+      if (_selectedPartIds.isEmpty && !_selectAllByQuery) {
+        _selectionMode = false;
       }
     });
   }
@@ -237,44 +245,45 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         ),
         actions: [
           if (_selectionMode) ...[
+            if (!_selectAllByQuery)
+              IconButton(
+                tooltip: 'Выбрать все запчасти в поиске ($totalCount)',
+                icon: const Icon(LucideIcons.layers),
+                onPressed: () {
+                  setState(() {
+                    _selectAllByQuery = true;
+                    _selectedPartIds.addAll(displayParts.map((p) => p.id));
+                  });
+                  HapticFeedback.mediumImpact();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Выбраны все запчасти по запросу ($totalCount шт.)',
+                      ),
+                    ),
+                  );
+                },
+              ),
             IconButton(
               tooltip: _selectAllByQuery
-                  ? 'Снять выбор всех в поиске'
-                  : 'Выбрать все запчасти в поиске ($totalCount)',
+                  ? 'Оставить только на странице'
+                  : (_selectedPartIds.length == displayParts.length
+                      ? 'Снять выбор со всех'
+                      : 'Выбрать все на странице'),
               icon: Icon(
-                _selectAllByQuery ? LucideIcons.layers : LucideIcons.library,
+                _selectAllByQuery
+                    ? LucideIcons.list_checks
+                    : (_selectedPartIds.length == displayParts.length
+                        ? LucideIcons.square_x
+                        : LucideIcons.check_check),
               ),
               onPressed: () {
                 setState(() {
-                  _selectAllByQuery = !_selectAllByQuery;
                   if (_selectAllByQuery) {
+                    _selectAllByQuery = false;
+                    _selectedPartIds.clear();
                     _selectedPartIds.addAll(displayParts.map((p) => p.id));
-                  }
-                });
-                HapticFeedback.mediumImpact();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      _selectAllByQuery
-                          ? 'Выбраны все запчасти по запросу ($totalCount шт.)'
-                          : 'Режим выбора всего запроса отключен',
-                    ),
-                  ),
-                );
-              },
-            ),
-            IconButton(
-              tooltip: _selectedPartIds.length == displayParts.length
-                  ? 'Снять выбор со всех'
-                  : 'Выбрать все на странице',
-              icon: Icon(
-                _selectedPartIds.length == displayParts.length
-                    ? LucideIcons.square_x
-                    : LucideIcons.check_check,
-              ),
-              onPressed: () {
-                setState(() {
-                  if (_selectedPartIds.length == displayParts.length) {
+                  } else if (_selectedPartIds.length == displayParts.length) {
                     _selectedPartIds.clear();
                     _selectAllByQuery = false;
                     _selectionMode = false;
@@ -327,7 +336,49 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           ],
         ],
         bottom: _selectionMode
-            ? null
+            ? PreferredSize(
+                preferredSize: Size.fromHeight(_selectAllByQuery ? 62 : 46),
+                child: _SelectionBar(
+                  isAllMatching: _selectAllByQuery,
+                  selectedCount: _selectedPartIds.length,
+                  totalCount: totalCount,
+                  displayCount: displayParts.length,
+                  onSelectAllByQuery: () {
+                    setState(() {
+                      _selectAllByQuery = true;
+                      _selectedPartIds.addAll(displayParts.map((p) => p.id));
+                    });
+                    HapticFeedback.mediumImpact();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Выбраны все запчасти по запросу ($totalCount шт.)',
+                        ),
+                      ),
+                    );
+                  },
+                  onSelectPage: () {
+                    setState(() {
+                      _selectAllByQuery = false;
+                      _selectedPartIds.addAll(displayParts.map((p) => p.id));
+                    });
+                  },
+                  onDeselectAll: () {
+                    setState(() {
+                      _selectAllByQuery = false;
+                      _selectedPartIds.clear();
+                      _selectionMode = false;
+                    });
+                  },
+                  onSwitchToPageOnly: () {
+                    setState(() {
+                      _selectAllByQuery = false;
+                      _selectedPartIds.clear();
+                      _selectedPartIds.addAll(displayParts.map((p) => p.id));
+                    });
+                  },
+                ),
+              )
             : PreferredSize(
                 preferredSize: const Size.fromHeight(68),
                 child: Padding(
@@ -537,13 +588,14 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                             padding: const EdgeInsets.only(bottom: 10),
                             child: _PartCard(
                               part: displayParts[i],
-                              selected: _selectedPartIds.contains(
-                                displayParts[i].id,
-                              ),
+                              selected: _selectAllByQuery ||
+                                  _selectedPartIds.contains(
+                                    displayParts[i].id,
+                                  ),
                               selectionMode: _selectionMode,
                               onTap: () {
                                 if (_selectionMode) {
-                                  _toggleSelection(displayParts[i]);
+                                  _toggleSelection(displayParts[i], displayParts);
                                 } else {
                                   context.go(
                                     '/inventory/part/${displayParts[i].id}',
@@ -551,7 +603,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                                 }
                               },
                               onLongPress: () =>
-                                  _toggleSelection(displayParts[i]),
+                                  _toggleSelection(displayParts[i], displayParts),
                             ),
                           );
                         },
@@ -2247,6 +2299,125 @@ class _PartCard extends StatelessWidget {
     ),
     child: Text(label, style: TextStyle(color: color, fontSize: 11)),
   );
+}
+
+class _SelectionBar extends StatelessWidget {
+  final bool isAllMatching;
+  final int selectedCount;
+  final int totalCount;
+  final int displayCount;
+  final VoidCallback onSelectAllByQuery;
+  final VoidCallback onSelectPage;
+  final VoidCallback onDeselectAll;
+  final VoidCallback onSwitchToPageOnly;
+
+  const _SelectionBar({
+    required this.isAllMatching,
+    required this.selectedCount,
+    required this.totalCount,
+    required this.displayCount,
+    required this.onSelectAllByQuery,
+    required this.onSelectPage,
+    required this.onDeselectAll,
+    required this.onSwitchToPageOnly,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (isAllMatching) {
+      return Container(
+        width: double.infinity,
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppTheme.primaryColor.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: AppTheme.primaryColor.withValues(alpha: 0.35),
+          ),
+        ),
+        child: Row(
+          children: [
+            const Icon(LucideIcons.layers, size: 18, color: AppTheme.primaryColor),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Выбраны ВСЕ в поиске ($totalCount шт.)',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                  const Text(
+                    'Действия применятся ко всем подходящим деталям на сервере',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: AppTheme.mutedColor,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 4),
+            TextButton(
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              ),
+              onPressed: onSwitchToPageOnly,
+              child: Text(
+                'Только экран ($displayCount)',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(LucideIcons.circle_check, size: 16, color: Theme.of(context).primaryColor),
+          const SizedBox(width: 8),
+          Text(
+            'На экране: $selectedCount из $displayCount',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+          ),
+          const Spacer(),
+          TextButton.icon(
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            ),
+            icon: const Icon(LucideIcons.layers, size: 14),
+            label: Text(
+              'Все в поиске ($totalCount)',
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+            ),
+            onPressed: onSelectAllByQuery,
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _BulkActionBar extends StatelessWidget {

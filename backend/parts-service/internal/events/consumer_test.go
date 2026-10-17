@@ -21,6 +21,9 @@ type mockInventoryService struct {
 func (m *mockInventoryService) GetInventory(context.Context, domain.InventoryQueryParams) ([]domain.Part, error) {
 	return nil, nil
 }
+func (m *mockInventoryService) GetInventoryWithCount(context.Context, domain.InventoryQueryParams) ([]domain.Part, int64, error) {
+	return nil, 0, nil
+}
 func (m *mockInventoryService) AddPart(context.Context, *domain.Part) (*domain.Part, error) {
 	return nil, nil
 }

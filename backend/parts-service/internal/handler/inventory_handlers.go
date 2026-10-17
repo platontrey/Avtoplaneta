@@ -64,7 +64,7 @@ func (h *Handler) GetInventoryHandler(c *gin.Context) {
 	queryParams.Limit = limit
 
 	ctx := c.Request.Context()
-	parts, err := h.inventoryService.GetInventory(ctx, queryParams)
+	parts, total, err := h.inventoryService.GetInventoryWithCount(ctx, queryParams)
 	if err != nil {
 		fmt.Printf("GetInventory FAILED with error: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось получить инвентарь: " + err.Error()})
@@ -74,7 +74,7 @@ func (h *Handler) GetInventoryHandler(c *gin.Context) {
 	if strings.HasPrefix(c.Request.URL.Path, "/api/v1") {
 		c.JSON(http.StatusOK, gin.H{
 			"parts": parts,
-			"total": len(parts),
+			"total": total,
 			"page":  page,
 			"limit": limit,
 		})

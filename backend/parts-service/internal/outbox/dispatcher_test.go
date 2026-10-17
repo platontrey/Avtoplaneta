@@ -126,6 +126,11 @@ func (m *MockRepository) GetLastCreatedPart(ctx context.Context) (*domain.Part, 
 	return args.Get(0).(*domain.Part), args.Error(1)
 }
 
+func (m *MockRepository) CountWithFilters(ctx context.Context, filters map[string]interface{}) (int64, error) {
+	args := m.Called(ctx, filters)
+	return args.Get(0).(int64), args.Error(1)
+}
+
 func (m *MockRepository) FetchPendingOutboxEvents(ctx context.Context, limit int32) ([]sqlc.OutboxEvent, error) {
 	args := m.Called(ctx, limit)
 	if args.Get(0) == nil {

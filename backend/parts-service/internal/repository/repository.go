@@ -36,6 +36,7 @@ type PartRepository interface {
 	IncreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error
 
 	FindWithFilters(ctx context.Context, filters map[string]interface{}, offset, limit int) ([]domain.Part, error)
+	CountWithFilters(ctx context.Context, filters map[string]interface{}) (int64, error)
 
 	MarkForDeletion(ctx context.Context, id int64, deleteAt time.Time) error
 	DeleteExpiredParts(ctx context.Context, before time.Time) error
@@ -820,6 +821,26 @@ func (r *partRepository) FindWithFilters(ctx context.Context, filters map[string
 	}
 	defer rows.Close()
 	return scanParts(rows)
+}
+
+func (r *partRepository) CountWithFilters(ctx context.Context, filters map[string]interface{}) (int64, error) {
+	builder := r.psq.Select("COUNT(*)").From("parts").Where("deleted_at IS NULL")
+
+	for _, pred := range r.buildFilterPredicates(filters) {
+		builder = builder.Where(pred)
+	}
+
+	sql, args, err := builder.ToSql()
+	if err != nil {
+		return 0, err
+	}
+
+	var count int64
+	err = r.pool.QueryRow(ctx, sql, args...).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 // BulkUpdateWithProto выполняет массовое обновление по спецификации Protobuf

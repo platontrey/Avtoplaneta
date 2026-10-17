@@ -37,6 +37,7 @@ const (
 type InventoryService interface {
 	// GetInventory Основные операции с запчастями
 	GetInventory(ctx context.Context, params domain.InventoryQueryParams) ([]domain.Part, error)  // Получает список запчастей с фильтрами
+	GetInventoryWithCount(ctx context.Context, params domain.InventoryQueryParams) ([]domain.Part, int64, error) // Получает запчасти и общее количество
 	AddPart(ctx context.Context, part *domain.Part) (*domain.Part, error)                         // Добавляет новую запчасть
 	DuplicatePart(ctx context.Context, id int64) (*domain.Part, error)                           // Дублирует существующую запчасть без фото
 	UpdatePart(ctx context.Context, id int64, updates map[string]interface{}) error // Обновляет существующую запчасть
@@ -122,6 +123,12 @@ func NewInventoryService(repo repository.PartRepository, es search.Elasticsearch
 
 // GetInventory получает инвентарь запчастей с учетом фильтров и пагинации
 func (s *inventoryService) GetInventory(ctx context.Context, params domain.InventoryQueryParams) ([]domain.Part, error) {
+	parts, _, err := s.GetInventoryWithCount(ctx, params)
+	return parts, err
+}
+
+// GetInventoryWithCount получает инвентарь запчастей и общее количество с учетом фильтров
+func (s *inventoryService) GetInventoryWithCount(ctx context.Context, params domain.InventoryQueryParams) ([]domain.Part, int64, error) {
 	// Очищаем просроченные запчасти перед поиском
 	if err := s.cleanupExpiredParts(ctx); err != nil {
 		// Логируем ошибку, но продолжаем выполнение
@@ -129,15 +136,15 @@ func (s *inventoryService) GetInventory(ctx context.Context, params domain.Inven
 	}
 
 	// Выбираем источник данных на основе параметров поиска
-	parts, err := s.fetchParts(ctx, params)
+	parts, total, err := s.fetchPartsWithCount(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	// Форматируем дополнительные поля для фронтенда
 	s.formatPartsForDisplay(parts)
 
-	return parts, nil
+	return parts, total, nil
 }
 
 // cleanupExpiredParts удаляет запчасти, отмеченные для удаления более 14 дней назад
@@ -152,10 +159,16 @@ func (s *inventoryService) cleanupExpiredParts(ctx context.Context) error {
 
 // fetchParts выбирает оптимальный источник данных для поиска
 func (s *inventoryService) fetchParts(ctx context.Context, params domain.InventoryQueryParams) ([]domain.Part, error) {
+	parts, _, err := s.fetchPartsWithCount(ctx, params)
+	return parts, err
+}
+
+// fetchPartsWithCount выбирает оптимальный источник данных для поиска и возвращает общее количество
+func (s *inventoryService) fetchPartsWithCount(ctx context.Context, params domain.InventoryQueryParams) ([]domain.Part, int64, error) {
 	if s.shouldUseElasticsearch(params) && s.es != nil {
-		return s.getInventoryFromElasticsearch(ctx, params)
+		return s.getInventoryFromElasticsearchWithCount(ctx, params)
 	}
-	return s.getInventoryFromDatabase(ctx, params)
+	return s.getInventoryFromDatabaseWithCount(ctx, params)
 }
 
 // formatPartsForDisplay добавляет форматированные поля для отображения
@@ -187,24 +200,30 @@ func (s *inventoryService) shouldUseElasticsearch(params domain.InventoryQueryPa
 
 // getInventoryFromElasticsearch получает данные из Elasticsearch
 func (s *inventoryService) getInventoryFromElasticsearch(ctx context.Context, params domain.InventoryQueryParams) ([]domain.Part, error) {
+	parts, _, err := s.getInventoryFromElasticsearchWithCount(ctx, params)
+	return parts, err
+}
+
+// getInventoryFromElasticsearchWithCount получает данные из Elasticsearch и общее количество
+func (s *inventoryService) getInventoryFromElasticsearchWithCount(ctx context.Context, params domain.InventoryQueryParams) ([]domain.Part, int64, error) {
 	esQuery := s.buildElasticsearchQuery(params)
 	from := (params.Page - 1) * params.Limit
 
-	esParts, _, err := s.es.SearchParts(esQuery, from, params.Limit)
+	esParts, totalES, err := s.es.SearchParts(esQuery, from, params.Limit)
 	if err != nil {
 		fmt.Printf("Error searching with Elasticsearch: %v\n", err)
 		// Fallback to database
-		return s.getInventoryFromDatabase(ctx, params)
+		return s.getInventoryFromDatabaseWithCount(ctx, params)
 	}
 
 	// Преобразуем и фильтруем
 	if len(esParts) == 0 {
 		// Fallback to database to ensure we don't return 0 if DB actually has matching parts
-		dbParts, dbErr := s.getInventoryFromDatabase(ctx, params)
+		dbParts, dbCount, dbErr := s.getInventoryFromDatabaseWithCount(ctx, params)
 		if dbErr == nil && len(dbParts) > 0 {
-			return dbParts, nil
+			return dbParts, dbCount, nil
 		}
-		return []domain.Part{}, nil
+		return []domain.Part{}, totalES, nil
 	}
 
 	parts := make([]domain.Part, 0, len(esParts))
@@ -221,7 +240,7 @@ func (s *inventoryService) getInventoryFromElasticsearch(ctx context.Context, pa
 	}
 	validParts, err := s.repo.FindWithFilters(ctx, filters, 0, 0)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	validPartsMap := make(map[int64]domain.Part, len(validParts))
@@ -236,7 +255,7 @@ func (s *inventoryService) getInventoryFromElasticsearch(ctx context.Context, pa
 		}
 	}
 
-	return parts, nil
+	return parts, totalES, nil
 }
 
 
@@ -248,6 +267,12 @@ func (s *inventoryService) buildElasticsearchQuery(params domain.InventoryQueryP
 
 // getInventoryFromDatabase получает данные из базы данных
 func (s *inventoryService) getInventoryFromDatabase(ctx context.Context, params domain.InventoryQueryParams) ([]domain.Part, error) {
+	parts, _, err := s.getInventoryFromDatabaseWithCount(ctx, params)
+	return parts, err
+}
+
+// getInventoryFromDatabaseWithCount получает данные из базы данных и общее количество
+func (s *inventoryService) getInventoryFromDatabaseWithCount(ctx context.Context, params domain.InventoryQueryParams) ([]domain.Part, int64, error) {
 	filters := s.buildDatabaseFilters(params)
 	// Add default filters
 	filters["to_delete_at_is_null"] = true
@@ -263,10 +288,16 @@ func (s *inventoryService) getInventoryFromDatabase(ctx context.Context, params 
 
 	parts, err := s.repo.FindWithFilters(ctx, filters, offset, limit)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return parts, nil
+	count, err := s.repo.CountWithFilters(ctx, filters)
+	if err != nil {
+		logrus.WithError(err).Warn("Failed to count parts with filters, falling back to len(parts)")
+		count = int64(len(parts))
+	}
+
+	return parts, count, nil
 }
 
 // buildDatabaseFilters строит фильтры для базы данных

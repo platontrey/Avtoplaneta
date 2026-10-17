@@ -46,6 +46,15 @@ func (m *mockPartRepository) FindWithFilters(ctx context.Context, filters map[st
 	args := m.Called(ctx, filters, offset, limit)
 	return args.Get(0).([]domain.Part), args.Error(1)
 }
+func (m *mockPartRepository) CountWithFilters(ctx context.Context, filters map[string]interface{}) (int64, error) {
+	for _, call := range m.ExpectedCalls {
+		if call.Method == "CountWithFilters" {
+			args := m.Called(ctx, filters)
+			return args.Get(0).(int64), args.Error(1)
+		}
+	}
+	return 0, nil
+}
 func (m *mockPartRepository) Update(ctx context.Context, id int64, updates map[string]interface{}) error {
 	args := m.Called(ctx, id, updates)
 	return args.Error(0)

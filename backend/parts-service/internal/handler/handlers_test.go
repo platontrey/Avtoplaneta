@@ -27,6 +27,17 @@ func (m *MockInventoryService) GetInventory(ctx context.Context, params domain.I
 	return args.Get(0).([]domain.Part), args.Error(1)
 }
 
+func (m *MockInventoryService) GetInventoryWithCount(ctx context.Context, params domain.InventoryQueryParams) ([]domain.Part, int64, error) {
+	for _, call := range m.ExpectedCalls {
+		if call.Method == "GetInventoryWithCount" {
+			args := m.Called(ctx, params)
+			return args.Get(0).([]domain.Part), args.Get(1).(int64), args.Error(2)
+		}
+	}
+	parts, err := m.GetInventory(ctx, params)
+	return parts, int64(len(parts)), err
+}
+
 func (m *MockInventoryService) AddPart(ctx context.Context, part *domain.Part) (*domain.Part, error) {
 	args := m.Called(ctx, part)
 	return args.Get(0).(*domain.Part), args.Error(1)
@@ -195,7 +206,7 @@ func (suite *HandlersTestSuite) TestGetInventoryHandler() {
 		{PartCore: domain.PartCore{ID: 1, Name: "Test Part", Quantity: 10}},
 	}
 
-	suite.mockService.On("GetInventory", mock.Anything, mock.AnythingOfType("domain.InventoryQueryParams")).Return(expectedParts, nil)
+	suite.mockService.On("GetInventoryWithCount", mock.Anything, mock.AnythingOfType("domain.InventoryQueryParams")).Return(expectedParts, int64(1), nil)
 
 	req, _ := http.NewRequest("GET", "/api/inventory?page=1&limit=10", nil)
 	w := httptest.NewRecorder()
@@ -217,7 +228,7 @@ func (suite *HandlersTestSuite) TestGetInventoryV1Handler() {
 		{PartCore: domain.PartCore{ID: 1, Name: "Test Part", Quantity: 10}},
 	}
 
-	suite.mockService.On("GetInventory", mock.Anything, mock.AnythingOfType("domain.InventoryQueryParams")).Return(expectedParts, nil).Once()
+	suite.mockService.On("GetInventoryWithCount", mock.Anything, mock.AnythingOfType("domain.InventoryQueryParams")).Return(expectedParts, int64(1), nil).Once()
 
 	req, _ := http.NewRequest("GET", "/api/v1/inventory?page=1&limit=10", nil)
 	w := httptest.NewRecorder()

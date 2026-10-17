@@ -95,7 +95,7 @@ func (s *partsGRPCServer) GetInventory(ctx context.Context, req *partsv1.GetInve
 		params.Limit = 50
 	}
 
-	parts, err := s.service.GetInventory(ctx, params)
+	parts, total, err := s.service.GetInventoryWithCount(ctx, params)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось получить инвентарь: %v", err)
 	}
@@ -107,7 +107,7 @@ func (s *partsGRPCServer) GetInventory(ctx context.Context, req *partsv1.GetInve
 
 	return &partsv1.InventoryResponse{
 		Parts: protoParts,
-		Total: int32(len(parts)),
+		Total: int32(total),
 		Page:  req.Page,
 		Limit: req.Limit,
 	}, nil

@@ -29,6 +29,14 @@ func (s *inventoryParamsCaptureService) GetInventory(_ context.Context, params d
 	}}, nil
 }
 
+func (s *inventoryParamsCaptureService) GetInventoryWithCount(_ context.Context, params domain.InventoryQueryParams) ([]domain.Part, int64, error) {
+	s.params = params
+	return []domain.Part{{
+		PartCore:           domain.PartCore{ID: 1, Name: "Test"},
+		PartSpecifications: domain.PartSpecifications{CarReleasePeriod: "2001-2007"},
+	}}, 1, nil
+}
+
 func (s *inventoryParamsCaptureService) AddPart(_ context.Context, part *domain.Part) (*domain.Part, error) {
 	copyOfPart := *part
 	copyOfPart.ID = int64(len(s.parts) + 1)
