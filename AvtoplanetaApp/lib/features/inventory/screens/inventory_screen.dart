@@ -93,6 +93,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       if (mounted) {
         setState(() {
           _infiniteParts.addAll(newParts);
+          if (_selectAllByQuery) {
+            _selectedPartIds.addAll(newParts.map((p) => p.id));
+          }
           _nextInfinitePage++;
           _hasMoreInfinite = newParts.length >= 20;
           _isLoadingMore = false;

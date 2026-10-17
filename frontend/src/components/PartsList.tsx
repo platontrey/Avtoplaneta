@@ -225,6 +225,18 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
     }, []);
 
     const handlePartSelect = (partId: number, isSelected: boolean) => {
+        if (isAllMatchingFilterSelected) {
+            setIsAllMatchingFilterSelected(false);
+            const newSet = new Set(parts.map((p) => p.id));
+            if (!isSelected) {
+                newSet.delete(partId);
+            } else {
+                newSet.add(partId);
+            }
+            setSelectedParts(newSet);
+            return;
+        }
+
         setSelectedParts((prev) => {
             const newSet = new Set(prev);
             if (isSelected) {
@@ -235,6 +247,13 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
             return newSet;
         });
     };
+
+    // При активном режиме "все по запросу" автоматически добавляем подгруженные скроллом запчасти в selectedParts
+    useEffect(() => {
+        if (isAllMatchingFilterSelected) {
+            setSelectedParts(new Set(parts.map((p) => p.id)));
+        }
+    }, [isAllMatchingFilterSelected, parts]);
 
     const exitSelectionMode = () => {
         setIsSelectionMode(false);
@@ -540,7 +559,7 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
                         part={part}
                         isLoading={false}
                         isSelectionMode={isSelectionMode}
-                        isSelected={selectedParts.has(part.id)}
+                        isSelected={isAllMatchingFilterSelected || selectedParts.has(part.id)}
                         activeOrderId={partToOrderMap.get(part.id)}
                         onLongPress={() => handleLongPress(part.id)}
                         onSelect={(isSelected) => handlePartSelect(part.id, isSelected)}
