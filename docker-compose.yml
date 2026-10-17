@@ -456,7 +456,7 @@ services:
     cpuset: "20-39,60-79"
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3000:3000"
+      - "3000:3000"
     networks:
       - avtoplaneta_network
     volumes:
