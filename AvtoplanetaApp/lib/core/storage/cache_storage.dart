@@ -55,6 +55,18 @@ class CacheStorage {
     return Map<String, dynamic>.from(value);
   }
 
+  static Future<void> saveChatSettings(Map<String, dynamic> settings) async {
+    await _settingsBox.put('chat_settings', settings);
+  }
+
+  static Map<String, dynamic>? getChatSettings() {
+    final value = _settingsBox.get('chat_settings');
+    if (value is! Map) {
+      return null;
+    }
+    return Map<String, dynamic>.from(value);
+  }
+
   /// Очистка всего кэша
   static Future<void> clearCache() async {
     await Future.wait([_partsBox.clear(), _settingsBox.clear()]);

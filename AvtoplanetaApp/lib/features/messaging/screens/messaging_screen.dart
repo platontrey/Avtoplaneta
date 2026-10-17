@@ -3,729 +3,266 @@ import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme.dart';
-import '../../../core/api/api_client.dart';
 import '../../../shared/widgets/app_states.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../models/messaging_models.dart';
+import '../providers/messaging_providers.dart';
+import '../widgets/chat_list_tab.dart';
+import '../widgets/chat_settings_tab.dart';
+import '../widgets/create_chat_dialog.dart';
+import '../widgets/drom_auth_dialog.dart';
+import '../widgets/drom_dialogs_tab.dart';
+import 'chat_screen.dart';
+import 'drom_chat_screen.dart';
 
-final conversationsProvider = FutureProvider<List<dynamic>>((ref) async {
-  final response = await apiClient.dio.get('/api/messaging/conversations');
-  final data = response.data;
-  if (data is List) {
-    return data;
-  }
-  if (data is Map && data['conversations'] != null) {
-    return data['conversations'] as List<dynamic>;
-  }
-  return [];
-});
-
-final messagingUsersProvider = FutureProvider<Map<int, String>>((ref) async {
-  final response = await apiClient.dio.get('/api/messaging/users');
-  final data = response.data;
-  final users = data is Map && data['users'] is List
-      ? data['users'] as List
-      : const [];
-  return {
-    for (final user in users.whereType<Map>())
-      if (user['id'] is num)
-        (user['id'] as num).toInt():
-            (user['name'] ??
-                    user['username'] ??
-                    user['email'] ??
-                    'Пользователь')
-                .toString(),
-  };
-});
-
-class MessagingScreen extends ConsumerWidget {
+class MessagingScreen extends ConsumerStatefulWidget {
   const MessagingScreen({super.key});
 
-  Future<void> _refresh(WidgetRef ref) async {
-    ref.invalidate(conversationsProvider);
-    ref.invalidate(messagingUsersProvider);
-    await Future.wait([
-      ref.read(conversationsProvider.future),
-      ref.read(messagingUsersProvider.future),
-    ]);
-  }
+  @override
+  ConsumerState<MessagingScreen> createState() => _MessagingScreenState();
+}
 
-  Future<void> _createConversation(
-    BuildContext context,
-    WidgetRef ref,
-    Map<int, String> userNames,
-    int? currentUserId,
-  ) async {
-    final availableUsers =
-        userNames.entries.where((entry) => entry.key != currentUserId).toList()
-          ..sort((a, b) => a.value.compareTo(b.value));
-    if (availableUsers.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Нет доступных пользователей для диалога'),
-        ),
-      );
-      return;
-    }
+class _MessagingScreenState extends ConsumerState<MessagingScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  Timer? _dromPollTimer;
 
-    final titleController = TextEditingController();
-    final selected = <int>{};
-    final created = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Новый диалог'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: titleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Название (необязательно)',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 300,
-                  child: ListView(
-                    children: availableUsers
-                        .map(
-                          (user) => CheckboxListTile(
-                            value: selected.contains(user.key),
-                            title: Text(user.value),
-                            dense: true,
-                            controlAffinity: ListTileControlAffinity.leading,
-                            onChanged: (checked) => setDialogState(() {
-                              if (checked == true) {
-                                selected.add(user.key);
-                              } else {
-                                selected.remove(user.key);
-                              }
-                            }),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Отмена'),
-            ),
-            FilledButton(
-              onPressed: selected.isEmpty
-                  ? null
-                  : () => Navigator.pop(dialogContext, true),
-              child: const Text('Создать'),
-            ),
-          ],
-        ),
-      ),
-    );
-    final conversationTitle = titleController.text.trim();
-    titleController.dispose();
-    if (created != true || !context.mounted) {
-      return;
-    }
-
-    try {
-      await apiClient.dio.post(
-        '/api/messaging/conversations',
-        data: {'participants': selected.toList(), 'title': conversationTitle},
-      );
-      if (!context.mounted) {
-        return;
-      }
-      ref.invalidate(conversationsProvider);
-    } catch (error) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Не удалось создать диалог: $error')),
-        );
-      }
-    }
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_handleTabChange);
+    _setupDromPolling();
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final convsAsync = ref.watch(conversationsProvider);
-    final userNames = ref.watch(messagingUsersProvider).valueOrNull ?? const {};
+  void dispose() {
+    _dromPollTimer?.cancel();
+    _tabController.removeListener(_handleTabChange);
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  void _handleTabChange() {
+    if (mounted) setState(() {});
+  }
+
+  void _setupDromPolling() {
+    _dromPollTimer?.cancel();
+    final settings = ref.read(chatSettingsProvider);
+    if (!settings.enableAutoRefresh) return;
+
+    final intervalSeconds = settings.refreshInterval.clamp(10, 300);
+    _dromPollTimer = Timer.periodic(Duration(seconds: intervalSeconds), (_) {
+      if (_tabController.index == 1) {
+        ref.invalidate(dromDialogsProvider);
+      }
+    });
+  }
+
+  Future<void> _refreshAll() async {
+    ref.invalidate(conversationsProvider);
+    ref.invalidate(messagingUsersProvider);
+    ref.invalidate(userStatusesProvider);
+    ref.invalidate(dromDialogsProvider);
+    await Future.wait([
+      ref.read(conversationsProvider.future).catchError((_) => <Conversation>[]),
+      ref.read(messagingUsersProvider.future).catchError((_) => <int, ChatUser>{}),
+      ref.read(userStatusesProvider.future).catchError((_) => <int, UserStatus>{}),
+      ref.read(dromDialogsProvider.future).catchError((_) => <DromDialog>[]),
+    ]);
+  }
+
+  void _openCreateChat(Map<int, ChatUser> users, int? currentUserId) {
+    CreateChatDialog.show(
+      context,
+      users: users,
+      currentUserId: currentUserId,
+      onSuccess: (newConv) {
+        ref.invalidate(conversationsProvider);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChatScreen(
+              convId: newConv.id,
+              title: newConv.title.isNotEmpty ? newConv.title : 'Новый диалог',
+              initialParticipants: newConv.participants,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Listen for settings change to update polling timer
+    ref.listen(chatSettingsProvider, (prev, next) {
+      if (prev?.enableAutoRefresh != next.enableAutoRefresh ||
+          prev?.refreshInterval != next.refreshInterval) {
+        _setupDromPolling();
+      }
+    });
+
     final currentUserId = ref.watch(authProvider).valueOrNull?.id;
+    final currentUserRole = ref.watch(authProvider).valueOrNull?.role ?? 'operator';
+    final isAdmin = currentUserRole == 'admin';
+
+    final convsAsync = ref.watch(conversationsProvider);
+    final usersAsync = ref.watch(messagingUsersProvider);
+    final userStatusesAsync = ref.watch(userStatusesProvider);
+    final dromDialogsAsync = ref.watch(dromDialogsProvider);
+
+    final users = usersAsync.valueOrNull ?? const {};
+    final userStatuses = userStatusesAsync.valueOrNull ?? const {};
+    final dromDialogs = dromDialogsAsync.valueOrNull ?? const [];
+
+    final hasUnreadDrom = dromDialogs.any((d) => d.isUnread);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Сообщения'),
         actions: [
-          IconButton(
-            tooltip: 'Новый диалог',
-            icon: const Icon(LucideIcons.square_pen),
-            onPressed: () =>
-                _createConversation(context, ref, userNames, currentUserId),
-          ),
-          IconButton(
-            tooltip: 'Обновить',
-            icon: const Icon(LucideIcons.refresh_cw),
-            onPressed: () => _refresh(ref),
-          ),
-        ],
-      ),
-      body: convsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => AppEmptyState(
-          icon: LucideIcons.cloud_off,
-          title: 'Не удалось загрузить сообщения',
-          message: 'Проверьте соединение и повторите попытку.',
-          actionLabel: 'Повторить',
-          onAction: () => ref.invalidate(conversationsProvider),
-        ),
-        data: (convs) => convs.isEmpty
-            ? const AppEmptyState(
-                icon: LucideIcons.message_circle,
-                title: 'Диалогов пока нет',
-                message: 'Здесь появится переписка с вашей командой.',
-              )
-            : ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
-                itemCount: convs.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
-                itemBuilder: (_, i) {
-                  final conv = Map<String, dynamic>.from(convs[i] as Map);
-                  final title = _conversationTitle(
-                    conv,
-                    userNames,
-                    currentUserId,
-                  );
-                  final unreadCount =
-                      (conv['unread_count'] as num?)?.toInt() ?? 0;
-                  return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 7,
-                    ),
-                    tileColor: AppTheme.cardColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                      side: const BorderSide(color: AppTheme.borderColor),
-                    ),
-                    leading: CircleAvatar(
-                      radius: 23,
-                      backgroundColor: AppTheme.primaryColor.withValues(
-                        alpha: 0.16,
-                      ),
-                      child: Text(
-                        title.isEmpty ? '?' : title[0].toUpperCase(),
-                        style: const TextStyle(
-                          color: AppTheme.primaryColor,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    title: Text(
-                      title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    subtitle: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            conv['last_message']?.toString() ?? '',
-                            style: const TextStyle(
-                              color: AppTheme.mutedColor,
-                              fontSize: 12,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (unreadCount > 0)
-                          Container(
-                            margin: const EdgeInsets.only(left: 8),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 7,
-                              vertical: 2,
-                            ),
-                            decoration: const BoxDecoration(
-                              color: AppTheme.primaryColor,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Text(
-                              unreadCount > 99 ? '99+' : '$unreadCount',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    onTap: () async {
-                      await _openChat(context, conv, userNames, currentUserId);
-                      ref.invalidate(conversationsProvider);
-                    },
-                    trailing: const Icon(LucideIcons.chevron_right, size: 20),
-                  );
-                },
-              ),
-      ),
-    );
-  }
-
-  String _conversationTitle(
-    Map<String, dynamic> conv,
-    Map<int, String> userNames,
-    int? currentUserId,
-  ) {
-    final title = conv['title']?.toString().trim() ?? '';
-    if (title.isNotEmpty) {
-      return title;
-    }
-
-    final participants = conv['participants'] is List
-        ? conv['participants'] as List
-        : const [];
-    final names = participants
-        .whereType<num>()
-        .map((id) => id.toInt())
-        .where((id) => id != currentUserId)
-        .map((id) => userNames[id])
-        .whereType<String>()
-        .where((name) => name.isNotEmpty)
-        .toList();
-    if (names.isNotEmpty) {
-      return names.join(', ');
-    }
-    return 'Чат №${conv['id']}';
-  }
-
-  Future<void> _openChat(
-    BuildContext context,
-    Map<String, dynamic> conv,
-    Map<int, String> userNames,
-    int? currentUserId,
-  ) {
-    return Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => _ChatScreen(
-          convId: (conv['id'] as num).toInt(),
-          title: _conversationTitle(conv, userNames, currentUserId),
-          userNames: userNames,
-        ),
-      ),
-    );
-  }
-}
-
-class _ChatScreen extends ConsumerStatefulWidget {
-  final int convId;
-  final String title;
-  final Map<int, String> userNames;
-  const _ChatScreen({
-    required this.convId,
-    required this.title,
-    required this.userNames,
-  });
-
-  @override
-  ConsumerState<_ChatScreen> createState() => _ChatScreenState();
-}
-
-class _ChatScreenState extends ConsumerState<_ChatScreen> {
-  final _msgCtrl = TextEditingController();
-  List<Map<String, dynamic>> _messages = [];
-  bool _loading = true;
-  bool _fetchingMessages = false;
-  bool _sending = false;
-  String? _loadError;
-  Timer? _refreshTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadMessages();
-    // Сайт работает через тот же HTTP API. Периодическое обновление не зависит
-    // от недоступного извне внутреннего порта messaging-service.
-    _refreshTimer = Timer.periodic(
-      const Duration(seconds: 5),
-      (_) => _loadMessages(silent: true),
-    );
-  }
-
-  @override
-  void dispose() {
-    _refreshTimer?.cancel();
-    _msgCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadMessages({bool silent = false}) async {
-    if (_fetchingMessages) {
-      return;
-    }
-    _fetchingMessages = true;
-    try {
-      final response = await apiClient.dio.get(
-        '/api/messaging/conversations/${widget.convId}/messages',
-      );
-      final data = response.data;
-      if (!mounted) {
-        return;
-      }
-      final rawMessages = data is Map && data['messages'] is List
-          ? data['messages'] as List
-          : const [];
-      final messages = rawMessages
-          .whereType<Map>()
-          .map((message) => Map<String, dynamic>.from(message))
-          .toList();
-      setState(() {
-        _messages = messages;
-        _loading = false;
-        _loadError = null;
-      });
-      unawaited(_markIncomingMessagesRead(messages).catchError((_) {}));
-    } catch (error) {
-      if (mounted && !silent) {
-        setState(() {
-          _loading = false;
-          _loadError = error.toString();
-        });
-      }
-    } finally {
-      _fetchingMessages = false;
-    }
-  }
-
-  Future<void> _markIncomingMessagesRead(
-    List<Map<String, dynamic>> messages,
-  ) async {
-    final currentUserId = ref.read(authProvider).valueOrNull?.id;
-    if (currentUserId == null) {
-      return;
-    }
-    final unread = messages.where((message) {
-      final senderId = (message['sender_id'] as num?)?.toInt();
-      final readBy = message['read_by'] is List
-          ? message['read_by'] as List
-          : const [];
-      return senderId != currentUserId &&
-          !readBy.whereType<num>().any((id) => id.toInt() == currentUserId);
-    });
-    await Future.wait(
-      unread.map((message) async {
-        final messageId = (message['id'] as num?)?.toInt();
-        if (messageId != null) {
-          await apiClient.dio.put('/api/messaging/messages/$messageId/read');
-        }
-      }),
-    );
-  }
-
-  Future<void> _send() async {
-    final text = _msgCtrl.text.trim();
-    if (text.isEmpty || _sending) {
-      return;
-    }
-    setState(() => _sending = true);
-    try {
-      await apiClient.dio.post(
-        '/api/messaging/conversations/${widget.convId}/messages',
-        data: {'content': text},
-      );
-      if (!mounted) {
-        return;
-      }
-      _msgCtrl.clear();
-      await _loadMessages();
-      if (mounted) {
-        ref.invalidate(conversationsProvider);
-      }
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Не удалось отправить сообщение: $error')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _sending = false);
-      }
-    }
-  }
-
-  Future<void> _showMessageActions(
-    Map<String, dynamic> message,
-    bool isMine,
-  ) async {
-    final messageId = (message['id'] as num?)?.toInt();
-    if (messageId == null) {
-      return;
-    }
-    final action = await showModalBottomSheet<String>(
-      context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Wrap(
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Text('Реакция'),
+          if (_tabController.index == 0) ...[
+            IconButton(
+              tooltip: 'Новый диалог',
+              icon: const Icon(LucideIcons.square_pen),
+              onPressed: () => _openCreateChat(users, currentUserId),
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: ['👍', '❤️', '😂', '😮', '😢']
-                  .map(
-                    (emoji) => IconButton(
-                      onPressed: () => Navigator.pop(sheetContext, emoji),
-                      icon: Text(emoji, style: const TextStyle(fontSize: 24)),
-                    ),
-                  )
-                  .toList(),
+            IconButton(
+              tooltip: 'Обновить чаты',
+              icon: const Icon(LucideIcons.refresh_cw),
+              onPressed: () {
+                ref.invalidate(conversationsProvider);
+                ref.invalidate(userStatusesProvider);
+              },
             ),
-            if (isMine)
-              ListTile(
-                leading: const Icon(LucideIcons.trash, color: Colors.red),
-                title: const Text('Удалить сообщение'),
-                onTap: () => Navigator.pop(sheetContext, 'delete'),
-              ),
+          ] else if (_tabController.index == 1) ...[
+            IconButton(
+              tooltip: 'Аккаунт Drom.ru',
+              icon: const Icon(LucideIcons.key_round),
+              onPressed: () {
+                DromAuthDialog.show(
+                  context,
+                  onSuccess: () => ref.invalidate(dromDialogsProvider),
+                );
+              },
+            ),
+            IconButton(
+              tooltip: 'Обновить Drom диалоги',
+              icon: const Icon(LucideIcons.refresh_cw),
+              onPressed: () => ref.invalidate(dromDialogsProvider),
+            ),
+          ] else ...[
+            IconButton(
+              tooltip: 'Обновить все',
+              icon: const Icon(LucideIcons.refresh_cw),
+              onPressed: _refreshAll,
+            ),
           ],
-        ),
-      ),
-    );
-    if (action == null || !mounted) {
-      return;
-    }
-    try {
-      if (action == 'delete') {
-        await apiClient.dio.delete('/api/messaging/messages/$messageId');
-      } else {
-        await apiClient.dio.post(
-          '/api/messaging/messages/$messageId/reactions',
-          data: {'emoji': action},
-        );
-      }
-      await _loadMessages();
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Не удалось выполнить действие: $error')),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final currentUserId = ref.watch(authProvider).valueOrNull?.id;
-
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
-      body: Column(
-        children: [
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _loadError != null
-                ? AppEmptyState(
-                    icon: LucideIcons.cloud_off,
-                    title: 'Не удалось загрузить сообщения',
-                    message: _loadError!,
-                    actionLabel: 'Повторить',
-                    onAction: _loadMessages,
-                  )
-                : _messages.isEmpty
-                ? const AppEmptyState(
-                    icon: LucideIcons.hand,
-                    title: 'Начните разговор',
-                    message: 'Напишите первое сообщение в этом диалоге.',
-                  )
-                : ListView.builder(
-                    reverse: true,
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-                    itemCount: _messages.length,
-                    itemBuilder: (_, i) {
-                      final msg = _messages[_messages.length - 1 - i];
-                      final isMine =
-                          (msg['sender_id'] as num?)?.toInt() == currentUserId;
-                      return _MessageBubble(
-                        msg: msg,
-                        userNames: widget.userNames,
-                        isMine: isMine,
-                        onLongPress: () => _showMessageActions(msg, isMine),
-                      );
-                    },
-                  ),
-          ),
-          // Поле ввода
-          Container(
-            decoration: const BoxDecoration(
-              color: AppTheme.surfaceColor,
-              border: Border(top: BorderSide(color: AppTheme.borderColor)),
-            ),
-            padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
-            child: SafeArea(
-              top: false,
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: AppTheme.primaryColor,
+          indicatorWeight: 3,
+          labelColor: Colors.white,
+          unselectedLabelColor: AppTheme.mutedColor,
+          labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+          tabs: [
+            const Tab(text: 'Сообщения'),
+            Tab(
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _msgCtrl,
-                      minLines: 1,
-                      maxLines: 4,
-                      textCapitalization: TextCapitalization.sentences,
-                      decoration: const InputDecoration(
-                        hintText: 'Написать сообщение…',
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
+                  const Text('Drom сообщения'),
+                  if (hasUnreadDrom) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: AppTheme.dangerColor,
+                        shape: BoxShape.circle,
                       ),
-                      onSubmitted: (_) => _send(),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton.filled(
-                    tooltip: 'Отправить',
-                    icon: _sending
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(LucideIcons.arrow_up),
-                    onPressed: _sending ? null : _send,
-                  ),
+                  ],
                 ],
               ),
             ),
-          ),
-        ],
+            const Tab(
+              icon: Icon(LucideIcons.settings, size: 18),
+            ),
+          ],
+        ),
       ),
-    );
-  }
-}
-
-class _MessageBubble extends StatelessWidget {
-  final Map<String, dynamic> msg;
-  final Map<int, String> userNames;
-  final bool isMine;
-  final VoidCallback onLongPress;
-  const _MessageBubble({
-    required this.msg,
-    required this.userNames,
-    required this.isMine,
-    required this.onLongPress,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final content = msg['content'] as String? ?? '';
-    final senderId = (msg['sender_id'] as num?)?.toInt();
-    final senderName = senderId == null
-        ? 'Неизвестно'
-        : userNames[senderId] ?? 'Пользователь №$senderId';
-
-    final reactions = msg['reactions'] is List
-        ? msg['reactions'] as List
-        : const [];
-    final createdAt = DateTime.tryParse(msg['created_at']?.toString() ?? '');
-    final time = createdAt == null
-        ? ''
-        : '${createdAt.toLocal().hour.toString().padLeft(2, '0')}:${createdAt.toLocal().minute.toString().padLeft(2, '0')}';
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Column(
-        crossAxisAlignment: isMine
-            ? CrossAxisAlignment.end
-            : CrossAxisAlignment.start,
+      body: TabBarView(
+        controller: _tabController,
         children: [
-          if (!isMine)
-            Padding(
-              padding: const EdgeInsets.only(left: 4),
-              child: Text(
-                senderName,
-                style: const TextStyle(
-                  color: AppTheme.mutedColor,
-                  fontSize: 11,
-                ),
-              ),
+          // Tab 1: Internal Employee Chats
+          convsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => AppEmptyState(
+              icon: LucideIcons.cloud_off,
+              title: 'Не удалось загрузить сообщения',
+              message: 'Проверьте соединение с сервером и повторите попытку.',
+              actionLabel: 'Повторить',
+              onAction: () => ref.invalidate(conversationsProvider),
             ),
-          const SizedBox(height: 2),
-          GestureDetector(
-            onLongPress: onLongPress,
-            child: FractionallySizedBox(
-              widthFactor: 0.82,
-              alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: isMine ? AppTheme.primaryColor : AppTheme.cardColor,
-                  borderRadius: BorderRadius.only(
-                    topLeft: const Radius.circular(18),
-                    topRight: const Radius.circular(18),
-                    bottomLeft: Radius.circular(isMine ? 18 : 5),
-                    bottomRight: Radius.circular(isMine ? 5 : 18),
-                  ),
-                  border: isMine
-                      ? null
-                      : Border.all(color: AppTheme.borderColor),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        content,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          height: 1.35,
-                        ),
-                      ),
+            data: (convs) => ChatListTab(
+              conversations: convs,
+              users: users,
+              userStatuses: userStatuses,
+              currentUserId: currentUserId,
+              isAdmin: isAdmin,
+              onRefresh: () async {
+                ref.invalidate(conversationsProvider);
+                ref.invalidate(userStatusesProvider);
+                await ref.read(conversationsProvider.future);
+              },
+              onSelectConversation: (conv) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ChatScreen(
+                      convId: conv.id,
+                      title: conv.title.isNotEmpty ? conv.title : 'Диалог #${conv.id}',
+                      initialParticipants: conv.participants,
                     ),
-                    if (reactions.isNotEmpty) ...[
-                      const SizedBox(height: 5),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Wrap(
-                          spacing: 4,
-                          children: reactions
-                              .whereType<Map>()
-                              .map(
-                                (reaction) =>
-                                    Text(reaction['emoji']?.toString() ?? ''),
-                              )
-                              .toList(),
-                        ),
-                      ),
-                    ],
-                    if (time.isNotEmpty)
-                      Text(
-                        time,
-                        style: const TextStyle(
-                          color: Colors.white54,
-                          fontSize: 9,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
+                  ),
+                ).then((_) => ref.invalidate(conversationsProvider));
+              },
             ),
           ),
+
+          // Tab 2: Drom Customer Messages
+          dromDialogsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => AppEmptyState(
+              icon: LucideIcons.cloud_off,
+              title: 'Не удалось загрузить Drom сообщения',
+              message: err.toString(),
+              actionLabel: 'Повторить',
+              onAction: () => ref.invalidate(dromDialogsProvider),
+            ),
+            data: (dialogs) => DromDialogsTab(
+              dialogs: dialogs,
+              isLoading: dromDialogsAsync.isLoading,
+              onRefresh: () async {
+                ref.invalidate(dromDialogsProvider);
+                await ref.read(dromDialogsProvider.future);
+              },
+              onSelectDialog: (dialog) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => DromChatScreen(initialDialog: dialog),
+                  ),
+                ).then((_) => ref.invalidate(dromDialogsProvider));
+              },
+            ),
+          ),
+
+          // Tab 3: Chat Settings
+          const ChatSettingsTab(),
         ],
       ),
     );
