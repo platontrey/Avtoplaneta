@@ -103,6 +103,7 @@ func (s *AuthGRPCServer) GetUsers(ctx context.Context, req *authv1.GetUsersReque
 	for i, u := range users {
 		protoUsers[i] = &authv1.User{
 			Id:       uint32(u.ID),
+			Username: u.Username,
 			Email:    u.Email,
 			Name:     u.Name,
 			Role:     u.Role,
@@ -117,6 +118,7 @@ func (s *AuthGRPCServer) GetUsers(ctx context.Context, req *authv1.GetUsersReque
 
 func (s *AuthGRPCServer) CreateUser(ctx context.Context, req *authv1.CreateUserRequest) (*authv1.User, error) {
 	createReq := domain.CreateUserRequest{
+		Username: req.Username,
 		Email:    req.Email,
 		Name:     req.Name,
 		Password: req.Password,
@@ -134,6 +136,7 @@ func (s *AuthGRPCServer) CreateUser(ctx context.Context, req *authv1.CreateUserR
 
 func (s *AuthGRPCServer) UpdateUser(ctx context.Context, req *authv1.UpdateUserRequest) (*authv1.User, error) {
 	updateReq := domain.UpdateUserRequest{
+		Username: req.Username,
 		Name:     req.Name,
 		Email:    req.Email,
 		Role:     req.Role,
@@ -273,6 +276,7 @@ func (s *AuthGRPCServer) GetServerLogs(ctx context.Context, req *authv1.GetServe
 func userToProto(u *domain.User) *authv1.User {
 	return &authv1.User{
 		Id:       uint32(u.ID),
+		Username: u.Username,
 		Email:    u.Email,
 		Name:     u.Name,
 		Role:     u.Role,

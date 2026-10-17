@@ -1237,6 +1237,9 @@
         },
         "inn": {
           "type": "string"
+        },
+        "username": {
+          "type": "string"
         }
       }
     },
@@ -1888,6 +1891,9 @@
           "type": "string"
         },
         "inn": {
+          "type": "string"
+        },
+        "username": {
           "type": "string"
         }
       }
@@ -2642,6 +2648,9 @@
           "type": "string"
         },
         "provider": {
+          "type": "string"
+        },
+        "username": {
           "type": "string"
         }
       }

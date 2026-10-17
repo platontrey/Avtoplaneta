@@ -177,22 +177,27 @@ func (h *Handler) GoogleMobileAuthHandler(c *gin.Context) {
 // UserLoginHandler обрабатывает логин по email/username и паролю
 func (h *Handler) UserLoginHandler(c *gin.Context) {
 	var loginReq struct {
-		Email    string `json:"email" binding:"required"`
+		Login    string `json:"login"`
+		Email    string `json:"email"`
 		Password string `json:"password" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&loginReq); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Логин (email или имя пользователя) и пароль обязательны"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Логин (или email) и пароль обязательны"})
 		return
 	}
 
-	loginReq.Email = strings.TrimSpace(loginReq.Email)
-	if loginReq.Email == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Логин не может быть пустым"})
+	identifier := strings.TrimSpace(loginReq.Login)
+	if identifier == "" {
+		identifier = strings.TrimSpace(loginReq.Email)
+	}
+
+	if identifier == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Логин (или email) не может быть пустым"})
 		return
 	}
 
-	user, err := h.authService.AuthenticateUser(loginReq.Email, loginReq.Password)
+	user, err := h.authService.AuthenticateUser(identifier, loginReq.Password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return

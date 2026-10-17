@@ -163,10 +163,12 @@ func (suite *ServiceTestSuite) TestCreateUserFromGoogle_Existing() {
 // ─── CreateUser ─────────────────────────────────────────────────────────────
 
 func (suite *ServiceTestSuite) TestCreateUser_Success() {
-	suite.mockUserRepo.On("ExistsByEmailOrName", "new@example.com", "New User").Return(false, nil)
+	suite.mockUserRepo.On("ExistsByUsername", "new").Return(false, nil)
+	suite.mockUserRepo.On("ExistsByEmailOrName", "new@example.com", "").Return(false, nil)
 
 	expected := &domain.User{
 		ID:       3,
+		Username: "new",
 		Email:    "new@example.com",
 		Name:     "New User",
 		Provider: "local",
@@ -175,7 +177,7 @@ func (suite *ServiceTestSuite) TestCreateUser_Success() {
 	}
 
 	suite.mockUserRepo.On("Create", mock.MatchedBy(func(u *domain.User) bool {
-		return u.Email == "new@example.com" && u.Provider == "local"
+		return u.Email == "new@example.com" && u.Username == "new" && u.Provider == "local"
 	})).Return(expected, nil).Run(func(args mock.Arguments) {
 		user := args.Get(0).(*domain.User)
 		user.ID = 3
@@ -192,11 +194,12 @@ func (suite *ServiceTestSuite) TestCreateUser_Success() {
 	assert.NoError(suite.T(), err)
 	assert.NotNil(suite.T(), result)
 	assert.Equal(suite.T(), int64(3), result.ID)
+	assert.Equal(suite.T(), "new", result.Username)
 	assert.Equal(suite.T(), "", result.Password)
 }
 
 func (suite *ServiceTestSuite) TestCreateUser_Duplicate() {
-	suite.mockUserRepo.On("ExistsByEmailOrName", "exists@example.com", "Exists").Return(true, nil)
+	suite.mockUserRepo.On("ExistsByUsername", "exists").Return(true, nil)
 
 	req := domain.CreateUserRequest{
 		Email:    "exists@example.com",

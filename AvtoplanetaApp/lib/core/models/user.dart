@@ -1,5 +1,6 @@
 class User {
   final int id;
+  final String username;
   final String email;
   final String name;
   final String initials;
@@ -9,7 +10,8 @@ class User {
 
   const User({
     required this.id,
-    required this.email,
+    this.username = '',
+    this.email = '',
     required this.name,
     this.initials = '',
     this.inn = '',
@@ -19,6 +21,7 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) => User(
         id: (json['id'] as num?)?.toInt() ?? 0,
+        username: json['username'] as String? ?? '',
         email: json['email'] as String? ?? '',
         name: json['name'] as String? ?? '',
         initials: json['initials'] as String? ?? '',
@@ -29,6 +32,7 @@ class User {
 
   Map<String, dynamic> toJson() => {
         'id': id,
+        'username': username,
         'email': email,
         'name': name,
         'initials': initials,

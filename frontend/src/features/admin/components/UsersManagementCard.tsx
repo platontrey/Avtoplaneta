@@ -39,8 +39,15 @@ export const UsersManagementCard: React.FC<UsersManagementCardProps> = ({
               <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="flex items-center space-x-4">
                   <div>
-                    <p className="font-medium">{user.name}</p>
-                    <p className="text-sm text-muted-foreground">{user.email}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{user.name}</p>
+                      {user.username && (
+                        <span className="text-xs text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">
+                          @{user.username}
+                        </span>
+                      )}
+                    </div>
+                    {user.email && <p className="text-sm text-muted-foreground">{user.email}</p>}
                     {user.initials && <p className="text-sm text-muted-foreground">Инициалы: {user.initials}</p>}
                     {user.inn && <p className="text-sm text-muted-foreground">ИНН: {user.inn}</p>}
                   </div>

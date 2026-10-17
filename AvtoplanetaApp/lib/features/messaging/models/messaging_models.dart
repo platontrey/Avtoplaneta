@@ -185,6 +185,7 @@ class UserStatus {
 class ChatUser {
   final int id;
   final String name;
+  final String username;
   final String email;
   final String role;
   final String initials;
@@ -192,6 +193,7 @@ class ChatUser {
   const ChatUser({
     required this.id,
     required this.name,
+    this.username = '',
     required this.email,
     required this.role,
     this.initials = '',
@@ -202,6 +204,7 @@ class ChatUser {
     return ChatUser(
       id: (json['id'] as num?)?.toInt() ?? 0,
       name: name,
+      username: json['username']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
       role: json['role']?.toString() ?? 'operator',
       initials: (json['initials']?.toString().isNotEmpty == true)

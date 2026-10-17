@@ -69,6 +69,11 @@ func (m *MockUserRepository) ExistsByEmailOrName(email, name string) (bool, erro
 	return args.Bool(0), args.Error(1)
 }
 
+func (m *MockUserRepository) ExistsByUsername(username string) (bool, error) {
+	args := m.Called(username)
+	return args.Bool(0), args.Error(1)
+}
+
 func (m *MockUserRepository) CountAll() (int, error) {
 	args := m.Called()
 	return args.Int(0), args.Error(1)

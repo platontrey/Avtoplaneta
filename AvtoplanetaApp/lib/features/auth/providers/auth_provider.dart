@@ -106,7 +106,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
     try {
       final response = await apiClient.dio.post(
         '/auth/login',
-        data: {'email': email, 'password': password},
+        data: {'email': email, 'login': email, 'password': password},
       );
       final loginResponse = LoginResponse.fromJson(
         response.data as Map<String, dynamic>,

@@ -22,6 +22,7 @@ type UserRepository interface {
 	Delete(id int64) error
 	FindAll() ([]domain.User, error)
 	ExistsByEmailOrName(email, name string) (bool, error)
+	ExistsByUsername(username string) (bool, error)
 	CountAll() (int, error)
 	FindByEmail(email string) (*domain.User, error)
 
@@ -48,7 +49,8 @@ func NewUserRepository(pool *pgxpool.Pool) UserRepository {
 
 func (r *userRepository) Create(user *domain.User) (*domain.User, error) {
 	result, err := r.queries.CreateUser(context.Background(), sqlc.CreateUserParams{
-		Email:    user.Email,
+		Username: strings.TrimSpace(user.Username),
+		Email:    strings.TrimSpace(user.Email),
 		Name:     user.Name,
 		Initials: user.Initials,
 		Inn:      user.INN,
@@ -60,6 +62,7 @@ func (r *userRepository) Create(user *domain.User) (*domain.User, error) {
 		return nil, err
 	}
 	user.ID = result.ID
+	user.Username = result.Username
 	return user, nil
 }
 
@@ -68,34 +71,70 @@ func (r *userRepository) FindByID(id int64) (*domain.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	return sqlcUserToDomain(result), nil
+	var emailStr string
+	if result.Email.Valid {
+		emailStr = result.Email.String
+	}
+	return &domain.User{
+		ID:       result.ID,
+		Username: result.Username,
+		Email:    emailStr,
+		Name:     result.Name,
+		Initials: result.Initials,
+		INN:      result.Inn,
+		Provider: result.Provider,
+		Role:     result.Role,
+		Password: result.Password,
+	}, nil
 }
 
 func (r *userRepository) FindByEmailOrName(identifier string) (*domain.User, error) {
 	trimmed := strings.TrimSpace(identifier)
-	result, err := r.queries.GetUserByEmailOrName(context.Background(), sqlc.GetUserByEmailOrNameParams{
-		Email: trimmed,
-		Name:  trimmed,
-	})
+	result, err := r.queries.GetUserByLoginOrEmail(context.Background(), trimmed)
 	if err != nil {
 		return nil, err
 	}
-	return sqlcUserToDomain(result), nil
+	var emailStr string
+	if result.Email.Valid {
+		emailStr = result.Email.String
+	}
+	return &domain.User{
+		ID:       result.ID,
+		Username: result.Username,
+		Email:    emailStr,
+		Name:     result.Name,
+		Initials: result.Initials,
+		INN:      result.Inn,
+		Provider: result.Provider,
+		Role:     result.Role,
+		Password: result.Password,
+	}, nil
 }
 
 func (r *userRepository) FindByEmail(email string) (*domain.User, error) {
 	trimmed := strings.TrimSpace(email)
-	result, err := r.queries.GetUserByEmailOrName(context.Background(), sqlc.GetUserByEmailOrNameParams{
-		Email: trimmed,
-		Name:  "",
-	})
+	result, err := r.queries.GetUserByLoginOrEmail(context.Background(), trimmed)
 	if err != nil {
 		return nil, err
 	}
-	if !strings.EqualFold(strings.TrimSpace(result.Email), trimmed) {
+	var emailStr string
+	if result.Email.Valid {
+		emailStr = result.Email.String
+	}
+	if !strings.EqualFold(strings.TrimSpace(emailStr), trimmed) {
 		return nil, sql.ErrNoRows
 	}
-	return sqlcUserToDomain(result), nil
+	return &domain.User{
+		ID:       result.ID,
+		Username: result.Username,
+		Email:    emailStr,
+		Name:     result.Name,
+		Initials: result.Initials,
+		INN:      result.Inn,
+		Provider: result.Provider,
+		Role:     result.Role,
+		Password: result.Password,
+	}, nil
 }
 
 func (r *userRepository) Update(id int64, params domain.UpdateUserParams) (*domain.User, error) {
@@ -108,12 +147,13 @@ func (r *userRepository) Update(id int64, params domain.UpdateUserParams) (*doma
 
 	qtx := r.queries.WithTx(tx)
 	err = qtx.UpdateUser(ctx, sqlc.UpdateUserParams{
-		ID:      id,
-		Column2: params.Name,
-		Column3: params.Email,
-		Column4: params.Initials,
-		Column5: params.INN,
-		Column6: params.Role,
+		ID:       id,
+		Username: params.Username,
+		Name:     params.Name,
+		Email:    params.Email,
+		Initials: params.Initials,
+		Inn:      params.INN,
+		Role:     params.Role,
 	})
 	if err != nil {
 		return nil, err
@@ -153,9 +193,30 @@ func (r *userRepository) FindAll() ([]domain.User, error) {
 	}
 	users := make([]domain.User, len(results))
 	for i, u := range results {
-		users[i] = *sqlcUserToDomain(u)
+		var emailStr string
+		if u.Email.Valid {
+			emailStr = u.Email.String
+		}
+		users[i] = domain.User{
+			ID:       u.ID,
+			Username: u.Username,
+			Email:    emailStr,
+			Name:     u.Name,
+			Initials: u.Initials,
+			INN:      u.Inn,
+			Provider: u.Provider,
+			Role:     u.Role,
+			Password: u.Password,
+		}
 	}
 	return users, nil
+}
+
+func (r *userRepository) ExistsByUsername(username string) (bool, error) {
+	if strings.TrimSpace(username) != "" {
+		return r.queries.ExistsByUsername(context.Background(), strings.TrimSpace(username))
+	}
+	return false, nil
 }
 
 func (r *userRepository) ExistsByEmailOrName(email, name string) (bool, error) {
@@ -183,9 +244,14 @@ func (r *userRepository) CountAll() (int, error) {
 }
 
 func sqlcUserToDomain(u sqlc.User) *domain.User {
+	var emailStr string
+	if u.Email.Valid {
+		emailStr = u.Email.String
+	}
 	return &domain.User{
 		ID:       u.ID,
-		Email:    u.Email,
+		Username: u.Username,
+		Email:    emailStr,
 		Name:     u.Name,
 		Initials: u.Initials,
 		INN:      u.Inn,

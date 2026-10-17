@@ -6,7 +6,8 @@ import type { UserActivityAction } from '@/lib/types';
 
 export interface AdminUser {
   id: number;
-  email: string;
+  username?: string;
+  email?: string;
   name: string;
   initials?: string;
   inn?: string;

@@ -7,6 +7,7 @@ import (
 // User модель учетной записи пользователя
 type User struct {
 	ID       int64  `json:"id"`
+	Username string `json:"username"`
 	Email    string `json:"email"`
 	Name     string `json:"name"`
 	Initials string `json:"initials,omitempty"`
@@ -41,25 +42,28 @@ type UserActivityLog struct {
 
 // CreateUserRequest запрос на создание пользователя
 type CreateUserRequest struct {
-	Email    string
-	Name     string
-	Initials string
-	INN      string
-	Password string
-	Role     string
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Name     string `json:"name"`
+	Initials string `json:"initials"`
+	INN      string `json:"inn"`
+	Password string `json:"password"`
+	Role     string `json:"role"`
 }
 
 // UpdateUserRequest запрос на обновление пользователя
 type UpdateUserRequest struct {
-	Name     string
-	Email    string
-	Initials string
-	INN      string
-	Role     string
+	Username string `json:"username"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Initials string `json:"initials"`
+	INN      string `json:"inn"`
+	Role     string `json:"role"`
 }
 
 // UpdateUserParams параметры для репозитория обновления пользователя
 type UpdateUserParams struct {
+	Username string
 	Name     string
 	Email    string
 	Initials string

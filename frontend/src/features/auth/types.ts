@@ -4,7 +4,8 @@
 
 export interface User {
   id: number;
-  email: string;
+  username?: string;
+  email?: string;
   name: string;
   provider: string;
   role: string;
@@ -12,7 +13,8 @@ export interface User {
 }
 
 export interface LoginCredentials {
-  email: string;
+  email?: string;
+  login?: string;
   password: string;
 }
 
@@ -21,3 +23,4 @@ export interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
 }
+

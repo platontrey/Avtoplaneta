@@ -120,8 +120,12 @@ func (s *authService) CreateUserFromGoogle(email, name string) (*domain.User, er
 		return existing, nil
 	}
 
+	cleanEmail := strings.ToLower(strings.TrimSpace(email))
+	username := strings.Split(cleanEmail, "@")[0]
+
 	user := &domain.User{
-		Email:    email,
+		Username: username,
+		Email:    cleanEmail,
 		Name:     name,
 		Provider: "google",
 		Role:     "operator",
@@ -157,12 +161,36 @@ func (s *authService) Logout(userID int64) error {
 }
 
 func (s *authService) CreateUser(req domain.CreateUserRequest) (*domain.User, error) {
-	exists, err := s.userRepo.ExistsByEmailOrName(req.Email, req.Name)
-	if err != nil {
-		return nil, err
+	req.Username = strings.ToLower(strings.TrimSpace(req.Username))
+	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
+
+	// Если username не передан, но передан email, генерируем username из email
+	if req.Username == "" && req.Email != "" {
+		req.Username = strings.Split(req.Email, "@")[0]
 	}
-	if exists {
-		return nil, fmt.Errorf("пользователь с таким email или именем уже существует")
+
+	if req.Username == "" && req.Email == "" {
+		return nil, fmt.Errorf("необходимо указать логин или email")
+	}
+
+	if req.Username != "" {
+		exists, err := s.userRepo.ExistsByUsername(req.Username)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			return nil, fmt.Errorf("пользователь с таким логином уже существует")
+		}
+	}
+
+	if req.Email != "" {
+		exists, err := s.userRepo.ExistsByEmailOrName(req.Email, "")
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			return nil, fmt.Errorf("пользователь с таким email уже существует")
+		}
 	}
 
 	hashedPassword, err := security.HashPassword(req.Password)
@@ -172,6 +200,7 @@ func (s *authService) CreateUser(req domain.CreateUserRequest) (*domain.User, er
 	}
 
 	user := &domain.User{
+		Username: req.Username,
 		Email:    req.Email,
 		Name:     req.Name,
 		Initials: req.Initials,
@@ -182,15 +211,16 @@ func (s *authService) CreateUser(req domain.CreateUserRequest) (*domain.User, er
 	}
 
 	if _, err := s.userRepo.Create(user); err != nil {
-		logrus.WithError(err).WithField("email", req.Email).Error("Failed to create user")
+		logrus.WithError(err).WithField("username", req.Username).Error("Failed to create user")
 		return nil, err
 	}
 
 	user.Password = ""
 
 	logrus.WithFields(logrus.Fields{
-		"email": req.Email,
-		"role":  req.Role,
+		"username": req.Username,
+		"email":    req.Email,
+		"role":     req.Role,
 	}).Info("User created successfully")
 
 	return user, nil
@@ -216,6 +246,19 @@ func (s *authService) UpdateUser(userID int64, req domain.UpdateUserRequest) (*d
 		return nil, fmt.Errorf("пользователь не найден")
 	}
 
+	req.Username = strings.ToLower(strings.TrimSpace(req.Username))
+	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
+
+	if req.Username != "" && req.Username != user.Username {
+		exists, err := s.userRepo.ExistsByUsername(req.Username)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			return nil, fmt.Errorf("пользователь с таким логином уже существует")
+		}
+	}
+
 	if req.Email != "" && req.Email != user.Email {
 		exists, err := s.userRepo.ExistsByEmailOrName(req.Email, "")
 		if err != nil {
@@ -227,6 +270,7 @@ func (s *authService) UpdateUser(userID int64, req domain.UpdateUserRequest) (*d
 	}
 
 	updateParams := domain.UpdateUserParams{
+		Username: req.Username,
 		Name:     req.Name,
 		Email:    req.Email,
 		Initials: req.Initials,
@@ -234,7 +278,7 @@ func (s *authService) UpdateUser(userID int64, req domain.UpdateUserRequest) (*d
 		Role:     req.Role,
 	}
 
-	if updateParams.Name == "" && updateParams.Email == "" &&
+	if updateParams.Username == "" && updateParams.Name == "" && updateParams.Email == "" &&
 		updateParams.Initials == "" && updateParams.INN == "" &&
 		updateParams.Role == "" {
 		return nil, fmt.Errorf("нет полей для обновления")

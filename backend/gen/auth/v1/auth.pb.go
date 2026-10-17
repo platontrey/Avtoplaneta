@@ -136,6 +136,7 @@ type User struct {
 	Initials      string                 `protobuf:"bytes,5,opt,name=initials,proto3" json:"initials,omitempty"`
 	Inn           string                 `protobuf:"bytes,6,opt,name=inn,proto3" json:"inn,omitempty"`
 	Provider      string                 `protobuf:"bytes,7,opt,name=provider,proto3" json:"provider,omitempty"`
+	Username      string                 `protobuf:"bytes,8,opt,name=username,proto3" json:"username,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -215,6 +216,13 @@ func (x *User) GetInn() string {
 func (x *User) GetProvider() string {
 	if x != nil {
 		return x.Provider
+	}
+	return ""
+}
+
+func (x *User) GetUsername() string {
+	if x != nil {
+		return x.Username
 	}
 	return ""
 }
@@ -351,6 +359,7 @@ type CreateUserRequest struct {
 	Role          string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
 	Initials      string                 `protobuf:"bytes,5,opt,name=initials,proto3" json:"initials,omitempty"`
 	Inn           string                 `protobuf:"bytes,6,opt,name=inn,proto3" json:"inn,omitempty"`
+	Username      string                 `protobuf:"bytes,7,opt,name=username,proto3" json:"username,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -427,6 +436,13 @@ func (x *CreateUserRequest) GetInn() string {
 	return ""
 }
 
+func (x *CreateUserRequest) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
 type UpdateUserRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -435,6 +451,7 @@ type UpdateUserRequest struct {
 	Role          string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
 	Initials      string                 `protobuf:"bytes,5,opt,name=initials,proto3" json:"initials,omitempty"`
 	Inn           string                 `protobuf:"bytes,6,opt,name=inn,proto3" json:"inn,omitempty"`
+	Username      string                 `protobuf:"bytes,7,opt,name=username,proto3" json:"username,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -507,6 +524,13 @@ func (x *UpdateUserRequest) GetInitials() string {
 func (x *UpdateUserRequest) GetInn() string {
 	if x != nil {
 		return x.Inn
+	}
+	return ""
+}
+
+func (x *UpdateUserRequest) GetUsername() string {
+	if x != nil {
+		return x.Username
 	}
 	return ""
 }
@@ -1305,7 +1329,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\rauthorization\x18\x02 \x01(\tR\rauthorization\"R\n" +
 	"\x17ValidateSessionResponse\x12\x14\n" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x12!\n" +
-	"\x04user\x18\x02 \x01(\v2\r.auth.v1.UserR\x04user\"\x9e\x01\n" +
+	"\x04user\x18\x02 \x01(\v2\r.auth.v1.UserR\x04user\"\xba\x01\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x12\n" +
@@ -1313,26 +1337,29 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x04role\x18\x04 \x01(\tR\x04role\x12\x1a\n" +
 	"\binitials\x18\x05 \x01(\tR\binitials\x12\x10\n" +
 	"\x03inn\x18\x06 \x01(\tR\x03inn\x12\x1a\n" +
-	"\bprovider\x18\a \x01(\tR\bprovider\"/\n" +
+	"\bprovider\x18\a \x01(\tR\bprovider\x12\x1a\n" +
+	"\busername\x18\b \x01(\tR\busername\"/\n" +
 	"\bUserList\x12#\n" +
 	"\x05users\x18\x01 \x03(\v2\r.auth.v1.UserR\x05users\" \n" +
 	"\x0eGetUserRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\"\x11\n" +
-	"\x0fGetUsersRequest\"\x9b\x01\n" +
+	"\x0fGetUsersRequest\"\xb7\x01\n" +
 	"\x11CreateUserRequest\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
 	"\bpassword\x18\x03 \x01(\tR\bpassword\x12\x12\n" +
 	"\x04role\x18\x04 \x01(\tR\x04role\x12\x1a\n" +
 	"\binitials\x18\x05 \x01(\tR\binitials\x12\x10\n" +
-	"\x03inn\x18\x06 \x01(\tR\x03inn\"\x8f\x01\n" +
+	"\x03inn\x18\x06 \x01(\tR\x03inn\x12\x1a\n" +
+	"\busername\x18\a \x01(\tR\busername\"\xab\x01\n" +
 	"\x11UpdateUserRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
 	"\x05email\x18\x03 \x01(\tR\x05email\x12\x12\n" +
 	"\x04role\x18\x04 \x01(\tR\x04role\x12\x1a\n" +
 	"\binitials\x18\x05 \x01(\tR\binitials\x12\x10\n" +
-	"\x03inn\x18\x06 \x01(\tR\x03inn\"#\n" +
+	"\x03inn\x18\x06 \x01(\tR\x03inn\x12\x1a\n" +
+	"\busername\x18\a \x01(\tR\busername\"#\n" +
 	"\x11DeleteUserRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\"\x14\n" +
 	"\x12DeleteUserResponse\"\x9f\x02\n" +

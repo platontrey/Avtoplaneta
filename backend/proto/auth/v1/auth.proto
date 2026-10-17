@@ -97,6 +97,7 @@ message User {
   string initials = 5;
   string inn = 6;
   string provider = 7;
+  string username = 8;
 }
 
 message UserList {
@@ -118,6 +119,7 @@ message CreateUserRequest {
   string role = 4;
   string initials = 5;
   string inn = 6;
+  string username = 7;
 }
 
 message UpdateUserRequest {
@@ -127,6 +129,7 @@ message UpdateUserRequest {
   string role = 4;
   string initials = 5;
   string inn = 6;
+  string username = 7;
 }
 
 message DeleteUserRequest {

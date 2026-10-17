@@ -174,7 +174,8 @@ export const AdminPanel: React.FC = () => {
   };
 
   const handleAddUserSubmit = async (newUser: {
-    email: string;
+    username: string;
+    email?: string;
     name: string;
     initials: string;
     inn: string;
@@ -206,7 +207,7 @@ export const AdminPanel: React.FC = () => {
         action: 'create_user',
         resource_type: 'user',
         resource_id: undefined,
-        details: `Создан новый пользователь: ${newUser.email}`,
+        details: `Создан новый пользователь: ${newUser.username || newUser.email}`,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add user');
@@ -218,8 +219,9 @@ export const AdminPanel: React.FC = () => {
   const handleUpdateUserSubmit = async (
     userId: number,
     editForm: {
+      username?: string;
       name: string;
-      email: string;
+      email?: string;
       initials: string;
       inn: string;
       role: string;
@@ -249,7 +251,7 @@ export const AdminPanel: React.FC = () => {
         action: 'update_user',
         resource_type: 'user',
         resource_id: userId,
-        details: `Обновлен пользователь: ${editForm.email}`,
+        details: `Обновлен пользователь: ${editForm.username || editForm.email || editForm.name}`,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update user');

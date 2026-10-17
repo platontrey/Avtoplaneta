@@ -56,6 +56,10 @@ func (m *MockUserRepo) ExistsByEmailOrName(email, name string) (bool, error) {
 	args := m.Called(email, name)
 	return args.Bool(0), args.Error(1)
 }
+func (m *MockUserRepo) ExistsByUsername(username string) (bool, error) {
+	args := m.Called(username)
+	return args.Bool(0), args.Error(1)
+}
 func (m *MockUserRepo) CountAll() (int, error) {
 	args := m.Called()
 	return args.Int(0), args.Error(1)

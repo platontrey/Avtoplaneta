@@ -22,14 +22,15 @@ type OutboxEvent struct {
 }
 
 type User struct {
-	ID       int64  `json:"id"`
-	Email    string `json:"email"`
-	Name     string `json:"name"`
-	Initials string `json:"initials"`
-	Inn      string `json:"inn"`
-	Provider string `json:"provider"`
-	Role     string `json:"role"`
-	Password string `json:"password"`
+	ID       int64       `json:"id"`
+	Email    pgtype.Text `json:"email"`
+	Name     string      `json:"name"`
+	Initials string      `json:"initials"`
+	Inn      string      `json:"inn"`
+	Provider string      `json:"provider"`
+	Role     string      `json:"role"`
+	Password string      `json:"password"`
+	Username string      `json:"username"`
 }
 
 type UserActivityLog struct {

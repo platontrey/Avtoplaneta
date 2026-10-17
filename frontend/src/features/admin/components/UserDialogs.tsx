@@ -14,7 +14,8 @@ interface AddUserDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (user: {
-    email: string;
+    username: string;
+    email?: string;
     name: string;
     initials: string;
     inn: string;
@@ -31,6 +32,7 @@ export const AddUserDialog: React.FC<AddUserDialogProps> = ({
   loading,
 }) => {
   const [newUser, setNewUser] = useState({
+    username: '',
     email: '',
     name: '',
     initials: '',
@@ -42,7 +44,7 @@ export const AddUserDialog: React.FC<AddUserDialogProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await onSubmit(newUser);
-    setNewUser({ email: '', name: '', initials: '', inn: '', password: '', role: 'operator' });
+    setNewUser({ username: '', email: '', name: '', initials: '', inn: '', password: '', role: 'operator' });
   };
 
   return (
@@ -51,27 +53,38 @@ export const AddUserDialog: React.FC<AddUserDialogProps> = ({
         <DialogHeader>
           <DialogTitle>Добавить нового пользователя</DialogTitle>
           <DialogDescription>
-            Создать новую учетную запись пользователя с email и паролем.
+            Создать новую учетную запись пользователя с логином, именем и паролем.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="add-email">Email</Label>
+            <Label htmlFor="add-username">Логин *</Label>
+            <Input
+              id="add-username"
+              value={newUser.username}
+              onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+              placeholder="ivanov"
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="add-name">Имя *</Label>
+            <Input
+              id="add-name"
+              value={newUser.name}
+              onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+              placeholder="Иван Иванов"
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="add-email">Email (необязательно)</Label>
             <Input
               id="add-email"
               type="email"
               value={newUser.email}
               onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="add-name">Имя</Label>
-            <Input
-              id="add-name"
-              value={newUser.name}
-              onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-              required
+              placeholder="ivanov@example.com"
             />
           </div>
           <div>
@@ -91,7 +104,7 @@ export const AddUserDialog: React.FC<AddUserDialogProps> = ({
             />
           </div>
           <div>
-            <Label htmlFor="add-password">Пароль</Label>
+            <Label htmlFor="add-password">Пароль *</Label>
             <Input
               id="add-password"
               type="password"
@@ -132,8 +145,9 @@ interface EditUserDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (userId: number, form: {
+    username?: string;
     name: string;
-    email: string;
+    email?: string;
     initials: string;
     inn: string;
     role: string;
@@ -149,6 +163,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
   loading,
 }) => {
   const [editForm, setEditForm] = useState({
+    username: '',
     name: '',
     email: '',
     initials: '',
@@ -159,8 +174,9 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
   useEffect(() => {
     if (user) {
       setEditForm({
+        username: user.username || '',
         name: user.name,
-        email: user.email,
+        email: user.email || '',
         initials: user.initials || '',
         inn: user.inn || '',
         role: user.role,
@@ -185,7 +201,16 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="edit-name">Имя</Label>
+            <Label htmlFor="edit-username">Логин *</Label>
+            <Input
+              id="edit-username"
+              value={editForm.username}
+              onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="edit-name">Имя *</Label>
             <Input
               id="edit-name"
               value={editForm.name}
@@ -194,13 +219,12 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
             />
           </div>
           <div>
-            <Label htmlFor="edit-email">Email</Label>
+            <Label htmlFor="edit-email">Email (необязательно)</Label>
             <Input
               id="edit-email"
               type="email"
               value={editForm.email}
               onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-              required
             />
           </div>
           <div>

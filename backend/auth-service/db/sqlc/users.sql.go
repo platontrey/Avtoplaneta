@@ -7,6 +7,8 @@ package sqlc
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const CountAllUsers = `-- name: CountAllUsers :one
@@ -21,12 +23,22 @@ func (q *Queries) CountAllUsers(ctx context.Context) (int64, error) {
 }
 
 const CreateUser = `-- name: CreateUser :one
-INSERT INTO users (email, name, initials, inn, provider, role, password)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, email, name, initials, inn, provider, role, password
+INSERT INTO users (username, email, name, initials, inn, provider, role, password)
+VALUES (
+    $1::text,
+    $2::text,
+    $3::text,
+    $4::text,
+    $5::text,
+    $6::text,
+    $7::text,
+    $8::text
+)
+RETURNING id, username, email, name, initials, inn, provider, role, password
 `
 
 type CreateUserParams struct {
+	Username string `json:"username"`
 	Email    string `json:"email"`
 	Name     string `json:"name"`
 	Initials string `json:"initials"`
@@ -36,8 +48,21 @@ type CreateUserParams struct {
 	Password string `json:"password"`
 }
 
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+type CreateUserRow struct {
+	ID       int64       `json:"id"`
+	Username string      `json:"username"`
+	Email    pgtype.Text `json:"email"`
+	Name     string      `json:"name"`
+	Initials string      `json:"initials"`
+	Inn      string      `json:"inn"`
+	Provider string      `json:"provider"`
+	Role     string      `json:"role"`
+	Password string      `json:"password"`
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
 	row := q.db.QueryRow(ctx, CreateUser,
+		arg.Username,
 		arg.Email,
 		arg.Name,
 		arg.Initials,
@@ -46,9 +71,10 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		arg.Role,
 		arg.Password,
 	)
-	var i User
+	var i CreateUserRow
 	err := row.Scan(
 		&i.ID,
+		&i.Username,
 		&i.Email,
 		&i.Name,
 		&i.Initials,
@@ -70,7 +96,8 @@ func (q *Queries) DeleteUser(ctx context.Context, id int64) error {
 }
 
 const ExistsByEmail = `-- name: ExistsByEmail :one
-SELECT COUNT(*) > 0 AS exists FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1::text))
+SELECT COUNT(*) > 0 AS exists FROM users 
+WHERE email != '' AND LOWER(TRIM(email)) = LOWER(TRIM($1::text))
 `
 
 func (q *Queries) ExistsByEmail(ctx context.Context, email string) (bool, error) {
@@ -81,7 +108,8 @@ func (q *Queries) ExistsByEmail(ctx context.Context, email string) (bool, error)
 }
 
 const ExistsByName = `-- name: ExistsByName :one
-SELECT COUNT(*) > 0 AS exists FROM users WHERE LOWER(TRIM(name)) = LOWER(TRIM($1::text))
+SELECT COUNT(*) > 0 AS exists FROM users 
+WHERE LOWER(TRIM(name)) = LOWER(TRIM($1::text))
 `
 
 func (q *Queries) ExistsByName(ctx context.Context, name string) (bool, error) {
@@ -91,23 +119,48 @@ func (q *Queries) ExistsByName(ctx context.Context, name string) (bool, error) {
 	return exists, err
 }
 
+const ExistsByUsername = `-- name: ExistsByUsername :one
+SELECT COUNT(*) > 0 AS exists FROM users 
+WHERE username != '' AND LOWER(TRIM(username)) = LOWER(TRIM($1::text))
+`
+
+func (q *Queries) ExistsByUsername(ctx context.Context, username string) (bool, error) {
+	row := q.db.QueryRow(ctx, ExistsByUsername, username)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const FindAllUsers = `-- name: FindAllUsers :many
-SELECT id, email, name, initials, inn, provider, role, password
+SELECT id, username, email, name, initials, inn, provider, role, password
 FROM users
 ORDER BY id
 `
 
-func (q *Queries) FindAllUsers(ctx context.Context) ([]User, error) {
+type FindAllUsersRow struct {
+	ID       int64       `json:"id"`
+	Username string      `json:"username"`
+	Email    pgtype.Text `json:"email"`
+	Name     string      `json:"name"`
+	Initials string      `json:"initials"`
+	Inn      string      `json:"inn"`
+	Provider string      `json:"provider"`
+	Role     string      `json:"role"`
+	Password string      `json:"password"`
+}
+
+func (q *Queries) FindAllUsers(ctx context.Context) ([]FindAllUsersRow, error) {
 	rows, err := q.db.Query(ctx, FindAllUsers)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []User{}
+	items := []FindAllUsersRow{}
 	for rows.Next() {
-		var i User
+		var i FindAllUsersRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.Username,
 			&i.Email,
 			&i.Name,
 			&i.Initials,
@@ -127,9 +180,10 @@ func (q *Queries) FindAllUsers(ctx context.Context) ([]User, error) {
 }
 
 const GetUserByEmailOrName = `-- name: GetUserByEmailOrName :one
-SELECT id, email, name, initials, inn, provider, role, password
+SELECT id, username, email, name, initials, inn, provider, role, password
 FROM users
-WHERE LOWER(TRIM(email)) = LOWER(TRIM($1::text))
+WHERE (username != '' AND LOWER(TRIM(username)) = LOWER(TRIM($1::text)))
+   OR (email != '' AND LOWER(TRIM(email)) = LOWER(TRIM($1::text)))
    OR LOWER(TRIM(name)) = LOWER(TRIM($2::text))
    OR (initials != '' AND LOWER(TRIM(initials)) = LOWER(TRIM($1::text)))
 LIMIT 1
@@ -140,11 +194,24 @@ type GetUserByEmailOrNameParams struct {
 	Name  string `json:"name"`
 }
 
-func (q *Queries) GetUserByEmailOrName(ctx context.Context, arg GetUserByEmailOrNameParams) (User, error) {
+type GetUserByEmailOrNameRow struct {
+	ID       int64       `json:"id"`
+	Username string      `json:"username"`
+	Email    pgtype.Text `json:"email"`
+	Name     string      `json:"name"`
+	Initials string      `json:"initials"`
+	Inn      string      `json:"inn"`
+	Provider string      `json:"provider"`
+	Role     string      `json:"role"`
+	Password string      `json:"password"`
+}
+
+func (q *Queries) GetUserByEmailOrName(ctx context.Context, arg GetUserByEmailOrNameParams) (GetUserByEmailOrNameRow, error) {
 	row := q.db.QueryRow(ctx, GetUserByEmailOrName, arg.Email, arg.Name)
-	var i User
+	var i GetUserByEmailOrNameRow
 	err := row.Scan(
 		&i.ID,
+		&i.Username,
 		&i.Email,
 		&i.Name,
 		&i.Initials,
@@ -157,16 +224,68 @@ func (q *Queries) GetUserByEmailOrName(ctx context.Context, arg GetUserByEmailOr
 }
 
 const GetUserByID = `-- name: GetUserByID :one
-SELECT id, email, name, initials, inn, provider, role, password
+SELECT id, username, email, name, initials, inn, provider, role, password
 FROM users
 WHERE id = $1
 `
 
-func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
+type GetUserByIDRow struct {
+	ID       int64       `json:"id"`
+	Username string      `json:"username"`
+	Email    pgtype.Text `json:"email"`
+	Name     string      `json:"name"`
+	Initials string      `json:"initials"`
+	Inn      string      `json:"inn"`
+	Provider string      `json:"provider"`
+	Role     string      `json:"role"`
+	Password string      `json:"password"`
+}
+
+func (q *Queries) GetUserByID(ctx context.Context, id int64) (GetUserByIDRow, error) {
 	row := q.db.QueryRow(ctx, GetUserByID, id)
-	var i User
+	var i GetUserByIDRow
 	err := row.Scan(
 		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.Name,
+		&i.Initials,
+		&i.Inn,
+		&i.Provider,
+		&i.Role,
+		&i.Password,
+	)
+	return i, err
+}
+
+const GetUserByLoginOrEmail = `-- name: GetUserByLoginOrEmail :one
+SELECT id, username, email, name, initials, inn, provider, role, password
+FROM users
+WHERE (username != '' AND LOWER(TRIM(username)) = LOWER(TRIM($1::text)))
+   OR (email != '' AND LOWER(TRIM(email)) = LOWER(TRIM($1::text)))
+   OR LOWER(TRIM(name)) = LOWER(TRIM($1::text))
+   OR (initials != '' AND LOWER(TRIM(initials)) = LOWER(TRIM($1::text)))
+LIMIT 1
+`
+
+type GetUserByLoginOrEmailRow struct {
+	ID       int64       `json:"id"`
+	Username string      `json:"username"`
+	Email    pgtype.Text `json:"email"`
+	Name     string      `json:"name"`
+	Initials string      `json:"initials"`
+	Inn      string      `json:"inn"`
+	Provider string      `json:"provider"`
+	Role     string      `json:"role"`
+	Password string      `json:"password"`
+}
+
+func (q *Queries) GetUserByLoginOrEmail(ctx context.Context, login string) (GetUserByLoginOrEmailRow, error) {
+	row := q.db.QueryRow(ctx, GetUserByLoginOrEmail, login)
+	var i GetUserByLoginOrEmailRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
 		&i.Email,
 		&i.Name,
 		&i.Initials,
@@ -181,31 +300,34 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 const UpdateUser = `-- name: UpdateUser :exec
 UPDATE users
 SET
+    username = COALESCE(NULLIF($1::text, ''), username),
     name = COALESCE(NULLIF($2::text, ''), name),
     email = COALESCE(NULLIF($3::text, ''), email),
     initials = COALESCE(NULLIF($4::text, ''), initials),
     inn = COALESCE(NULLIF($5::text, ''), inn),
     role = COALESCE(NULLIF($6::text, ''), role)
-WHERE id = $1
+WHERE id = $7
 `
 
 type UpdateUserParams struct {
-	ID      int64  `json:"id"`
-	Column2 string `json:"column_2"`
-	Column3 string `json:"column_3"`
-	Column4 string `json:"column_4"`
-	Column5 string `json:"column_5"`
-	Column6 string `json:"column_6"`
+	Username string `json:"username"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Initials string `json:"initials"`
+	Inn      string `json:"inn"`
+	Role     string `json:"role"`
+	ID       int64  `json:"id"`
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
 	_, err := q.db.Exec(ctx, UpdateUser,
+		arg.Username,
+		arg.Name,
+		arg.Email,
+		arg.Initials,
+		arg.Inn,
+		arg.Role,
 		arg.ID,
-		arg.Column2,
-		arg.Column3,
-		arg.Column4,
-		arg.Column5,
-		arg.Column6,
 	)
 	return err
 }

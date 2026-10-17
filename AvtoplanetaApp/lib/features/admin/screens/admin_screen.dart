@@ -487,7 +487,7 @@ class _UserTile extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Удалить пользователя?'),
-        content: Text('Учетная запись «${user.name}» (${user.email}) будет безвозвратно удалена.'),
+        content: Text('Учетная запись «${user.name}» (${user.username.isNotEmpty ? '@${user.username}' : user.email}) будет безвозвратно удалена.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -563,14 +563,40 @@ class _UserTile extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        user.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              user.name,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (user.username.isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                '@${user.username}',
+                                style: const TextStyle(
+                                  color: Colors.white60,
+                                  fontSize: 12,
+                                  fontFamily: 'monospace',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                      Text(
-                        user.email,
-                        style: const TextStyle(color: Colors.white70, fontSize: 13),
-                      ),
+                      if (user.email.isNotEmpty)
+                        Text(
+                          user.email,
+                          style: const TextStyle(color: Colors.white70, fontSize: 13),
+                        ),
                     ],
                   ),
                 ),
@@ -635,6 +661,7 @@ class _CreateUserDialog extends StatefulWidget {
 }
 
 class _CreateUserDialogState extends State<_CreateUserDialog> {
+  final _usernameCtrl = TextEditingController();
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
@@ -646,6 +673,7 @@ class _CreateUserDialogState extends State<_CreateUserDialog> {
 
   @override
   void dispose() {
+    _usernameCtrl.dispose();
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _passCtrl.dispose();
@@ -655,11 +683,12 @@ class _CreateUserDialogState extends State<_CreateUserDialog> {
   }
 
   Future<void> _create() async {
+    final username = _usernameCtrl.text.trim();
     final name = _nameCtrl.text.trim();
     final email = _emailCtrl.text.trim();
     final pass = _passCtrl.text;
-    if (name.isEmpty || email.isEmpty || pass.isEmpty) {
-      setState(() => _error = 'Заполните обязательные поля (Имя, Email, Пароль)');
+    if (name.isEmpty || (username.isEmpty && email.isEmpty) || pass.isEmpty) {
+      setState(() => _error = 'Заполните обязательные поля (Логин, Имя, Пароль)');
       return;
     }
 
@@ -672,6 +701,7 @@ class _CreateUserDialogState extends State<_CreateUserDialog> {
       await apiClient.dio.post(
         ApiEndpoints.adminUsers,
         data: {
+          'username': username,
           'name': name,
           'email': email,
           'password': pass,
@@ -719,13 +749,18 @@ class _CreateUserDialogState extends State<_CreateUserDialog> {
                 child: Text(_error!, style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
               ),
             TextField(
+              controller: _usernameCtrl,
+              decoration: const InputDecoration(labelText: 'Логин *'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
               controller: _nameCtrl,
               decoration: const InputDecoration(labelText: 'Имя *'),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _emailCtrl,
-              decoration: const InputDecoration(labelText: 'Email *'),
+              decoration: const InputDecoration(labelText: 'Email (необязательно)'),
               keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 8),
@@ -785,6 +820,7 @@ class _EditUserDialog extends StatefulWidget {
 }
 
 class _EditUserDialogState extends State<_EditUserDialog> {
+  late final TextEditingController _usernameCtrl;
   late final TextEditingController _nameCtrl;
   late final TextEditingController _emailCtrl;
   late final TextEditingController _initialsCtrl;
@@ -796,6 +832,7 @@ class _EditUserDialogState extends State<_EditUserDialog> {
   @override
   void initState() {
     super.initState();
+    _usernameCtrl = TextEditingController(text: widget.user.username);
     _nameCtrl = TextEditingController(text: widget.user.name);
     _emailCtrl = TextEditingController(text: widget.user.email);
     _initialsCtrl = TextEditingController(text: widget.user.initials);
@@ -805,6 +842,7 @@ class _EditUserDialogState extends State<_EditUserDialog> {
 
   @override
   void dispose() {
+    _usernameCtrl.dispose();
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _initialsCtrl.dispose();
@@ -813,10 +851,11 @@ class _EditUserDialogState extends State<_EditUserDialog> {
   }
 
   Future<void> _update() async {
+    final username = _usernameCtrl.text.trim();
     final name = _nameCtrl.text.trim();
     final email = _emailCtrl.text.trim();
-    if (name.isEmpty || email.isEmpty) {
-      setState(() => _error = 'Имя и Email обязательны');
+    if (name.isEmpty || (username.isEmpty && email.isEmpty)) {
+      setState(() => _error = 'Имя и Логин обязательны');
       return;
     }
 
@@ -829,6 +868,7 @@ class _EditUserDialogState extends State<_EditUserDialog> {
       await apiClient.dio.put(
         ApiEndpoints.adminUserById(widget.user.id),
         data: {
+          'username': username,
           'name': name,
           'email': email,
           'initials': _initialsCtrl.text.trim(),
@@ -875,13 +915,18 @@ class _EditUserDialogState extends State<_EditUserDialog> {
                 child: Text(_error!, style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
               ),
             TextField(
+              controller: _usernameCtrl,
+              decoration: const InputDecoration(labelText: 'Логин *'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
               controller: _nameCtrl,
               decoration: const InputDecoration(labelText: 'Имя *'),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _emailCtrl,
-              decoration: const InputDecoration(labelText: 'Email *'),
+              decoration: const InputDecoration(labelText: 'Email (необязательно)'),
               keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 8),
@@ -1438,7 +1483,7 @@ class _ActivityTab extends ConsumerWidget {
                           ...users.map(
                             (u) => DropdownMenuItem<int?>(
                               value: u.id,
-                              child: Text('${u.name} (${u.email})', style: const TextStyle(fontSize: 13)),
+                              child: Text('${u.name} (${u.username.isNotEmpty ? '@${u.username}' : u.email})', style: const TextStyle(fontSize: 13)),
                             ),
                           ),
                         ],

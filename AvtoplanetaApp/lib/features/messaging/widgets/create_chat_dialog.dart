@@ -236,7 +236,7 @@ class _CreateChatDialogState extends State<CreateChatDialog> {
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                         Text(
-                                          '${user.role} • ${user.email}',
+                                          '${user.role} • ${user.username.isNotEmpty ? '@${user.username}' : user.email}',
                                           style: const TextStyle(
                                             fontSize: 11,
                                             color: AppTheme.mutedColor,
