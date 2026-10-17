@@ -396,6 +396,7 @@ class UpdateService {
           return UpdateCheckResult(
             hasUpdate: false,
             isForced: false,
+            updateInfo: serverInfo,
             currentVersion: currentVersion,
             currentBuildNumber: currentBuild,
           );
@@ -488,6 +489,7 @@ class UpdateService {
               return UpdateCheckResult(
                 hasUpdate: false,
                 isForced: false,
+                updateInfo: info,
                 currentVersion: currentVersion,
                 currentBuildNumber: currentBuild,
               );

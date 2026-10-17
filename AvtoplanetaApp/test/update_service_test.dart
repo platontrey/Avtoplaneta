@@ -397,6 +397,42 @@ void main() {
       );
       expect(isNewer, isTrue);
     });
+
+    test('сохранение updateInfo при отсутствии обновлений (версия актуальна)', () async {
+      final dio = Dio();
+      dio.httpClientAdapter = _MockHttpAdapter((options) {
+        if (options.path.contains('/api/app/version')) {
+          return ResponseBody.fromString(
+            '''{
+              "version": "1.0.1",
+              "build_number": 117,
+              "download_url": "/api/app/download"
+            }''',
+            200,
+            headers: {
+              Headers.contentTypeHeader: [Headers.jsonContentType],
+            },
+          );
+        }
+        return ResponseBody.fromString('', 404);
+      });
+
+      final service = UpdateService(
+        dio: dio,
+        checkGitHubReleases: false,
+        checkPlatform: false,
+      );
+
+      final result = await service.checkForUpdates(
+        overrideCurrentVersion: '1.0.1',
+        overrideCurrentBuild: 117,
+      );
+
+      expect(result.hasUpdate, isFalse);
+      expect(result.updateInfo, isNotNull);
+      expect(result.updateInfo!.buildNumber, 117);
+      expect(result.updateInfo!.downloadUrl, '/api/app/download');
+    });
   });
 }
 

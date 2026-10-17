@@ -24,8 +24,9 @@ RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app
 
 COPY --from=builder /auth-service .
+COPY config ./config
 
-RUN adduser -D -g '' appuser && mkdir -p /app/uploads/avatars && chown -R appuser:appuser /app
+RUN adduser -D -g '' appuser && mkdir -p /app/uploads/avatars /app/downloads && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8083

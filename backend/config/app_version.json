@@ -1,6 +1,6 @@
 {
-  "version": "1.0.1",
-  "build_number": 2,
+  "version": "1.0.2",
+  "build_number": 118,
   "download_url": "/api/app/download",
   "download_urls": {
     "arm64-v8a": "/api/app/download?abi=arm64",
@@ -8,6 +8,6 @@
   },
   "force_update": false,
   "min_supported_build": 1,
-  "changelog": "• Оптимизация размера приложения (с 70 МБ до 22 МБ)\n• Поддержка быстрой загрузки обновлений",
-  "published_at": "2026-10-15T10:00:00Z"
+  "changelog": "• Возможность повторной установки актуальной версии приложения\n• Оптимизация производительности",
+  "published_at": "2026-10-17T15:00:00Z"
 }

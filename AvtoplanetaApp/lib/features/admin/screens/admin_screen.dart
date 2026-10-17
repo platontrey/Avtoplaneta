@@ -285,12 +285,28 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
         ),
       );
     } else {
+      final info = result.updateInfo;
+      final canRedownload = info != null && info.downloadUrl.isNotEmpty;
       scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text(
             'У вас установлена последняя версия (v${result.currentVersion}+${result.currentBuildNumber})',
           ),
           backgroundColor: Colors.green.shade800,
+          duration: Duration(seconds: canRedownload ? 6 : 3),
+          action: canRedownload
+              ? SnackBarAction(
+                  label: 'Скачать заново',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    UpdateDialog.show(
+                      context: context,
+                      info: info,
+                      updateService: updateService,
+                    );
+                  },
+                )
+              : null,
         ),
       );
     }

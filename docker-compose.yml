@@ -118,6 +118,8 @@ services:
       - GOMAXPROCS=8
     volumes:
       - auth-avatars:/app/uploads/avatars
+      - ./backend/config:/app/config:ro
+      - ./backend/downloads:/app/downloads:ro
     depends_on:
       - postgres
       - redis
