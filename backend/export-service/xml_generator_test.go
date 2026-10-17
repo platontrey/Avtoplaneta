@@ -333,8 +333,8 @@ func TestGenerateXMLPriceListAllFieldsMapping(t *testing.T) {
 	if o.Color != "Черный" {
 		t.Errorf("Color: got %q, want %q", o.Color, "Черный")
 	}
-	if o.Supplier != "Автопланета Север" {
-		t.Errorf("Supplier: got %q, want %q", o.Supplier, "Автопланета Север")
+	if o.Supplier != "Автопланета" {
+		t.Errorf("Supplier: got %q, want %q", o.Supplier, "Автопланета")
 	}
 	if o.SupplierInn != "7017123456" {
 		t.Errorf("SupplierInn: got %q, want %q", o.SupplierInn, "7017123456")

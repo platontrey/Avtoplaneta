@@ -23,7 +23,7 @@
     <fr>перед</fr>
     <ud>верх</ud>
     <color>Черный</color>
-    <supplier>Автопланета Томск</supplier>
+    <supplier>Автопланета</supplier>
     <supplier_inn>7017998877</supplier_inn>
     <sklad>Склад №1, Секция А</sklad>
     <supplier_art>AP-1001</supplier_art>
@@ -46,7 +46,7 @@
     <bodycars>NZE121</bodycars>
     <engine>1NZ-FE</engine>
     <year>2005</year>
-    <supplier>Автопланета Север</supplier>
+    <supplier>Автопланета</supplier>
     <supplier_inn>7017665544</supplier_inn>
     <sklad>Склад агрегатов №3</sklad>
     <supplier_art>ENG-1NZ-092</supplier_art>

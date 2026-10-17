@@ -115,7 +115,7 @@ func BuildOffer(part Part, sellerINN string, baseImageURL string) Offer {
 		Fr:            strings.TrimSpace(part.FrontRear),
 		Ud:            strings.TrimSpace(part.TopBottom),
 		Color:         strings.TrimSpace(part.Color),
-		Supplier:      strings.TrimSpace(part.Salesman),
+		Supplier:      "Автопланета",
 		SupplierInn:   sellerINN,
 		Sklad:         strings.TrimSpace(part.Location),
 		SupplierArt:   strings.TrimSpace(part.SupplierCode),
