@@ -13,7 +13,7 @@
 | **Асинхронные события между сервисами** (`seller_renamed`, рассылка уведомлений клиентам) | **Redis Streams** (`XADD`, Consumer Groups `XREADGROUP`, `XACK`, `XAUTOCLAIM`) | Декаплинг сервисов, доставка At-Least-Once, распределение нагрузки по репликам, восстановление зависших сообщений (PEL). |
 | **Синхронизация БД с Elasticsearch или брокером (No Dual-Write)** | **Transactional Outbox Pattern** (`outbox_events` + PostgreSQL `LISTEN/NOTIFY` + Outbox Dispatcher) | Атомарная запись в бизнес-таблицу и таблицу `outbox_events` в одной `pgx.Tx`. Мгновенное пробуждение по `pg_notify`. Выборка через `FOR UPDATE SKIP LOCKED`. |
 | **Полнотекстовый поиск, опечатки, морфология** | **Elasticsearch** (русский стеммер, синонимы `synonyms.txt`, `QueryBuilder`) | PostgreSQL вторичен для сложного поиска автозапчастей. ES работает как CQRS Read Model. Фильтр `quantity >= 0` обязателен. |
-| **Хранилище состояния и транзакции** | **PostgreSQL** (`Database-per-Service`, `sqlc`, `pgx/v5`) | Строгие ACID транзакции, пакетные вставки `pgx.Batch`, запрет на ORM. |
+| **Хранилище состояния и транзакции** | **PostgreSQL** (`Database-per-Service`, `sqlc`, `squirrel`, `pgx/v5`) | Строгие ACID транзакции, пакетные вставки `pgx.Batch`, запрет на ORM. `sqlc` для статических запросов (90%), `squirrel` строго для динамических фильтров каталога с 30+ полями и PATCH-апдейтов. `pgx/v5` — фундамент и транспорт. |
 | **Кэш витрины и быстрые ответы** | **Redis + ETag / `If-None-Match`** | Сброс ключей `parts:inventory` и `parts:statistics` при изменении остатков. Моментальный ответ `304 Not Modified`. |
 
 ---
@@ -38,7 +38,7 @@
 
 ---
 
-## 3. База данных: Миграции, sqlc и pgx/v5
+## 3. База данных: Миграции, sqlc, squirrel и pgx/v5
 
 1. **КРИТИЧЕСКОЕ ПРАВИЛО ДВОЙНОГО РАЗМЕЩЕНИЯ (Go embed trap):**
    - В `parts-service`, `orders-service`, `auth-service` файл `database.go` находится в `internal/repository/`.
@@ -47,8 +47,11 @@
      1. `backend/<service>/db/migrations/0000XX_<name>.up.sql` (и `.down.sql`)
      2. `backend/<service>/internal/repository/migrations/0000XX_<name>.up.sql` (и `.down.sql`)
 2. **Безопасность DDL:** `CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, обязательный `.down.sql`, версионирование через таблицу `schema_migrations`.
-3. **sqlc:** Запросы в `db/queries/*.sql`. Использовать явные аргументы `sqlc.arg(name)` / `sqlc.narg(name)`. После любых правок запускать `sqlc generate`.
-4. **pgx/v5:** Пул `*pgxpool.Pool`. Запрещены одиночные `INSERT` в цикле — только `pgx.Batch`. Для очередей — `FOR UPDATE SKIP LOCKED`.
+3. **Senior Data Access Matrix (sqlc vs squirrel vs pgx/v5):**
+   - **`pgx/v5` (`*pgxpool.Pool`):** Низкоуровневый драйвер, транспорт и пул соединений. Реализует бинарный wire protocol PostgreSQL, управление сокетами, транзакции `pgx.Tx`, `pgx.Batch`, `LISTEN/NOTIFY`. Это фундамент, без которого запрос в БД вообще не уйдет.
+   - **`sqlc` (90% всех операций — Default):** Статический компилируемый SQL. Запросы в `db/queries/*.sql` с явными аргументами `sqlc.arg` / `sqlc.narg`. Автогенерация Go-структур, валидация синтаксиса при компиляции, нулевой рантайм-оверхед. После любых правок запускать `sqlc generate`.
+   - **`squirrel` (10% операций — Динамический SQL):** Query Builder в памяти процесса. Применяется **строго для динамических фильтров** витрины с 30+ параметрами (`GetPartsWithFilters`), динамических PATCH-апдейтов (`UpdateOrder`) и фильтров аудита, где статический SQL привел бы к 40 условиям `($1::text IS NULL OR col = $1)` и сломал план выполнения Postgres (Seq Scan). `squirrel` не заменяет `pgx` — сгенерированная строка передается на исполнение в `r.pool.Query(...)` драйвера `pgx`.
+4. **pgx/v5 практики:** Пул `*pgxpool.Pool`. Запрещены одиночные `INSERT` в цикле — только `pgx.Batch`. Для очередей — `FOR UPDATE SKIP LOCKED`.
 5. **Автоматическое индексирование сеньора:**
    - **Индекс на каждый Foreign Key:** `CREATE INDEX IF NOT EXISTS idx_<table>_<fk> ON <table>(<fk>)` (Postgres не делает это автоматически; без индекса DELETE родителя блокирует дочернюю таблицу).
    - **Частичные индексы (`WHERE ...`):** Для очередей (`WHERE status = 'pending'`), Soft-Delete (`WHERE deleted_at IS NULL`) и ETag (`WHERE deleted_at IS NULL` по `updated_at DESC`).
