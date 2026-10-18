@@ -543,18 +543,19 @@ class _OrderCard extends StatelessWidget {
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.12),
+                    color: statusColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: statusColor.withValues(alpha: 0.25),
+                      color: statusColor.withValues(alpha: 0.35),
+                      width: 1,
                     ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        width: 7,
-                        height: 7,
+                        width: 8,
+                        height: 8,
                         decoration: BoxDecoration(
                           color: statusColor,
                           shape: BoxShape.circle,
@@ -565,7 +566,7 @@ class _OrderCard extends StatelessWidget {
                         isCompleted ? 'Выдан / Завершён' : order.displayStatusText,
                         style: TextStyle(
                           color: statusColor,
-                          fontSize: 11,
+                          fontSize: 12.5,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -648,13 +649,16 @@ class _OrderCard extends StatelessWidget {
               spacing: 6,
               runSpacing: 6,
               children: [
-                _chip(payInfo.$1, payInfo.$2),
-                _chip(whInfo.$1, whInfo.$2),
+                _chip(payInfo.$1, payInfo.$2, icon: LucideIcons.wallet),
+                _chip(whInfo.$1, whInfo.$2, icon: LucideIcons.package),
                 _chip(
                   order.transportCompany.isNotEmpty
                       ? '${delInfo.$1}: ${order.transportCompany}'
                       : delInfo.$1,
                   delInfo.$2,
+                  icon: order.deliveryMethod == 'pickup'
+                      ? LucideIcons.map_pin
+                      : LucideIcons.truck,
                 ),
               ],
             ),
@@ -695,20 +699,7 @@ class _OrderCard extends StatelessWidget {
             ],
             if (!isCompleted && canChangeStatus) ...[
               const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => _EditOrderSheet.show(
-                    context,
-                    order: order,
-                    onChanged: onStatusChanged,
-                  ),
-                  icon: const Icon(LucideIcons.pencil, size: 15),
-                  label: const Text('Статусы, трек и цена'),
-                ),
-              ),
-              const SizedBox(height: 8),
-              _OrderActions(orderId: order.id, onChanged: onStatusChanged),
+              _OrderActions(order: order, onChanged: onStatusChanged),
             ],
           ],
         ),
@@ -716,20 +707,29 @@ class _OrderCard extends StatelessWidget {
     );
   }
 
-  Widget _chip(String label, Color color) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+  Widget _chip(String label, Color color, {IconData? icon}) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
     decoration: BoxDecoration(
       color: color.withValues(alpha: 0.14),
       borderRadius: BorderRadius.circular(8),
       border: Border.all(color: color.withValues(alpha: 0.35)),
     ),
-    child: Text(
-      label,
-      style: TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        color: color,
-      ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (icon != null) ...[
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 5),
+        ],
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
+      ],
     ),
   );
 
@@ -794,9 +794,9 @@ class _PartLinkRow extends StatelessWidget {
 }
 
 class _OrderActions extends ConsumerWidget {
-  final int orderId;
+  final Order order;
   final VoidCallback onChanged;
-  const _OrderActions({required this.orderId, required this.onChanged});
+  const _OrderActions({required this.order, required this.onChanged});
 
   Future<void> _confirmAction(
     BuildContext context,
@@ -854,35 +854,77 @@ class _OrderActions extends ConsumerWidget {
     return Row(
       children: [
         Expanded(
-          child: FilledButton.tonal(
-            onPressed: () => _confirmAction(
-              context,
-              ref,
-              title: 'Подтверждение завершения продажи',
-              description:
-                  'Завершить продажу по заказу #$orderId? Запчасти будут списаны со склада и учтены в статистике продаж.',
-              actionLabel: 'Выдать / Завершить',
-              path: ApiEndpoints.completeOrder(orderId),
-              method: 'PUT',
+          flex: 4,
+          child: SizedBox(
+            height: 36,
+            child: OutlinedButton.icon(
+              onPressed: () => _EditOrderSheet.show(
+                context,
+                order: order,
+                onChanged: onChanged,
+              ),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                visualDensity: VisualDensity.compact,
+                textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              icon: const Icon(LucideIcons.pencil, size: 14),
+              label: const Text('Изменить', overflow: TextOverflow.ellipsis),
             ),
-            child: const Text('Выдать / Завершить'),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
         Expanded(
-          child: OutlinedButton(
-            onPressed: () => _confirmAction(
-              context,
-              ref,
-              title: 'Отмена заказа',
-              description:
-                  'Отменить заказ #$orderId? Запчасти останутся в наличии на складе.',
-              actionLabel: 'Отменить заказ',
-              path: ApiEndpoints.orderById(orderId),
-              method: 'DELETE',
+          flex: 4,
+          child: SizedBox(
+            height: 36,
+            child: FilledButton.tonalIcon(
+              onPressed: () => _confirmAction(
+                context,
+                ref,
+                title: 'Подтверждение завершения продажи',
+                description:
+                    'Завершить продажу по заказу #${order.id}? Запчасти будут списаны со склада и учтены в статистике продаж.',
+                actionLabel: 'Выдать / Завершить',
+                path: ApiEndpoints.completeOrder(order.id),
+                method: 'PUT',
+              ),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                visualDensity: VisualDensity.compact,
+                textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              icon: const Icon(LucideIcons.check, size: 14),
+              label: const Text('Завершить', overflow: TextOverflow.ellipsis),
             ),
-            style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Отменить'),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          flex: 3,
+          child: SizedBox(
+            height: 36,
+            child: OutlinedButton.icon(
+              onPressed: () => _confirmAction(
+                context,
+                ref,
+                title: 'Отмена заказа',
+                description:
+                    'Отменить заказ #${order.id}? Запчасти останутся в наличии на складе.',
+                actionLabel: 'Отменить заказ',
+                path: ApiEndpoints.orderById(order.id),
+                method: 'DELETE',
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red,
+                side: BorderSide(color: Colors.red.withValues(alpha: 0.4)),
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                visualDensity: VisualDensity.compact,
+                textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              icon: const Icon(LucideIcons.x, size: 14),
+              label: const Text('Отмена', overflow: TextOverflow.ellipsis),
+            ),
           ),
         ),
       ],

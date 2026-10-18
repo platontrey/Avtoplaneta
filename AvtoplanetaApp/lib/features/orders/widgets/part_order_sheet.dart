@@ -271,19 +271,19 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
     }
   }
 
-  Widget _buildSelectedCustomerCard(Customer customer) {
+  Widget _buildSelectedCustomerCard(Customer customer, List<Customer> allCustomers) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: customer.isBlacklist
-            ? Colors.red.withAlpha(20)
-            : customer.categoryColor.withAlpha(20),
+            ? Colors.red.withValues(alpha: 0.12)
+            : customer.categoryColor.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: customer.isBlacklist
-              ? Colors.red.withAlpha(120)
-              : customer.categoryColor.withAlpha(80),
+              ? Colors.red.withValues(alpha: 0.5)
+              : customer.categoryColor.withValues(alpha: 0.4),
         ),
       ),
       child: Column(
@@ -305,7 +305,7 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
                   margin: const EdgeInsets.only(right: 6),
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.green.withAlpha(30),
+                    color: Colors.green.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
@@ -317,6 +317,15 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
                     ),
                   ),
                 ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: const Icon(LucideIcons.users, size: 16),
+                tooltip: 'Сменить клиента',
+                onPressed: () => _openCustomerPicker(context, allCustomers),
+              ),
+              const SizedBox(width: 8),
               InkWell(
                 onTap: _clearSelectedCustomer,
                 borderRadius: BorderRadius.circular(12),
@@ -352,12 +361,31 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
     );
   }
 
+  Future<void> _openCustomerPicker(
+    BuildContext context,
+    List<Customer> allCustomers, [
+    TextEditingController? fieldController,
+  ]) async {
+    final selected = await showModalBottomSheet<Customer>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => _CustomerPickerSheet(customers: allCustomers),
+    );
+    if (selected != null) {
+      if (fieldController != null) {
+        fieldController.text = selected.phone.isNotEmpty ? selected.phone : selected.name;
+      }
+      _onCustomerSelected(selected);
+    }
+  }
+
   Widget _buildBuyerContactField(List<Customer> allCustomers) {
     if (_selectedCustomer != null) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSelectedCustomerCard(_selectedCustomer!),
+          _buildSelectedCustomerCard(_selectedCustomer!, allCustomers),
           TextFormField(
             controller: _buyerNumberController,
             decoration: const InputDecoration(
@@ -380,7 +408,9 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
         return Autocomplete<Customer>(
           optionsBuilder: (textEditingValue) {
             final query = textEditingValue.text.trim().toLowerCase();
-            if (query.length < 2) return const [];
+            if (query.isEmpty) {
+              return allCustomers.take(20);
+            }
             final queryDigits = query.replaceAll(RegExp(r'\D'), '');
             return allCustomers.where((c) {
               final phoneDigits = c.phone.replaceAll(RegExp(r'\D'), '');
@@ -395,7 +425,7 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
                   c.city.toLowerCase().contains(query);
             });
           },
-          displayStringForOption: (c) => c.phone,
+          displayStringForOption: (c) => c.phone.isNotEmpty ? c.phone : c.name,
           onSelected: _onCustomerSelected,
           fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
             controller.addListener(() {
@@ -413,6 +443,25 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
                     : 'Контакт / Поиск клиента *',
                 hintText: '+7 999 123-45-67 или имя клиента',
                 prefixIcon: const Icon(LucideIcons.search),
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (controller.text.isNotEmpty)
+                      IconButton(
+                        icon: const Icon(LucideIcons.x, size: 16),
+                        tooltip: 'Очистить',
+                        onPressed: () {
+                          controller.clear();
+                          _buyerNumberController.clear();
+                        },
+                      ),
+                    IconButton(
+                      icon: const Icon(LucideIcons.users, size: 18),
+                      tooltip: 'Выбрать из базы клиентов',
+                      onPressed: () => _openCustomerPicker(context, allCustomers, controller),
+                    ),
+                  ],
+                ),
               ),
               validator: (value) {
                 if (_mode == 'quick') return null;
@@ -428,8 +477,11 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
               child: Material(
                 elevation: 4,
                 borderRadius: BorderRadius.circular(8),
-                child: SizedBox(
-                  width: constraints.maxWidth,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: constraints.maxWidth,
+                    maxHeight: 260,
+                  ),
                   child: ListView.separated(
                     padding: EdgeInsets.zero,
                     shrinkWrap: true,
@@ -471,7 +523,7 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
   @override
   Widget build(BuildContext context) {
     final ordersAsync = ref.watch(ordersProvider);
-    final customers = ref.watch(customersProvider).valueOrNull ?? const <Customer>[];
+    final customers = ref.watch(allCustomersProvider).valueOrNull ?? const <Customer>[];
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     final hasOutOfStock = widget.parts.any((p) => p.quantity <= 0);
 
@@ -776,3 +828,183 @@ class _PartOrderSheetState extends ConsumerState<_PartOrderSheet> {
   }
 }
 
+class _CustomerPickerSheet extends StatefulWidget {
+  final List<Customer> customers;
+
+  const _CustomerPickerSheet({required this.customers});
+
+  @override
+  State<_CustomerPickerSheet> createState() => _CustomerPickerSheetState();
+}
+
+class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
+  final _searchController = TextEditingController();
+  String _category = '';
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    var filtered = widget.customers;
+    if (_category.isNotEmpty) {
+      filtered = filtered.where((c) => c.category == _category).toList();
+    }
+    if (_query.isNotEmpty) {
+      final q = _query.toLowerCase();
+      final qDigits = q.replaceAll(RegExp(r'\D'), '');
+      filtered = filtered.where((c) {
+        final phoneDigits = c.phone.replaceAll(RegExp(r'\D'), '');
+        final matchesPhone = qDigits.isNotEmpty && phoneDigits.contains(qDigits);
+        return matchesPhone ||
+            c.name.toLowerCase().contains(q) ||
+            c.phone.toLowerCase().contains(q) ||
+            c.city.toLowerCase().contains(q) ||
+            c.preferredTk.toLowerCase().contains(q);
+      }).toList();
+    }
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        16,
+        12,
+        16,
+        MediaQuery.viewInsetsOf(context).bottom + 16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(LucideIcons.users, size: 20, color: AppTheme.primaryColor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'База клиентов (${widget.customers.length})',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(LucideIcons.x),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _searchController,
+            autofocus: false,
+            decoration: InputDecoration(
+              hintText: 'Поиск по имени, номеру, городу...',
+              prefixIcon: const Icon(LucideIcons.search, size: 18),
+              suffixIcon: _query.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(LucideIcons.x, size: 16),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _query = '');
+                      },
+                    )
+                  : null,
+            ),
+            onChanged: (val) => setState(() => _query = val.trim()),
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _filterChip('', 'Все (${widget.customers.length})'),
+                _filterChip('regular', 'Обычные'),
+                _filterChip('vip', 'VIP'),
+                _filterChip('wholesale', 'Оптовые'),
+                _filterChip('blacklist', 'В черном списке'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.45,
+            ),
+            child: filtered.isEmpty
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        'Клиенты не найдены',
+                        style: TextStyle(color: AppTheme.mutedColor),
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, _) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final customer = filtered[index];
+                      return ListTile(
+                        dense: true,
+                        leading: CircleAvatar(
+                          radius: 16,
+                          backgroundColor: customer.categoryColor.withValues(alpha: 0.15),
+                          child: Icon(customer.categoryIcon, size: 16, color: customer.categoryColor),
+                        ),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                customer.name.isNotEmpty ? customer.name : customer.phone,
+                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (customer.discountPercent > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  '-${customer.discountPercent.toStringAsFixed(0)}%',
+                                  style: const TextStyle(
+                                    color: Colors.green,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        subtitle: Text(
+                          '${customer.phone}${customer.city.isNotEmpty ? ' · ${customer.city}' : ''}${customer.preferredTk.isNotEmpty ? ' · ТК ${customer.preferredTk}' : ''}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        onTap: () => Navigator.pop(context, customer),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterChip(String category, String label) {
+    final isSelected = _category == category;
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: ChoiceChip(
+        label: Text(label, style: const TextStyle(fontSize: 11)),
+        selected: isSelected,
+        onSelected: (_) => setState(() => _category = category),
+      ),
+    );
+  }
+}
