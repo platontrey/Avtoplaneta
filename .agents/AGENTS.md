@@ -51,16 +51,19 @@
    - **`pgx/v5` (`*pgxpool.Pool`):** Низкоуровневый драйвер, транспорт и пул соединений. Реализует бинарный wire protocol PostgreSQL, управление сокетами, транзакции `pgx.Tx`, `pgx.Batch`, `LISTEN/NOTIFY`. Это фундамент, без которого запрос в БД вообще не уйдет.
    - **`sqlc` (90% всех операций — Default):** Статический компилируемый SQL. Запросы в `db/queries/*.sql` с явными аргументами `sqlc.arg` / `sqlc.narg`. Автогенерация Go-структур, валидация синтаксиса при компиляции, нулевой рантайм-оверхед. После любых правок запускать `sqlc generate`.
    - **`squirrel` (10% операций — Динамический SQL):** Query Builder в памяти процесса. Применяется **строго для динамических фильтров** витрины с 30+ параметрами (`GetPartsWithFilters`), динамических PATCH-апдейтов (`UpdateOrder`) и фильтров аудита, где статический SQL привел бы к 40 условиям `($1::text IS NULL OR col = $1)` и сломал план выполнения Postgres (Seq Scan). `squirrel` не заменяет `pgx` — сгенерированная строка передается на исполнение в `r.pool.Query(...)` драйвера `pgx`.
-4. **pgx/v5 практики:** Пул `*pgxpool.Pool`. Запрещены одиночные `INSERT` в цикле — только `pgx.Batch`. Для очередей — `FOR UPDATE SKIP LOCKED`.
-5. **Автоматическое индексирование сеньора:**
+4. **Архитектура слоя SQL и стандарты запросов (Domain-Driven SQL & CTE):**
+   - **Запрет на монолитный `queries.sql`:** Файлы запросов декомпозируются по субдоменам в `db/queries/`: `<entity>_crud.sql`, `<entity>_stock.sql`, `<entity>_batches.sql`, `<entity>_stats.sql`, `outbox.sql`.
+   - **Стандарт CTE (`WITH ... AS`):** Запрещены нечитаемые вложенные подзапросы `FROM (SELECT ...) sub` и inline-SELECT в JOIN. Любая предварительная подготовка данных, фильтрация или агрегация оформляется через декларативные CTE с понятными именами.
+5. **pgx/v5 практики:** Пул `*pgxpool.Pool`. Запрещены одиночные `INSERT` в цикле — только `pgx.Batch`. Для очередей — `FOR UPDATE SKIP LOCKED`.
+6. **Автоматическое индексирование сеньора:**
    - **Индекс на каждый Foreign Key:** `CREATE INDEX IF NOT EXISTS idx_<table>_<fk> ON <table>(<fk>)` (Postgres не делает это автоматически; без индекса DELETE родителя блокирует дочернюю таблицу).
-   - **Частичные индексы (`WHERE ...`):** Для очередей (`WHERE status = 'pending'`), Soft-Delete (`WHERE deleted_at IS NULL`) и ETag (`WHERE deleted_at IS NULL` по `updated_at DESC`).
+   - **Частичные индексы (`WHERE ...`):** Для очередей (`WHERE status = 'pending'`), Soft-Delete (`WHERE deleted_at IS NULL`), ETag (`WHERE deleted_at IS NULL` по `updated_at DESC`) и дефектных партий (`WHERE quantity = 0 AND to_delete_at IS NULL AND deleted_at IS NULL`).
    - **Составные индексы:** Правило левого префикса: сначала равенство (`=`), затем диапазоны (`>`, `<`) и сортировка (`ORDER BY`).
    - **Покрывающие (`INCLUDE`):** Для Index-Only Scans без чтения Heap с диска.
-   - **Функциональные и GIN:** `LOWER(TRIM(email))`, `TRIM(phone)`, `USING GIN (photos)` для массивов/JSONB.
+   - **Функциональные и GIN:** `LOWER(TRIM(email))`, `TRIM(phone)`, `BTRIM(supplier_code)` (предотвращает Seq Scan при вызове строковых функций), `USING GIN (photos)` для массивов/JSONB.
    - **Constraints:** `CHECK (quantity >= -1)`, `CHECK (price >= 0)`, осознанный `ON DELETE RESTRICT/CASCADE`.
    - **Пагинация:** Keyset pagination `WHERE (created_at, id) < ...` вместо антипаттерна `OFFSET`.
-6. **Шаблон и генератор микросервисов (`make new-service`):**
+7. **Шаблон и генератор микросервисов (`make new-service`):**
    - Эталонный сервис находится в `backend/template-service`. Содержит готовый `Dockerfile` с кэш-моунтами, `sqlc.yaml`, миграции `schema_migrations`, `/health`, `/metrics` (Prometheus) и Graceful Shutdown.
    - Для создания нового микросервиса запускать: `cd backend && make new-service NAME=<name> PORT=<port> GRPC_PORT=<grpc_port>`. Скрипт сам пропишет модуль в `go.work`, `Makefile` и проверит сборку.
 7. **Стандарты gRPC, Protobuf и Buf (Bigint Standard, Clean Mappers & Protovalidate):**

@@ -270,14 +270,25 @@ DROP TABLE IF EXISTS customer_notes;
 - При старте сервиса встроенный раннер в `database.go` проверяет таблицу `schema_migrations`.
 - Если миграция уже выполнена, она пропускается. Новые `.up.sql` файлы выполняются в алфавитном порядке версий.
 
-### 3.2. Стандарты работы с `sqlc`
-1. SQL-запросы пишутся строго в `backend/<service>/db/queries/<entity>.sql`.
-2. Обязательные аннотации типизации sqlc:
+### 3.2. Архитектура слоя SQL и стандарты работы с `sqlc`
+
+1. **Запрет на «God SQL File» (монолитный `queries.sql`):**
+   SQL-запросы организуются строго по субдоменам и сущностям в `backend/<service>/db/queries/`:
+   - `<entity>_crud.sql` — базовые атомарные операции (Create, GetByID, Delete, GetAll).
+   - `<entity>_stock.sql` / `<entity>_lifecycle.sql` — доменные складские движения, списания, идемпотентные операции.
+   - `<entity>_batches.sql` — партии дефектовок, атомарные последовательности `nextval`, удаление нулевых остатков.
+   - `<entity>_stats.sql` — аналитические отчеты, агрегации и группировки.
+   - `<entity>_bulk.sql` — массовые обновления по списку ID.
+   - `outbox.sql` — события Transactional Outbox.
+2. **Стандарт CTE (`WITH ... AS`) вместо вложенных подзапросов:**
+   - **Запрещены вложенные конструкции «изнутри наружу»:** `FROM (SELECT ...) sub` или `LEFT JOIN (SELECT ...)`.
+   - Любая предварительная подготовка данных, вычисление составных идентификаторов или предварительная агрегация оформляется через **Common Table Expressions (CTE)** с понятными именами (`WITH batch_identifiers AS (...)`, `WITH order_totals AS (...)`). CTE читаются сверху вниз как декларативный пайплайн.
+3. **Обязательные аннотации типизации sqlc:**
    - `-- name: GetPartByID :one` — ожидает ровно 1 строку (возвращает `(Model, error)`).
    - `-- name: ListParts :many` — возвращает срез `([]Model, error)`.
    - `-- name: UpdatePart :exec` — не возвращает данные `(error)`.
    - `-- name: DeletePart :execrows` — возвращает количество затронутых строк `(int64, error)`.
-3. Использование именованных аргументов:
+4. **Использование именованных аргументов:**
    Всегда использовать `sqlc.arg(name)` или `sqlc.narg(name)` (nullable), избегая слепых позиционных `$1, $2, $3`:
    ```sql
    -- name: UpdateStock :exec
@@ -285,7 +296,7 @@ DROP TABLE IF EXISTS customer_notes;
    SET quantity = sqlc.arg(quantity)::integer, updated_at = NOW()
    WHERE id = sqlc.arg(id);
    ```
-4. **ОБЯЗАТЕЛЬНАЯ КОМАНДА:** После любых правок в `.sql` файлах выполнять генерацию:
+5. **ОБЯЗАТЕЛЬНАЯ КОМАНДА:** После любых правок в `.sql` файлах выполнять генерацию:
    ```bash
    cd backend/<service> && sqlc generate
    ```
@@ -384,6 +395,12 @@ DROP TABLE IF EXISTS customer_notes;
            ON parts(updated_at DESC) 
            WHERE deleted_at IS NULL;
        ```
+     - **Дефектные партии (quantity = 0):**
+       ```sql
+       CREATE INDEX IF NOT EXISTS idx_parts_zero_batches 
+           ON parts (created_at DESC, supplier_code, brand, model, car_release_date, vin) 
+           WHERE quantity = 0 AND to_delete_at IS NULL AND deleted_at IS NULL;
+       ```
 
 3. **Составные индексы (Composite Indexes) и Правило левого префикса (Leftmost Prefix Rule):**
    - **Формула порядка колонок:** Сначала равенства (`=`, высокая селективность), затем диапазоны (`>`, `<`, `BETWEEN`) и сортировка (`ORDER BY`).
@@ -409,7 +426,7 @@ DROP TABLE IF EXISTS customer_notes;
      ```
 
 5. **Функциональные / Выраженческие индексы (Expression Indexes):**
-   - Для уникальности или поиска без учета регистра:
+   - Для уникальности или поиска без учета регистра и пробелов (предотвращает `Seq Scan` при вызове функций в `WHERE`):
      ```sql
      -- Уникальность email без учета регистра:
      CREATE UNIQUE INDEX IF NOT EXISTS idx_users_lower_email ON users (LOWER(TRIM(email)));
@@ -418,6 +435,10 @@ DROP TABLE IF EXISTS customer_notes;
      CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_unique_phone 
          ON customers (TRIM(phone)) 
          WHERE phone IS NOT NULL AND TRIM(phone) != '';
+
+     -- Индекс для BTRIM(supplier_code) исключает Seq Scan при сравнении очищенных кодов:
+     CREATE INDEX IF NOT EXISTS idx_parts_supplier_code_btrim ON parts (BTRIM(supplier_code))
+         WHERE supplier_code IS NOT NULL AND BTRIM(supplier_code) != '';
      ```
 
 6. **GIN-индексы для JSONB, массивов и полнотекстового поиска:**
