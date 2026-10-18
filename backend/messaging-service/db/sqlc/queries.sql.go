@@ -355,6 +355,29 @@ func (q *Queries) GetMentionsByMessageIDs(ctx context.Context, dollar_1 []int64)
 	return items, nil
 }
 
+const GetMessageByID = `-- name: GetMessageByID :one
+SELECT id, conversation_id, sender_id, content, message_type, voice_url, created_at, read_by, attachments, search_vector FROM messages
+WHERE id = $1
+`
+
+func (q *Queries) GetMessageByID(ctx context.Context, id int64) (Message, error) {
+	row := q.db.QueryRow(ctx, GetMessageByID, id)
+	var i Message
+	err := row.Scan(
+		&i.ID,
+		&i.ConversationID,
+		&i.SenderID,
+		&i.Content,
+		&i.MessageType,
+		&i.VoiceUrl,
+		&i.CreatedAt,
+		&i.ReadBy,
+		&i.Attachments,
+		&i.SearchVector,
+	)
+	return i, err
+}
+
 const GetMessagesByConversationID = `-- name: GetMessagesByConversationID :many
 SELECT id, conversation_id, sender_id, content, message_type, voice_url, created_at, read_by, attachments, search_vector FROM messages
 WHERE conversation_id = $1
@@ -496,6 +519,36 @@ SELECT id, user_id, is_online, last_seen FROM user_status
 
 func (q *Queries) GetUserStatuses(ctx context.Context) ([]UserStatus, error) {
 	rows, err := q.db.Query(ctx, GetUserStatuses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []UserStatus{}
+	for rows.Next() {
+		var i UserStatus
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.IsOnline,
+			&i.LastSeen,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const GetUserStatusesByUserIDs = `-- name: GetUserStatusesByUserIDs :many
+SELECT id, user_id, is_online, last_seen FROM user_status
+WHERE user_id = ANY($1::bigint[])
+`
+
+func (q *Queries) GetUserStatusesByUserIDs(ctx context.Context, dollar_1 []int64) ([]UserStatus, error) {
+	rows, err := q.db.Query(ctx, GetUserStatusesByUserIDs, dollar_1)
 	if err != nil {
 		return nil, err
 	}

@@ -44,6 +44,10 @@ SELECT * FROM messages
 WHERE conversation_id = $1
 ORDER BY created_at ASC;
 
+-- name: GetMessageByID :one
+SELECT * FROM messages
+WHERE id = $1;
+
 -- name: CreateMessage :one
 INSERT INTO messages (conversation_id, sender_id, content, message_type, voice_url, created_at, read_by, attachments)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -114,6 +118,10 @@ WHERE user_id = $1;
 
 -- name: GetUserStatuses :many
 SELECT * FROM user_status;
+
+-- name: GetUserStatusesByUserIDs :many
+SELECT * FROM user_status
+WHERE user_id = ANY($1::bigint[]);
 
 -- name: GetUserStatusByUserID :one
 SELECT * FROM user_status

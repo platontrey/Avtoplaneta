@@ -20,6 +20,7 @@ type MessagingRepository interface {
 	DeleteConversation(ctx context.Context, id int64) error
 
 	GetMessages(ctx context.Context, conversationID int64) ([]Message, error)
+	GetMessageByID(ctx context.Context, id int64) (*Message, error)
 	CreateMessage(ctx context.Context, msg *Message) error
 	DeleteMessage(ctx context.Context, id int64) error
 	DeleteMessagesByConversationID(ctx context.Context, conversationID int64) error
@@ -252,6 +253,24 @@ func (r *messagingRepository) GetMessages(ctx context.Context, conversationID in
 	return r.populateMessagesRelations(ctx, rows)
 }
 
+func (r *messagingRepository) GetMessageByID(ctx context.Context, id int64) (*Message, error) {
+	row, err := r.queries.GetMessageByID(ctx, id)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	msgs, err := r.populateMessagesRelations(ctx, []sqlc.Message{row})
+	if err != nil {
+		return nil, err
+	}
+	if len(msgs) == 0 {
+		return nil, nil
+	}
+	return &msgs[0], nil
+}
+
 func (r *messagingRepository) CreateMessage(ctx context.Context, msg *Message) error {
 	params := sqlc.CreateMessageParams{
 		ConversationID: msg.ConversationID,
@@ -410,25 +429,20 @@ func sqlcUserStatusToDomain(us sqlc.UserStatus) UserStatus {
 }
 
 func (r *messagingRepository) GetUserStatuses(ctx context.Context, userIDs []int64) ([]UserStatus, error) {
-	var rows pgx.Rows
+	var rows []sqlc.UserStatus
 	var err error
 	if len(userIDs) > 0 {
-		rows, err = r.pool.Query(ctx, "SELECT id, user_id, is_online, last_seen FROM user_status WHERE user_id = ANY($1)", userIDs)
+		rows, err = r.queries.GetUserStatusesByUserIDs(ctx, userIDs)
 	} else {
-		rows, err = r.pool.Query(ctx, "SELECT id, user_id, is_online, last_seen FROM user_status")
+		rows, err = r.queries.GetUserStatuses(ctx)
 	}
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var result []UserStatus
-	for rows.Next() {
-		var us sqlc.UserStatus
-		if err := rows.Scan(&us.ID, &us.UserID, &us.IsOnline, &us.LastSeen); err != nil {
-			return nil, err
-		}
-		result = append(result, sqlcUserStatusToDomain(us))
+	result := make([]UserStatus, len(rows))
+	for i, us := range rows {
+		result[i] = sqlcUserStatusToDomain(us)
 	}
 	return result, nil
 }

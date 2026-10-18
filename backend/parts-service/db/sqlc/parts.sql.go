@@ -379,6 +379,76 @@ func (q *Queries) DeleteZeroQuantityBySupplier(ctx context.Context, supplierCode
 	return result.RowsAffected(), nil
 }
 
+const DeleteZeroQuantityPartsByCar = `-- name: DeleteZeroQuantityPartsByCar :many
+DELETE FROM parts
+WHERE (supplier_code IS NULL OR BTRIM(supplier_code) = '')
+  AND COALESCE(BTRIM(brand), '') = $1
+  AND COALESCE(BTRIM(model), '') = $2
+  AND COALESCE(BTRIM(car_release_date), '') = $3
+  AND COALESCE(BTRIM(vin), '') = $4
+  AND quantity = 0 AND to_delete_at IS NULL AND deleted_at IS NULL
+RETURNING id
+`
+
+type DeleteZeroQuantityPartsByCarParams struct {
+	Brand          string `json:"brand"`
+	Model          string `json:"model"`
+	CarReleaseDate string `json:"car_release_date"`
+	Vin            string `json:"vin"`
+}
+
+func (q *Queries) DeleteZeroQuantityPartsByCar(ctx context.Context, arg DeleteZeroQuantityPartsByCarParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, DeleteZeroQuantityPartsByCar,
+		arg.Brand,
+		arg.Model,
+		arg.CarReleaseDate,
+		arg.Vin,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const DeleteZeroQuantityPartsBySupplierCode = `-- name: DeleteZeroQuantityPartsBySupplierCode :many
+DELETE FROM parts
+WHERE BTRIM(supplier_code) = BTRIM($1)
+  AND quantity = 0 AND to_delete_at IS NULL AND deleted_at IS NULL
+RETURNING id
+`
+
+func (q *Queries) DeleteZeroQuantityPartsBySupplierCode(ctx context.Context, btrim string) ([]int64, error) {
+	rows, err := q.db.Query(ctx, DeleteZeroQuantityPartsBySupplierCode, btrim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const GetAllParts = `-- name: GetAllParts :many
 SELECT id, name, quantity, description, category, price, salesman, location, address, status, brand, model, photos, seller_id, to_delete_at, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, created_at, updated_at, deleted_at, car_release_period FROM parts WHERE deleted_at IS NULL ORDER BY id
 `
@@ -526,6 +596,54 @@ func (q *Queries) GetLastCreatedPart(ctx context.Context) (Part, error) {
 		&i.CarReleasePeriod,
 	)
 	return i, err
+}
+
+const GetMaxPartNumberFallback = `-- name: GetMaxPartNumberFallback :one
+SELECT COALESCE(MAX(CAST(number AS BIGINT)), 0) + 1 AS next_number
+FROM parts
+WHERE number ~ '^[0-9]+$' AND LENGTH(number) < 15
+`
+
+func (q *Queries) GetMaxPartNumberFallback(ctx context.Context) (int32, error) {
+	row := q.db.QueryRow(ctx, GetMaxPartNumberFallback)
+	var next_number int32
+	err := row.Scan(&next_number)
+	return next_number, err
+}
+
+const GetMaxSupplierCodeFallback = `-- name: GetMaxSupplierCodeFallback :one
+SELECT COALESCE(MAX(CAST(supplier_code AS BIGINT)), 0) + 1 AS next_code
+FROM parts
+WHERE supplier_code ~ '^[0-9]+$' AND LENGTH(supplier_code) < 10
+`
+
+func (q *Queries) GetMaxSupplierCodeFallback(ctx context.Context) (int32, error) {
+	row := q.db.QueryRow(ctx, GetMaxSupplierCodeFallback)
+	var next_code int32
+	err := row.Scan(&next_code)
+	return next_code, err
+}
+
+const GetNextDefectBatchSequence = `-- name: GetNextDefectBatchSequence :one
+SELECT nextval('defect_batch_seq')::bigint
+`
+
+func (q *Queries) GetNextDefectBatchSequence(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, GetNextDefectBatchSequence)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const GetNextPartNumberSequence = `-- name: GetNextPartNumberSequence :one
+SELECT nextval('part_number_seq')::bigint
+`
+
+func (q *Queries) GetNextPartNumberSequence(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, GetNextPartNumberSequence)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const GetPartByID = `-- name: GetPartByID :one
@@ -737,6 +855,68 @@ func (q *Queries) GetStatsTotalsBefore(ctx context.Context, createdAt pgtype.Tim
 	var i GetStatsTotalsBeforeRow
 	err := row.Scan(&i.PrevParts, &i.PrevQuantity, &i.PrevValue)
 	return i, err
+}
+
+const GetSupplierBatches = `-- name: GetSupplierBatches :many
+SELECT
+    sub.batch_code,
+    COALESCE(MAX(NULLIF(BTRIM(sub.brand), '')), '')::text AS brand_name,
+    COALESCE(MAX(NULLIF(BTRIM(sub.model), '')), '')::text AS model_name,
+    COALESCE(MAX(NULLIF(BTRIM(sub.car_release_date), '')), '')::text AS release_date,
+    COALESCE(MAX(NULLIF(BTRIM(sub.vin), '')), '')::text AS car_vin,
+    COUNT(*)::bigint AS zero_count
+FROM (
+    SELECT
+        CASE
+            WHEN supplier_code IS NOT NULL AND BTRIM(supplier_code) != '' THEN BTRIM(supplier_code)
+            ELSE 'car:' || COALESCE(BTRIM(brand), '') || '|' || COALESCE(BTRIM(model), '') || '|' || COALESCE(BTRIM(car_release_date), '') || '|' || COALESCE(BTRIM(vin), '')
+        END AS batch_code,
+        brand,
+        model,
+        car_release_date,
+        vin,
+        created_at
+    FROM parts
+    WHERE quantity = 0 AND to_delete_at IS NULL AND deleted_at IS NULL
+) sub
+GROUP BY sub.batch_code
+ORDER BY MAX(sub.created_at) DESC NULLS LAST, sub.batch_code DESC
+`
+
+type GetSupplierBatchesRow struct {
+	BatchCode   interface{} `json:"batch_code"`
+	BrandName   string      `json:"brand_name"`
+	ModelName   string      `json:"model_name"`
+	ReleaseDate string      `json:"release_date"`
+	CarVin      string      `json:"car_vin"`
+	ZeroCount   int64       `json:"zero_count"`
+}
+
+func (q *Queries) GetSupplierBatches(ctx context.Context) ([]GetSupplierBatchesRow, error) {
+	rows, err := q.db.Query(ctx, GetSupplierBatches)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetSupplierBatchesRow{}
+	for rows.Next() {
+		var i GetSupplierBatchesRow
+		if err := rows.Scan(
+			&i.BatchCode,
+			&i.BrandName,
+			&i.ModelName,
+			&i.ReleaseDate,
+			&i.CarVin,
+			&i.ZeroCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const GetSupplierCodes = `-- name: GetSupplierCodes :many

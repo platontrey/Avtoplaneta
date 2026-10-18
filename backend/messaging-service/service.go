@@ -269,21 +269,15 @@ func (s *messagingService) SendVoiceMessage(ctx context.Context, conversationID 
 }
 
 func (s *messagingService) DeleteMessage(ctx context.Context, id int64, userID int64) error {
-	// First fetch the message to find the conversation ID
-	// GORM code loaded first. We need to do raw query or sqlc or we can fetch conversation.
-	// Actually we should write a query to delete message only if sender matches or check sender ID.
-	// Since we delete by message ID in REST:
-	// Let's get conversation ID to invalidate cache
-	// We didn't define a GetMessageByID in sqlc, but we can easily add it or query directly,
-	// or we can just use the squirrel builder / raw DB. pool.QueryRow().
-	var conversationID int64
-	var senderID int64
-	err := s.repo.(*messagingRepository).pool.QueryRow(ctx, "SELECT conversation_id, sender_id FROM messages WHERE id = $1", id).Scan(&conversationID, &senderID)
+	msg, err := s.repo.GetMessageByID(ctx, id)
 	if err != nil {
 		return err
 	}
+	if msg == nil {
+		return errors.New("message not found")
+	}
 
-	if senderID != userID {
+	if msg.SenderID != userID {
 		return errors.New("access denied")
 	}
 
@@ -291,33 +285,35 @@ func (s *messagingService) DeleteMessage(ctx context.Context, id int64, userID i
 		return err
 	}
 
-	go s.invalidateMessagesCache(context.Background(), conversationID)
+	go s.invalidateMessagesCache(context.Background(), msg.ConversationID)
 	return nil
 }
 
 func (s *messagingService) MarkMessageRead(ctx context.Context, messageID int64, userID int64) error {
-	// Get message conversation ID to invalidate cache
-	var conversationID int64
-	err := s.repo.(*messagingRepository).pool.QueryRow(ctx, "SELECT conversation_id FROM messages WHERE id = $1", messageID).Scan(&conversationID)
+	msg, err := s.repo.GetMessageByID(ctx, messageID)
 	if err != nil {
 		return err
+	}
+	if msg == nil {
+		return errors.New("message not found")
 	}
 
 	if err := s.repo.AddUserToReadBy(ctx, messageID, userID); err != nil {
 		return err
 	}
 
-	go s.invalidateMessagesCache(context.Background(), conversationID)
+	go s.invalidateMessagesCache(context.Background(), msg.ConversationID)
 	return nil
 }
 
 // Reactions
 func (s *messagingService) AddReaction(ctx context.Context, messageID int64, userID int64, emoji string) (*Reaction, error) {
-	// Get conversation ID to invalidate cache
-	var conversationID int64
-	err := s.repo.(*messagingRepository).pool.QueryRow(ctx, "SELECT conversation_id FROM messages WHERE id = $1", messageID).Scan(&conversationID)
+	msg, err := s.repo.GetMessageByID(ctx, messageID)
 	if err != nil {
 		return nil, err
+	}
+	if msg == nil {
+		return nil, errors.New("message not found")
 	}
 
 	reaction := Reaction{
@@ -330,7 +326,7 @@ func (s *messagingService) AddReaction(ctx context.Context, messageID int64, use
 		return nil, err
 	}
 
-	go s.invalidateMessagesCache(context.Background(), conversationID)
+	go s.invalidateMessagesCache(context.Background(), msg.ConversationID)
 	return &reaction, nil
 }
 
@@ -344,17 +340,19 @@ func (s *messagingService) RemoveReaction(ctx context.Context, reactionID int64,
 		return errors.New("access denied")
 	}
 
-	var conversationID int64
-	err = s.repo.(*messagingRepository).pool.QueryRow(ctx, "SELECT conversation_id FROM messages WHERE id = $1", reaction.MessageID).Scan(&conversationID)
+	msg, err := s.repo.GetMessageByID(ctx, reaction.MessageID)
 	if err != nil {
 		return err
+	}
+	if msg == nil {
+		return errors.New("message not found")
 	}
 
 	if err := s.repo.DeleteReaction(ctx, reactionID); err != nil {
 		return err
 	}
 
-	go s.invalidateMessagesCache(context.Background(), conversationID)
+	go s.invalidateMessagesCache(context.Background(), msg.ConversationID)
 	return nil
 }
 

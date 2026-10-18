@@ -135,4 +135,59 @@ SET
 WHERE id = ANY(sqlc.arg(ids)::bigint[]) AND deleted_at IS NULL AND quantity >= 0
 RETURNING *;
 
+-- name: GetNextDefectBatchSequence :one
+SELECT nextval('defect_batch_seq')::bigint;
 
+-- name: GetMaxSupplierCodeFallback :one
+SELECT COALESCE(MAX(CAST(supplier_code AS BIGINT)), 0) + 1 AS next_code
+FROM parts
+WHERE supplier_code ~ '^[0-9]+$' AND LENGTH(supplier_code) < 10;
+
+-- name: GetNextPartNumberSequence :one
+SELECT nextval('part_number_seq')::bigint;
+
+-- name: GetMaxPartNumberFallback :one
+SELECT COALESCE(MAX(CAST(number AS BIGINT)), 0) + 1 AS next_number
+FROM parts
+WHERE number ~ '^[0-9]+$' AND LENGTH(number) < 15;
+
+-- name: DeleteZeroQuantityPartsBySupplierCode :many
+DELETE FROM parts
+WHERE BTRIM(supplier_code) = BTRIM($1)
+  AND quantity = 0 AND to_delete_at IS NULL AND deleted_at IS NULL
+RETURNING id;
+
+-- name: DeleteZeroQuantityPartsByCar :many
+DELETE FROM parts
+WHERE (supplier_code IS NULL OR BTRIM(supplier_code) = '')
+  AND COALESCE(BTRIM(brand), '') = $1
+  AND COALESCE(BTRIM(model), '') = $2
+  AND COALESCE(BTRIM(car_release_date), '') = $3
+  AND COALESCE(BTRIM(vin), '') = $4
+  AND quantity = 0 AND to_delete_at IS NULL AND deleted_at IS NULL
+RETURNING id;
+
+-- name: GetSupplierBatches :many
+SELECT
+    sub.batch_code,
+    COALESCE(MAX(NULLIF(BTRIM(sub.brand), '')), '')::text AS brand_name,
+    COALESCE(MAX(NULLIF(BTRIM(sub.model), '')), '')::text AS model_name,
+    COALESCE(MAX(NULLIF(BTRIM(sub.car_release_date), '')), '')::text AS release_date,
+    COALESCE(MAX(NULLIF(BTRIM(sub.vin), '')), '')::text AS car_vin,
+    COUNT(*)::bigint AS zero_count
+FROM (
+    SELECT
+        CASE
+            WHEN supplier_code IS NOT NULL AND BTRIM(supplier_code) != '' THEN BTRIM(supplier_code)
+            ELSE 'car:' || COALESCE(BTRIM(brand), '') || '|' || COALESCE(BTRIM(model), '') || '|' || COALESCE(BTRIM(car_release_date), '') || '|' || COALESCE(BTRIM(vin), '')
+        END AS batch_code,
+        brand,
+        model,
+        car_release_date,
+        vin,
+        created_at
+    FROM parts
+    WHERE quantity = 0 AND to_delete_at IS NULL AND deleted_at IS NULL
+) sub
+GROUP BY sub.batch_code
+ORDER BY MAX(sub.created_at) DESC NULLS LAST, sub.batch_code DESC;

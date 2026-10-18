@@ -1221,8 +1221,8 @@ func (r *partRepository) DeleteZeroQuantityPartsWithIDs(ctx context.Context, sup
 	logrus.WithField("supplier_code", supplierCode).Info("Repository: DeleteZeroQuantityPartsWithIDs")
 
 	var (
-		rows pgx.Rows
-		err  error
+		deletedIDs []int64
+		err        error
 	)
 
 	if strings.HasPrefix(supplierCode, "car:") {
@@ -1231,38 +1231,16 @@ func (r *partRepository) DeleteZeroQuantityPartsWithIDs(ctx context.Context, sup
 		for len(parts) < 4 {
 			parts = append(parts, "")
 		}
-		rows, err = r.pool.Query(ctx, `
-			DELETE FROM parts
-			WHERE (supplier_code IS NULL OR BTRIM(supplier_code) = '')
-			  AND COALESCE(BTRIM(brand), '') = $1
-			  AND COALESCE(BTRIM(model), '') = $2
-			  AND COALESCE(BTRIM(car_release_date), '') = $3
-			  AND COALESCE(BTRIM(vin), '') = $4
-			  AND quantity = 0 AND to_delete_at IS NULL AND deleted_at IS NULL
-			RETURNING id
-		`, parts[0], parts[1], parts[2], parts[3])
+		deletedIDs, err = r.queries.DeleteZeroQuantityPartsByCar(ctx, sqlc.DeleteZeroQuantityPartsByCarParams{
+			Brand:          parts[0],
+			Model:          parts[1],
+			CarReleaseDate: parts[2],
+			Vin:            parts[3],
+		})
 	} else {
-		rows, err = r.pool.Query(ctx, `
-			DELETE FROM parts
-			WHERE BTRIM(supplier_code) = BTRIM($1)
-			  AND quantity = 0 AND to_delete_at IS NULL AND deleted_at IS NULL
-			RETURNING id
-		`, supplierCode)
+		deletedIDs, err = r.queries.DeleteZeroQuantityPartsBySupplierCode(ctx, supplierCode)
 	}
 	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var deletedIDs []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		deletedIDs = append(deletedIDs, id)
-	}
-	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
@@ -1279,43 +1257,31 @@ func (r *partRepository) DeleteZeroQuantityPartsBySupplier(ctx context.Context, 
 }
 
 func (r *partRepository) GetSupplierBatches(ctx context.Context) ([]domain.SupplierBatchInfo, error) {
-	rows, err := r.pool.Query(ctx, `
-		SELECT
-			sub.batch_code,
-			COALESCE(MAX(NULLIF(BTRIM(sub.brand), '')), '') AS brand_name,
-			COALESCE(MAX(NULLIF(BTRIM(sub.model), '')), '') AS model_name,
-			COALESCE(MAX(NULLIF(BTRIM(sub.car_release_date), '')), '') AS release_date,
-			COALESCE(MAX(NULLIF(BTRIM(sub.vin), '')), '') AS car_vin,
-			COUNT(*)::bigint AS zero_count
-		FROM (
-			SELECT
-				CASE
-					WHEN supplier_code IS NOT NULL AND BTRIM(supplier_code) != '' THEN BTRIM(supplier_code)
-					ELSE 'car:' || COALESCE(BTRIM(brand), '') || '|' || COALESCE(BTRIM(model), '') || '|' || COALESCE(BTRIM(car_release_date), '') || '|' || COALESCE(BTRIM(vin), '')
-				END AS batch_code,
-				brand,
-				model,
-				car_release_date,
-				vin,
-				created_at
-			FROM parts
-			WHERE quantity = 0 AND to_delete_at IS NULL AND deleted_at IS NULL
-		) sub
-		GROUP BY sub.batch_code
-		ORDER BY MAX(sub.created_at) DESC NULLS LAST, sub.batch_code DESC
-	`)
+	rows, err := r.queries.GetSupplierBatches(ctx)
 	if err != nil {
 		logrus.WithError(err).Error("Repository: GetSupplierBatches query failed")
 		return nil, err
 	}
-	defer rows.Close()
 
 	var batches []domain.SupplierBatchInfo
-	for rows.Next() {
-		var b domain.SupplierBatchInfo
-		if err := rows.Scan(&b.Code, &b.Brand, &b.Model, &b.Year, &b.VIN, &b.ZeroCount); err != nil {
-			logrus.WithError(err).Error("Repository: failed to scan domain.SupplierBatchInfo")
-			return nil, err
+	for _, row := range rows {
+		var code string
+		switch v := row.BatchCode.(type) {
+		case string:
+			code = v
+		case []byte:
+			code = string(v)
+		default:
+			code = fmt.Sprintf("%v", v)
+		}
+
+		b := domain.SupplierBatchInfo{
+			Code:      code,
+			Brand:     row.BrandName,
+			Model:     row.ModelName,
+			Year:      row.ReleaseDate,
+			VIN:       row.CarVin,
+			ZeroCount: row.ZeroCount,
 		}
 
 		carTitle := strings.TrimSpace(strings.Join([]string{b.Brand, b.Model, b.Year}, " "))
@@ -1331,10 +1297,6 @@ func (r *partRepository) GetSupplierBatches(ctx context.Context) ([]domain.Suppl
 			b.Label = fmt.Sprintf("%s — %d шт. с 0 [код: %s]", carTitle, b.ZeroCount, b.Code)
 		}
 		batches = append(batches, b)
-	}
-	if err := rows.Err(); err != nil {
-		logrus.WithError(err).Error("Repository: rows error in GetSupplierBatches")
-		return nil, err
 	}
 
 	logrus.WithField("count", len(batches)).Info("Repository: GetSupplierBatches loaded batches")
@@ -1363,18 +1325,12 @@ func (r *partRepository) GetSupplierCodes(ctx context.Context) ([]string, error)
 }
 
 func (r *partRepository) GetNextSupplierCode(ctx context.Context) (string, error) {
-	var seqVal int64
-	err := r.pool.QueryRow(ctx, "SELECT nextval('defect_batch_seq')").Scan(&seqVal)
+	seqVal, err := r.queries.GetNextDefectBatchSequence(ctx)
 	if err != nil {
 		logrus.WithError(err).Warn("Repository: nextval(defect_batch_seq) failed, falling back to max supplier_code query")
-		var maxVal int64
-		fallbackErr := r.pool.QueryRow(ctx, `
-			SELECT COALESCE(MAX(CAST(supplier_code AS BIGINT)), 0) + 1
-			FROM parts
-			WHERE supplier_code ~ '^[0-9]+$' AND LENGTH(supplier_code) < 10
-		`).Scan(&maxVal)
+		maxVal, fallbackErr := r.queries.GetMaxSupplierCodeFallback(ctx)
 		if fallbackErr == nil && maxVal > 0 {
-			return strconv.FormatInt(maxVal, 10), nil
+			return strconv.FormatInt(int64(maxVal), 10), nil
 		}
 		return "1", nil
 	}
@@ -1386,14 +1342,9 @@ func (r *partRepository) PeekNextSupplierCode(ctx context.Context) (string, erro
 	var isCalled bool
 	err := r.pool.QueryRow(ctx, "SELECT last_value, is_called FROM defect_batch_seq").Scan(&lastVal, &isCalled)
 	if err != nil {
-		var maxVal int64
-		fallbackErr := r.pool.QueryRow(ctx, `
-			SELECT COALESCE(MAX(CAST(supplier_code AS BIGINT)), 0) + 1
-			FROM parts
-			WHERE supplier_code ~ '^[0-9]+$' AND LENGTH(supplier_code) < 10
-		`).Scan(&maxVal)
+		maxVal, fallbackErr := r.queries.GetMaxSupplierCodeFallback(ctx)
 		if fallbackErr == nil && maxVal > 0 {
-			return strconv.FormatInt(maxVal, 10), nil
+			return strconv.FormatInt(int64(maxVal), 10), nil
 		}
 		return "1", nil
 	}
@@ -1404,18 +1355,12 @@ func (r *partRepository) PeekNextSupplierCode(ctx context.Context) (string, erro
 }
 
 func (r *partRepository) GetNextPartNumber(ctx context.Context) (string, error) {
-	var seqVal int64
-	err := r.pool.QueryRow(ctx, "SELECT nextval('part_number_seq')").Scan(&seqVal)
+	seqVal, err := r.queries.GetNextPartNumberSequence(ctx)
 	if err != nil {
 		logrus.WithError(err).Warn("Repository: nextval(part_number_seq) failed, falling back to max number query")
-		var maxVal int64
-		fallbackErr := r.pool.QueryRow(ctx, `
-			SELECT COALESCE(MAX(CAST(number AS BIGINT)), 0) + 1
-			FROM parts
-			WHERE number ~ '^[0-9]+$' AND LENGTH(number) < 15
-		`).Scan(&maxVal)
+		maxVal, fallbackErr := r.queries.GetMaxPartNumberFallback(ctx)
 		if fallbackErr == nil && maxVal > 0 {
-			return strconv.FormatInt(maxVal, 10), nil
+			return strconv.FormatInt(int64(maxVal), 10), nil
 		}
 		return "1", nil
 	}
