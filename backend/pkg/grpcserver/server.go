@@ -23,7 +23,10 @@ type Server struct {
 // New создает настроенный gRPC-сервер по стандартам Avtoplaneta
 func New(serviceName, port string, opts ...grpc.ServerOption) *Server {
 	defaultOpts := []grpc.ServerOption{
-		grpc.ChainUnaryInterceptor(ValidationUnaryInterceptor()),
+		grpc.ChainUnaryInterceptor(
+			RecoveryUnaryInterceptor(),
+			ValidationUnaryInterceptor(),
+		),
 	}
 	allOpts := append(defaultOpts, opts...)
 	s := grpc.NewServer(allOpts...)

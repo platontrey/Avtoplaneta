@@ -20,9 +20,52 @@ on:
       - "backend/gateway"
       - "backend/*-service/*-service"
       - "backend/*-service/*-test"
+  pull_request:
+    branches:
+      - OptimizedBackend
+      - main
+    paths-ignore:
+      - "AvtoplanetaApp/**"
+      - ".github/workflows/mobile-android.yml"
+      - "scripts/migration/**"
 
 jobs:
+  verify:
+    name: Verify & Test (CI)
+    runs-on: self-hosted
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          clean: true
+
+      - name: Verify Protobuf Contracts
+        run: |
+          export PATH="$PATH:$HOME/go/bin:/usr/local/go/bin"
+          cd backend && make proto-lint
+
+      - name: Compile Backend Services
+        run: |
+          export PATH="$PATH:$HOME/go/bin:/usr/local/go/bin"
+          export GOMAXPROCS=16
+          cd backend && make build-all
+
+      - name: Run Backend Unit Tests
+        run: |
+          export PATH="$PATH:$HOME/go/bin:/usr/local/go/bin"
+          export GOMAXPROCS=16
+          cd backend && make test
+
+      - name: Verify Frontend Build
+        run: |
+          cd frontend
+          npm ci --prefer-offline 2>/dev/null || npm install
+          npm run build
+
   deploy:
+    name: Deploy to Production
+    needs: [verify]
+    if: github.event_name == 'push'
     runs-on: self-hosted
     steps:
       - name: Checkout Code

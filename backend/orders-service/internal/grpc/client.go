@@ -3,12 +3,13 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"time"
 
 	partsv1 "avtoplaneta/gen/parts/v1"
+	"avtoplaneta/pkg/grpcclient"
 	"orders-service/internal/domain"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 // PartsGRPCClient интерфейс для работы с запчастями по gRPC
@@ -25,9 +26,9 @@ type partsGRPCClient struct {
 	client partsv1.PartsServiceClient
 }
 
-// NewPartsGRPCClient создает новый клиент к parts-service
+// NewPartsGRPCClient создает новый клиент к parts-service со стандартным keepalive
 func NewPartsGRPCClient(target string) (PartsGRPCClient, error) {
-	conn, err := grpc.NewClient(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpcclient.NewClient(target)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to parts service at %s: %w", target, err)
 	}
@@ -46,8 +47,11 @@ func (c *partsGRPCClient) Close() error {
 }
 
 func (c *partsGRPCClient) GetPartByID(ctx context.Context, id int64) (*domain.Part, error) {
+	callCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
 	req := &partsv1.GetPartRequest{Id: id}
-	resp, err := c.client.GetPart(ctx, req)
+	resp, err := c.client.GetPart(callCtx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -69,29 +73,38 @@ func (c *partsGRPCClient) GetPartByID(ctx context.Context, id int64) (*domain.Pa
 }
 
 func (c *partsGRPCClient) DecreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error {
+	callCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	req := &partsv1.DecreasePartQuantityRequest{
 		Id:          id,
 		Amount:      int32(amount),
 		OperationId: operationID,
 	}
-	_, err := c.client.DecreasePartQuantity(ctx, req)
+	_, err := c.client.DecreasePartQuantity(callCtx, req)
 	return err
 }
 
 func (c *partsGRPCClient) IncreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error {
+	callCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	req := &partsv1.IncreasePartQuantityRequest{
 		Id:          id,
 		Amount:      int32(amount),
 		OperationId: operationID,
 	}
-	_, err := c.client.IncreasePartQuantity(ctx, req)
+	_, err := c.client.IncreasePartQuantity(callCtx, req)
 	return err
 }
 
 func (c *partsGRPCClient) DeletePart(ctx context.Context, id int64) error {
+	callCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
 	req := &partsv1.DeletePartRequest{
 		Id: id,
 	}
-	_, err := c.client.DeletePart(ctx, req)
+	_, err := c.client.DeletePart(callCtx, req)
 	return err
 }

@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	authv1 "avtoplaneta/gen/auth/v1"
 	partsv1 "avtoplaneta/gen/parts/v1"
+	"avtoplaneta/pkg/grpcclient"
 	"export-service/internal/domain"
 )
 
@@ -24,12 +24,12 @@ type Clients struct {
 
 // NewClients создает клиентские gRPC соединения
 func NewClients(partsTarget, authTarget string) (*Clients, error) {
-	partsConn, err := grpc.NewClient(partsTarget, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	partsConn, err := grpcclient.NewClient(partsTarget)
 	if err != nil {
 		return nil, fmt.Errorf("подключение к parts-service (%s): %w", partsTarget, err)
 	}
 
-	authConn, err := grpc.NewClient(authTarget, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	authConn, err := grpcclient.NewClient(authTarget)
 	if err != nil {
 		_ = partsConn.Close()
 		return nil, fmt.Errorf("подключение к auth-service (%s): %w", authTarget, err)
