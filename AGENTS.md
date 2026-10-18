@@ -92,24 +92,32 @@
 
 #### Технический стандарт реализации:
 1. Контракт объявляется в `backend/proto/<service>/v1/<service>.proto`.
-2. После любых правок запускается компиляция: `cd backend && make proto`.
-3. **Единый 64-битный стандарт первичных ключей (Bigint Standard):**
+2. **Buf тулчейн и линтинг (категория `STANDARD`):**
+   - Управление Protobuf осуществляется строго через утилиту **Buf CLI** (BSR зависимости `buf.build/googleapis/googleapis` и `buf.build/bufbuild/protovalidate`). Локальный вендоринг google/proto запрещен.
+   - Строгое соблюдение категории линтинга `STANDARD` Google API Style Guide. Категорически запрещено отключать правила `RPC_REQUEST_RESPONSE_UNIQUE`, `RPC_REQUEST_STANDARD_NAME`, `RPC_RESPONSE_STANDARD_NAME`: каждый RPC обязан иметь строго индивидуальные сообщения `<Method>Request` и `<Method>Response`.
+   - Проверка контрактов: `make proto-lint` (`buf lint`), форматирование: `make proto-format` (`buf format -w`).
+   - Для сохранения REST-совместимости gRPC-Gateway с фронтендом используется аннотация `response_body: "<поле>"` в `google.api.http`.
+3. **Декларативная валидация Protovalidate (CEL):**
+   - Все ограничения полей (непустые строки, форматы email/телефон, диапазоны `id > 0`, `quantity >= -1`, `price >= 0`) задаются декларативно в `.proto` через правила `buf.validate`.
+   - Ручной бойлерплейт валидации в хэндлерах запрещен. Валидация выполняется автоматически в рантайме gRPC-интерцептором `pkg/grpcserver.ValidationUnaryInterceptor()`.
+4. После любых правок запускается компиляция: `cd backend && make proto`.
+5. **Единый 64-битный стандарт первичных ключей (Bigint Standard):**
    - Все идентификаторы сущностей (`id`, `user_id`, `part_id`, `order_id`, `seller_id`, `resource_id` и срезы `ids`, `user_ids`) в Protobuf контрактах объявляются строго как `int64`.
    - **Запрет на неоднородность типов:** В PostgreSQL первичные ключи `BIGSERIAL`/`BIGINT` соответствуют типу `int64` в Go. Использование `uint32` или `int32` для идентификаторов строго запрещено, так как это приводит к нагромождению небезопасных приведений типов `uint32(...)`/`int64(...)` и риску переполнения.
    - Числовые счетчики и пагинация (`quantity`, `page`, `limit`, `offset`, `total`) остаются `int32`.
-4. **Конвертеры доменных моделей (`ToProto()` / `FromProto()`):**
+6. **Конвертеры доменных моделей (`ToProto()` / `FromProto()`):**
    - Каждая доменная сущность обязана иметь метод `(m *Model) ToProto() *protov1.Model` (и при необходимости фабрики `ModelFromProto`).
    - Запрещено перекладывать десятки полей вручную внутри gRPC-хэндлеров и создавать громоздкие локальные переменные под каждое поле.
-5. **Безопасные геттеры Protobuf (`.Get...()`):**
+7. **Безопасные геттеры Protobuf (`.Get...()`):**
    - Чтение полей входящих gRPC-запросов обязательно выполнять через безопасные сгенерированные геттеры Protobuf (`req.GetId()`, `req.GetEmail()`, `req.GetItems()`). Это гарантирует отсутствие `nil`-паник при чтении опциональных структур и дефолтных значений.
-6. Все вызовы gRPC-клиентов обязаны иметь явный таймаут:
+8. Все вызовы gRPC-клиентов обязаны иметь явный таймаут:
    ```go
    callCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
    defer cancel()
    resp, err := partsClient.DecreasePartQuantity(callCtx, req)
    ```
-7. Идемпотентность: любые изменяющие команды обязаны передавать `operation_id` (например, `order-<id>-part-<part_id>`), а получатель обязан фиксировать его в таблице `part_stock_operations`.
-8. Ошибки маппятся в стандартные gRPC-статусы (`codes.NotFound`, `codes.AlreadyExists`, `codes.InvalidArgument`, `codes.Internal`).
+9. Идемпотентность: любые изменяющие команды обязаны передавать `operation_id` (например, `order-<id>-part-<part_id>`), а получатель обязан фиксировать его в таблице `part_stock_operations`.
+10. Ошибки маппятся в стандартные gRPC-статусы (`codes.NotFound`, `codes.AlreadyExists`, `codes.InvalidArgument`, `codes.Internal`).
 
 ---
 

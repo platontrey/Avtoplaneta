@@ -260,7 +260,7 @@ func request_MessagingService_SendVoiceMessage_0(ctx context.Context, marshaler 
 	}
 	dec := marshaler.NewDecoder(req.Body)
 	for {
-		var protoReq SendVoiceMessageChunk
+		var protoReq SendVoiceMessageRequest
 		err = dec.Decode(&protoReq)
 		if errors.Is(err, io.EOF) {
 			break

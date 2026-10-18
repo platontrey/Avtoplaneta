@@ -4,8 +4,6 @@ version: v2
 # по директориям, и слияние выдавало пустой api.swagger.json.
 inputs:
   - directory: .
-    exclude_paths:
-      - google
 plugins:
   - local: protoc-gen-openapiv2
     out: ../gen/swagger

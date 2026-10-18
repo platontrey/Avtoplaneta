@@ -47,44 +47,32 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type PartsServiceClient interface {
 	// Инвентарь
-	GetInventory(ctx context.Context, in *GetInventoryRequest, opts ...grpc.CallOption) (*InventoryResponse, error)
-	AddPart(ctx context.Context, in *AddPartRequest, opts ...grpc.CallOption) (*Part, error)
-	UpdatePart(ctx context.Context, in *UpdatePartRequest, opts ...grpc.CallOption) (*Part, error)
+	GetInventory(ctx context.Context, in *GetInventoryRequest, opts ...grpc.CallOption) (*GetInventoryResponse, error)
+	AddPart(ctx context.Context, in *AddPartRequest, opts ...grpc.CallOption) (*AddPartResponse, error)
+	UpdatePart(ctx context.Context, in *UpdatePartRequest, opts ...grpc.CallOption) (*UpdatePartResponse, error)
 	DeletePart(ctx context.Context, in *DeletePartRequest, opts ...grpc.CallOption) (*DeletePartResponse, error)
-	MarkPartForDeletion(ctx context.Context, in *MarkPartForDeletionRequest, opts ...grpc.CallOption) (*Part, error)
-	GetPart(ctx context.Context, in *GetPartRequest, opts ...grpc.CallOption) (*Part, error)
-	DuplicatePart(ctx context.Context, in *DuplicatePartRequest, opts ...grpc.CallOption) (*Part, error)
+	MarkPartForDeletion(ctx context.Context, in *MarkPartForDeletionRequest, opts ...grpc.CallOption) (*MarkPartForDeletionResponse, error)
+	GetPart(ctx context.Context, in *GetPartRequest, opts ...grpc.CallOption) (*GetPartResponse, error)
+	DuplicatePart(ctx context.Context, in *DuplicatePartRequest, opts ...grpc.CallOption) (*DuplicatePartResponse, error)
 	// Изменение количества
-	DecreasePartQuantity(ctx context.Context, in *ChangePartQuantityRequest, opts ...grpc.CallOption) (*ChangePartQuantityResponse, error)
-	IncreasePartQuantity(ctx context.Context, in *ChangePartQuantityRequest, opts ...grpc.CallOption) (*ChangePartQuantityResponse, error)
-	// Фото - note: multipart streams are tricky via grpc-gateway, better to use HTTP handler directly, but we map them anyway
-	UploadPartPhoto(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadPartPhotoChunk, UploadPartPhotoResponse], error)
+	DecreasePartQuantity(ctx context.Context, in *DecreasePartQuantityRequest, opts ...grpc.CallOption) (*DecreasePartQuantityResponse, error)
+	IncreasePartQuantity(ctx context.Context, in *IncreasePartQuantityRequest, opts ...grpc.CallOption) (*IncreasePartQuantityResponse, error)
+	// Фото
+	UploadPartPhoto(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadPartPhotoRequest, UploadPartPhotoResponse], error)
 	DeletePartPhoto(ctx context.Context, in *DeletePartPhotoRequest, opts ...grpc.CallOption) (*DeletePartPhotoResponse, error)
 	// Статистика
-	GetStatistics(ctx context.Context, in *GetStatisticsRequest, opts ...grpc.CallOption) (*StatisticsResponse, error)
+	GetStatistics(ctx context.Context, in *GetStatisticsRequest, opts ...grpc.CallOption) (*GetStatisticsResponse, error)
 	UpdateEarnings(ctx context.Context, in *UpdateEarningsRequest, opts ...grpc.CallOption) (*UpdateEarningsResponse, error)
 	// Дефект-отчёты
 	CreateDefectReport(ctx context.Context, in *CreateDefectReportRequest, opts ...grpc.CallOption) (*CreateDefectReportResponse, error)
-	// PreviewDefectReport возвращает ровно тот набор запчастей, который создаст
-	// CreateDefectReport. selected_parts в запросе игнорируется: набор строит сервер.
 	PreviewDefectReport(ctx context.Context, in *PreviewDefectReportRequest, opts ...grpc.CallOption) (*PreviewDefectReportResponse, error)
-	// ListPartsForExport отдаёт запчасти для выгрузки прайс-листа потоком.
-	// Их больше ста тысяч, в один ответ они не помещаются: gRPC по умолчанию
-	// ограничивает сообщение четырьмя мегабайтами.
-	//
-	// HTTP-аннотации нет намеренно: это внутренний вызов между сервисами,
-	// наружу через gateway он не публикуется.
-	ListPartsForExport(ctx context.Context, in *ListPartsForExportRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Part], error)
-	// InventoryVersion отдаёт дешёвый отпечаток состояния склада: одна
-	// агрегирующая строка вместо полной выборки. По нему сервис выгрузки решает,
-	// нужно ли вообще вычитывать поток и пересобирать прайс-лист.
-	//
-	// Тоже внутренний RPC, HTTP-аннотации нет.
+	// Выгрузка
+	ListPartsForExport(ctx context.Context, in *ListPartsForExportRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ListPartsForExportResponse], error)
 	InventoryVersion(ctx context.Context, in *InventoryVersionRequest, opts ...grpc.CallOption) (*InventoryVersionResponse, error)
 	// Админ-операции
 	BulkDeleteParts(ctx context.Context, in *BulkDeletePartsRequest, opts ...grpc.CallOption) (*BulkDeletePartsResponse, error)
 	BulkUpdateParts(ctx context.Context, in *BulkUpdatePartsRequest, opts ...grpc.CallOption) (*BulkUpdatePartsResponse, error)
-	GetSupplierCodes(ctx context.Context, in *GetSupplierCodesRequest, opts ...grpc.CallOption) (*SupplierCodesResponse, error)
+	GetSupplierCodes(ctx context.Context, in *GetSupplierCodesRequest, opts ...grpc.CallOption) (*GetSupplierCodesResponse, error)
 	DeleteZeroQuantityParts(ctx context.Context, in *DeleteZeroQuantityPartsRequest, opts ...grpc.CallOption) (*DeleteZeroQuantityPartsResponse, error)
 }
 
@@ -96,9 +84,9 @@ func NewPartsServiceClient(cc grpc.ClientConnInterface) PartsServiceClient {
 	return &partsServiceClient{cc}
 }
 
-func (c *partsServiceClient) GetInventory(ctx context.Context, in *GetInventoryRequest, opts ...grpc.CallOption) (*InventoryResponse, error) {
+func (c *partsServiceClient) GetInventory(ctx context.Context, in *GetInventoryRequest, opts ...grpc.CallOption) (*GetInventoryResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(InventoryResponse)
+	out := new(GetInventoryResponse)
 	err := c.cc.Invoke(ctx, PartsService_GetInventory_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -106,9 +94,9 @@ func (c *partsServiceClient) GetInventory(ctx context.Context, in *GetInventoryR
 	return out, nil
 }
 
-func (c *partsServiceClient) AddPart(ctx context.Context, in *AddPartRequest, opts ...grpc.CallOption) (*Part, error) {
+func (c *partsServiceClient) AddPart(ctx context.Context, in *AddPartRequest, opts ...grpc.CallOption) (*AddPartResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Part)
+	out := new(AddPartResponse)
 	err := c.cc.Invoke(ctx, PartsService_AddPart_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -116,9 +104,9 @@ func (c *partsServiceClient) AddPart(ctx context.Context, in *AddPartRequest, op
 	return out, nil
 }
 
-func (c *partsServiceClient) UpdatePart(ctx context.Context, in *UpdatePartRequest, opts ...grpc.CallOption) (*Part, error) {
+func (c *partsServiceClient) UpdatePart(ctx context.Context, in *UpdatePartRequest, opts ...grpc.CallOption) (*UpdatePartResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Part)
+	out := new(UpdatePartResponse)
 	err := c.cc.Invoke(ctx, PartsService_UpdatePart_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -136,9 +124,9 @@ func (c *partsServiceClient) DeletePart(ctx context.Context, in *DeletePartReque
 	return out, nil
 }
 
-func (c *partsServiceClient) MarkPartForDeletion(ctx context.Context, in *MarkPartForDeletionRequest, opts ...grpc.CallOption) (*Part, error) {
+func (c *partsServiceClient) MarkPartForDeletion(ctx context.Context, in *MarkPartForDeletionRequest, opts ...grpc.CallOption) (*MarkPartForDeletionResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Part)
+	out := new(MarkPartForDeletionResponse)
 	err := c.cc.Invoke(ctx, PartsService_MarkPartForDeletion_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -146,9 +134,9 @@ func (c *partsServiceClient) MarkPartForDeletion(ctx context.Context, in *MarkPa
 	return out, nil
 }
 
-func (c *partsServiceClient) GetPart(ctx context.Context, in *GetPartRequest, opts ...grpc.CallOption) (*Part, error) {
+func (c *partsServiceClient) GetPart(ctx context.Context, in *GetPartRequest, opts ...grpc.CallOption) (*GetPartResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Part)
+	out := new(GetPartResponse)
 	err := c.cc.Invoke(ctx, PartsService_GetPart_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -156,9 +144,9 @@ func (c *partsServiceClient) GetPart(ctx context.Context, in *GetPartRequest, op
 	return out, nil
 }
 
-func (c *partsServiceClient) DuplicatePart(ctx context.Context, in *DuplicatePartRequest, opts ...grpc.CallOption) (*Part, error) {
+func (c *partsServiceClient) DuplicatePart(ctx context.Context, in *DuplicatePartRequest, opts ...grpc.CallOption) (*DuplicatePartResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Part)
+	out := new(DuplicatePartResponse)
 	err := c.cc.Invoke(ctx, PartsService_DuplicatePart_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -166,9 +154,9 @@ func (c *partsServiceClient) DuplicatePart(ctx context.Context, in *DuplicatePar
 	return out, nil
 }
 
-func (c *partsServiceClient) DecreasePartQuantity(ctx context.Context, in *ChangePartQuantityRequest, opts ...grpc.CallOption) (*ChangePartQuantityResponse, error) {
+func (c *partsServiceClient) DecreasePartQuantity(ctx context.Context, in *DecreasePartQuantityRequest, opts ...grpc.CallOption) (*DecreasePartQuantityResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ChangePartQuantityResponse)
+	out := new(DecreasePartQuantityResponse)
 	err := c.cc.Invoke(ctx, PartsService_DecreasePartQuantity_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -176,9 +164,9 @@ func (c *partsServiceClient) DecreasePartQuantity(ctx context.Context, in *Chang
 	return out, nil
 }
 
-func (c *partsServiceClient) IncreasePartQuantity(ctx context.Context, in *ChangePartQuantityRequest, opts ...grpc.CallOption) (*ChangePartQuantityResponse, error) {
+func (c *partsServiceClient) IncreasePartQuantity(ctx context.Context, in *IncreasePartQuantityRequest, opts ...grpc.CallOption) (*IncreasePartQuantityResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ChangePartQuantityResponse)
+	out := new(IncreasePartQuantityResponse)
 	err := c.cc.Invoke(ctx, PartsService_IncreasePartQuantity_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -186,18 +174,18 @@ func (c *partsServiceClient) IncreasePartQuantity(ctx context.Context, in *Chang
 	return out, nil
 }
 
-func (c *partsServiceClient) UploadPartPhoto(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadPartPhotoChunk, UploadPartPhotoResponse], error) {
+func (c *partsServiceClient) UploadPartPhoto(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadPartPhotoRequest, UploadPartPhotoResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &PartsService_ServiceDesc.Streams[0], PartsService_UploadPartPhoto_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &grpc.GenericClientStream[UploadPartPhotoChunk, UploadPartPhotoResponse]{ClientStream: stream}
+	x := &grpc.GenericClientStream[UploadPartPhotoRequest, UploadPartPhotoResponse]{ClientStream: stream}
 	return x, nil
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type PartsService_UploadPartPhotoClient = grpc.ClientStreamingClient[UploadPartPhotoChunk, UploadPartPhotoResponse]
+type PartsService_UploadPartPhotoClient = grpc.ClientStreamingClient[UploadPartPhotoRequest, UploadPartPhotoResponse]
 
 func (c *partsServiceClient) DeletePartPhoto(ctx context.Context, in *DeletePartPhotoRequest, opts ...grpc.CallOption) (*DeletePartPhotoResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
@@ -209,9 +197,9 @@ func (c *partsServiceClient) DeletePartPhoto(ctx context.Context, in *DeletePart
 	return out, nil
 }
 
-func (c *partsServiceClient) GetStatistics(ctx context.Context, in *GetStatisticsRequest, opts ...grpc.CallOption) (*StatisticsResponse, error) {
+func (c *partsServiceClient) GetStatistics(ctx context.Context, in *GetStatisticsRequest, opts ...grpc.CallOption) (*GetStatisticsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(StatisticsResponse)
+	out := new(GetStatisticsResponse)
 	err := c.cc.Invoke(ctx, PartsService_GetStatistics_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -249,13 +237,13 @@ func (c *partsServiceClient) PreviewDefectReport(ctx context.Context, in *Previe
 	return out, nil
 }
 
-func (c *partsServiceClient) ListPartsForExport(ctx context.Context, in *ListPartsForExportRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Part], error) {
+func (c *partsServiceClient) ListPartsForExport(ctx context.Context, in *ListPartsForExportRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ListPartsForExportResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &PartsService_ServiceDesc.Streams[1], PartsService_ListPartsForExport_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &grpc.GenericClientStream[ListPartsForExportRequest, Part]{ClientStream: stream}
+	x := &grpc.GenericClientStream[ListPartsForExportRequest, ListPartsForExportResponse]{ClientStream: stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -266,7 +254,7 @@ func (c *partsServiceClient) ListPartsForExport(ctx context.Context, in *ListPar
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type PartsService_ListPartsForExportClient = grpc.ServerStreamingClient[Part]
+type PartsService_ListPartsForExportClient = grpc.ServerStreamingClient[ListPartsForExportResponse]
 
 func (c *partsServiceClient) InventoryVersion(ctx context.Context, in *InventoryVersionRequest, opts ...grpc.CallOption) (*InventoryVersionResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
@@ -298,9 +286,9 @@ func (c *partsServiceClient) BulkUpdateParts(ctx context.Context, in *BulkUpdate
 	return out, nil
 }
 
-func (c *partsServiceClient) GetSupplierCodes(ctx context.Context, in *GetSupplierCodesRequest, opts ...grpc.CallOption) (*SupplierCodesResponse, error) {
+func (c *partsServiceClient) GetSupplierCodes(ctx context.Context, in *GetSupplierCodesRequest, opts ...grpc.CallOption) (*GetSupplierCodesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SupplierCodesResponse)
+	out := new(GetSupplierCodesResponse)
 	err := c.cc.Invoke(ctx, PartsService_GetSupplierCodes_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -323,44 +311,32 @@ func (c *partsServiceClient) DeleteZeroQuantityParts(ctx context.Context, in *De
 // for forward compatibility.
 type PartsServiceServer interface {
 	// Инвентарь
-	GetInventory(context.Context, *GetInventoryRequest) (*InventoryResponse, error)
-	AddPart(context.Context, *AddPartRequest) (*Part, error)
-	UpdatePart(context.Context, *UpdatePartRequest) (*Part, error)
+	GetInventory(context.Context, *GetInventoryRequest) (*GetInventoryResponse, error)
+	AddPart(context.Context, *AddPartRequest) (*AddPartResponse, error)
+	UpdatePart(context.Context, *UpdatePartRequest) (*UpdatePartResponse, error)
 	DeletePart(context.Context, *DeletePartRequest) (*DeletePartResponse, error)
-	MarkPartForDeletion(context.Context, *MarkPartForDeletionRequest) (*Part, error)
-	GetPart(context.Context, *GetPartRequest) (*Part, error)
-	DuplicatePart(context.Context, *DuplicatePartRequest) (*Part, error)
+	MarkPartForDeletion(context.Context, *MarkPartForDeletionRequest) (*MarkPartForDeletionResponse, error)
+	GetPart(context.Context, *GetPartRequest) (*GetPartResponse, error)
+	DuplicatePart(context.Context, *DuplicatePartRequest) (*DuplicatePartResponse, error)
 	// Изменение количества
-	DecreasePartQuantity(context.Context, *ChangePartQuantityRequest) (*ChangePartQuantityResponse, error)
-	IncreasePartQuantity(context.Context, *ChangePartQuantityRequest) (*ChangePartQuantityResponse, error)
-	// Фото - note: multipart streams are tricky via grpc-gateway, better to use HTTP handler directly, but we map them anyway
-	UploadPartPhoto(grpc.ClientStreamingServer[UploadPartPhotoChunk, UploadPartPhotoResponse]) error
+	DecreasePartQuantity(context.Context, *DecreasePartQuantityRequest) (*DecreasePartQuantityResponse, error)
+	IncreasePartQuantity(context.Context, *IncreasePartQuantityRequest) (*IncreasePartQuantityResponse, error)
+	// Фото
+	UploadPartPhoto(grpc.ClientStreamingServer[UploadPartPhotoRequest, UploadPartPhotoResponse]) error
 	DeletePartPhoto(context.Context, *DeletePartPhotoRequest) (*DeletePartPhotoResponse, error)
 	// Статистика
-	GetStatistics(context.Context, *GetStatisticsRequest) (*StatisticsResponse, error)
+	GetStatistics(context.Context, *GetStatisticsRequest) (*GetStatisticsResponse, error)
 	UpdateEarnings(context.Context, *UpdateEarningsRequest) (*UpdateEarningsResponse, error)
 	// Дефект-отчёты
 	CreateDefectReport(context.Context, *CreateDefectReportRequest) (*CreateDefectReportResponse, error)
-	// PreviewDefectReport возвращает ровно тот набор запчастей, который создаст
-	// CreateDefectReport. selected_parts в запросе игнорируется: набор строит сервер.
 	PreviewDefectReport(context.Context, *PreviewDefectReportRequest) (*PreviewDefectReportResponse, error)
-	// ListPartsForExport отдаёт запчасти для выгрузки прайс-листа потоком.
-	// Их больше ста тысяч, в один ответ они не помещаются: gRPC по умолчанию
-	// ограничивает сообщение четырьмя мегабайтами.
-	//
-	// HTTP-аннотации нет намеренно: это внутренний вызов между сервисами,
-	// наружу через gateway он не публикуется.
-	ListPartsForExport(*ListPartsForExportRequest, grpc.ServerStreamingServer[Part]) error
-	// InventoryVersion отдаёт дешёвый отпечаток состояния склада: одна
-	// агрегирующая строка вместо полной выборки. По нему сервис выгрузки решает,
-	// нужно ли вообще вычитывать поток и пересобирать прайс-лист.
-	//
-	// Тоже внутренний RPC, HTTP-аннотации нет.
+	// Выгрузка
+	ListPartsForExport(*ListPartsForExportRequest, grpc.ServerStreamingServer[ListPartsForExportResponse]) error
 	InventoryVersion(context.Context, *InventoryVersionRequest) (*InventoryVersionResponse, error)
 	// Админ-операции
 	BulkDeleteParts(context.Context, *BulkDeletePartsRequest) (*BulkDeletePartsResponse, error)
 	BulkUpdateParts(context.Context, *BulkUpdatePartsRequest) (*BulkUpdatePartsResponse, error)
-	GetSupplierCodes(context.Context, *GetSupplierCodesRequest) (*SupplierCodesResponse, error)
+	GetSupplierCodes(context.Context, *GetSupplierCodesRequest) (*GetSupplierCodesResponse, error)
 	DeleteZeroQuantityParts(context.Context, *DeleteZeroQuantityPartsRequest) (*DeleteZeroQuantityPartsResponse, error)
 	mustEmbedUnimplementedPartsServiceServer()
 }
@@ -372,40 +348,40 @@ type PartsServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedPartsServiceServer struct{}
 
-func (UnimplementedPartsServiceServer) GetInventory(context.Context, *GetInventoryRequest) (*InventoryResponse, error) {
+func (UnimplementedPartsServiceServer) GetInventory(context.Context, *GetInventoryRequest) (*GetInventoryResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetInventory not implemented")
 }
-func (UnimplementedPartsServiceServer) AddPart(context.Context, *AddPartRequest) (*Part, error) {
+func (UnimplementedPartsServiceServer) AddPart(context.Context, *AddPartRequest) (*AddPartResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method AddPart not implemented")
 }
-func (UnimplementedPartsServiceServer) UpdatePart(context.Context, *UpdatePartRequest) (*Part, error) {
+func (UnimplementedPartsServiceServer) UpdatePart(context.Context, *UpdatePartRequest) (*UpdatePartResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdatePart not implemented")
 }
 func (UnimplementedPartsServiceServer) DeletePart(context.Context, *DeletePartRequest) (*DeletePartResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeletePart not implemented")
 }
-func (UnimplementedPartsServiceServer) MarkPartForDeletion(context.Context, *MarkPartForDeletionRequest) (*Part, error) {
+func (UnimplementedPartsServiceServer) MarkPartForDeletion(context.Context, *MarkPartForDeletionRequest) (*MarkPartForDeletionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method MarkPartForDeletion not implemented")
 }
-func (UnimplementedPartsServiceServer) GetPart(context.Context, *GetPartRequest) (*Part, error) {
+func (UnimplementedPartsServiceServer) GetPart(context.Context, *GetPartRequest) (*GetPartResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetPart not implemented")
 }
-func (UnimplementedPartsServiceServer) DuplicatePart(context.Context, *DuplicatePartRequest) (*Part, error) {
+func (UnimplementedPartsServiceServer) DuplicatePart(context.Context, *DuplicatePartRequest) (*DuplicatePartResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DuplicatePart not implemented")
 }
-func (UnimplementedPartsServiceServer) DecreasePartQuantity(context.Context, *ChangePartQuantityRequest) (*ChangePartQuantityResponse, error) {
+func (UnimplementedPartsServiceServer) DecreasePartQuantity(context.Context, *DecreasePartQuantityRequest) (*DecreasePartQuantityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DecreasePartQuantity not implemented")
 }
-func (UnimplementedPartsServiceServer) IncreasePartQuantity(context.Context, *ChangePartQuantityRequest) (*ChangePartQuantityResponse, error) {
+func (UnimplementedPartsServiceServer) IncreasePartQuantity(context.Context, *IncreasePartQuantityRequest) (*IncreasePartQuantityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method IncreasePartQuantity not implemented")
 }
-func (UnimplementedPartsServiceServer) UploadPartPhoto(grpc.ClientStreamingServer[UploadPartPhotoChunk, UploadPartPhotoResponse]) error {
+func (UnimplementedPartsServiceServer) UploadPartPhoto(grpc.ClientStreamingServer[UploadPartPhotoRequest, UploadPartPhotoResponse]) error {
 	return status.Error(codes.Unimplemented, "method UploadPartPhoto not implemented")
 }
 func (UnimplementedPartsServiceServer) DeletePartPhoto(context.Context, *DeletePartPhotoRequest) (*DeletePartPhotoResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeletePartPhoto not implemented")
 }
-func (UnimplementedPartsServiceServer) GetStatistics(context.Context, *GetStatisticsRequest) (*StatisticsResponse, error) {
+func (UnimplementedPartsServiceServer) GetStatistics(context.Context, *GetStatisticsRequest) (*GetStatisticsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetStatistics not implemented")
 }
 func (UnimplementedPartsServiceServer) UpdateEarnings(context.Context, *UpdateEarningsRequest) (*UpdateEarningsResponse, error) {
@@ -417,7 +393,7 @@ func (UnimplementedPartsServiceServer) CreateDefectReport(context.Context, *Crea
 func (UnimplementedPartsServiceServer) PreviewDefectReport(context.Context, *PreviewDefectReportRequest) (*PreviewDefectReportResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method PreviewDefectReport not implemented")
 }
-func (UnimplementedPartsServiceServer) ListPartsForExport(*ListPartsForExportRequest, grpc.ServerStreamingServer[Part]) error {
+func (UnimplementedPartsServiceServer) ListPartsForExport(*ListPartsForExportRequest, grpc.ServerStreamingServer[ListPartsForExportResponse]) error {
 	return status.Error(codes.Unimplemented, "method ListPartsForExport not implemented")
 }
 func (UnimplementedPartsServiceServer) InventoryVersion(context.Context, *InventoryVersionRequest) (*InventoryVersionResponse, error) {
@@ -429,7 +405,7 @@ func (UnimplementedPartsServiceServer) BulkDeleteParts(context.Context, *BulkDel
 func (UnimplementedPartsServiceServer) BulkUpdateParts(context.Context, *BulkUpdatePartsRequest) (*BulkUpdatePartsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method BulkUpdateParts not implemented")
 }
-func (UnimplementedPartsServiceServer) GetSupplierCodes(context.Context, *GetSupplierCodesRequest) (*SupplierCodesResponse, error) {
+func (UnimplementedPartsServiceServer) GetSupplierCodes(context.Context, *GetSupplierCodesRequest) (*GetSupplierCodesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetSupplierCodes not implemented")
 }
 func (UnimplementedPartsServiceServer) DeleteZeroQuantityParts(context.Context, *DeleteZeroQuantityPartsRequest) (*DeleteZeroQuantityPartsResponse, error) {
@@ -583,7 +559,7 @@ func _PartsService_DuplicatePart_Handler(srv interface{}, ctx context.Context, d
 }
 
 func _PartsService_DecreasePartQuantity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ChangePartQuantityRequest)
+	in := new(DecreasePartQuantityRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -595,13 +571,13 @@ func _PartsService_DecreasePartQuantity_Handler(srv interface{}, ctx context.Con
 		FullMethod: PartsService_DecreasePartQuantity_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PartsServiceServer).DecreasePartQuantity(ctx, req.(*ChangePartQuantityRequest))
+		return srv.(PartsServiceServer).DecreasePartQuantity(ctx, req.(*DecreasePartQuantityRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _PartsService_IncreasePartQuantity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ChangePartQuantityRequest)
+	in := new(IncreasePartQuantityRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -613,17 +589,17 @@ func _PartsService_IncreasePartQuantity_Handler(srv interface{}, ctx context.Con
 		FullMethod: PartsService_IncreasePartQuantity_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PartsServiceServer).IncreasePartQuantity(ctx, req.(*ChangePartQuantityRequest))
+		return srv.(PartsServiceServer).IncreasePartQuantity(ctx, req.(*IncreasePartQuantityRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _PartsService_UploadPartPhoto_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(PartsServiceServer).UploadPartPhoto(&grpc.GenericServerStream[UploadPartPhotoChunk, UploadPartPhotoResponse]{ServerStream: stream})
+	return srv.(PartsServiceServer).UploadPartPhoto(&grpc.GenericServerStream[UploadPartPhotoRequest, UploadPartPhotoResponse]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type PartsService_UploadPartPhotoServer = grpc.ClientStreamingServer[UploadPartPhotoChunk, UploadPartPhotoResponse]
+type PartsService_UploadPartPhotoServer = grpc.ClientStreamingServer[UploadPartPhotoRequest, UploadPartPhotoResponse]
 
 func _PartsService_DeletePartPhoto_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DeletePartPhotoRequest)
@@ -720,11 +696,11 @@ func _PartsService_ListPartsForExport_Handler(srv interface{}, stream grpc.Serve
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(PartsServiceServer).ListPartsForExport(m, &grpc.GenericServerStream[ListPartsForExportRequest, Part]{ServerStream: stream})
+	return srv.(PartsServiceServer).ListPartsForExport(m, &grpc.GenericServerStream[ListPartsForExportRequest, ListPartsForExportResponse]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type PartsService_ListPartsForExportServer = grpc.ServerStreamingServer[Part]
+type PartsService_ListPartsForExportServer = grpc.ServerStreamingServer[ListPartsForExportResponse]
 
 func _PartsService_InventoryVersion_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(InventoryVersionRequest)

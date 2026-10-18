@@ -22,7 +22,11 @@ type Server struct {
 
 // New создает настроенный gRPC-сервер по стандартам Avtoplaneta
 func New(serviceName, port string, opts ...grpc.ServerOption) *Server {
-	s := grpc.NewServer(opts...)
+	defaultOpts := []grpc.ServerOption{
+		grpc.ChainUnaryInterceptor(ValidationUnaryInterceptor()),
+	}
+	allOpts := append(defaultOpts, opts...)
+	s := grpc.NewServer(allOpts...)
 
 	// 1. Стандартный Health Check для k8s и балансировщиков
 	hs := health.NewServer()

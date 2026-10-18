@@ -1,17 +1,19 @@
 syntax = "proto3";
 package orders.v1;
-option go_package = "avtoplaneta/gen/orders/v1;ordersv1";
 
+import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
 
+option go_package = "avtoplaneta/gen/orders/v1;ordersv1";
+
 service OrdersService {
-  rpc CreateOrder(CreateOrderRequest) returns (Order);
-  rpc GetOrders(GetOrdersRequest) returns (OrderList);
-  rpc UpdateOrderStatus(UpdateOrderStatusRequest) returns (Order);
-  rpc CompleteOrder(CompleteOrderRequest) returns (Order);
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
+  rpc GetOrders(GetOrdersRequest) returns (GetOrdersResponse);
+  rpc UpdateOrderStatus(UpdateOrderStatusRequest) returns (UpdateOrderStatusResponse);
+  rpc CompleteOrder(CompleteOrderRequest) returns (CompleteOrderResponse);
   rpc DeleteOrder(DeleteOrderRequest) returns (DeleteOrderResponse);
-  rpc AddOrderItem(AddOrderItemRequest) returns (Order);
-  rpc GetMonthlySales(GetMonthlySalesRequest) returns (MonthlySalesResponse);
+  rpc AddOrderItem(AddOrderItemRequest) returns (AddOrderItemResponse);
+  rpc GetMonthlySales(GetMonthlySalesRequest) returns (GetMonthlySalesResponse);
 }
 
 // ─── Order Model ────────────────────────────────────────────────────────────
@@ -42,25 +44,24 @@ message Order {
   repeated OrderItem items = 15;
 }
 
-message OrderList {
-  repeated Order orders = 1;
-  int32 total = 2;
-}
-
-// ─── Requests ───────────────────────────────────────────────────────────────
+// ─── Requests and Responses ────────────────────────────────────────────────
 
 message CreateOrderItemInput {
-  int64 part_id = 1;
-  int32 quantity = 2;
+  int64 part_id = 1 [(buf.validate.field).int64.gt = 0];
+  int32 quantity = 2 [(buf.validate.field).int32.gt = 0];
 }
 
 message CreateOrderRequest {
-  int64 customer_id = 1;
-  string part = 2;
-  int64 part_id = 3;
+  int64 customer_id = 1 [(buf.validate.field).int64.gt = 0];
+  string part = 2 [(buf.validate.field).string.min_len = 1];
+  int64 part_id = 3 [(buf.validate.field).int64.gt = 0];
   string buyer_number = 4;
-  int64 seller_id = 5;
+  int64 seller_id = 5 [(buf.validate.field).int64.gt = 0];
   repeated CreateOrderItemInput items = 6;
+}
+
+message CreateOrderResponse {
+  Order order = 1;
 }
 
 message GetOrdersRequest {
@@ -72,25 +73,42 @@ message GetOrdersRequest {
   bool admin = 5; // если true — возвращает все заказы
 }
 
+message GetOrdersResponse {
+  repeated Order orders = 1;
+  int32 total = 2;
+}
+
 message UpdateOrderStatusRequest {
-  int64 id = 1;
-  string status = 2;
+  int64 id = 1 [(buf.validate.field).int64.gt = 0];
+  string status = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message UpdateOrderStatusResponse {
+  Order order = 1;
 }
 
 message CompleteOrderRequest {
-  int64 id = 1;
+  int64 id = 1 [(buf.validate.field).int64.gt = 0];
+}
+
+message CompleteOrderResponse {
+  Order order = 1;
 }
 
 message DeleteOrderRequest {
-  int64 id = 1;
+  int64 id = 1 [(buf.validate.field).int64.gt = 0];
 }
 
 message DeleteOrderResponse {}
 
 message AddOrderItemRequest {
-  int64 order_id = 1;
-  int64 part_id = 2;
-  int32 quantity = 3;
+  int64 order_id = 1 [(buf.validate.field).int64.gt = 0];
+  int64 part_id = 2 [(buf.validate.field).int64.gt = 0];
+  int32 quantity = 3 [(buf.validate.field).int32.gt = 0];
+}
+
+message AddOrderItemResponse {
+  Order order = 1;
 }
 
 // ─── Monthly Sales ──────────────────────────────────────────────────────────
@@ -102,6 +120,6 @@ message MonthlySalesEntry {
   double sales = 2;
 }
 
-message MonthlySalesResponse {
+message GetMonthlySalesResponse {
   repeated MonthlySalesEntry entries = 1;
 }

@@ -395,7 +395,7 @@ func RegisterAuthServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_AuthService_GetUser_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_AuthService_GetUser_0(annotatedContext, mux, outboundMarshaler, w, req, response_AuthService_GetUser_0{resp.(*GetUserResponse)}, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodGet, pattern_AuthService_GetUsers_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -435,7 +435,7 @@ func RegisterAuthServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_AuthService_CreateUser_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_AuthService_CreateUser_0(annotatedContext, mux, outboundMarshaler, w, req, response_AuthService_CreateUser_0{resp.(*CreateUserResponse)}, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodPut, pattern_AuthService_UpdateUser_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -455,7 +455,7 @@ func RegisterAuthServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_AuthService_UpdateUser_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_AuthService_UpdateUser_0(annotatedContext, mux, outboundMarshaler, w, req, response_AuthService_UpdateUser_0{resp.(*UpdateUserResponse)}, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodDelete, pattern_AuthService_DeleteUser_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -629,7 +629,7 @@ func RegisterAuthServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_AuthService_GetUser_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_AuthService_GetUser_0(annotatedContext, mux, outboundMarshaler, w, req, response_AuthService_GetUser_0{resp.(*GetUserResponse)}, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodGet, pattern_AuthService_GetUsers_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -663,7 +663,7 @@ func RegisterAuthServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_AuthService_CreateUser_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_AuthService_CreateUser_0(annotatedContext, mux, outboundMarshaler, w, req, response_AuthService_CreateUser_0{resp.(*CreateUserResponse)}, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodPut, pattern_AuthService_UpdateUser_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -680,7 +680,7 @@ func RegisterAuthServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_AuthService_UpdateUser_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_AuthService_UpdateUser_0(annotatedContext, mux, outboundMarshaler, w, req, response_AuthService_UpdateUser_0{resp.(*UpdateUserResponse)}, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodDelete, pattern_AuthService_DeleteUser_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -768,6 +768,33 @@ func RegisterAuthServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		forward_AuthService_GetServerLogs_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
 	return nil
+}
+
+type response_AuthService_GetUser_0 struct {
+	*GetUserResponse
+}
+
+func (m response_AuthService_GetUser_0) XXX_ResponseBody() interface{} {
+	response := m.GetUserResponse
+	return response.User
+}
+
+type response_AuthService_CreateUser_0 struct {
+	*CreateUserResponse
+}
+
+func (m response_AuthService_CreateUser_0) XXX_ResponseBody() interface{} {
+	response := m.CreateUserResponse
+	return response.User
+}
+
+type response_AuthService_UpdateUser_0 struct {
+	*UpdateUserResponse
+}
+
+func (m response_AuthService_UpdateUser_0) XXX_ResponseBody() interface{} {
+	response := m.UpdateUserResponse
+	return response.User
 }
 
 var (

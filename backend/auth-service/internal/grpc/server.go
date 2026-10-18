@@ -18,6 +18,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	authv1 "avtoplaneta/gen/auth/v1"
+	"avtoplaneta/pkg/grpcserver"
 
 	"auth-service/internal/config"
 	"auth-service/internal/domain"
@@ -84,15 +85,15 @@ func (s *AuthGRPCServer) ValidateSession(ctx context.Context, req *authv1.Valida
 	return &authv1.ValidateSessionResponse{Valid: false}, nil
 }
 
-func (s *AuthGRPCServer) GetUser(ctx context.Context, req *authv1.GetUserRequest) (*authv1.User, error) {
+func (s *AuthGRPCServer) GetUser(ctx context.Context, req *authv1.GetUserRequest) (*authv1.GetUserResponse, error) {
 	user, err := s.authService.GetCurrentUser(req.GetId())
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "пользователь не найден: %v", err)
 	}
-	return user.ToProto(), nil
+	return &authv1.GetUserResponse{User: user.ToProto()}, nil
 }
 
-func (s *AuthGRPCServer) GetUsers(ctx context.Context, req *authv1.GetUsersRequest) (*authv1.UserList, error) {
+func (s *AuthGRPCServer) GetUsers(ctx context.Context, req *authv1.GetUsersRequest) (*authv1.GetUsersResponse, error) {
 	users, err := s.authService.GetUsers()
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось получить пользователей: %v", err)
@@ -103,23 +104,23 @@ func (s *AuthGRPCServer) GetUsers(ctx context.Context, req *authv1.GetUsersReque
 		protoUsers[i] = u.ToProto()
 	}
 
-	return &authv1.UserList{Users: protoUsers}, nil
+	return &authv1.GetUsersResponse{Users: protoUsers}, nil
 }
 
-func (s *AuthGRPCServer) CreateUser(ctx context.Context, req *authv1.CreateUserRequest) (*authv1.User, error) {
+func (s *AuthGRPCServer) CreateUser(ctx context.Context, req *authv1.CreateUserRequest) (*authv1.CreateUserResponse, error) {
 	user, err := s.authService.CreateUser(domain.UserFromCreateProto(req))
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	return user.ToProto(), nil
+	return &authv1.CreateUserResponse{User: user.ToProto()}, nil
 }
 
-func (s *AuthGRPCServer) UpdateUser(ctx context.Context, req *authv1.UpdateUserRequest) (*authv1.User, error) {
+func (s *AuthGRPCServer) UpdateUser(ctx context.Context, req *authv1.UpdateUserRequest) (*authv1.UpdateUserResponse, error) {
 	user, err := s.authService.UpdateUser(req.GetId(), domain.UserFromUpdateProto(req))
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	return user.ToProto(), nil
+	return &authv1.UpdateUserResponse{User: user.ToProto()}, nil
 }
 
 func (s *AuthGRPCServer) DeleteUser(ctx context.Context, req *authv1.DeleteUserRequest) (*authv1.DeleteUserResponse, error) {
@@ -152,7 +153,7 @@ func (s *AuthGRPCServer) LogActivity(ctx context.Context, req *authv1.LogActivit
 	return &authv1.LogActivityResponse{}, nil
 }
 
-func (s *AuthGRPCServer) GetActivityLogs(ctx context.Context, req *authv1.GetActivityLogsRequest) (*authv1.ActivityLogList, error) {
+func (s *AuthGRPCServer) GetActivityLogs(ctx context.Context, req *authv1.GetActivityLogsRequest) (*authv1.GetActivityLogsResponse, error) {
 	filters := domain.ActivityLogFilters{
 		Action:       req.GetAction(),
 		ResourceType: req.GetResourceType(),
@@ -187,13 +188,13 @@ func (s *AuthGRPCServer) GetActivityLogs(ctx context.Context, req *authv1.GetAct
 		protoLogs[i] = l.ToProto()
 	}
 
-	return &authv1.ActivityLogList{
+	return &authv1.GetActivityLogsResponse{
 		Logs:  protoLogs,
 		Total: int32(len(protoLogs)),
 	}, nil
 }
 
-func (s *AuthGRPCServer) GetServerStatus(ctx context.Context, req *authv1.GetServerStatusRequest) (*authv1.ServerStatus, error) {
+func (s *AuthGRPCServer) GetServerStatus(ctx context.Context, req *authv1.GetServerStatusRequest) (*authv1.GetServerStatusResponse, error) {
 	totalUsers, err := s.authService.GetTotalUsersCount()
 	if err != nil {
 		totalUsers = 0
@@ -202,7 +203,7 @@ func (s *AuthGRPCServer) GetServerStatus(ctx context.Context, req *authv1.GetSer
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 
-	return &authv1.ServerStatus{
+	return &authv1.GetServerStatusResponse{
 		Status:        "ok",
 		UptimeSeconds: 0,
 		TotalUsers:    int32(totalUsers),
@@ -211,7 +212,7 @@ func (s *AuthGRPCServer) GetServerStatus(ctx context.Context, req *authv1.GetSer
 	}, nil
 }
 
-func (s *AuthGRPCServer) GetServerLogs(ctx context.Context, req *authv1.GetServerLogsRequest) (*authv1.ServerLogsResponse, error) {
+func (s *AuthGRPCServer) GetServerLogs(ctx context.Context, req *authv1.GetServerLogsRequest) (*authv1.GetServerLogsResponse, error) {
 	logs := []*authv1.ServerLog{
 		{
 			Timestamp: time.Now().Format(time.RFC3339),
@@ -226,7 +227,7 @@ func (s *AuthGRPCServer) GetServerLogs(ctx context.Context, req *authv1.GetServe
 			Source:    "auth-service",
 		},
 	}
-	return &authv1.ServerLogsResponse{Logs: logs}, nil
+	return &authv1.GetServerLogsResponse{Logs: logs}, nil
 }
 
 // NewGRPCServer создает настроенный gRPC сервер
@@ -240,6 +241,7 @@ func NewGRPCServer(
 		grpc.ChainUnaryInterceptor(
 			loggingUnaryInterceptor,
 			recoveryUnaryInterceptor,
+			grpcserver.ValidationUnaryInterceptor(),
 		),
 	)
 

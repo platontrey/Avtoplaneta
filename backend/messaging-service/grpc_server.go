@@ -18,6 +18,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	msgv1 "avtoplaneta/gen/messaging/v1"
+	"avtoplaneta/pkg/grpcserver"
 )
 
 // messagingGRPCServer реализует gRPC-сервер для MessagingService
@@ -32,7 +33,7 @@ func NewMessagingGRPCServer() *messagingGRPCServer {
 
 // ─── Conversations ──────────────────────────────────────────────────────────
 
-func (s *messagingGRPCServer) GetConversations(ctx context.Context, req *msgv1.GetConversationsRequest) (*msgv1.ConversationList, error) {
+func (s *messagingGRPCServer) GetConversations(ctx context.Context, req *msgv1.GetConversationsRequest) (*msgv1.GetConversationsResponse, error) {
 	conversations, err := svc.GetConversations(ctx, req.GetUserId())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось получить диалоги: %v", err)
@@ -43,27 +44,27 @@ func (s *messagingGRPCServer) GetConversations(ctx context.Context, req *msgv1.G
 		protoConvs[i] = conversations[i].ToProto()
 	}
 
-	return &msgv1.ConversationList{Conversations: protoConvs}, nil
+	return &msgv1.GetConversationsResponse{Conversations: protoConvs}, nil
 }
 
-func (s *messagingGRPCServer) CreateConversation(ctx context.Context, req *msgv1.CreateConversationRequest) (*msgv1.Conversation, error) {
+func (s *messagingGRPCServer) CreateConversation(ctx context.Context, req *msgv1.CreateConversationRequest) (*msgv1.CreateConversationResponse, error) {
 	conv, err := svc.CreateConversation(ctx, req.GetTitle(), req.GetParticipants())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось создать диалог: %v", err)
 	}
 
-	return conv.ToProto(), nil
+	return &msgv1.CreateConversationResponse{Conversation: conv.ToProto()}, nil
 }
 
-func (s *messagingGRPCServer) GetConversation(ctx context.Context, req *msgv1.GetConversationRequest) (*msgv1.Conversation, error) {
+func (s *messagingGRPCServer) GetConversation(ctx context.Context, req *msgv1.GetConversationRequest) (*msgv1.GetConversationResponse, error) {
 	conv, err := svc.GetConversation(ctx, req.GetId(), 0)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "диалог не найден: %v", err)
 	}
-	return conv.ToProto(), nil
+	return &msgv1.GetConversationResponse{Conversation: conv.ToProto()}, nil
 }
 
-func (s *messagingGRPCServer) UpdateConversation(ctx context.Context, req *msgv1.UpdateConversationRequest) (*msgv1.Conversation, error) {
+func (s *messagingGRPCServer) UpdateConversation(ctx context.Context, req *msgv1.UpdateConversationRequest) (*msgv1.UpdateConversationResponse, error) {
 	conv, err := svc.GetConversation(ctx, req.GetId(), 0)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "диалог не найден: %v", err)
@@ -79,7 +80,7 @@ func (s *messagingGRPCServer) UpdateConversation(ctx context.Context, req *msgv1
 		return nil, status.Errorf(codes.Internal, "не удалось обновить диалог: %v", err)
 	}
 
-	return updated.ToProto(), nil
+	return &msgv1.UpdateConversationResponse{Conversation: updated.ToProto()}, nil
 }
 
 func (s *messagingGRPCServer) DeleteConversation(ctx context.Context, req *msgv1.DeleteConversationRequest) (*msgv1.DeleteConversationResponse, error) {
@@ -112,7 +113,7 @@ func (s *messagingGRPCServer) RemoveParticipant(ctx context.Context, req *msgv1.
 
 // ─── Messages ───────────────────────────────────────────────────────────────
 
-func (s *messagingGRPCServer) GetMessages(ctx context.Context, req *msgv1.GetMessagesRequest) (*msgv1.MessageList, error) {
+func (s *messagingGRPCServer) GetMessages(ctx context.Context, req *msgv1.GetMessagesRequest) (*msgv1.GetMessagesResponse, error) {
 	messages, err := svc.GetMessages(ctx, req.GetConversationId())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось получить сообщения: %v", err)
@@ -123,16 +124,16 @@ func (s *messagingGRPCServer) GetMessages(ctx context.Context, req *msgv1.GetMes
 		protoMsgs[i] = messages[i].ToProto()
 	}
 
-	return &msgv1.MessageList{Messages: protoMsgs}, nil
+	return &msgv1.GetMessagesResponse{Messages: protoMsgs}, nil
 }
 
-func (s *messagingGRPCServer) SendMessage(ctx context.Context, req *msgv1.SendMessageRequest) (*msgv1.Message, error) {
+func (s *messagingGRPCServer) SendMessage(ctx context.Context, req *msgv1.SendMessageRequest) (*msgv1.SendMessageResponse, error) {
 	msg, err := svc.SendMessage(ctx, req.GetConversationId(), req.GetSenderId(), req.GetContent(), nil)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось отправить сообщение: %v", err)
 	}
 
-	return msg.ToProto(), nil
+	return &msgv1.SendMessageResponse{Message: msg.ToProto()}, nil
 }
 
 func (s *messagingGRPCServer) SendVoiceMessage(stream msgv1.MessagingService_SendVoiceMessageServer) error {
@@ -171,7 +172,7 @@ func (s *messagingGRPCServer) SendVoiceMessage(stream msgv1.MessagingService_Sen
 		return status.Errorf(codes.Internal, "не удалось отправить голосовое сообщение: %v", err)
 	}
 
-	return stream.SendAndClose(msg.ToProto())
+	return stream.SendAndClose(&msgv1.SendVoiceMessageResponse{Message: msg.ToProto()})
 }
 
 func (s *messagingGRPCServer) DeleteMessage(ctx context.Context, req *msgv1.DeleteMessageRequest) (*msgv1.DeleteMessageResponse, error) {
@@ -190,13 +191,13 @@ func (s *messagingGRPCServer) MarkMessageRead(ctx context.Context, req *msgv1.Ma
 
 // ─── Reactions ──────────────────────────────────────────────────────────────
 
-func (s *messagingGRPCServer) AddReaction(ctx context.Context, req *msgv1.AddReactionRequest) (*msgv1.Reaction, error) {
+func (s *messagingGRPCServer) AddReaction(ctx context.Context, req *msgv1.AddReactionRequest) (*msgv1.AddReactionResponse, error) {
 	reaction, err := svc.AddReaction(ctx, req.GetMessageId(), req.GetUserId(), req.GetEmoji())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось добавить реакцию: %v", err)
 	}
 
-	return reaction.ToProto(), nil
+	return &msgv1.AddReactionResponse{Reaction: reaction.ToProto()}, nil
 }
 
 func (s *messagingGRPCServer) RemoveReaction(ctx context.Context, req *msgv1.RemoveReactionRequest) (*msgv1.RemoveReactionResponse, error) {
@@ -208,7 +209,7 @@ func (s *messagingGRPCServer) RemoveReaction(ctx context.Context, req *msgv1.Rem
 
 // ─── Notifications ──────────────────────────────────────────────────────────
 
-func (s *messagingGRPCServer) GetNotifications(ctx context.Context, req *msgv1.GetNotificationsRequest) (*msgv1.NotificationList, error) {
+func (s *messagingGRPCServer) GetNotifications(ctx context.Context, req *msgv1.GetNotificationsRequest) (*msgv1.GetNotificationsResponse, error) {
 	notifications, err := svc.GetNotifications(ctx, req.GetUserId())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось получить уведомления: %v", err)
@@ -219,7 +220,7 @@ func (s *messagingGRPCServer) GetNotifications(ctx context.Context, req *msgv1.G
 		protoNotifs[i] = notifications[i].ToProto()
 	}
 
-	return &msgv1.NotificationList{Notifications: protoNotifs}, nil
+	return &msgv1.GetNotificationsResponse{Notifications: protoNotifs}, nil
 }
 
 func (s *messagingGRPCServer) MarkNotificationRead(ctx context.Context, req *msgv1.MarkNotificationReadRequest) (*msgv1.MarkNotificationReadResponse, error) {
@@ -238,7 +239,7 @@ func (s *messagingGRPCServer) MarkAllNotificationsRead(ctx context.Context, req 
 
 // ─── User Status ────────────────────────────────────────────────────────────
 
-func (s *messagingGRPCServer) GetUserStatuses(ctx context.Context, req *msgv1.GetUserStatusesRequest) (*msgv1.UserStatusList, error) {
+func (s *messagingGRPCServer) GetUserStatuses(ctx context.Context, req *msgv1.GetUserStatusesRequest) (*msgv1.GetUserStatusesResponse, error) {
 	statuses, err := svc.GetUserStatuses(ctx, req.GetUserIds())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось получить статусы: %v", err)
@@ -249,10 +250,10 @@ func (s *messagingGRPCServer) GetUserStatuses(ctx context.Context, req *msgv1.Ge
 		protoStatuses[i] = statuses[i].ToProto()
 	}
 
-	return &msgv1.UserStatusList{Statuses: protoStatuses}, nil
+	return &msgv1.GetUserStatusesResponse{Statuses: protoStatuses}, nil
 }
 
-func (s *messagingGRPCServer) UpdateUserStatus(ctx context.Context, req *msgv1.UpdateUserStatusRequest) (*msgv1.UserStatus, error) {
+func (s *messagingGRPCServer) UpdateUserStatus(ctx context.Context, req *msgv1.UpdateUserStatusRequest) (*msgv1.UpdateUserStatusResponse, error) {
 	if err := svc.UpdateUserStatus(ctx, req.GetUserId(), req.GetIsOnline()); err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось обновить статус: %v", err)
 	}
@@ -262,12 +263,12 @@ func (s *messagingGRPCServer) UpdateUserStatus(ctx context.Context, req *msgv1.U
 		return nil, status.Errorf(codes.Internal, "не удалось получить статус: %v", err)
 	}
 
-	return us.ToProto(), nil
+	return &msgv1.UpdateUserStatusResponse{Status: us.ToProto()}, nil
 }
 
 // ─── Search ─────────────────────────────────────────────────────────────────
 
-func (s *messagingGRPCServer) SearchMessages(ctx context.Context, req *msgv1.SearchMessagesRequest) (*msgv1.MessageList, error) {
+func (s *messagingGRPCServer) SearchMessages(ctx context.Context, req *msgv1.SearchMessagesRequest) (*msgv1.SearchMessagesResponse, error) {
 	limit := int(req.GetLimit())
 	if limit == 0 {
 		limit = 50
@@ -283,12 +284,12 @@ func (s *messagingGRPCServer) SearchMessages(ctx context.Context, req *msgv1.Sea
 		protoMsgs[i] = messages[i].ToProto()
 	}
 
-	return &msgv1.MessageList{Messages: protoMsgs}, nil
+	return &msgv1.SearchMessagesResponse{Messages: protoMsgs}, nil
 }
 
 // ─── Drom Integration ───────────────────────────────────────────────────────
 
-func (s *messagingGRPCServer) GetDromDialogs(ctx context.Context, req *msgv1.GetDromDialogsRequest) (*msgv1.DromDialogList, error) {
+func (s *messagingGRPCServer) GetDromDialogs(ctx context.Context, req *msgv1.GetDromDialogsRequest) (*msgv1.GetDromDialogsResponse, error) {
 	dialogs, err := svc.GetDromBriefs(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось получить диалоги Drom: %v", err)
@@ -317,10 +318,10 @@ func (s *messagingGRPCServer) GetDromDialogs(ctx context.Context, req *msgv1.Get
 		}
 	}
 
-	return &msgv1.DromDialogList{Dialogs: protoDialogs}, nil
+	return &msgv1.GetDromDialogsResponse{Dialogs: protoDialogs}, nil
 }
 
-func (s *messagingGRPCServer) GetDromMessages(ctx context.Context, req *msgv1.GetDromMessagesRequest) (*msgv1.DromMessageList, error) {
+func (s *messagingGRPCServer) GetDromMessages(ctx context.Context, req *msgv1.GetDromMessagesRequest) (*msgv1.GetDromMessagesResponse, error) {
 	messages, dialogMeta, err := svc.GetDromMessages(ctx, req.GetDialogId())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "не удалось получить сообщения Drom: %v", err)
@@ -364,7 +365,7 @@ func (s *messagingGRPCServer) GetDromMessages(ctx context.Context, req *msgv1.Ge
 		}
 	}
 
-	return &msgv1.DromMessageList{
+	return &msgv1.GetDromMessagesResponse{
 		Messages: protoMsgs,
 		Dialog:   protoDialog,
 	}, nil
@@ -376,7 +377,7 @@ func (s *messagingGRPCServer) SendDromMessage(ctx context.Context, req *msgv1.Se
 		return nil, status.Errorf(codes.Internal, "не удалось отправить сообщение в Drom: %v", err)
 	}
 
-	return &msgv1.SendDromMessageResponse{}, nil
+	return &msgv1.SendDromMessageResponse{Success: true}, nil
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -402,6 +403,7 @@ func StartGRPCServer(port string) error {
 		grpc.ChainUnaryInterceptor(
 			loggingUnaryInterceptor,
 			recoveryUnaryInterceptor,
+			grpcserver.ValidationUnaryInterceptor(),
 		),
 	)
 

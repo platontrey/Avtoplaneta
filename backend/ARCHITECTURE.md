@@ -99,25 +99,39 @@ Frontend App
 ### Proto-файлы и генерация
 
 ```bash
-# Генерация Go-кода из .proto файлов
+# Генерация Go-кода и Swagger из .proto файлов через Buf CLI
 cd backend
-make proto        # Требуется buf и protoc
+make proto        # Сборка через Buf CLI (protoc не требуется)
+
+# Линтинг по строгому стандарту (STANDARD category)
+make proto-lint   # buf lint
+
+# Форматирование контрактов
+make proto-format # buf format -w
 
 # Структура:
 backend/
-├── proto/                # Исходные .proto файлы
-│   ├── buf.yaml          # Конфигурация buf
-│   ├── buf.gen.yaml      # Правила генерации
+├── proto/                    # Исходные .proto файлы
+│   ├── buf.yaml              # Конфигурация Buf (зависимости BSR: googleapis, protovalidate)
+│   ├── buf.gen.yaml          # Правила генерации Go-кода
+│   ├── buf.gen.swagger.yaml  # Правила генерации OpenAPI (Swagger)
 │   ├── auth/v1/auth.proto
 │   ├── parts/v1/parts.proto
 │   ├── orders/v1/orders.proto
 │   └── messaging/v1/messaging.proto
-└── gen/                  # Сгенерированный код
-    ├── auth/v1/          # auth_grpc.pb.go + auth.pb.go
+└── gen/                      # Сгенерированный код
+    ├── auth/v1/              # auth_grpc.pb.go + auth.pb.go + auth.pb.gw.go
     ├── parts/v1/
     ├── orders/v1/
-    └── messaging/v1/
+    ├── messaging/v1/
+    └── swagger/              # api.swagger.json (синхронизируется в frontend/src/data/)
 ```
+
+### Декларативная валидация Protovalidate (CEL)
+Все входные сообщения валидируются декларативно прямо в Protobuf контрактах с помощью `buf.validate` (CEL expressions), исключая ручной бойлерплейт валидации в хэндлерах:
+- Проверка строк (email, телефоны, непустые поля, длины).
+- Проверка числовых диапазонов (`id > 0`, `quantity >= -1`, `price >= 0`).
+- Автоматическая валидация через gRPC-интерцептор `pkg/grpcserver.ValidationUnaryInterceptor()`, отклоняющий некорректные запросы со статусом `codes.InvalidArgument` и подробным описанием нарушенных правил.
 
 ### Порты сервисов
 
@@ -133,7 +147,7 @@ backend/
 
 | От | Кому | RPC | Назначение |
 |----|------|-----|------------|
-| Orders Service | Parts Service | `ChangePartQuantity` | Идемпотентное списание/возврат остатков склада с фиксацией в `part_stock_operations` |
+| Orders Service | Parts Service | `DecreasePartQuantity`, `IncreasePartQuantity` | Идемпотентное списание/возврат остатков склада с фиксацией в `part_stock_operations` |
 | Orders Service | Parts Service | `GetPart` | Получение актуальной информации о детали при оформлении заказа |
 | Orders Service | Auth Service | `ValidateSession` | Валидация сессии при прямых операциях с заказами |
 | Parts Service | Auth Service | `LogActivity` | Запись аудита действий операторов в лог активности |

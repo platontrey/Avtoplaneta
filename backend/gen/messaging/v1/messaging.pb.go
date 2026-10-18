@@ -7,6 +7,7 @@
 package messagingv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -114,50 +115,6 @@ func (x *Conversation) GetUnreadCount() int32 {
 	return 0
 }
 
-type ConversationList struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Conversations []*Conversation        `protobuf:"bytes,1,rep,name=conversations,proto3" json:"conversations,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ConversationList) Reset() {
-	*x = ConversationList{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ConversationList) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ConversationList) ProtoMessage() {}
-
-func (x *ConversationList) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ConversationList.ProtoReflect.Descriptor instead.
-func (*ConversationList) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *ConversationList) GetConversations() []*Conversation {
-	if x != nil {
-		return x.Conversations
-	}
-	return nil
-}
-
 type GetConversationsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -167,7 +124,7 @@ type GetConversationsRequest struct {
 
 func (x *GetConversationsRequest) Reset() {
 	*x = GetConversationsRequest{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[2]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -179,7 +136,7 @@ func (x *GetConversationsRequest) String() string {
 func (*GetConversationsRequest) ProtoMessage() {}
 
 func (x *GetConversationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[2]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -192,7 +149,7 @@ func (x *GetConversationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConversationsRequest.ProtoReflect.Descriptor instead.
 func (*GetConversationsRequest) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{2}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GetConversationsRequest) GetUserId() int64 {
@@ -200,6 +157,50 @@ func (x *GetConversationsRequest) GetUserId() int64 {
 		return x.UserId
 	}
 	return 0
+}
+
+type GetConversationsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Conversations []*Conversation        `protobuf:"bytes,1,rep,name=conversations,proto3" json:"conversations,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetConversationsResponse) Reset() {
+	*x = GetConversationsResponse{}
+	mi := &file_messaging_v1_messaging_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetConversationsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetConversationsResponse) ProtoMessage() {}
+
+func (x *GetConversationsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_messaging_v1_messaging_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetConversationsResponse.ProtoReflect.Descriptor instead.
+func (*GetConversationsResponse) Descriptor() ([]byte, []int) {
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *GetConversationsResponse) GetConversations() []*Conversation {
+	if x != nil {
+		return x.Conversations
+	}
+	return nil
 }
 
 type CreateConversationRequest struct {
@@ -254,6 +255,50 @@ func (x *CreateConversationRequest) GetTitle() string {
 	return ""
 }
 
+type CreateConversationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Conversation  *Conversation          `protobuf:"bytes,1,opt,name=conversation,proto3" json:"conversation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateConversationResponse) Reset() {
+	*x = CreateConversationResponse{}
+	mi := &file_messaging_v1_messaging_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateConversationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateConversationResponse) ProtoMessage() {}
+
+func (x *CreateConversationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_messaging_v1_messaging_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateConversationResponse.ProtoReflect.Descriptor instead.
+func (*CreateConversationResponse) Descriptor() ([]byte, []int) {
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *CreateConversationResponse) GetConversation() *Conversation {
+	if x != nil {
+		return x.Conversation
+	}
+	return nil
+}
+
 type GetConversationRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -263,7 +308,7 @@ type GetConversationRequest struct {
 
 func (x *GetConversationRequest) Reset() {
 	*x = GetConversationRequest{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[4]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -275,7 +320,7 @@ func (x *GetConversationRequest) String() string {
 func (*GetConversationRequest) ProtoMessage() {}
 
 func (x *GetConversationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[4]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -288,7 +333,7 @@ func (x *GetConversationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConversationRequest.ProtoReflect.Descriptor instead.
 func (*GetConversationRequest) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{4}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetConversationRequest) GetId() int64 {
@@ -296,6 +341,50 @@ func (x *GetConversationRequest) GetId() int64 {
 		return x.Id
 	}
 	return 0
+}
+
+type GetConversationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Conversation  *Conversation          `protobuf:"bytes,1,opt,name=conversation,proto3" json:"conversation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetConversationResponse) Reset() {
+	*x = GetConversationResponse{}
+	mi := &file_messaging_v1_messaging_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetConversationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetConversationResponse) ProtoMessage() {}
+
+func (x *GetConversationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_messaging_v1_messaging_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetConversationResponse.ProtoReflect.Descriptor instead.
+func (*GetConversationResponse) Descriptor() ([]byte, []int) {
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *GetConversationResponse) GetConversation() *Conversation {
+	if x != nil {
+		return x.Conversation
+	}
+	return nil
 }
 
 type UpdateConversationRequest struct {
@@ -308,7 +397,7 @@ type UpdateConversationRequest struct {
 
 func (x *UpdateConversationRequest) Reset() {
 	*x = UpdateConversationRequest{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[5]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -320,7 +409,7 @@ func (x *UpdateConversationRequest) String() string {
 func (*UpdateConversationRequest) ProtoMessage() {}
 
 func (x *UpdateConversationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[5]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -333,7 +422,7 @@ func (x *UpdateConversationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateConversationRequest.ProtoReflect.Descriptor instead.
 func (*UpdateConversationRequest) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{5}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *UpdateConversationRequest) GetId() int64 {
@@ -350,6 +439,50 @@ func (x *UpdateConversationRequest) GetTitle() string {
 	return ""
 }
 
+type UpdateConversationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Conversation  *Conversation          `protobuf:"bytes,1,opt,name=conversation,proto3" json:"conversation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateConversationResponse) Reset() {
+	*x = UpdateConversationResponse{}
+	mi := &file_messaging_v1_messaging_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateConversationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateConversationResponse) ProtoMessage() {}
+
+func (x *UpdateConversationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_messaging_v1_messaging_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateConversationResponse.ProtoReflect.Descriptor instead.
+func (*UpdateConversationResponse) Descriptor() ([]byte, []int) {
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *UpdateConversationResponse) GetConversation() *Conversation {
+	if x != nil {
+		return x.Conversation
+	}
+	return nil
+}
+
 type DeleteConversationRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -359,7 +492,7 @@ type DeleteConversationRequest struct {
 
 func (x *DeleteConversationRequest) Reset() {
 	*x = DeleteConversationRequest{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[6]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -371,7 +504,7 @@ func (x *DeleteConversationRequest) String() string {
 func (*DeleteConversationRequest) ProtoMessage() {}
 
 func (x *DeleteConversationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[6]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -384,7 +517,7 @@ func (x *DeleteConversationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteConversationRequest.ProtoReflect.Descriptor instead.
 func (*DeleteConversationRequest) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{6}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *DeleteConversationRequest) GetId() int64 {
@@ -402,7 +535,7 @@ type DeleteConversationResponse struct {
 
 func (x *DeleteConversationResponse) Reset() {
 	*x = DeleteConversationResponse{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[7]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -414,7 +547,7 @@ func (x *DeleteConversationResponse) String() string {
 func (*DeleteConversationResponse) ProtoMessage() {}
 
 func (x *DeleteConversationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[7]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -427,7 +560,7 @@ func (x *DeleteConversationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteConversationResponse.ProtoReflect.Descriptor instead.
 func (*DeleteConversationResponse) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{7}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{10}
 }
 
 type RemoveParticipantRequest struct {
@@ -441,7 +574,7 @@ type RemoveParticipantRequest struct {
 
 func (x *RemoveParticipantRequest) Reset() {
 	*x = RemoveParticipantRequest{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[8]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -453,7 +586,7 @@ func (x *RemoveParticipantRequest) String() string {
 func (*RemoveParticipantRequest) ProtoMessage() {}
 
 func (x *RemoveParticipantRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[8]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -466,7 +599,7 @@ func (x *RemoveParticipantRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveParticipantRequest.ProtoReflect.Descriptor instead.
 func (*RemoveParticipantRequest) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{8}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *RemoveParticipantRequest) GetConversationId() int64 {
@@ -498,7 +631,7 @@ type RemoveParticipantResponse struct {
 
 func (x *RemoveParticipantResponse) Reset() {
 	*x = RemoveParticipantResponse{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[9]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -510,7 +643,7 @@ func (x *RemoveParticipantResponse) String() string {
 func (*RemoveParticipantResponse) ProtoMessage() {}
 
 func (x *RemoveParticipantResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[9]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -523,7 +656,7 @@ func (x *RemoveParticipantResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveParticipantResponse.ProtoReflect.Descriptor instead.
 func (*RemoveParticipantResponse) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{9}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{12}
 }
 
 type Mention struct {
@@ -539,7 +672,7 @@ type Mention struct {
 
 func (x *Mention) Reset() {
 	*x = Mention{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[10]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -551,7 +684,7 @@ func (x *Mention) String() string {
 func (*Mention) ProtoMessage() {}
 
 func (x *Mention) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[10]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -564,7 +697,7 @@ func (x *Mention) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Mention.ProtoReflect.Descriptor instead.
 func (*Mention) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{10}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Mention) GetId() int64 {
@@ -614,7 +747,7 @@ type Reaction struct {
 
 func (x *Reaction) Reset() {
 	*x = Reaction{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[11]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -626,7 +759,7 @@ func (x *Reaction) String() string {
 func (*Reaction) ProtoMessage() {}
 
 func (x *Reaction) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[11]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -639,7 +772,7 @@ func (x *Reaction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Reaction.ProtoReflect.Descriptor instead.
 func (*Reaction) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{11}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Reaction) GetId() int64 {
@@ -689,7 +822,7 @@ type Message struct {
 
 func (x *Message) Reset() {
 	*x = Message{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[12]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -701,7 +834,7 @@ func (x *Message) String() string {
 func (*Message) ProtoMessage() {}
 
 func (x *Message) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[12]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -714,7 +847,7 @@ func (x *Message) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Message.ProtoReflect.Descriptor instead.
 func (*Message) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{12}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Message) GetId() int64 {
@@ -794,50 +927,6 @@ func (x *Message) GetReactions() []*Reaction {
 	return nil
 }
 
-type MessageList struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Messages      []*Message             `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *MessageList) Reset() {
-	*x = MessageList{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[13]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *MessageList) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*MessageList) ProtoMessage() {}
-
-func (x *MessageList) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[13]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use MessageList.ProtoReflect.Descriptor instead.
-func (*MessageList) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *MessageList) GetMessages() []*Message {
-	if x != nil {
-		return x.Messages
-	}
-	return nil
-}
-
 type GetMessagesRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	ConversationId int64                  `protobuf:"varint,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
@@ -849,7 +938,7 @@ type GetMessagesRequest struct {
 
 func (x *GetMessagesRequest) Reset() {
 	*x = GetMessagesRequest{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[14]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -861,7 +950,7 @@ func (x *GetMessagesRequest) String() string {
 func (*GetMessagesRequest) ProtoMessage() {}
 
 func (x *GetMessagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[14]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -874,7 +963,7 @@ func (x *GetMessagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMessagesRequest.ProtoReflect.Descriptor instead.
 func (*GetMessagesRequest) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{14}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetMessagesRequest) GetConversationId() int64 {
@@ -898,6 +987,50 @@ func (x *GetMessagesRequest) GetOffset() int32 {
 	return 0
 }
 
+type GetMessagesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Messages      []*Message             `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMessagesResponse) Reset() {
+	*x = GetMessagesResponse{}
+	mi := &file_messaging_v1_messaging_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMessagesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMessagesResponse) ProtoMessage() {}
+
+func (x *GetMessagesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_messaging_v1_messaging_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMessagesResponse.ProtoReflect.Descriptor instead.
+func (*GetMessagesResponse) Descriptor() ([]byte, []int) {
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *GetMessagesResponse) GetMessages() []*Message {
+	if x != nil {
+		return x.Messages
+	}
+	return nil
+}
+
 type SendMessageRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	ConversationId int64                  `protobuf:"varint,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
@@ -910,7 +1043,7 @@ type SendMessageRequest struct {
 
 func (x *SendMessageRequest) Reset() {
 	*x = SendMessageRequest{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[15]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -922,7 +1055,7 @@ func (x *SendMessageRequest) String() string {
 func (*SendMessageRequest) ProtoMessage() {}
 
 func (x *SendMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[15]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -935,7 +1068,7 @@ func (x *SendMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendMessageRequest.ProtoReflect.Descriptor instead.
 func (*SendMessageRequest) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{15}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *SendMessageRequest) GetConversationId() int64 {
@@ -966,32 +1099,28 @@ func (x *SendMessageRequest) GetAttachments() []string {
 	return nil
 }
 
-type SendVoiceMessageChunk struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	ConversationId int64                  `protobuf:"varint,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
-	SenderId       int64                  `protobuf:"varint,2,opt,name=sender_id,json=senderId,proto3" json:"sender_id,omitempty"`
-	Filename       string                 `protobuf:"bytes,3,opt,name=filename,proto3" json:"filename,omitempty"`
-	ContentType    string                 `protobuf:"bytes,4,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
-	Data           []byte                 `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+type SendMessageResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Message       *Message               `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SendVoiceMessageChunk) Reset() {
-	*x = SendVoiceMessageChunk{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[16]
+func (x *SendMessageResponse) Reset() {
+	*x = SendMessageResponse{}
+	mi := &file_messaging_v1_messaging_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SendVoiceMessageChunk) String() string {
+func (x *SendMessageResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SendVoiceMessageChunk) ProtoMessage() {}
+func (*SendMessageResponse) ProtoMessage() {}
 
-func (x *SendVoiceMessageChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[16]
+func (x *SendMessageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_messaging_v1_messaging_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1002,42 +1131,134 @@ func (x *SendVoiceMessageChunk) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SendVoiceMessageChunk.ProtoReflect.Descriptor instead.
-func (*SendVoiceMessageChunk) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{16}
+// Deprecated: Use SendMessageResponse.ProtoReflect.Descriptor instead.
+func (*SendMessageResponse) Descriptor() ([]byte, []int) {
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *SendVoiceMessageChunk) GetConversationId() int64 {
+func (x *SendMessageResponse) GetMessage() *Message {
+	if x != nil {
+		return x.Message
+	}
+	return nil
+}
+
+type SendVoiceMessageRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ConversationId int64                  `protobuf:"varint,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	SenderId       int64                  `protobuf:"varint,2,opt,name=sender_id,json=senderId,proto3" json:"sender_id,omitempty"`
+	Filename       string                 `protobuf:"bytes,3,opt,name=filename,proto3" json:"filename,omitempty"`
+	ContentType    string                 `protobuf:"bytes,4,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	Data           []byte                 `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SendVoiceMessageRequest) Reset() {
+	*x = SendVoiceMessageRequest{}
+	mi := &file_messaging_v1_messaging_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendVoiceMessageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendVoiceMessageRequest) ProtoMessage() {}
+
+func (x *SendVoiceMessageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_messaging_v1_messaging_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendVoiceMessageRequest.ProtoReflect.Descriptor instead.
+func (*SendVoiceMessageRequest) Descriptor() ([]byte, []int) {
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *SendVoiceMessageRequest) GetConversationId() int64 {
 	if x != nil {
 		return x.ConversationId
 	}
 	return 0
 }
 
-func (x *SendVoiceMessageChunk) GetSenderId() int64 {
+func (x *SendVoiceMessageRequest) GetSenderId() int64 {
 	if x != nil {
 		return x.SenderId
 	}
 	return 0
 }
 
-func (x *SendVoiceMessageChunk) GetFilename() string {
+func (x *SendVoiceMessageRequest) GetFilename() string {
 	if x != nil {
 		return x.Filename
 	}
 	return ""
 }
 
-func (x *SendVoiceMessageChunk) GetContentType() string {
+func (x *SendVoiceMessageRequest) GetContentType() string {
 	if x != nil {
 		return x.ContentType
 	}
 	return ""
 }
 
-func (x *SendVoiceMessageChunk) GetData() []byte {
+func (x *SendVoiceMessageRequest) GetData() []byte {
 	if x != nil {
 		return x.Data
+	}
+	return nil
+}
+
+type SendVoiceMessageResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Message       *Message               `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SendVoiceMessageResponse) Reset() {
+	*x = SendVoiceMessageResponse{}
+	mi := &file_messaging_v1_messaging_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendVoiceMessageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendVoiceMessageResponse) ProtoMessage() {}
+
+func (x *SendVoiceMessageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_messaging_v1_messaging_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendVoiceMessageResponse.ProtoReflect.Descriptor instead.
+func (*SendVoiceMessageResponse) Descriptor() ([]byte, []int) {
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *SendVoiceMessageResponse) GetMessage() *Message {
+	if x != nil {
+		return x.Message
 	}
 	return nil
 }
@@ -1051,7 +1272,7 @@ type DeleteMessageRequest struct {
 
 func (x *DeleteMessageRequest) Reset() {
 	*x = DeleteMessageRequest{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[17]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1063,7 +1284,7 @@ func (x *DeleteMessageRequest) String() string {
 func (*DeleteMessageRequest) ProtoMessage() {}
 
 func (x *DeleteMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[17]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1076,7 +1297,7 @@ func (x *DeleteMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteMessageRequest.ProtoReflect.Descriptor instead.
 func (*DeleteMessageRequest) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{17}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *DeleteMessageRequest) GetId() int64 {
@@ -1094,7 +1315,7 @@ type DeleteMessageResponse struct {
 
 func (x *DeleteMessageResponse) Reset() {
 	*x = DeleteMessageResponse{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[18]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1106,7 +1327,7 @@ func (x *DeleteMessageResponse) String() string {
 func (*DeleteMessageResponse) ProtoMessage() {}
 
 func (x *DeleteMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[18]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1119,7 +1340,7 @@ func (x *DeleteMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteMessageResponse.ProtoReflect.Descriptor instead.
 func (*DeleteMessageResponse) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{18}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{23}
 }
 
 type MarkMessageReadRequest struct {
@@ -1132,7 +1353,7 @@ type MarkMessageReadRequest struct {
 
 func (x *MarkMessageReadRequest) Reset() {
 	*x = MarkMessageReadRequest{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[19]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1144,7 +1365,7 @@ func (x *MarkMessageReadRequest) String() string {
 func (*MarkMessageReadRequest) ProtoMessage() {}
 
 func (x *MarkMessageReadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[19]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1157,7 +1378,7 @@ func (x *MarkMessageReadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkMessageReadRequest.ProtoReflect.Descriptor instead.
 func (*MarkMessageReadRequest) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{19}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *MarkMessageReadRequest) GetMessageId() int64 {
@@ -1182,7 +1403,7 @@ type MarkMessageReadResponse struct {
 
 func (x *MarkMessageReadResponse) Reset() {
 	*x = MarkMessageReadResponse{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[20]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1194,7 +1415,7 @@ func (x *MarkMessageReadResponse) String() string {
 func (*MarkMessageReadResponse) ProtoMessage() {}
 
 func (x *MarkMessageReadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[20]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1207,7 +1428,7 @@ func (x *MarkMessageReadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkMessageReadResponse.ProtoReflect.Descriptor instead.
 func (*MarkMessageReadResponse) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{20}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{25}
 }
 
 type AddReactionRequest struct {
@@ -1221,7 +1442,7 @@ type AddReactionRequest struct {
 
 func (x *AddReactionRequest) Reset() {
 	*x = AddReactionRequest{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[21]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1233,7 +1454,7 @@ func (x *AddReactionRequest) String() string {
 func (*AddReactionRequest) ProtoMessage() {}
 
 func (x *AddReactionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[21]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1246,7 +1467,7 @@ func (x *AddReactionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddReactionRequest.ProtoReflect.Descriptor instead.
 func (*AddReactionRequest) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{21}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *AddReactionRequest) GetMessageId() int64 {
@@ -1270,6 +1491,50 @@ func (x *AddReactionRequest) GetEmoji() string {
 	return ""
 }
 
+type AddReactionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Reaction      *Reaction              `protobuf:"bytes,1,opt,name=reaction,proto3" json:"reaction,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddReactionResponse) Reset() {
+	*x = AddReactionResponse{}
+	mi := &file_messaging_v1_messaging_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddReactionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddReactionResponse) ProtoMessage() {}
+
+func (x *AddReactionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_messaging_v1_messaging_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddReactionResponse.ProtoReflect.Descriptor instead.
+func (*AddReactionResponse) Descriptor() ([]byte, []int) {
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *AddReactionResponse) GetReaction() *Reaction {
+	if x != nil {
+		return x.Reaction
+	}
+	return nil
+}
+
 type RemoveReactionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ReactionId    int64                  `protobuf:"varint,1,opt,name=reaction_id,json=reactionId,proto3" json:"reaction_id,omitempty"`
@@ -1279,7 +1544,7 @@ type RemoveReactionRequest struct {
 
 func (x *RemoveReactionRequest) Reset() {
 	*x = RemoveReactionRequest{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[22]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1291,7 +1556,7 @@ func (x *RemoveReactionRequest) String() string {
 func (*RemoveReactionRequest) ProtoMessage() {}
 
 func (x *RemoveReactionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[22]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1304,7 +1569,7 @@ func (x *RemoveReactionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveReactionRequest.ProtoReflect.Descriptor instead.
 func (*RemoveReactionRequest) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{22}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *RemoveReactionRequest) GetReactionId() int64 {
@@ -1322,7 +1587,7 @@ type RemoveReactionResponse struct {
 
 func (x *RemoveReactionResponse) Reset() {
 	*x = RemoveReactionResponse{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[23]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1334,7 +1599,7 @@ func (x *RemoveReactionResponse) String() string {
 func (*RemoveReactionResponse) ProtoMessage() {}
 
 func (x *RemoveReactionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[23]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1347,7 +1612,7 @@ func (x *RemoveReactionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveReactionResponse.ProtoReflect.Descriptor instead.
 func (*RemoveReactionResponse) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{23}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{29}
 }
 
 type Notification struct {
@@ -1365,7 +1630,7 @@ type Notification struct {
 
 func (x *Notification) Reset() {
 	*x = Notification{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[24]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1377,7 +1642,7 @@ func (x *Notification) String() string {
 func (*Notification) ProtoMessage() {}
 
 func (x *Notification) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[24]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1390,7 +1655,7 @@ func (x *Notification) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Notification.ProtoReflect.Descriptor instead.
 func (*Notification) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{24}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *Notification) GetId() int64 {
@@ -1442,50 +1707,6 @@ func (x *Notification) GetRelatedId() int64 {
 	return 0
 }
 
-type NotificationList struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Notifications []*Notification        `protobuf:"bytes,1,rep,name=notifications,proto3" json:"notifications,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *NotificationList) Reset() {
-	*x = NotificationList{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[25]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *NotificationList) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*NotificationList) ProtoMessage() {}
-
-func (x *NotificationList) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[25]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use NotificationList.ProtoReflect.Descriptor instead.
-func (*NotificationList) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{25}
-}
-
-func (x *NotificationList) GetNotifications() []*Notification {
-	if x != nil {
-		return x.Notifications
-	}
-	return nil
-}
-
 type GetNotificationsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -1495,7 +1716,7 @@ type GetNotificationsRequest struct {
 
 func (x *GetNotificationsRequest) Reset() {
 	*x = GetNotificationsRequest{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[26]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1507,7 +1728,7 @@ func (x *GetNotificationsRequest) String() string {
 func (*GetNotificationsRequest) ProtoMessage() {}
 
 func (x *GetNotificationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[26]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1520,7 +1741,7 @@ func (x *GetNotificationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNotificationsRequest.ProtoReflect.Descriptor instead.
 func (*GetNotificationsRequest) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{26}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *GetNotificationsRequest) GetUserId() int64 {
@@ -1528,6 +1749,50 @@ func (x *GetNotificationsRequest) GetUserId() int64 {
 		return x.UserId
 	}
 	return 0
+}
+
+type GetNotificationsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Notifications []*Notification        `protobuf:"bytes,1,rep,name=notifications,proto3" json:"notifications,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetNotificationsResponse) Reset() {
+	*x = GetNotificationsResponse{}
+	mi := &file_messaging_v1_messaging_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetNotificationsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNotificationsResponse) ProtoMessage() {}
+
+func (x *GetNotificationsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_messaging_v1_messaging_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNotificationsResponse.ProtoReflect.Descriptor instead.
+func (*GetNotificationsResponse) Descriptor() ([]byte, []int) {
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *GetNotificationsResponse) GetNotifications() []*Notification {
+	if x != nil {
+		return x.Notifications
+	}
+	return nil
 }
 
 type MarkNotificationReadRequest struct {
@@ -1539,7 +1804,7 @@ type MarkNotificationReadRequest struct {
 
 func (x *MarkNotificationReadRequest) Reset() {
 	*x = MarkNotificationReadRequest{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[27]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1551,7 +1816,7 @@ func (x *MarkNotificationReadRequest) String() string {
 func (*MarkNotificationReadRequest) ProtoMessage() {}
 
 func (x *MarkNotificationReadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[27]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1564,7 +1829,7 @@ func (x *MarkNotificationReadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkNotificationReadRequest.ProtoReflect.Descriptor instead.
 func (*MarkNotificationReadRequest) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{27}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *MarkNotificationReadRequest) GetId() int64 {
@@ -1582,7 +1847,7 @@ type MarkNotificationReadResponse struct {
 
 func (x *MarkNotificationReadResponse) Reset() {
 	*x = MarkNotificationReadResponse{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[28]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1594,7 +1859,7 @@ func (x *MarkNotificationReadResponse) String() string {
 func (*MarkNotificationReadResponse) ProtoMessage() {}
 
 func (x *MarkNotificationReadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[28]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1607,7 +1872,7 @@ func (x *MarkNotificationReadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkNotificationReadResponse.ProtoReflect.Descriptor instead.
 func (*MarkNotificationReadResponse) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{28}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{34}
 }
 
 type MarkAllNotificationsReadRequest struct {
@@ -1619,7 +1884,7 @@ type MarkAllNotificationsReadRequest struct {
 
 func (x *MarkAllNotificationsReadRequest) Reset() {
 	*x = MarkAllNotificationsReadRequest{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[29]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1631,7 +1896,7 @@ func (x *MarkAllNotificationsReadRequest) String() string {
 func (*MarkAllNotificationsReadRequest) ProtoMessage() {}
 
 func (x *MarkAllNotificationsReadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[29]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1644,7 +1909,7 @@ func (x *MarkAllNotificationsReadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkAllNotificationsReadRequest.ProtoReflect.Descriptor instead.
 func (*MarkAllNotificationsReadRequest) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{29}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *MarkAllNotificationsReadRequest) GetUserId() int64 {
@@ -1662,7 +1927,7 @@ type MarkAllNotificationsReadResponse struct {
 
 func (x *MarkAllNotificationsReadResponse) Reset() {
 	*x = MarkAllNotificationsReadResponse{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[30]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1674,7 +1939,7 @@ func (x *MarkAllNotificationsReadResponse) String() string {
 func (*MarkAllNotificationsReadResponse) ProtoMessage() {}
 
 func (x *MarkAllNotificationsReadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[30]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1687,7 +1952,7 @@ func (x *MarkAllNotificationsReadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkAllNotificationsReadResponse.ProtoReflect.Descriptor instead.
 func (*MarkAllNotificationsReadResponse) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{30}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{36}
 }
 
 type UserStatus struct {
@@ -1702,7 +1967,7 @@ type UserStatus struct {
 
 func (x *UserStatus) Reset() {
 	*x = UserStatus{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[31]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1714,7 +1979,7 @@ func (x *UserStatus) String() string {
 func (*UserStatus) ProtoMessage() {}
 
 func (x *UserStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[31]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1727,7 +1992,7 @@ func (x *UserStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserStatus.ProtoReflect.Descriptor instead.
 func (*UserStatus) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{31}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *UserStatus) GetId() int64 {
@@ -1758,50 +2023,6 @@ func (x *UserStatus) GetLastSeen() *timestamppb.Timestamp {
 	return nil
 }
 
-type UserStatusList struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Statuses      []*UserStatus          `protobuf:"bytes,1,rep,name=statuses,proto3" json:"statuses,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UserStatusList) Reset() {
-	*x = UserStatusList{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[32]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UserStatusList) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UserStatusList) ProtoMessage() {}
-
-func (x *UserStatusList) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[32]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UserStatusList.ProtoReflect.Descriptor instead.
-func (*UserStatusList) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{32}
-}
-
-func (x *UserStatusList) GetStatuses() []*UserStatus {
-	if x != nil {
-		return x.Statuses
-	}
-	return nil
-}
-
 type GetUserStatusesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserIds       []int64                `protobuf:"varint,1,rep,packed,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
@@ -1811,7 +2032,7 @@ type GetUserStatusesRequest struct {
 
 func (x *GetUserStatusesRequest) Reset() {
 	*x = GetUserStatusesRequest{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[33]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1823,7 +2044,7 @@ func (x *GetUserStatusesRequest) String() string {
 func (*GetUserStatusesRequest) ProtoMessage() {}
 
 func (x *GetUserStatusesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[33]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1836,12 +2057,56 @@ func (x *GetUserStatusesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserStatusesRequest.ProtoReflect.Descriptor instead.
 func (*GetUserStatusesRequest) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{33}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *GetUserStatusesRequest) GetUserIds() []int64 {
 	if x != nil {
 		return x.UserIds
+	}
+	return nil
+}
+
+type GetUserStatusesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Statuses      []*UserStatus          `protobuf:"bytes,1,rep,name=statuses,proto3" json:"statuses,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUserStatusesResponse) Reset() {
+	*x = GetUserStatusesResponse{}
+	mi := &file_messaging_v1_messaging_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUserStatusesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUserStatusesResponse) ProtoMessage() {}
+
+func (x *GetUserStatusesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_messaging_v1_messaging_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUserStatusesResponse.ProtoReflect.Descriptor instead.
+func (*GetUserStatusesResponse) Descriptor() ([]byte, []int) {
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *GetUserStatusesResponse) GetStatuses() []*UserStatus {
+	if x != nil {
+		return x.Statuses
 	}
 	return nil
 }
@@ -1856,7 +2121,7 @@ type UpdateUserStatusRequest struct {
 
 func (x *UpdateUserStatusRequest) Reset() {
 	*x = UpdateUserStatusRequest{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[34]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1868,7 +2133,7 @@ func (x *UpdateUserStatusRequest) String() string {
 func (*UpdateUserStatusRequest) ProtoMessage() {}
 
 func (x *UpdateUserStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[34]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1881,7 +2146,7 @@ func (x *UpdateUserStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateUserStatusRequest.ProtoReflect.Descriptor instead.
 func (*UpdateUserStatusRequest) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{34}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *UpdateUserStatusRequest) GetUserId() int64 {
@@ -1898,6 +2163,50 @@ func (x *UpdateUserStatusRequest) GetIsOnline() bool {
 	return false
 }
 
+type UpdateUserStatusResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Status        *UserStatus            `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateUserStatusResponse) Reset() {
+	*x = UpdateUserStatusResponse{}
+	mi := &file_messaging_v1_messaging_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateUserStatusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateUserStatusResponse) ProtoMessage() {}
+
+func (x *UpdateUserStatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_messaging_v1_messaging_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateUserStatusResponse.ProtoReflect.Descriptor instead.
+func (*UpdateUserStatusResponse) Descriptor() ([]byte, []int) {
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *UpdateUserStatusResponse) GetStatus() *UserStatus {
+	if x != nil {
+		return x.Status
+	}
+	return nil
+}
+
 type SearchMessagesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
@@ -1910,7 +2219,7 @@ type SearchMessagesRequest struct {
 
 func (x *SearchMessagesRequest) Reset() {
 	*x = SearchMessagesRequest{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[35]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1922,7 +2231,7 @@ func (x *SearchMessagesRequest) String() string {
 func (*SearchMessagesRequest) ProtoMessage() {}
 
 func (x *SearchMessagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[35]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1935,7 +2244,7 @@ func (x *SearchMessagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchMessagesRequest.ProtoReflect.Descriptor instead.
 func (*SearchMessagesRequest) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{35}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *SearchMessagesRequest) GetQuery() string {
@@ -1966,6 +2275,50 @@ func (x *SearchMessagesRequest) GetOffset() int32 {
 	return 0
 }
 
+type SearchMessagesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Messages      []*Message             `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchMessagesResponse) Reset() {
+	*x = SearchMessagesResponse{}
+	mi := &file_messaging_v1_messaging_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchMessagesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchMessagesResponse) ProtoMessage() {}
+
+func (x *SearchMessagesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_messaging_v1_messaging_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchMessagesResponse.ProtoReflect.Descriptor instead.
+func (*SearchMessagesResponse) Descriptor() ([]byte, []int) {
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *SearchMessagesResponse) GetMessages() []*Message {
+	if x != nil {
+		return x.Messages
+	}
+	return nil
+}
+
 type DromDialog struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -1988,7 +2341,7 @@ type DromDialog struct {
 
 func (x *DromDialog) Reset() {
 	*x = DromDialog{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[36]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2000,7 +2353,7 @@ func (x *DromDialog) String() string {
 func (*DromDialog) ProtoMessage() {}
 
 func (x *DromDialog) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[36]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2013,7 +2366,7 @@ func (x *DromDialog) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DromDialog.ProtoReflect.Descriptor instead.
 func (*DromDialog) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{36}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *DromDialog) GetId() int64 {
@@ -2114,28 +2467,27 @@ func (x *DromDialog) GetUserStatus() string {
 	return ""
 }
 
-type DromDialogList struct {
+type GetDromDialogsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Dialogs       []*DromDialog          `protobuf:"bytes,1,rep,name=dialogs,proto3" json:"dialogs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *DromDialogList) Reset() {
-	*x = DromDialogList{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[37]
+func (x *GetDromDialogsRequest) Reset() {
+	*x = GetDromDialogsRequest{}
+	mi := &file_messaging_v1_messaging_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *DromDialogList) String() string {
+func (x *GetDromDialogsRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DromDialogList) ProtoMessage() {}
+func (*GetDromDialogsRequest) ProtoMessage() {}
 
-func (x *DromDialogList) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[37]
+func (x *GetDromDialogsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_messaging_v1_messaging_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2146,12 +2498,49 @@ func (x *DromDialogList) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DromDialogList.ProtoReflect.Descriptor instead.
-func (*DromDialogList) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{37}
+// Deprecated: Use GetDromDialogsRequest.ProtoReflect.Descriptor instead.
+func (*GetDromDialogsRequest) Descriptor() ([]byte, []int) {
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{45}
 }
 
-func (x *DromDialogList) GetDialogs() []*DromDialog {
+type GetDromDialogsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Dialogs       []*DromDialog          `protobuf:"bytes,1,rep,name=dialogs,proto3" json:"dialogs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDromDialogsResponse) Reset() {
+	*x = GetDromDialogsResponse{}
+	mi := &file_messaging_v1_messaging_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDromDialogsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDromDialogsResponse) ProtoMessage() {}
+
+func (x *GetDromDialogsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_messaging_v1_messaging_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDromDialogsResponse.ProtoReflect.Descriptor instead.
+func (*GetDromDialogsResponse) Descriptor() ([]byte, []int) {
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *GetDromDialogsResponse) GetDialogs() []*DromDialog {
 	if x != nil {
 		return x.Dialogs
 	}
@@ -2175,7 +2564,7 @@ type DromMessage struct {
 
 func (x *DromMessage) Reset() {
 	*x = DromMessage{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[38]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2187,7 +2576,7 @@ func (x *DromMessage) String() string {
 func (*DromMessage) ProtoMessage() {}
 
 func (x *DromMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[38]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2200,7 +2589,7 @@ func (x *DromMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DromMessage.ProtoReflect.Descriptor instead.
 func (*DromMessage) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{38}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *DromMessage) GetId() int64 {
@@ -2266,94 +2655,6 @@ func (x *DromMessage) GetCreatedAt() string {
 	return ""
 }
 
-type DromMessageList struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Messages      []*DromMessage         `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
-	Dialog        *DromDialog            `protobuf:"bytes,2,opt,name=dialog,proto3" json:"dialog,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *DromMessageList) Reset() {
-	*x = DromMessageList{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[39]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *DromMessageList) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DromMessageList) ProtoMessage() {}
-
-func (x *DromMessageList) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[39]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DromMessageList.ProtoReflect.Descriptor instead.
-func (*DromMessageList) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{39}
-}
-
-func (x *DromMessageList) GetMessages() []*DromMessage {
-	if x != nil {
-		return x.Messages
-	}
-	return nil
-}
-
-func (x *DromMessageList) GetDialog() *DromDialog {
-	if x != nil {
-		return x.Dialog
-	}
-	return nil
-}
-
-type GetDromDialogsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetDromDialogsRequest) Reset() {
-	*x = GetDromDialogsRequest{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[40]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetDromDialogsRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetDromDialogsRequest) ProtoMessage() {}
-
-func (x *GetDromDialogsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[40]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetDromDialogsRequest.ProtoReflect.Descriptor instead.
-func (*GetDromDialogsRequest) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{40}
-}
-
 type GetDromMessagesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DialogId      string                 `protobuf:"bytes,1,opt,name=dialog_id,json=dialogId,proto3" json:"dialog_id,omitempty"`
@@ -2363,7 +2664,7 @@ type GetDromMessagesRequest struct {
 
 func (x *GetDromMessagesRequest) Reset() {
 	*x = GetDromMessagesRequest{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[41]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2375,7 +2676,7 @@ func (x *GetDromMessagesRequest) String() string {
 func (*GetDromMessagesRequest) ProtoMessage() {}
 
 func (x *GetDromMessagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[41]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2388,7 +2689,7 @@ func (x *GetDromMessagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDromMessagesRequest.ProtoReflect.Descriptor instead.
 func (*GetDromMessagesRequest) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{41}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *GetDromMessagesRequest) GetDialogId() string {
@@ -2396,6 +2697,58 @@ func (x *GetDromMessagesRequest) GetDialogId() string {
 		return x.DialogId
 	}
 	return ""
+}
+
+type GetDromMessagesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Messages      []*DromMessage         `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
+	Dialog        *DromDialog            `protobuf:"bytes,2,opt,name=dialog,proto3" json:"dialog,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDromMessagesResponse) Reset() {
+	*x = GetDromMessagesResponse{}
+	mi := &file_messaging_v1_messaging_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDromMessagesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDromMessagesResponse) ProtoMessage() {}
+
+func (x *GetDromMessagesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_messaging_v1_messaging_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDromMessagesResponse.ProtoReflect.Descriptor instead.
+func (*GetDromMessagesResponse) Descriptor() ([]byte, []int) {
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *GetDromMessagesResponse) GetMessages() []*DromMessage {
+	if x != nil {
+		return x.Messages
+	}
+	return nil
+}
+
+func (x *GetDromMessagesResponse) GetDialog() *DromDialog {
+	if x != nil {
+		return x.Dialog
+	}
+	return nil
 }
 
 type SendDromMessageRequest struct {
@@ -2408,7 +2761,7 @@ type SendDromMessageRequest struct {
 
 func (x *SendDromMessageRequest) Reset() {
 	*x = SendDromMessageRequest{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[42]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2420,7 +2773,7 @@ func (x *SendDromMessageRequest) String() string {
 func (*SendDromMessageRequest) ProtoMessage() {}
 
 func (x *SendDromMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[42]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2433,7 +2786,7 @@ func (x *SendDromMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendDromMessageRequest.ProtoReflect.Descriptor instead.
 func (*SendDromMessageRequest) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{42}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *SendDromMessageRequest) GetDialogId() string {
@@ -2459,7 +2812,7 @@ type SendDromMessageResponse struct {
 
 func (x *SendDromMessageResponse) Reset() {
 	*x = SendDromMessageResponse{}
-	mi := &file_messaging_v1_messaging_proto_msgTypes[43]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2471,7 +2824,7 @@ func (x *SendDromMessageResponse) String() string {
 func (*SendDromMessageResponse) ProtoMessage() {}
 
 func (x *SendDromMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_messaging_v1_messaging_proto_msgTypes[43]
+	mi := &file_messaging_v1_messaging_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2484,7 +2837,7 @@ func (x *SendDromMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendDromMessageResponse.ProtoReflect.Descriptor instead.
 func (*SendDromMessageResponse) Descriptor() ([]byte, []int) {
-	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{43}
+	return file_messaging_v1_messaging_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *SendDromMessageResponse) GetSuccess() bool {
@@ -2498,7 +2851,7 @@ var File_messaging_v1_messaging_proto protoreflect.FileDescriptor
 
 const file_messaging_v1_messaging_proto_rawDesc = "" +
 	"\n" +
-	"\x1cmessaging/v1/messaging.proto\x12\fmessaging.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9d\x02\n" +
+	"\x1cmessaging/v1/messaging.proto\x12\fmessaging.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9d\x02\n" +
 	"\fConversation\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\"\n" +
 	"\fparticipants\x18\x02 \x03(\x03R\fparticipants\x12\x14\n" +
@@ -2507,26 +2860,32 @@ const file_messaging_v1_messaging_proto_rawDesc = "" +
 	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12B\n" +
 	"\x0flast_message_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\rlastMessageAt\x12!\n" +
 	"\flast_message\x18\x06 \x01(\tR\vlastMessage\x12!\n" +
-	"\funread_count\x18\a \x01(\x05R\vunreadCount\"T\n" +
-	"\x10ConversationList\x12@\n" +
-	"\rconversations\x18\x01 \x03(\v2\x1a.messaging.v1.ConversationR\rconversations\"2\n" +
-	"\x17GetConversationsRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\"U\n" +
+	"\funread_count\x18\a \x01(\x05R\vunreadCount\";\n" +
+	"\x17GetConversationsRequest\x12 \n" +
+	"\auser_id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x06userId\"\\\n" +
+	"\x18GetConversationsResponse\x12@\n" +
+	"\rconversations\x18\x01 \x03(\v2\x1a.messaging.v1.ConversationR\rconversations\"U\n" +
 	"\x19CreateConversationRequest\x12\"\n" +
 	"\fparticipants\x18\x01 \x03(\x03R\fparticipants\x12\x14\n" +
-	"\x05title\x18\x02 \x01(\tR\x05title\"(\n" +
-	"\x16GetConversationRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"A\n" +
-	"\x19UpdateConversationRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x14\n" +
-	"\x05title\x18\x02 \x01(\tR\x05title\"+\n" +
-	"\x19DeleteConversationRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"\x1c\n" +
-	"\x1aDeleteConversationResponse\"\x7f\n" +
-	"\x18RemoveParticipantRequest\x12'\n" +
-	"\x0fconversation_id\x18\x01 \x01(\x03R\x0econversationId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12!\n" +
-	"\frequester_id\x18\x03 \x01(\x03R\vrequesterId\"\x1b\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\"\\\n" +
+	"\x1aCreateConversationResponse\x12>\n" +
+	"\fconversation\x18\x01 \x01(\v2\x1a.messaging.v1.ConversationR\fconversation\"1\n" +
+	"\x16GetConversationRequest\x12\x17\n" +
+	"\x02id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x02id\"Y\n" +
+	"\x17GetConversationResponse\x12>\n" +
+	"\fconversation\x18\x01 \x01(\v2\x1a.messaging.v1.ConversationR\fconversation\"S\n" +
+	"\x19UpdateConversationRequest\x12\x17\n" +
+	"\x02id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x02id\x12\x1d\n" +
+	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\"\\\n" +
+	"\x1aUpdateConversationResponse\x12>\n" +
+	"\fconversation\x18\x01 \x01(\v2\x1a.messaging.v1.ConversationR\fconversation\"4\n" +
+	"\x19DeleteConversationRequest\x12\x17\n" +
+	"\x02id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x02id\"\x1c\n" +
+	"\x1aDeleteConversationResponse\"\x9a\x01\n" +
+	"\x18RemoveParticipantRequest\x120\n" +
+	"\x0fconversation_id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x0econversationId\x12 \n" +
+	"\auser_id\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x06userId\x12*\n" +
+	"\frequester_id\x18\x03 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\vrequesterId\"\x1b\n" +
 	"\x19RemoveParticipantResponse\"\x81\x01\n" +
 	"\aMention\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1d\n" +
@@ -2555,39 +2914,45 @@ const file_messaging_v1_messaging_proto_rawDesc = "" +
 	"\vattachments\x18\t \x03(\tR\vattachments\x121\n" +
 	"\bmentions\x18\n" +
 	" \x03(\v2\x15.messaging.v1.MentionR\bmentions\x124\n" +
-	"\treactions\x18\v \x03(\v2\x16.messaging.v1.ReactionR\treactions\"@\n" +
-	"\vMessageList\x121\n" +
-	"\bmessages\x18\x01 \x03(\v2\x15.messaging.v1.MessageR\bmessages\"k\n" +
-	"\x12GetMessagesRequest\x12'\n" +
-	"\x0fconversation_id\x18\x01 \x01(\x03R\x0econversationId\x12\x14\n" +
+	"\treactions\x18\v \x03(\v2\x16.messaging.v1.ReactionR\treactions\"t\n" +
+	"\x12GetMessagesRequest\x120\n" +
+	"\x0fconversation_id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x0econversationId\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06offset\x18\x03 \x01(\x05R\x06offset\"\x96\x01\n" +
-	"\x12SendMessageRequest\x12'\n" +
-	"\x0fconversation_id\x18\x01 \x01(\x03R\x0econversationId\x12\x1b\n" +
-	"\tsender_id\x18\x02 \x01(\x03R\bsenderId\x12\x18\n" +
-	"\acontent\x18\x03 \x01(\tR\acontent\x12 \n" +
-	"\vattachments\x18\x04 \x03(\tR\vattachments\"\xb0\x01\n" +
-	"\x15SendVoiceMessageChunk\x12'\n" +
-	"\x0fconversation_id\x18\x01 \x01(\x03R\x0econversationId\x12\x1b\n" +
-	"\tsender_id\x18\x02 \x01(\x03R\bsenderId\x12\x1a\n" +
+	"\x06offset\x18\x03 \x01(\x05R\x06offset\"H\n" +
+	"\x13GetMessagesResponse\x121\n" +
+	"\bmessages\x18\x01 \x03(\v2\x15.messaging.v1.MessageR\bmessages\"\xb1\x01\n" +
+	"\x12SendMessageRequest\x120\n" +
+	"\x0fconversation_id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x0econversationId\x12$\n" +
+	"\tsender_id\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\bsenderId\x12!\n" +
+	"\acontent\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\acontent\x12 \n" +
+	"\vattachments\x18\x04 \x03(\tR\vattachments\"F\n" +
+	"\x13SendMessageResponse\x12/\n" +
+	"\amessage\x18\x01 \x01(\v2\x15.messaging.v1.MessageR\amessage\"\xc4\x01\n" +
+	"\x17SendVoiceMessageRequest\x120\n" +
+	"\x0fconversation_id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x0econversationId\x12$\n" +
+	"\tsender_id\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\bsenderId\x12\x1a\n" +
 	"\bfilename\x18\x03 \x01(\tR\bfilename\x12!\n" +
 	"\fcontent_type\x18\x04 \x01(\tR\vcontentType\x12\x12\n" +
-	"\x04data\x18\x05 \x01(\fR\x04data\"&\n" +
-	"\x14DeleteMessageRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"\x17\n" +
-	"\x15DeleteMessageResponse\"P\n" +
-	"\x16MarkMessageReadRequest\x12\x1d\n" +
+	"\x04data\x18\x05 \x01(\fR\x04data\"K\n" +
+	"\x18SendVoiceMessageResponse\x12/\n" +
+	"\amessage\x18\x01 \x01(\v2\x15.messaging.v1.MessageR\amessage\"/\n" +
+	"\x14DeleteMessageRequest\x12\x17\n" +
+	"\x02id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x02id\"\x17\n" +
+	"\x15DeleteMessageResponse\"b\n" +
+	"\x16MarkMessageReadRequest\x12&\n" +
 	"\n" +
-	"message_id\x18\x01 \x01(\x03R\tmessageId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\x03R\x06userId\"\x19\n" +
-	"\x17MarkMessageReadResponse\"b\n" +
-	"\x12AddReactionRequest\x12\x1d\n" +
+	"message_id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\tmessageId\x12 \n" +
+	"\auser_id\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x06userId\"\x19\n" +
+	"\x17MarkMessageReadResponse\"}\n" +
+	"\x12AddReactionRequest\x12&\n" +
 	"\n" +
-	"message_id\x18\x01 \x01(\x03R\tmessageId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x14\n" +
-	"\x05emoji\x18\x03 \x01(\tR\x05emoji\"8\n" +
-	"\x15RemoveReactionRequest\x12\x1f\n" +
-	"\vreaction_id\x18\x01 \x01(\x03R\n" +
+	"message_id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\tmessageId\x12 \n" +
+	"\auser_id\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x06userId\x12\x1d\n" +
+	"\x05emoji\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05emoji\"I\n" +
+	"\x13AddReactionResponse\x122\n" +
+	"\breaction\x18\x01 \x01(\v2\x16.messaging.v1.ReactionR\breaction\"A\n" +
+	"\x15RemoveReactionRequest\x12(\n" +
+	"\vreaction_id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\n" +
 	"reactionId\"\x18\n" +
 	"\x16RemoveReactionResponse\"\xd3\x01\n" +
 	"\fNotification\x12\x0e\n" +
@@ -2599,35 +2964,39 @@ const file_messaging_v1_messaging_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"related_id\x18\a \x01(\x03R\trelatedId\"T\n" +
-	"\x10NotificationList\x12@\n" +
-	"\rnotifications\x18\x01 \x03(\v2\x1a.messaging.v1.NotificationR\rnotifications\"2\n" +
-	"\x17GetNotificationsRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\"-\n" +
-	"\x1bMarkNotificationReadRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"\x1e\n" +
-	"\x1cMarkNotificationReadResponse\":\n" +
-	"\x1fMarkAllNotificationsReadRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\"\"\n" +
+	"related_id\x18\a \x01(\x03R\trelatedId\";\n" +
+	"\x17GetNotificationsRequest\x12 \n" +
+	"\auser_id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x06userId\"\\\n" +
+	"\x18GetNotificationsResponse\x12@\n" +
+	"\rnotifications\x18\x01 \x03(\v2\x1a.messaging.v1.NotificationR\rnotifications\"6\n" +
+	"\x1bMarkNotificationReadRequest\x12\x17\n" +
+	"\x02id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x02id\"\x1e\n" +
+	"\x1cMarkNotificationReadResponse\"C\n" +
+	"\x1fMarkAllNotificationsReadRequest\x12 \n" +
+	"\auser_id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x06userId\"\"\n" +
 	" MarkAllNotificationsReadResponse\"\x8b\x01\n" +
 	"\n" +
 	"UserStatus\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x1b\n" +
 	"\tis_online\x18\x03 \x01(\bR\bisOnline\x127\n" +
-	"\tlast_seen\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\blastSeen\"F\n" +
-	"\x0eUserStatusList\x124\n" +
-	"\bstatuses\x18\x01 \x03(\v2\x18.messaging.v1.UserStatusR\bstatuses\"3\n" +
+	"\tlast_seen\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\blastSeen\"3\n" +
 	"\x16GetUserStatusesRequest\x12\x19\n" +
 	"\buser_ids\x18\x01 \x03(\x03R\auserIds\"O\n" +
-	"\x17UpdateUserStatusRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1b\n" +
-	"\tis_online\x18\x02 \x01(\bR\bisOnline\"t\n" +
-	"\x15SearchMessagesRequest\x12\x14\n" +
-	"\x05query\x18\x01 \x01(\tR\x05query\x12\x17\n" +
+	"\x17GetUserStatusesResponse\x124\n" +
+	"\bstatuses\x18\x01 \x03(\v2\x18.messaging.v1.UserStatusR\bstatuses\"X\n" +
+	"\x17UpdateUserStatusRequest\x12 \n" +
+	"\auser_id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x06userId\x12\x1b\n" +
+	"\tis_online\x18\x02 \x01(\bR\bisOnline\"L\n" +
+	"\x18UpdateUserStatusResponse\x120\n" +
+	"\x06status\x18\x01 \x01(\v2\x18.messaging.v1.UserStatusR\x06status\"}\n" +
+	"\x15SearchMessagesRequest\x12\x1d\n" +
+	"\x05query\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05query\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x14\n" +
 	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06offset\x18\x04 \x01(\x05R\x06offset\"\xc6\x03\n" +
+	"\x06offset\x18\x04 \x01(\x05R\x06offset\"K\n" +
+	"\x16SearchMessagesResponse\x121\n" +
+	"\bmessages\x18\x01 \x03(\v2\x15.messaging.v1.MessageR\bmessages\"\xc6\x03\n" +
 	"\n" +
 	"DromDialog\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
@@ -2650,8 +3019,9 @@ const file_messaging_v1_messaging_proto_rawDesc = "" +
 	"\vuser_rating\x18\r \x01(\tR\n" +
 	"userRating\x12\x1f\n" +
 	"\vuser_status\x18\x0e \x01(\tR\n" +
-	"userStatus\"D\n" +
-	"\x0eDromDialogList\x122\n" +
+	"userStatus\"\x17\n" +
+	"\x15GetDromDialogsRequest\"L\n" +
+	"\x16GetDromDialogsResponse\x122\n" +
 	"\adialogs\x18\x01 \x03(\v2\x18.messaging.v1.DromDialogR\adialogs\"\xef\x01\n" +
 	"\vDromMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
@@ -2664,40 +3034,39 @@ const file_messaging_v1_messaging_proto_rawDesc = "" +
 	"\x04text\x18\a \x01(\tR\x04text\x12\x17\n" +
 	"\ais_read\x18\b \x01(\bR\x06isRead\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\t \x01(\tR\tcreatedAt\"z\n" +
-	"\x0fDromMessageList\x125\n" +
+	"created_at\x18\t \x01(\tR\tcreatedAt\">\n" +
+	"\x16GetDromMessagesRequest\x12$\n" +
+	"\tdialog_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bdialogId\"\x82\x01\n" +
+	"\x17GetDromMessagesResponse\x125\n" +
 	"\bmessages\x18\x01 \x03(\v2\x19.messaging.v1.DromMessageR\bmessages\x120\n" +
-	"\x06dialog\x18\x02 \x01(\v2\x18.messaging.v1.DromDialogR\x06dialog\"\x17\n" +
-	"\x15GetDromDialogsRequest\"5\n" +
-	"\x16GetDromMessagesRequest\x12\x1b\n" +
-	"\tdialog_id\x18\x01 \x01(\tR\bdialogId\"O\n" +
-	"\x16SendDromMessageRequest\x12\x1b\n" +
-	"\tdialog_id\x18\x01 \x01(\tR\bdialogId\x12\x18\n" +
-	"\acontent\x18\x02 \x01(\tR\acontent\"3\n" +
+	"\x06dialog\x18\x02 \x01(\v2\x18.messaging.v1.DromDialogR\x06dialog\"a\n" +
+	"\x16SendDromMessageRequest\x12$\n" +
+	"\tdialog_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bdialogId\x12!\n" +
+	"\acontent\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\acontent\"3\n" +
 	"\x17SendDromMessageResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess2\xdd\x0f\n" +
-	"\x10MessagingService\x12Y\n" +
-	"\x10GetConversations\x12%.messaging.v1.GetConversationsRequest\x1a\x1e.messaging.v1.ConversationList\x12Y\n" +
-	"\x12CreateConversation\x12'.messaging.v1.CreateConversationRequest\x1a\x1a.messaging.v1.Conversation\x12S\n" +
-	"\x0fGetConversation\x12$.messaging.v1.GetConversationRequest\x1a\x1a.messaging.v1.Conversation\x12Y\n" +
-	"\x12UpdateConversation\x12'.messaging.v1.UpdateConversationRequest\x1a\x1a.messaging.v1.Conversation\x12g\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess2\xf8\x10\n" +
+	"\x10MessagingService\x12a\n" +
+	"\x10GetConversations\x12%.messaging.v1.GetConversationsRequest\x1a&.messaging.v1.GetConversationsResponse\x12g\n" +
+	"\x12CreateConversation\x12'.messaging.v1.CreateConversationRequest\x1a(.messaging.v1.CreateConversationResponse\x12^\n" +
+	"\x0fGetConversation\x12$.messaging.v1.GetConversationRequest\x1a%.messaging.v1.GetConversationResponse\x12g\n" +
+	"\x12UpdateConversation\x12'.messaging.v1.UpdateConversationRequest\x1a(.messaging.v1.UpdateConversationResponse\x12g\n" +
 	"\x12DeleteConversation\x12'.messaging.v1.DeleteConversationRequest\x1a(.messaging.v1.DeleteConversationResponse\x12d\n" +
-	"\x11RemoveParticipant\x12&.messaging.v1.RemoveParticipantRequest\x1a'.messaging.v1.RemoveParticipantResponse\x12J\n" +
-	"\vGetMessages\x12 .messaging.v1.GetMessagesRequest\x1a\x19.messaging.v1.MessageList\x12F\n" +
-	"\vSendMessage\x12 .messaging.v1.SendMessageRequest\x1a\x15.messaging.v1.Message\x12P\n" +
-	"\x10SendVoiceMessage\x12#.messaging.v1.SendVoiceMessageChunk\x1a\x15.messaging.v1.Message(\x01\x12X\n" +
+	"\x11RemoveParticipant\x12&.messaging.v1.RemoveParticipantRequest\x1a'.messaging.v1.RemoveParticipantResponse\x12R\n" +
+	"\vGetMessages\x12 .messaging.v1.GetMessagesRequest\x1a!.messaging.v1.GetMessagesResponse\x12R\n" +
+	"\vSendMessage\x12 .messaging.v1.SendMessageRequest\x1a!.messaging.v1.SendMessageResponse\x12c\n" +
+	"\x10SendVoiceMessage\x12%.messaging.v1.SendVoiceMessageRequest\x1a&.messaging.v1.SendVoiceMessageResponse(\x01\x12X\n" +
 	"\rDeleteMessage\x12\".messaging.v1.DeleteMessageRequest\x1a#.messaging.v1.DeleteMessageResponse\x12^\n" +
-	"\x0fMarkMessageRead\x12$.messaging.v1.MarkMessageReadRequest\x1a%.messaging.v1.MarkMessageReadResponse\x12G\n" +
-	"\vAddReaction\x12 .messaging.v1.AddReactionRequest\x1a\x16.messaging.v1.Reaction\x12[\n" +
-	"\x0eRemoveReaction\x12#.messaging.v1.RemoveReactionRequest\x1a$.messaging.v1.RemoveReactionResponse\x12Y\n" +
-	"\x10GetNotifications\x12%.messaging.v1.GetNotificationsRequest\x1a\x1e.messaging.v1.NotificationList\x12m\n" +
+	"\x0fMarkMessageRead\x12$.messaging.v1.MarkMessageReadRequest\x1a%.messaging.v1.MarkMessageReadResponse\x12R\n" +
+	"\vAddReaction\x12 .messaging.v1.AddReactionRequest\x1a!.messaging.v1.AddReactionResponse\x12[\n" +
+	"\x0eRemoveReaction\x12#.messaging.v1.RemoveReactionRequest\x1a$.messaging.v1.RemoveReactionResponse\x12a\n" +
+	"\x10GetNotifications\x12%.messaging.v1.GetNotificationsRequest\x1a&.messaging.v1.GetNotificationsResponse\x12m\n" +
 	"\x14MarkNotificationRead\x12).messaging.v1.MarkNotificationReadRequest\x1a*.messaging.v1.MarkNotificationReadResponse\x12y\n" +
-	"\x18MarkAllNotificationsRead\x12-.messaging.v1.MarkAllNotificationsReadRequest\x1a..messaging.v1.MarkAllNotificationsReadResponse\x12U\n" +
-	"\x0fGetUserStatuses\x12$.messaging.v1.GetUserStatusesRequest\x1a\x1c.messaging.v1.UserStatusList\x12S\n" +
-	"\x10UpdateUserStatus\x12%.messaging.v1.UpdateUserStatusRequest\x1a\x18.messaging.v1.UserStatus\x12P\n" +
-	"\x0eSearchMessages\x12#.messaging.v1.SearchMessagesRequest\x1a\x19.messaging.v1.MessageList\x12S\n" +
-	"\x0eGetDromDialogs\x12#.messaging.v1.GetDromDialogsRequest\x1a\x1c.messaging.v1.DromDialogList\x12V\n" +
-	"\x0fGetDromMessages\x12$.messaging.v1.GetDromMessagesRequest\x1a\x1d.messaging.v1.DromMessageList\x12^\n" +
+	"\x18MarkAllNotificationsRead\x12-.messaging.v1.MarkAllNotificationsReadRequest\x1a..messaging.v1.MarkAllNotificationsReadResponse\x12^\n" +
+	"\x0fGetUserStatuses\x12$.messaging.v1.GetUserStatusesRequest\x1a%.messaging.v1.GetUserStatusesResponse\x12a\n" +
+	"\x10UpdateUserStatus\x12%.messaging.v1.UpdateUserStatusRequest\x1a&.messaging.v1.UpdateUserStatusResponse\x12[\n" +
+	"\x0eSearchMessages\x12#.messaging.v1.SearchMessagesRequest\x1a$.messaging.v1.SearchMessagesResponse\x12[\n" +
+	"\x0eGetDromDialogs\x12#.messaging.v1.GetDromDialogsRequest\x1a$.messaging.v1.GetDromDialogsResponse\x12^\n" +
+	"\x0fGetDromMessages\x12$.messaging.v1.GetDromMessagesRequest\x1a%.messaging.v1.GetDromMessagesResponse\x12^\n" +
 	"\x0fSendDromMessage\x12$.messaging.v1.SendDromMessageRequest\x1a%.messaging.v1.SendDromMessageResponseB*Z(avtoplaneta/gen/messaging/v1;messagingv1b\x06proto3"
 
 var (
@@ -2712,118 +3081,134 @@ func file_messaging_v1_messaging_proto_rawDescGZIP() []byte {
 	return file_messaging_v1_messaging_proto_rawDescData
 }
 
-var file_messaging_v1_messaging_proto_msgTypes = make([]protoimpl.MessageInfo, 44)
+var file_messaging_v1_messaging_proto_msgTypes = make([]protoimpl.MessageInfo, 52)
 var file_messaging_v1_messaging_proto_goTypes = []any{
 	(*Conversation)(nil),                     // 0: messaging.v1.Conversation
-	(*ConversationList)(nil),                 // 1: messaging.v1.ConversationList
-	(*GetConversationsRequest)(nil),          // 2: messaging.v1.GetConversationsRequest
+	(*GetConversationsRequest)(nil),          // 1: messaging.v1.GetConversationsRequest
+	(*GetConversationsResponse)(nil),         // 2: messaging.v1.GetConversationsResponse
 	(*CreateConversationRequest)(nil),        // 3: messaging.v1.CreateConversationRequest
-	(*GetConversationRequest)(nil),           // 4: messaging.v1.GetConversationRequest
-	(*UpdateConversationRequest)(nil),        // 5: messaging.v1.UpdateConversationRequest
-	(*DeleteConversationRequest)(nil),        // 6: messaging.v1.DeleteConversationRequest
-	(*DeleteConversationResponse)(nil),       // 7: messaging.v1.DeleteConversationResponse
-	(*RemoveParticipantRequest)(nil),         // 8: messaging.v1.RemoveParticipantRequest
-	(*RemoveParticipantResponse)(nil),        // 9: messaging.v1.RemoveParticipantResponse
-	(*Mention)(nil),                          // 10: messaging.v1.Mention
-	(*Reaction)(nil),                         // 11: messaging.v1.Reaction
-	(*Message)(nil),                          // 12: messaging.v1.Message
-	(*MessageList)(nil),                      // 13: messaging.v1.MessageList
-	(*GetMessagesRequest)(nil),               // 14: messaging.v1.GetMessagesRequest
-	(*SendMessageRequest)(nil),               // 15: messaging.v1.SendMessageRequest
-	(*SendVoiceMessageChunk)(nil),            // 16: messaging.v1.SendVoiceMessageChunk
-	(*DeleteMessageRequest)(nil),             // 17: messaging.v1.DeleteMessageRequest
-	(*DeleteMessageResponse)(nil),            // 18: messaging.v1.DeleteMessageResponse
-	(*MarkMessageReadRequest)(nil),           // 19: messaging.v1.MarkMessageReadRequest
-	(*MarkMessageReadResponse)(nil),          // 20: messaging.v1.MarkMessageReadResponse
-	(*AddReactionRequest)(nil),               // 21: messaging.v1.AddReactionRequest
-	(*RemoveReactionRequest)(nil),            // 22: messaging.v1.RemoveReactionRequest
-	(*RemoveReactionResponse)(nil),           // 23: messaging.v1.RemoveReactionResponse
-	(*Notification)(nil),                     // 24: messaging.v1.Notification
-	(*NotificationList)(nil),                 // 25: messaging.v1.NotificationList
-	(*GetNotificationsRequest)(nil),          // 26: messaging.v1.GetNotificationsRequest
-	(*MarkNotificationReadRequest)(nil),      // 27: messaging.v1.MarkNotificationReadRequest
-	(*MarkNotificationReadResponse)(nil),     // 28: messaging.v1.MarkNotificationReadResponse
-	(*MarkAllNotificationsReadRequest)(nil),  // 29: messaging.v1.MarkAllNotificationsReadRequest
-	(*MarkAllNotificationsReadResponse)(nil), // 30: messaging.v1.MarkAllNotificationsReadResponse
-	(*UserStatus)(nil),                       // 31: messaging.v1.UserStatus
-	(*UserStatusList)(nil),                   // 32: messaging.v1.UserStatusList
-	(*GetUserStatusesRequest)(nil),           // 33: messaging.v1.GetUserStatusesRequest
-	(*UpdateUserStatusRequest)(nil),          // 34: messaging.v1.UpdateUserStatusRequest
-	(*SearchMessagesRequest)(nil),            // 35: messaging.v1.SearchMessagesRequest
-	(*DromDialog)(nil),                       // 36: messaging.v1.DromDialog
-	(*DromDialogList)(nil),                   // 37: messaging.v1.DromDialogList
-	(*DromMessage)(nil),                      // 38: messaging.v1.DromMessage
-	(*DromMessageList)(nil),                  // 39: messaging.v1.DromMessageList
-	(*GetDromDialogsRequest)(nil),            // 40: messaging.v1.GetDromDialogsRequest
-	(*GetDromMessagesRequest)(nil),           // 41: messaging.v1.GetDromMessagesRequest
-	(*SendDromMessageRequest)(nil),           // 42: messaging.v1.SendDromMessageRequest
-	(*SendDromMessageResponse)(nil),          // 43: messaging.v1.SendDromMessageResponse
-	(*timestamppb.Timestamp)(nil),            // 44: google.protobuf.Timestamp
+	(*CreateConversationResponse)(nil),       // 4: messaging.v1.CreateConversationResponse
+	(*GetConversationRequest)(nil),           // 5: messaging.v1.GetConversationRequest
+	(*GetConversationResponse)(nil),          // 6: messaging.v1.GetConversationResponse
+	(*UpdateConversationRequest)(nil),        // 7: messaging.v1.UpdateConversationRequest
+	(*UpdateConversationResponse)(nil),       // 8: messaging.v1.UpdateConversationResponse
+	(*DeleteConversationRequest)(nil),        // 9: messaging.v1.DeleteConversationRequest
+	(*DeleteConversationResponse)(nil),       // 10: messaging.v1.DeleteConversationResponse
+	(*RemoveParticipantRequest)(nil),         // 11: messaging.v1.RemoveParticipantRequest
+	(*RemoveParticipantResponse)(nil),        // 12: messaging.v1.RemoveParticipantResponse
+	(*Mention)(nil),                          // 13: messaging.v1.Mention
+	(*Reaction)(nil),                         // 14: messaging.v1.Reaction
+	(*Message)(nil),                          // 15: messaging.v1.Message
+	(*GetMessagesRequest)(nil),               // 16: messaging.v1.GetMessagesRequest
+	(*GetMessagesResponse)(nil),              // 17: messaging.v1.GetMessagesResponse
+	(*SendMessageRequest)(nil),               // 18: messaging.v1.SendMessageRequest
+	(*SendMessageResponse)(nil),              // 19: messaging.v1.SendMessageResponse
+	(*SendVoiceMessageRequest)(nil),          // 20: messaging.v1.SendVoiceMessageRequest
+	(*SendVoiceMessageResponse)(nil),         // 21: messaging.v1.SendVoiceMessageResponse
+	(*DeleteMessageRequest)(nil),             // 22: messaging.v1.DeleteMessageRequest
+	(*DeleteMessageResponse)(nil),            // 23: messaging.v1.DeleteMessageResponse
+	(*MarkMessageReadRequest)(nil),           // 24: messaging.v1.MarkMessageReadRequest
+	(*MarkMessageReadResponse)(nil),          // 25: messaging.v1.MarkMessageReadResponse
+	(*AddReactionRequest)(nil),               // 26: messaging.v1.AddReactionRequest
+	(*AddReactionResponse)(nil),              // 27: messaging.v1.AddReactionResponse
+	(*RemoveReactionRequest)(nil),            // 28: messaging.v1.RemoveReactionRequest
+	(*RemoveReactionResponse)(nil),           // 29: messaging.v1.RemoveReactionResponse
+	(*Notification)(nil),                     // 30: messaging.v1.Notification
+	(*GetNotificationsRequest)(nil),          // 31: messaging.v1.GetNotificationsRequest
+	(*GetNotificationsResponse)(nil),         // 32: messaging.v1.GetNotificationsResponse
+	(*MarkNotificationReadRequest)(nil),      // 33: messaging.v1.MarkNotificationReadRequest
+	(*MarkNotificationReadResponse)(nil),     // 34: messaging.v1.MarkNotificationReadResponse
+	(*MarkAllNotificationsReadRequest)(nil),  // 35: messaging.v1.MarkAllNotificationsReadRequest
+	(*MarkAllNotificationsReadResponse)(nil), // 36: messaging.v1.MarkAllNotificationsReadResponse
+	(*UserStatus)(nil),                       // 37: messaging.v1.UserStatus
+	(*GetUserStatusesRequest)(nil),           // 38: messaging.v1.GetUserStatusesRequest
+	(*GetUserStatusesResponse)(nil),          // 39: messaging.v1.GetUserStatusesResponse
+	(*UpdateUserStatusRequest)(nil),          // 40: messaging.v1.UpdateUserStatusRequest
+	(*UpdateUserStatusResponse)(nil),         // 41: messaging.v1.UpdateUserStatusResponse
+	(*SearchMessagesRequest)(nil),            // 42: messaging.v1.SearchMessagesRequest
+	(*SearchMessagesResponse)(nil),           // 43: messaging.v1.SearchMessagesResponse
+	(*DromDialog)(nil),                       // 44: messaging.v1.DromDialog
+	(*GetDromDialogsRequest)(nil),            // 45: messaging.v1.GetDromDialogsRequest
+	(*GetDromDialogsResponse)(nil),           // 46: messaging.v1.GetDromDialogsResponse
+	(*DromMessage)(nil),                      // 47: messaging.v1.DromMessage
+	(*GetDromMessagesRequest)(nil),           // 48: messaging.v1.GetDromMessagesRequest
+	(*GetDromMessagesResponse)(nil),          // 49: messaging.v1.GetDromMessagesResponse
+	(*SendDromMessageRequest)(nil),           // 50: messaging.v1.SendDromMessageRequest
+	(*SendDromMessageResponse)(nil),          // 51: messaging.v1.SendDromMessageResponse
+	(*timestamppb.Timestamp)(nil),            // 52: google.protobuf.Timestamp
 }
 var file_messaging_v1_messaging_proto_depIdxs = []int32{
-	44, // 0: messaging.v1.Conversation.created_at:type_name -> google.protobuf.Timestamp
-	44, // 1: messaging.v1.Conversation.last_message_at:type_name -> google.protobuf.Timestamp
-	0,  // 2: messaging.v1.ConversationList.conversations:type_name -> messaging.v1.Conversation
-	44, // 3: messaging.v1.Message.created_at:type_name -> google.protobuf.Timestamp
-	10, // 4: messaging.v1.Message.mentions:type_name -> messaging.v1.Mention
-	11, // 5: messaging.v1.Message.reactions:type_name -> messaging.v1.Reaction
-	12, // 6: messaging.v1.MessageList.messages:type_name -> messaging.v1.Message
-	44, // 7: messaging.v1.Notification.created_at:type_name -> google.protobuf.Timestamp
-	24, // 8: messaging.v1.NotificationList.notifications:type_name -> messaging.v1.Notification
-	44, // 9: messaging.v1.UserStatus.last_seen:type_name -> google.protobuf.Timestamp
-	31, // 10: messaging.v1.UserStatusList.statuses:type_name -> messaging.v1.UserStatus
-	36, // 11: messaging.v1.DromDialogList.dialogs:type_name -> messaging.v1.DromDialog
-	38, // 12: messaging.v1.DromMessageList.messages:type_name -> messaging.v1.DromMessage
-	36, // 13: messaging.v1.DromMessageList.dialog:type_name -> messaging.v1.DromDialog
-	2,  // 14: messaging.v1.MessagingService.GetConversations:input_type -> messaging.v1.GetConversationsRequest
-	3,  // 15: messaging.v1.MessagingService.CreateConversation:input_type -> messaging.v1.CreateConversationRequest
-	4,  // 16: messaging.v1.MessagingService.GetConversation:input_type -> messaging.v1.GetConversationRequest
-	5,  // 17: messaging.v1.MessagingService.UpdateConversation:input_type -> messaging.v1.UpdateConversationRequest
-	6,  // 18: messaging.v1.MessagingService.DeleteConversation:input_type -> messaging.v1.DeleteConversationRequest
-	8,  // 19: messaging.v1.MessagingService.RemoveParticipant:input_type -> messaging.v1.RemoveParticipantRequest
-	14, // 20: messaging.v1.MessagingService.GetMessages:input_type -> messaging.v1.GetMessagesRequest
-	15, // 21: messaging.v1.MessagingService.SendMessage:input_type -> messaging.v1.SendMessageRequest
-	16, // 22: messaging.v1.MessagingService.SendVoiceMessage:input_type -> messaging.v1.SendVoiceMessageChunk
-	17, // 23: messaging.v1.MessagingService.DeleteMessage:input_type -> messaging.v1.DeleteMessageRequest
-	19, // 24: messaging.v1.MessagingService.MarkMessageRead:input_type -> messaging.v1.MarkMessageReadRequest
-	21, // 25: messaging.v1.MessagingService.AddReaction:input_type -> messaging.v1.AddReactionRequest
-	22, // 26: messaging.v1.MessagingService.RemoveReaction:input_type -> messaging.v1.RemoveReactionRequest
-	26, // 27: messaging.v1.MessagingService.GetNotifications:input_type -> messaging.v1.GetNotificationsRequest
-	27, // 28: messaging.v1.MessagingService.MarkNotificationRead:input_type -> messaging.v1.MarkNotificationReadRequest
-	29, // 29: messaging.v1.MessagingService.MarkAllNotificationsRead:input_type -> messaging.v1.MarkAllNotificationsReadRequest
-	33, // 30: messaging.v1.MessagingService.GetUserStatuses:input_type -> messaging.v1.GetUserStatusesRequest
-	34, // 31: messaging.v1.MessagingService.UpdateUserStatus:input_type -> messaging.v1.UpdateUserStatusRequest
-	35, // 32: messaging.v1.MessagingService.SearchMessages:input_type -> messaging.v1.SearchMessagesRequest
-	40, // 33: messaging.v1.MessagingService.GetDromDialogs:input_type -> messaging.v1.GetDromDialogsRequest
-	41, // 34: messaging.v1.MessagingService.GetDromMessages:input_type -> messaging.v1.GetDromMessagesRequest
-	42, // 35: messaging.v1.MessagingService.SendDromMessage:input_type -> messaging.v1.SendDromMessageRequest
-	1,  // 36: messaging.v1.MessagingService.GetConversations:output_type -> messaging.v1.ConversationList
-	0,  // 37: messaging.v1.MessagingService.CreateConversation:output_type -> messaging.v1.Conversation
-	0,  // 38: messaging.v1.MessagingService.GetConversation:output_type -> messaging.v1.Conversation
-	0,  // 39: messaging.v1.MessagingService.UpdateConversation:output_type -> messaging.v1.Conversation
-	7,  // 40: messaging.v1.MessagingService.DeleteConversation:output_type -> messaging.v1.DeleteConversationResponse
-	9,  // 41: messaging.v1.MessagingService.RemoveParticipant:output_type -> messaging.v1.RemoveParticipantResponse
-	13, // 42: messaging.v1.MessagingService.GetMessages:output_type -> messaging.v1.MessageList
-	12, // 43: messaging.v1.MessagingService.SendMessage:output_type -> messaging.v1.Message
-	12, // 44: messaging.v1.MessagingService.SendVoiceMessage:output_type -> messaging.v1.Message
-	18, // 45: messaging.v1.MessagingService.DeleteMessage:output_type -> messaging.v1.DeleteMessageResponse
-	20, // 46: messaging.v1.MessagingService.MarkMessageRead:output_type -> messaging.v1.MarkMessageReadResponse
-	11, // 47: messaging.v1.MessagingService.AddReaction:output_type -> messaging.v1.Reaction
-	23, // 48: messaging.v1.MessagingService.RemoveReaction:output_type -> messaging.v1.RemoveReactionResponse
-	25, // 49: messaging.v1.MessagingService.GetNotifications:output_type -> messaging.v1.NotificationList
-	28, // 50: messaging.v1.MessagingService.MarkNotificationRead:output_type -> messaging.v1.MarkNotificationReadResponse
-	30, // 51: messaging.v1.MessagingService.MarkAllNotificationsRead:output_type -> messaging.v1.MarkAllNotificationsReadResponse
-	32, // 52: messaging.v1.MessagingService.GetUserStatuses:output_type -> messaging.v1.UserStatusList
-	31, // 53: messaging.v1.MessagingService.UpdateUserStatus:output_type -> messaging.v1.UserStatus
-	13, // 54: messaging.v1.MessagingService.SearchMessages:output_type -> messaging.v1.MessageList
-	37, // 55: messaging.v1.MessagingService.GetDromDialogs:output_type -> messaging.v1.DromDialogList
-	39, // 56: messaging.v1.MessagingService.GetDromMessages:output_type -> messaging.v1.DromMessageList
-	43, // 57: messaging.v1.MessagingService.SendDromMessage:output_type -> messaging.v1.SendDromMessageResponse
-	36, // [36:58] is the sub-list for method output_type
-	14, // [14:36] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	52, // 0: messaging.v1.Conversation.created_at:type_name -> google.protobuf.Timestamp
+	52, // 1: messaging.v1.Conversation.last_message_at:type_name -> google.protobuf.Timestamp
+	0,  // 2: messaging.v1.GetConversationsResponse.conversations:type_name -> messaging.v1.Conversation
+	0,  // 3: messaging.v1.CreateConversationResponse.conversation:type_name -> messaging.v1.Conversation
+	0,  // 4: messaging.v1.GetConversationResponse.conversation:type_name -> messaging.v1.Conversation
+	0,  // 5: messaging.v1.UpdateConversationResponse.conversation:type_name -> messaging.v1.Conversation
+	52, // 6: messaging.v1.Message.created_at:type_name -> google.protobuf.Timestamp
+	13, // 7: messaging.v1.Message.mentions:type_name -> messaging.v1.Mention
+	14, // 8: messaging.v1.Message.reactions:type_name -> messaging.v1.Reaction
+	15, // 9: messaging.v1.GetMessagesResponse.messages:type_name -> messaging.v1.Message
+	15, // 10: messaging.v1.SendMessageResponse.message:type_name -> messaging.v1.Message
+	15, // 11: messaging.v1.SendVoiceMessageResponse.message:type_name -> messaging.v1.Message
+	14, // 12: messaging.v1.AddReactionResponse.reaction:type_name -> messaging.v1.Reaction
+	52, // 13: messaging.v1.Notification.created_at:type_name -> google.protobuf.Timestamp
+	30, // 14: messaging.v1.GetNotificationsResponse.notifications:type_name -> messaging.v1.Notification
+	52, // 15: messaging.v1.UserStatus.last_seen:type_name -> google.protobuf.Timestamp
+	37, // 16: messaging.v1.GetUserStatusesResponse.statuses:type_name -> messaging.v1.UserStatus
+	37, // 17: messaging.v1.UpdateUserStatusResponse.status:type_name -> messaging.v1.UserStatus
+	15, // 18: messaging.v1.SearchMessagesResponse.messages:type_name -> messaging.v1.Message
+	44, // 19: messaging.v1.GetDromDialogsResponse.dialogs:type_name -> messaging.v1.DromDialog
+	47, // 20: messaging.v1.GetDromMessagesResponse.messages:type_name -> messaging.v1.DromMessage
+	44, // 21: messaging.v1.GetDromMessagesResponse.dialog:type_name -> messaging.v1.DromDialog
+	1,  // 22: messaging.v1.MessagingService.GetConversations:input_type -> messaging.v1.GetConversationsRequest
+	3,  // 23: messaging.v1.MessagingService.CreateConversation:input_type -> messaging.v1.CreateConversationRequest
+	5,  // 24: messaging.v1.MessagingService.GetConversation:input_type -> messaging.v1.GetConversationRequest
+	7,  // 25: messaging.v1.MessagingService.UpdateConversation:input_type -> messaging.v1.UpdateConversationRequest
+	9,  // 26: messaging.v1.MessagingService.DeleteConversation:input_type -> messaging.v1.DeleteConversationRequest
+	11, // 27: messaging.v1.MessagingService.RemoveParticipant:input_type -> messaging.v1.RemoveParticipantRequest
+	16, // 28: messaging.v1.MessagingService.GetMessages:input_type -> messaging.v1.GetMessagesRequest
+	18, // 29: messaging.v1.MessagingService.SendMessage:input_type -> messaging.v1.SendMessageRequest
+	20, // 30: messaging.v1.MessagingService.SendVoiceMessage:input_type -> messaging.v1.SendVoiceMessageRequest
+	22, // 31: messaging.v1.MessagingService.DeleteMessage:input_type -> messaging.v1.DeleteMessageRequest
+	24, // 32: messaging.v1.MessagingService.MarkMessageRead:input_type -> messaging.v1.MarkMessageReadRequest
+	26, // 33: messaging.v1.MessagingService.AddReaction:input_type -> messaging.v1.AddReactionRequest
+	28, // 34: messaging.v1.MessagingService.RemoveReaction:input_type -> messaging.v1.RemoveReactionRequest
+	31, // 35: messaging.v1.MessagingService.GetNotifications:input_type -> messaging.v1.GetNotificationsRequest
+	33, // 36: messaging.v1.MessagingService.MarkNotificationRead:input_type -> messaging.v1.MarkNotificationReadRequest
+	35, // 37: messaging.v1.MessagingService.MarkAllNotificationsRead:input_type -> messaging.v1.MarkAllNotificationsReadRequest
+	38, // 38: messaging.v1.MessagingService.GetUserStatuses:input_type -> messaging.v1.GetUserStatusesRequest
+	40, // 39: messaging.v1.MessagingService.UpdateUserStatus:input_type -> messaging.v1.UpdateUserStatusRequest
+	42, // 40: messaging.v1.MessagingService.SearchMessages:input_type -> messaging.v1.SearchMessagesRequest
+	45, // 41: messaging.v1.MessagingService.GetDromDialogs:input_type -> messaging.v1.GetDromDialogsRequest
+	48, // 42: messaging.v1.MessagingService.GetDromMessages:input_type -> messaging.v1.GetDromMessagesRequest
+	50, // 43: messaging.v1.MessagingService.SendDromMessage:input_type -> messaging.v1.SendDromMessageRequest
+	2,  // 44: messaging.v1.MessagingService.GetConversations:output_type -> messaging.v1.GetConversationsResponse
+	4,  // 45: messaging.v1.MessagingService.CreateConversation:output_type -> messaging.v1.CreateConversationResponse
+	6,  // 46: messaging.v1.MessagingService.GetConversation:output_type -> messaging.v1.GetConversationResponse
+	8,  // 47: messaging.v1.MessagingService.UpdateConversation:output_type -> messaging.v1.UpdateConversationResponse
+	10, // 48: messaging.v1.MessagingService.DeleteConversation:output_type -> messaging.v1.DeleteConversationResponse
+	12, // 49: messaging.v1.MessagingService.RemoveParticipant:output_type -> messaging.v1.RemoveParticipantResponse
+	17, // 50: messaging.v1.MessagingService.GetMessages:output_type -> messaging.v1.GetMessagesResponse
+	19, // 51: messaging.v1.MessagingService.SendMessage:output_type -> messaging.v1.SendMessageResponse
+	21, // 52: messaging.v1.MessagingService.SendVoiceMessage:output_type -> messaging.v1.SendVoiceMessageResponse
+	23, // 53: messaging.v1.MessagingService.DeleteMessage:output_type -> messaging.v1.DeleteMessageResponse
+	25, // 54: messaging.v1.MessagingService.MarkMessageRead:output_type -> messaging.v1.MarkMessageReadResponse
+	27, // 55: messaging.v1.MessagingService.AddReaction:output_type -> messaging.v1.AddReactionResponse
+	29, // 56: messaging.v1.MessagingService.RemoveReaction:output_type -> messaging.v1.RemoveReactionResponse
+	32, // 57: messaging.v1.MessagingService.GetNotifications:output_type -> messaging.v1.GetNotificationsResponse
+	34, // 58: messaging.v1.MessagingService.MarkNotificationRead:output_type -> messaging.v1.MarkNotificationReadResponse
+	36, // 59: messaging.v1.MessagingService.MarkAllNotificationsRead:output_type -> messaging.v1.MarkAllNotificationsReadResponse
+	39, // 60: messaging.v1.MessagingService.GetUserStatuses:output_type -> messaging.v1.GetUserStatusesResponse
+	41, // 61: messaging.v1.MessagingService.UpdateUserStatus:output_type -> messaging.v1.UpdateUserStatusResponse
+	43, // 62: messaging.v1.MessagingService.SearchMessages:output_type -> messaging.v1.SearchMessagesResponse
+	46, // 63: messaging.v1.MessagingService.GetDromDialogs:output_type -> messaging.v1.GetDromDialogsResponse
+	49, // 64: messaging.v1.MessagingService.GetDromMessages:output_type -> messaging.v1.GetDromMessagesResponse
+	51, // 65: messaging.v1.MessagingService.SendDromMessage:output_type -> messaging.v1.SendDromMessageResponse
+	44, // [44:66] is the sub-list for method output_type
+	22, // [22:44] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_messaging_v1_messaging_proto_init() }
@@ -2837,7 +3222,7 @@ func file_messaging_v1_messaging_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_messaging_v1_messaging_proto_rawDesc), len(file_messaging_v1_messaging_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   44,
+			NumMessages:   52,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

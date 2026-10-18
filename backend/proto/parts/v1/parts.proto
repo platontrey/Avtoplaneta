@@ -1,80 +1,77 @@
 syntax = "proto3";
 package parts.v1;
-option go_package = "avtoplaneta/gen/parts/v1;partsv1";
 
-import "google/protobuf/timestamp.proto";
+import "buf/validate/validate.proto";
 import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "avtoplaneta/gen/parts/v1;partsv1";
 
 service PartsService {
   // Инвентарь
-  rpc GetInventory(GetInventoryRequest) returns (InventoryResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/inventory"
-    };
+  rpc GetInventory(GetInventoryRequest) returns (GetInventoryResponse) {
+    option (google.api.http) = {get: "/api/v1/inventory"};
   }
-  rpc AddPart(AddPartRequest) returns (Part) {
+  rpc AddPart(AddPartRequest) returns (AddPartResponse) {
     option (google.api.http) = {
       post: "/api/v1/parts"
       body: "*"
+      response_body: "part"
     };
   }
-  rpc UpdatePart(UpdatePartRequest) returns (Part) {
+  rpc UpdatePart(UpdatePartRequest) returns (UpdatePartResponse) {
     option (google.api.http) = {
       put: "/api/v1/parts/{id}"
       body: "*"
+      response_body: "part"
     };
   }
   rpc DeletePart(DeletePartRequest) returns (DeletePartResponse) {
-    option (google.api.http) = {
-      delete: "/api/v1/parts/{id}"
-    };
+    option (google.api.http) = {delete: "/api/v1/parts/{id}"};
   }
-  rpc MarkPartForDeletion(MarkPartForDeletionRequest) returns (Part) {
+  rpc MarkPartForDeletion(MarkPartForDeletionRequest) returns (MarkPartForDeletionResponse) {
     option (google.api.http) = {
       post: "/api/v1/parts/{id}/mark-deletion"
       body: "*"
+      response_body: "part"
     };
   }
-  rpc GetPart(GetPartRequest) returns (Part) {
+  rpc GetPart(GetPartRequest) returns (GetPartResponse) {
     option (google.api.http) = {
       get: "/api/v1/parts/item/{id}"
+      response_body: "part"
     };
   }
-  rpc DuplicatePart(DuplicatePartRequest) returns (Part) {
+  rpc DuplicatePart(DuplicatePartRequest) returns (DuplicatePartResponse) {
     option (google.api.http) = {
       post: "/api/v1/parts/{id}/duplicate"
+      response_body: "part"
     };
   }
 
   // Изменение количества
-  rpc DecreasePartQuantity(ChangePartQuantityRequest) returns (ChangePartQuantityResponse) {
+  rpc DecreasePartQuantity(DecreasePartQuantityRequest) returns (DecreasePartQuantityResponse) {
     option (google.api.http) = {
       post: "/api/v1/parts/{id}/decrease"
       body: "*"
     };
   }
-  rpc IncreasePartQuantity(ChangePartQuantityRequest) returns (ChangePartQuantityResponse) {
+  rpc IncreasePartQuantity(IncreasePartQuantityRequest) returns (IncreasePartQuantityResponse) {
     option (google.api.http) = {
       post: "/api/v1/parts/{id}/increase"
       body: "*"
     };
   }
 
-  // Фото - note: multipart streams are tricky via grpc-gateway, better to use HTTP handler directly, but we map them anyway
-  rpc UploadPartPhoto(stream UploadPartPhotoChunk) returns (UploadPartPhotoResponse) {
-    // Cannot easily map streaming request body in standard way
-  }
+  // Фото
+  rpc UploadPartPhoto(stream UploadPartPhotoRequest) returns (UploadPartPhotoResponse) {}
   rpc DeletePartPhoto(DeletePartPhotoRequest) returns (DeletePartPhotoResponse) {
-    option (google.api.http) = {
-      delete: "/api/v1/parts/{part_id}/photo"
-    };
+    option (google.api.http) = {delete: "/api/v1/parts/{part_id}/photo"};
   }
 
   // Статистика
-  rpc GetStatistics(GetStatisticsRequest) returns (StatisticsResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/statistics"
-    };
+  rpc GetStatistics(GetStatisticsRequest) returns (GetStatisticsResponse) {
+    option (google.api.http) = {get: "/api/v1/statistics"};
   }
   rpc UpdateEarnings(UpdateEarningsRequest) returns (UpdateEarningsResponse) {
     option (google.api.http) = {
@@ -90,8 +87,6 @@ service PartsService {
       body: "*"
     };
   }
-  // PreviewDefectReport возвращает ровно тот набор запчастей, который создаст
-  // CreateDefectReport. selected_parts в запросе игнорируется: набор строит сервер.
   rpc PreviewDefectReport(PreviewDefectReportRequest) returns (PreviewDefectReportResponse) {
     option (google.api.http) = {
       post: "/api/v1/defect-reports/preview"
@@ -99,19 +94,9 @@ service PartsService {
     };
   }
 
-  // ListPartsForExport отдаёт запчасти для выгрузки прайс-листа потоком.
-  // Их больше ста тысяч, в один ответ они не помещаются: gRPC по умолчанию
-  // ограничивает сообщение четырьмя мегабайтами.
-  //
-  // HTTP-аннотации нет намеренно: это внутренний вызов между сервисами,
-  // наружу через gateway он не публикуется.
-  rpc ListPartsForExport(ListPartsForExportRequest) returns (stream Part) {}
+  // Выгрузка
+  rpc ListPartsForExport(ListPartsForExportRequest) returns (stream ListPartsForExportResponse) {}
 
-  // InventoryVersion отдаёт дешёвый отпечаток состояния склада: одна
-  // агрегирующая строка вместо полной выборки. По нему сервис выгрузки решает,
-  // нужно ли вообще вычитывать поток и пересобирать прайс-лист.
-  //
-  // Тоже внутренний RPC, HTTP-аннотации нет.
   rpc InventoryVersion(InventoryVersionRequest) returns (InventoryVersionResponse) {}
 
   // Админ-операции
@@ -127,10 +112,8 @@ service PartsService {
       body: "*"
     };
   }
-  rpc GetSupplierCodes(GetSupplierCodesRequest) returns (SupplierCodesResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/admin/supplier-codes"
-    };
+  rpc GetSupplierCodes(GetSupplierCodesRequest) returns (GetSupplierCodesResponse) {
+    option (google.api.http) = {get: "/api/v1/admin/supplier-codes"};
   }
   rpc DeleteZeroQuantityParts(DeleteZeroQuantityPartsRequest) returns (DeleteZeroQuantityPartsResponse) {
     option (google.api.http) = {
@@ -246,7 +229,7 @@ message GetInventoryRequest {
   string tire_model = 44;
 }
 
-message InventoryResponse {
+message GetInventoryResponse {
   repeated Part parts = 1;
   int32 total = 2;
   int32 page = 3;
@@ -254,20 +237,39 @@ message InventoryResponse {
 }
 
 message GetPartRequest {
-  int64 id = 1;
+  int64 id = 1 [(buf.validate.field).int64.gt = 0];
+}
+
+message GetPartResponse {
+  Part part = 1;
 }
 
 message DuplicatePartRequest {
-  int64 id = 1;
+  int64 id = 1 [(buf.validate.field).int64.gt = 0];
 }
 
-message ChangePartQuantityRequest {
-  int64 id = 1;
-  int32 amount = 2;
-  string operation_id = 3;
+message DuplicatePartResponse {
+  Part part = 1;
 }
 
-message ChangePartQuantityResponse {
+message DecreasePartQuantityRequest {
+  int64 id = 1 [(buf.validate.field).int64.gt = 0];
+  int32 amount = 2 [(buf.validate.field).int32.gt = 0];
+  string operation_id = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+message DecreasePartQuantityResponse {
+  bool success = 1;
+  int32 new_quantity = 2;
+}
+
+message IncreasePartQuantityRequest {
+  int64 id = 1 [(buf.validate.field).int64.gt = 0];
+  int32 amount = 2 [(buf.validate.field).int32.gt = 0];
+  string operation_id = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+message IncreasePartQuantityResponse {
   bool success = 1;
   int32 new_quantity = 2;
 }
@@ -275,11 +277,11 @@ message ChangePartQuantityResponse {
 // ─── Add/Update/Delete ──────────────────────────────────────────────────────
 
 message AddPartRequest {
-  string name = 1;
-  int32 quantity = 2;
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+  int32 quantity = 2 [(buf.validate.field).int32.gte = 0];
   string description = 3;
   string category = 4;
-  double price = 5;
+  double price = 5 [(buf.validate.field).double.gte = 0];
   string salesman = 6;
   string location = 7;
   bool status = 8;
@@ -322,8 +324,12 @@ message AddPartRequest {
   string tire_model = 48;
 }
 
+message AddPartResponse {
+  Part part = 1;
+}
+
 message UpdatePartRequest {
-  int64 id = 1;
+  int64 id = 1 [(buf.validate.field).int64.gt = 0];
   // Все поля опциональные — обновляется только то, что передано
   optional string name = 2;
   optional int32 quantity = 3;
@@ -370,20 +376,28 @@ message UpdatePartRequest {
   optional string tire_model = 48;
 }
 
+message UpdatePartResponse {
+  Part part = 1;
+}
+
 message DeletePartRequest {
-  int64 id = 1;
+  int64 id = 1 [(buf.validate.field).int64.gt = 0];
 }
 
 message DeletePartResponse {}
 
 message MarkPartForDeletionRequest {
-  int64 id = 1;
+  int64 id = 1 [(buf.validate.field).int64.gt = 0];
+}
+
+message MarkPartForDeletionResponse {
+  Part part = 1;
 }
 
 // ─── Photos ─────────────────────────────────────────────────────────────────
 
-message UploadPartPhotoChunk {
-  int64 part_id = 1;
+message UploadPartPhotoRequest {
+  int64 part_id = 1 [(buf.validate.field).int64.gt = 0];
   string filename = 2;
   string content_type = 3;
   bytes data = 4;
@@ -395,8 +409,8 @@ message UploadPartPhotoResponse {
 }
 
 message DeletePartPhotoRequest {
-  int64 part_id = 1;
-  string photo_url = 2;
+  int64 part_id = 1 [(buf.validate.field).int64.gt = 0];
+  string photo_url = 2 [(buf.validate.field).string.min_len = 1];
 }
 
 message DeletePartPhotoResponse {}
@@ -415,7 +429,7 @@ message MonthlySales {
   double sales = 2;
 }
 
-message StatisticsResponse {
+message GetStatisticsResponse {
   int32 total_parts = 1;
   int32 total_quantity = 2;
   double total_value = 3;
@@ -533,6 +547,10 @@ message CreateDefectReportResponse {
 
 message ListPartsForExportRequest {}
 
+message ListPartsForExportResponse {
+  Part part = 1;
+}
+
 message InventoryVersionRequest {}
 
 message InventoryVersionResponse {
@@ -604,7 +622,7 @@ message BulkUpdatePartsResponse {
 
 message GetSupplierCodesRequest {}
 
-message SupplierCodesResponse {
+message GetSupplierCodesResponse {
   repeated string codes = 1;
 }
 

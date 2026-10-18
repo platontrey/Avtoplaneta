@@ -30,7 +30,19 @@ fi
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT/backend/proto" || exit 1
 
+# Автоматическое форматирование proto-файлов
+echo "🎨 [pre-commit] Проверка и форматирование protobuf (buf format)..."
+buf format -w
+
+# Линтинг protobuf контрактов (строгий STANDARD)
+echo "🔍 [pre-commit] Линтинг protobuf контрактов (buf lint)..."
+if ! buf lint; then
+    echo "❌ [pre-commit] Ошибка линтинга protobuf (buf lint)!"
+    exit 1
+fi
+
 # Генерация Go protobuf и gRPC кода
+echo "⚙️ [pre-commit] Генерация protobuf кода..."
 if ! buf generate; then
     echo "❌ [pre-commit] Ошибка компиляции protobuf (buf generate)!"
     exit 1

@@ -85,8 +85,8 @@ func (s *GRPCServerTestSuite) TestGetUser_Success() {
 
 	resp, err := s.grpcServer.GetUser(context.Background(), &authv1.GetUserRequest{Id: 1})
 	s.NoError(err)
-	s.Equal(int64(1), resp.Id)
-	s.Equal("user@example.com", resp.Email)
+	s.Equal(int64(1), resp.GetUser().GetId())
+	s.Equal("user@example.com", resp.GetUser().GetEmail())
 }
 
 func (s *GRPCServerTestSuite) TestGetUser_NotFound() {
@@ -125,7 +125,7 @@ func (s *GRPCServerTestSuite) TestCreateUser_Success() {
 		Role:  "operator",
 	})
 	s.NoError(err)
-	s.Equal(int64(5), resp.Id)
+	s.Equal(int64(5), resp.GetUser().GetId())
 }
 
 func (s *GRPCServerTestSuite) TestUpdateUser_Success() {
@@ -144,7 +144,7 @@ func (s *GRPCServerTestSuite) TestUpdateUser_Success() {
 		Name: "Updated",
 	})
 	s.NoError(err)
-	s.Equal("Updated", resp.Name)
+	s.Equal("Updated", resp.GetUser().GetName())
 }
 
 func (s *GRPCServerTestSuite) TestDeleteUser_Success() {

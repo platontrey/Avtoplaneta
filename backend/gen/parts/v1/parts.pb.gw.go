@@ -306,7 +306,7 @@ func local_request_PartsService_DuplicatePart_0(ctx context.Context, marshaler r
 
 func request_PartsService_DecreasePartQuantity_0(ctx context.Context, marshaler runtime.Marshaler, client PartsServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq ChangePartQuantityRequest
+		protoReq DecreasePartQuantityRequest
 		metadata runtime.ServerMetadata
 		err      error
 	)
@@ -330,7 +330,7 @@ func request_PartsService_DecreasePartQuantity_0(ctx context.Context, marshaler 
 
 func local_request_PartsService_DecreasePartQuantity_0(ctx context.Context, marshaler runtime.Marshaler, server PartsServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq ChangePartQuantityRequest
+		protoReq DecreasePartQuantityRequest
 		metadata runtime.ServerMetadata
 		err      error
 	)
@@ -351,7 +351,7 @@ func local_request_PartsService_DecreasePartQuantity_0(ctx context.Context, mars
 
 func request_PartsService_IncreasePartQuantity_0(ctx context.Context, marshaler runtime.Marshaler, client PartsServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq ChangePartQuantityRequest
+		protoReq IncreasePartQuantityRequest
 		metadata runtime.ServerMetadata
 		err      error
 	)
@@ -375,7 +375,7 @@ func request_PartsService_IncreasePartQuantity_0(ctx context.Context, marshaler 
 
 func local_request_PartsService_IncreasePartQuantity_0(ctx context.Context, marshaler runtime.Marshaler, server PartsServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq ChangePartQuantityRequest
+		protoReq IncreasePartQuantityRequest
 		metadata runtime.ServerMetadata
 		err      error
 	)
@@ -403,7 +403,7 @@ func request_PartsService_UploadPartPhoto_0(ctx context.Context, marshaler runti
 	}
 	dec := marshaler.NewDecoder(req.Body)
 	for {
-		var protoReq UploadPartPhotoChunk
+		var protoReq UploadPartPhotoRequest
 		err = dec.Decode(&protoReq)
 		if errors.Is(err, io.EOF) {
 			break
@@ -786,7 +786,7 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_PartsService_AddPart_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_PartsService_AddPart_0(annotatedContext, mux, outboundMarshaler, w, req, response_PartsService_AddPart_0{resp.(*AddPartResponse)}, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodPut, pattern_PartsService_UpdatePart_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -806,7 +806,7 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_PartsService_UpdatePart_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_PartsService_UpdatePart_0(annotatedContext, mux, outboundMarshaler, w, req, response_PartsService_UpdatePart_0{resp.(*UpdatePartResponse)}, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodDelete, pattern_PartsService_DeletePart_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -846,7 +846,7 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_PartsService_MarkPartForDeletion_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_PartsService_MarkPartForDeletion_0(annotatedContext, mux, outboundMarshaler, w, req, response_PartsService_MarkPartForDeletion_0{resp.(*MarkPartForDeletionResponse)}, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodGet, pattern_PartsService_GetPart_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -866,7 +866,7 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_PartsService_GetPart_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_PartsService_GetPart_0(annotatedContext, mux, outboundMarshaler, w, req, response_PartsService_GetPart_0{resp.(*GetPartResponse)}, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodPost, pattern_PartsService_DuplicatePart_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -886,7 +886,7 @@ func RegisterPartsServiceHandlerServer(ctx context.Context, mux *runtime.ServeMu
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_PartsService_DuplicatePart_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_PartsService_DuplicatePart_0(annotatedContext, mux, outboundMarshaler, w, req, response_PartsService_DuplicatePart_0{resp.(*DuplicatePartResponse)}, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodPost, pattern_PartsService_DecreasePartQuantity_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -1214,7 +1214,7 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_PartsService_AddPart_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_PartsService_AddPart_0(annotatedContext, mux, outboundMarshaler, w, req, response_PartsService_AddPart_0{resp.(*AddPartResponse)}, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodPut, pattern_PartsService_UpdatePart_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -1231,7 +1231,7 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_PartsService_UpdatePart_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_PartsService_UpdatePart_0(annotatedContext, mux, outboundMarshaler, w, req, response_PartsService_UpdatePart_0{resp.(*UpdatePartResponse)}, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodDelete, pattern_PartsService_DeletePart_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -1265,7 +1265,7 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_PartsService_MarkPartForDeletion_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_PartsService_MarkPartForDeletion_0(annotatedContext, mux, outboundMarshaler, w, req, response_PartsService_MarkPartForDeletion_0{resp.(*MarkPartForDeletionResponse)}, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodGet, pattern_PartsService_GetPart_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -1282,7 +1282,7 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_PartsService_GetPart_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_PartsService_GetPart_0(annotatedContext, mux, outboundMarshaler, w, req, response_PartsService_GetPart_0{resp.(*GetPartResponse)}, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodPost, pattern_PartsService_DuplicatePart_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -1299,7 +1299,7 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_PartsService_DuplicatePart_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_PartsService_DuplicatePart_0(annotatedContext, mux, outboundMarshaler, w, req, response_PartsService_DuplicatePart_0{resp.(*DuplicatePartResponse)}, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodPost, pattern_PartsService_DecreasePartQuantity_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -1540,6 +1540,51 @@ func RegisterPartsServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 		forward_PartsService_DeleteZeroQuantityParts_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
 	return nil
+}
+
+type response_PartsService_AddPart_0 struct {
+	*AddPartResponse
+}
+
+func (m response_PartsService_AddPart_0) XXX_ResponseBody() interface{} {
+	response := m.AddPartResponse
+	return response.Part
+}
+
+type response_PartsService_UpdatePart_0 struct {
+	*UpdatePartResponse
+}
+
+func (m response_PartsService_UpdatePart_0) XXX_ResponseBody() interface{} {
+	response := m.UpdatePartResponse
+	return response.Part
+}
+
+type response_PartsService_MarkPartForDeletion_0 struct {
+	*MarkPartForDeletionResponse
+}
+
+func (m response_PartsService_MarkPartForDeletion_0) XXX_ResponseBody() interface{} {
+	response := m.MarkPartForDeletionResponse
+	return response.Part
+}
+
+type response_PartsService_GetPart_0 struct {
+	*GetPartResponse
+}
+
+func (m response_PartsService_GetPart_0) XXX_ResponseBody() interface{} {
+	response := m.GetPartResponse
+	return response.Part
+}
+
+type response_PartsService_DuplicatePart_0 struct {
+	*DuplicatePartResponse
+}
+
+func (m response_PartsService_DuplicatePart_0) XXX_ResponseBody() interface{} {
+	response := m.DuplicatePartResponse
+	return response.Part
 }
 
 var (

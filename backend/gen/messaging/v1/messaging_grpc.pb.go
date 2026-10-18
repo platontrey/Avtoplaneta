@@ -48,33 +48,33 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MessagingServiceClient interface {
 	// Conversations
-	GetConversations(ctx context.Context, in *GetConversationsRequest, opts ...grpc.CallOption) (*ConversationList, error)
-	CreateConversation(ctx context.Context, in *CreateConversationRequest, opts ...grpc.CallOption) (*Conversation, error)
-	GetConversation(ctx context.Context, in *GetConversationRequest, opts ...grpc.CallOption) (*Conversation, error)
-	UpdateConversation(ctx context.Context, in *UpdateConversationRequest, opts ...grpc.CallOption) (*Conversation, error)
+	GetConversations(ctx context.Context, in *GetConversationsRequest, opts ...grpc.CallOption) (*GetConversationsResponse, error)
+	CreateConversation(ctx context.Context, in *CreateConversationRequest, opts ...grpc.CallOption) (*CreateConversationResponse, error)
+	GetConversation(ctx context.Context, in *GetConversationRequest, opts ...grpc.CallOption) (*GetConversationResponse, error)
+	UpdateConversation(ctx context.Context, in *UpdateConversationRequest, opts ...grpc.CallOption) (*UpdateConversationResponse, error)
 	DeleteConversation(ctx context.Context, in *DeleteConversationRequest, opts ...grpc.CallOption) (*DeleteConversationResponse, error)
 	RemoveParticipant(ctx context.Context, in *RemoveParticipantRequest, opts ...grpc.CallOption) (*RemoveParticipantResponse, error)
 	// Messages
-	GetMessages(ctx context.Context, in *GetMessagesRequest, opts ...grpc.CallOption) (*MessageList, error)
-	SendMessage(ctx context.Context, in *SendMessageRequest, opts ...grpc.CallOption) (*Message, error)
-	SendVoiceMessage(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[SendVoiceMessageChunk, Message], error)
+	GetMessages(ctx context.Context, in *GetMessagesRequest, opts ...grpc.CallOption) (*GetMessagesResponse, error)
+	SendMessage(ctx context.Context, in *SendMessageRequest, opts ...grpc.CallOption) (*SendMessageResponse, error)
+	SendVoiceMessage(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[SendVoiceMessageRequest, SendVoiceMessageResponse], error)
 	DeleteMessage(ctx context.Context, in *DeleteMessageRequest, opts ...grpc.CallOption) (*DeleteMessageResponse, error)
 	MarkMessageRead(ctx context.Context, in *MarkMessageReadRequest, opts ...grpc.CallOption) (*MarkMessageReadResponse, error)
 	// Reactions
-	AddReaction(ctx context.Context, in *AddReactionRequest, opts ...grpc.CallOption) (*Reaction, error)
+	AddReaction(ctx context.Context, in *AddReactionRequest, opts ...grpc.CallOption) (*AddReactionResponse, error)
 	RemoveReaction(ctx context.Context, in *RemoveReactionRequest, opts ...grpc.CallOption) (*RemoveReactionResponse, error)
 	// Notifications
-	GetNotifications(ctx context.Context, in *GetNotificationsRequest, opts ...grpc.CallOption) (*NotificationList, error)
+	GetNotifications(ctx context.Context, in *GetNotificationsRequest, opts ...grpc.CallOption) (*GetNotificationsResponse, error)
 	MarkNotificationRead(ctx context.Context, in *MarkNotificationReadRequest, opts ...grpc.CallOption) (*MarkNotificationReadResponse, error)
 	MarkAllNotificationsRead(ctx context.Context, in *MarkAllNotificationsReadRequest, opts ...grpc.CallOption) (*MarkAllNotificationsReadResponse, error)
 	// User Status
-	GetUserStatuses(ctx context.Context, in *GetUserStatusesRequest, opts ...grpc.CallOption) (*UserStatusList, error)
-	UpdateUserStatus(ctx context.Context, in *UpdateUserStatusRequest, opts ...grpc.CallOption) (*UserStatus, error)
+	GetUserStatuses(ctx context.Context, in *GetUserStatusesRequest, opts ...grpc.CallOption) (*GetUserStatusesResponse, error)
+	UpdateUserStatus(ctx context.Context, in *UpdateUserStatusRequest, opts ...grpc.CallOption) (*UpdateUserStatusResponse, error)
 	// Search
-	SearchMessages(ctx context.Context, in *SearchMessagesRequest, opts ...grpc.CallOption) (*MessageList, error)
+	SearchMessages(ctx context.Context, in *SearchMessagesRequest, opts ...grpc.CallOption) (*SearchMessagesResponse, error)
 	// Drom Integration
-	GetDromDialogs(ctx context.Context, in *GetDromDialogsRequest, opts ...grpc.CallOption) (*DromDialogList, error)
-	GetDromMessages(ctx context.Context, in *GetDromMessagesRequest, opts ...grpc.CallOption) (*DromMessageList, error)
+	GetDromDialogs(ctx context.Context, in *GetDromDialogsRequest, opts ...grpc.CallOption) (*GetDromDialogsResponse, error)
+	GetDromMessages(ctx context.Context, in *GetDromMessagesRequest, opts ...grpc.CallOption) (*GetDromMessagesResponse, error)
 	SendDromMessage(ctx context.Context, in *SendDromMessageRequest, opts ...grpc.CallOption) (*SendDromMessageResponse, error)
 }
 
@@ -86,9 +86,9 @@ func NewMessagingServiceClient(cc grpc.ClientConnInterface) MessagingServiceClie
 	return &messagingServiceClient{cc}
 }
 
-func (c *messagingServiceClient) GetConversations(ctx context.Context, in *GetConversationsRequest, opts ...grpc.CallOption) (*ConversationList, error) {
+func (c *messagingServiceClient) GetConversations(ctx context.Context, in *GetConversationsRequest, opts ...grpc.CallOption) (*GetConversationsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ConversationList)
+	out := new(GetConversationsResponse)
 	err := c.cc.Invoke(ctx, MessagingService_GetConversations_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -96,9 +96,9 @@ func (c *messagingServiceClient) GetConversations(ctx context.Context, in *GetCo
 	return out, nil
 }
 
-func (c *messagingServiceClient) CreateConversation(ctx context.Context, in *CreateConversationRequest, opts ...grpc.CallOption) (*Conversation, error) {
+func (c *messagingServiceClient) CreateConversation(ctx context.Context, in *CreateConversationRequest, opts ...grpc.CallOption) (*CreateConversationResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Conversation)
+	out := new(CreateConversationResponse)
 	err := c.cc.Invoke(ctx, MessagingService_CreateConversation_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -106,9 +106,9 @@ func (c *messagingServiceClient) CreateConversation(ctx context.Context, in *Cre
 	return out, nil
 }
 
-func (c *messagingServiceClient) GetConversation(ctx context.Context, in *GetConversationRequest, opts ...grpc.CallOption) (*Conversation, error) {
+func (c *messagingServiceClient) GetConversation(ctx context.Context, in *GetConversationRequest, opts ...grpc.CallOption) (*GetConversationResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Conversation)
+	out := new(GetConversationResponse)
 	err := c.cc.Invoke(ctx, MessagingService_GetConversation_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -116,9 +116,9 @@ func (c *messagingServiceClient) GetConversation(ctx context.Context, in *GetCon
 	return out, nil
 }
 
-func (c *messagingServiceClient) UpdateConversation(ctx context.Context, in *UpdateConversationRequest, opts ...grpc.CallOption) (*Conversation, error) {
+func (c *messagingServiceClient) UpdateConversation(ctx context.Context, in *UpdateConversationRequest, opts ...grpc.CallOption) (*UpdateConversationResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Conversation)
+	out := new(UpdateConversationResponse)
 	err := c.cc.Invoke(ctx, MessagingService_UpdateConversation_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -146,9 +146,9 @@ func (c *messagingServiceClient) RemoveParticipant(ctx context.Context, in *Remo
 	return out, nil
 }
 
-func (c *messagingServiceClient) GetMessages(ctx context.Context, in *GetMessagesRequest, opts ...grpc.CallOption) (*MessageList, error) {
+func (c *messagingServiceClient) GetMessages(ctx context.Context, in *GetMessagesRequest, opts ...grpc.CallOption) (*GetMessagesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(MessageList)
+	out := new(GetMessagesResponse)
 	err := c.cc.Invoke(ctx, MessagingService_GetMessages_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -156,9 +156,9 @@ func (c *messagingServiceClient) GetMessages(ctx context.Context, in *GetMessage
 	return out, nil
 }
 
-func (c *messagingServiceClient) SendMessage(ctx context.Context, in *SendMessageRequest, opts ...grpc.CallOption) (*Message, error) {
+func (c *messagingServiceClient) SendMessage(ctx context.Context, in *SendMessageRequest, opts ...grpc.CallOption) (*SendMessageResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Message)
+	out := new(SendMessageResponse)
 	err := c.cc.Invoke(ctx, MessagingService_SendMessage_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -166,18 +166,18 @@ func (c *messagingServiceClient) SendMessage(ctx context.Context, in *SendMessag
 	return out, nil
 }
 
-func (c *messagingServiceClient) SendVoiceMessage(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[SendVoiceMessageChunk, Message], error) {
+func (c *messagingServiceClient) SendVoiceMessage(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[SendVoiceMessageRequest, SendVoiceMessageResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &MessagingService_ServiceDesc.Streams[0], MessagingService_SendVoiceMessage_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &grpc.GenericClientStream[SendVoiceMessageChunk, Message]{ClientStream: stream}
+	x := &grpc.GenericClientStream[SendVoiceMessageRequest, SendVoiceMessageResponse]{ClientStream: stream}
 	return x, nil
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type MessagingService_SendVoiceMessageClient = grpc.ClientStreamingClient[SendVoiceMessageChunk, Message]
+type MessagingService_SendVoiceMessageClient = grpc.ClientStreamingClient[SendVoiceMessageRequest, SendVoiceMessageResponse]
 
 func (c *messagingServiceClient) DeleteMessage(ctx context.Context, in *DeleteMessageRequest, opts ...grpc.CallOption) (*DeleteMessageResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
@@ -199,9 +199,9 @@ func (c *messagingServiceClient) MarkMessageRead(ctx context.Context, in *MarkMe
 	return out, nil
 }
 
-func (c *messagingServiceClient) AddReaction(ctx context.Context, in *AddReactionRequest, opts ...grpc.CallOption) (*Reaction, error) {
+func (c *messagingServiceClient) AddReaction(ctx context.Context, in *AddReactionRequest, opts ...grpc.CallOption) (*AddReactionResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Reaction)
+	out := new(AddReactionResponse)
 	err := c.cc.Invoke(ctx, MessagingService_AddReaction_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -219,9 +219,9 @@ func (c *messagingServiceClient) RemoveReaction(ctx context.Context, in *RemoveR
 	return out, nil
 }
 
-func (c *messagingServiceClient) GetNotifications(ctx context.Context, in *GetNotificationsRequest, opts ...grpc.CallOption) (*NotificationList, error) {
+func (c *messagingServiceClient) GetNotifications(ctx context.Context, in *GetNotificationsRequest, opts ...grpc.CallOption) (*GetNotificationsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(NotificationList)
+	out := new(GetNotificationsResponse)
 	err := c.cc.Invoke(ctx, MessagingService_GetNotifications_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -249,9 +249,9 @@ func (c *messagingServiceClient) MarkAllNotificationsRead(ctx context.Context, i
 	return out, nil
 }
 
-func (c *messagingServiceClient) GetUserStatuses(ctx context.Context, in *GetUserStatusesRequest, opts ...grpc.CallOption) (*UserStatusList, error) {
+func (c *messagingServiceClient) GetUserStatuses(ctx context.Context, in *GetUserStatusesRequest, opts ...grpc.CallOption) (*GetUserStatusesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UserStatusList)
+	out := new(GetUserStatusesResponse)
 	err := c.cc.Invoke(ctx, MessagingService_GetUserStatuses_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -259,9 +259,9 @@ func (c *messagingServiceClient) GetUserStatuses(ctx context.Context, in *GetUse
 	return out, nil
 }
 
-func (c *messagingServiceClient) UpdateUserStatus(ctx context.Context, in *UpdateUserStatusRequest, opts ...grpc.CallOption) (*UserStatus, error) {
+func (c *messagingServiceClient) UpdateUserStatus(ctx context.Context, in *UpdateUserStatusRequest, opts ...grpc.CallOption) (*UpdateUserStatusResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UserStatus)
+	out := new(UpdateUserStatusResponse)
 	err := c.cc.Invoke(ctx, MessagingService_UpdateUserStatus_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -269,9 +269,9 @@ func (c *messagingServiceClient) UpdateUserStatus(ctx context.Context, in *Updat
 	return out, nil
 }
 
-func (c *messagingServiceClient) SearchMessages(ctx context.Context, in *SearchMessagesRequest, opts ...grpc.CallOption) (*MessageList, error) {
+func (c *messagingServiceClient) SearchMessages(ctx context.Context, in *SearchMessagesRequest, opts ...grpc.CallOption) (*SearchMessagesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(MessageList)
+	out := new(SearchMessagesResponse)
 	err := c.cc.Invoke(ctx, MessagingService_SearchMessages_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -279,9 +279,9 @@ func (c *messagingServiceClient) SearchMessages(ctx context.Context, in *SearchM
 	return out, nil
 }
 
-func (c *messagingServiceClient) GetDromDialogs(ctx context.Context, in *GetDromDialogsRequest, opts ...grpc.CallOption) (*DromDialogList, error) {
+func (c *messagingServiceClient) GetDromDialogs(ctx context.Context, in *GetDromDialogsRequest, opts ...grpc.CallOption) (*GetDromDialogsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(DromDialogList)
+	out := new(GetDromDialogsResponse)
 	err := c.cc.Invoke(ctx, MessagingService_GetDromDialogs_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -289,9 +289,9 @@ func (c *messagingServiceClient) GetDromDialogs(ctx context.Context, in *GetDrom
 	return out, nil
 }
 
-func (c *messagingServiceClient) GetDromMessages(ctx context.Context, in *GetDromMessagesRequest, opts ...grpc.CallOption) (*DromMessageList, error) {
+func (c *messagingServiceClient) GetDromMessages(ctx context.Context, in *GetDromMessagesRequest, opts ...grpc.CallOption) (*GetDromMessagesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(DromMessageList)
+	out := new(GetDromMessagesResponse)
 	err := c.cc.Invoke(ctx, MessagingService_GetDromMessages_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -314,33 +314,33 @@ func (c *messagingServiceClient) SendDromMessage(ctx context.Context, in *SendDr
 // for forward compatibility.
 type MessagingServiceServer interface {
 	// Conversations
-	GetConversations(context.Context, *GetConversationsRequest) (*ConversationList, error)
-	CreateConversation(context.Context, *CreateConversationRequest) (*Conversation, error)
-	GetConversation(context.Context, *GetConversationRequest) (*Conversation, error)
-	UpdateConversation(context.Context, *UpdateConversationRequest) (*Conversation, error)
+	GetConversations(context.Context, *GetConversationsRequest) (*GetConversationsResponse, error)
+	CreateConversation(context.Context, *CreateConversationRequest) (*CreateConversationResponse, error)
+	GetConversation(context.Context, *GetConversationRequest) (*GetConversationResponse, error)
+	UpdateConversation(context.Context, *UpdateConversationRequest) (*UpdateConversationResponse, error)
 	DeleteConversation(context.Context, *DeleteConversationRequest) (*DeleteConversationResponse, error)
 	RemoveParticipant(context.Context, *RemoveParticipantRequest) (*RemoveParticipantResponse, error)
 	// Messages
-	GetMessages(context.Context, *GetMessagesRequest) (*MessageList, error)
-	SendMessage(context.Context, *SendMessageRequest) (*Message, error)
-	SendVoiceMessage(grpc.ClientStreamingServer[SendVoiceMessageChunk, Message]) error
+	GetMessages(context.Context, *GetMessagesRequest) (*GetMessagesResponse, error)
+	SendMessage(context.Context, *SendMessageRequest) (*SendMessageResponse, error)
+	SendVoiceMessage(grpc.ClientStreamingServer[SendVoiceMessageRequest, SendVoiceMessageResponse]) error
 	DeleteMessage(context.Context, *DeleteMessageRequest) (*DeleteMessageResponse, error)
 	MarkMessageRead(context.Context, *MarkMessageReadRequest) (*MarkMessageReadResponse, error)
 	// Reactions
-	AddReaction(context.Context, *AddReactionRequest) (*Reaction, error)
+	AddReaction(context.Context, *AddReactionRequest) (*AddReactionResponse, error)
 	RemoveReaction(context.Context, *RemoveReactionRequest) (*RemoveReactionResponse, error)
 	// Notifications
-	GetNotifications(context.Context, *GetNotificationsRequest) (*NotificationList, error)
+	GetNotifications(context.Context, *GetNotificationsRequest) (*GetNotificationsResponse, error)
 	MarkNotificationRead(context.Context, *MarkNotificationReadRequest) (*MarkNotificationReadResponse, error)
 	MarkAllNotificationsRead(context.Context, *MarkAllNotificationsReadRequest) (*MarkAllNotificationsReadResponse, error)
 	// User Status
-	GetUserStatuses(context.Context, *GetUserStatusesRequest) (*UserStatusList, error)
-	UpdateUserStatus(context.Context, *UpdateUserStatusRequest) (*UserStatus, error)
+	GetUserStatuses(context.Context, *GetUserStatusesRequest) (*GetUserStatusesResponse, error)
+	UpdateUserStatus(context.Context, *UpdateUserStatusRequest) (*UpdateUserStatusResponse, error)
 	// Search
-	SearchMessages(context.Context, *SearchMessagesRequest) (*MessageList, error)
+	SearchMessages(context.Context, *SearchMessagesRequest) (*SearchMessagesResponse, error)
 	// Drom Integration
-	GetDromDialogs(context.Context, *GetDromDialogsRequest) (*DromDialogList, error)
-	GetDromMessages(context.Context, *GetDromMessagesRequest) (*DromMessageList, error)
+	GetDromDialogs(context.Context, *GetDromDialogsRequest) (*GetDromDialogsResponse, error)
+	GetDromMessages(context.Context, *GetDromMessagesRequest) (*GetDromMessagesResponse, error)
 	SendDromMessage(context.Context, *SendDromMessageRequest) (*SendDromMessageResponse, error)
 	mustEmbedUnimplementedMessagingServiceServer()
 }
@@ -352,16 +352,16 @@ type MessagingServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedMessagingServiceServer struct{}
 
-func (UnimplementedMessagingServiceServer) GetConversations(context.Context, *GetConversationsRequest) (*ConversationList, error) {
+func (UnimplementedMessagingServiceServer) GetConversations(context.Context, *GetConversationsRequest) (*GetConversationsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetConversations not implemented")
 }
-func (UnimplementedMessagingServiceServer) CreateConversation(context.Context, *CreateConversationRequest) (*Conversation, error) {
+func (UnimplementedMessagingServiceServer) CreateConversation(context.Context, *CreateConversationRequest) (*CreateConversationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateConversation not implemented")
 }
-func (UnimplementedMessagingServiceServer) GetConversation(context.Context, *GetConversationRequest) (*Conversation, error) {
+func (UnimplementedMessagingServiceServer) GetConversation(context.Context, *GetConversationRequest) (*GetConversationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetConversation not implemented")
 }
-func (UnimplementedMessagingServiceServer) UpdateConversation(context.Context, *UpdateConversationRequest) (*Conversation, error) {
+func (UnimplementedMessagingServiceServer) UpdateConversation(context.Context, *UpdateConversationRequest) (*UpdateConversationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateConversation not implemented")
 }
 func (UnimplementedMessagingServiceServer) DeleteConversation(context.Context, *DeleteConversationRequest) (*DeleteConversationResponse, error) {
@@ -370,13 +370,13 @@ func (UnimplementedMessagingServiceServer) DeleteConversation(context.Context, *
 func (UnimplementedMessagingServiceServer) RemoveParticipant(context.Context, *RemoveParticipantRequest) (*RemoveParticipantResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RemoveParticipant not implemented")
 }
-func (UnimplementedMessagingServiceServer) GetMessages(context.Context, *GetMessagesRequest) (*MessageList, error) {
+func (UnimplementedMessagingServiceServer) GetMessages(context.Context, *GetMessagesRequest) (*GetMessagesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetMessages not implemented")
 }
-func (UnimplementedMessagingServiceServer) SendMessage(context.Context, *SendMessageRequest) (*Message, error) {
+func (UnimplementedMessagingServiceServer) SendMessage(context.Context, *SendMessageRequest) (*SendMessageResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SendMessage not implemented")
 }
-func (UnimplementedMessagingServiceServer) SendVoiceMessage(grpc.ClientStreamingServer[SendVoiceMessageChunk, Message]) error {
+func (UnimplementedMessagingServiceServer) SendVoiceMessage(grpc.ClientStreamingServer[SendVoiceMessageRequest, SendVoiceMessageResponse]) error {
 	return status.Error(codes.Unimplemented, "method SendVoiceMessage not implemented")
 }
 func (UnimplementedMessagingServiceServer) DeleteMessage(context.Context, *DeleteMessageRequest) (*DeleteMessageResponse, error) {
@@ -385,13 +385,13 @@ func (UnimplementedMessagingServiceServer) DeleteMessage(context.Context, *Delet
 func (UnimplementedMessagingServiceServer) MarkMessageRead(context.Context, *MarkMessageReadRequest) (*MarkMessageReadResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method MarkMessageRead not implemented")
 }
-func (UnimplementedMessagingServiceServer) AddReaction(context.Context, *AddReactionRequest) (*Reaction, error) {
+func (UnimplementedMessagingServiceServer) AddReaction(context.Context, *AddReactionRequest) (*AddReactionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method AddReaction not implemented")
 }
 func (UnimplementedMessagingServiceServer) RemoveReaction(context.Context, *RemoveReactionRequest) (*RemoveReactionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RemoveReaction not implemented")
 }
-func (UnimplementedMessagingServiceServer) GetNotifications(context.Context, *GetNotificationsRequest) (*NotificationList, error) {
+func (UnimplementedMessagingServiceServer) GetNotifications(context.Context, *GetNotificationsRequest) (*GetNotificationsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetNotifications not implemented")
 }
 func (UnimplementedMessagingServiceServer) MarkNotificationRead(context.Context, *MarkNotificationReadRequest) (*MarkNotificationReadResponse, error) {
@@ -400,19 +400,19 @@ func (UnimplementedMessagingServiceServer) MarkNotificationRead(context.Context,
 func (UnimplementedMessagingServiceServer) MarkAllNotificationsRead(context.Context, *MarkAllNotificationsReadRequest) (*MarkAllNotificationsReadResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method MarkAllNotificationsRead not implemented")
 }
-func (UnimplementedMessagingServiceServer) GetUserStatuses(context.Context, *GetUserStatusesRequest) (*UserStatusList, error) {
+func (UnimplementedMessagingServiceServer) GetUserStatuses(context.Context, *GetUserStatusesRequest) (*GetUserStatusesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetUserStatuses not implemented")
 }
-func (UnimplementedMessagingServiceServer) UpdateUserStatus(context.Context, *UpdateUserStatusRequest) (*UserStatus, error) {
+func (UnimplementedMessagingServiceServer) UpdateUserStatus(context.Context, *UpdateUserStatusRequest) (*UpdateUserStatusResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateUserStatus not implemented")
 }
-func (UnimplementedMessagingServiceServer) SearchMessages(context.Context, *SearchMessagesRequest) (*MessageList, error) {
+func (UnimplementedMessagingServiceServer) SearchMessages(context.Context, *SearchMessagesRequest) (*SearchMessagesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SearchMessages not implemented")
 }
-func (UnimplementedMessagingServiceServer) GetDromDialogs(context.Context, *GetDromDialogsRequest) (*DromDialogList, error) {
+func (UnimplementedMessagingServiceServer) GetDromDialogs(context.Context, *GetDromDialogsRequest) (*GetDromDialogsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetDromDialogs not implemented")
 }
-func (UnimplementedMessagingServiceServer) GetDromMessages(context.Context, *GetDromMessagesRequest) (*DromMessageList, error) {
+func (UnimplementedMessagingServiceServer) GetDromMessages(context.Context, *GetDromMessagesRequest) (*GetDromMessagesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetDromMessages not implemented")
 }
 func (UnimplementedMessagingServiceServer) SendDromMessage(context.Context, *SendDromMessageRequest) (*SendDromMessageResponse, error) {
@@ -584,11 +584,11 @@ func _MessagingService_SendMessage_Handler(srv interface{}, ctx context.Context,
 }
 
 func _MessagingService_SendVoiceMessage_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(MessagingServiceServer).SendVoiceMessage(&grpc.GenericServerStream[SendVoiceMessageChunk, Message]{ServerStream: stream})
+	return srv.(MessagingServiceServer).SendVoiceMessage(&grpc.GenericServerStream[SendVoiceMessageRequest, SendVoiceMessageResponse]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type MessagingService_SendVoiceMessageServer = grpc.ClientStreamingServer[SendVoiceMessageChunk, Message]
+type MessagingService_SendVoiceMessageServer = grpc.ClientStreamingServer[SendVoiceMessageRequest, SendVoiceMessageResponse]
 
 func _MessagingService_DeleteMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DeleteMessageRequest)

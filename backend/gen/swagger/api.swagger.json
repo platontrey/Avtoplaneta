@@ -32,7 +32,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1ActivityLogList"
+              "$ref": "#/definitions/v1GetActivityLogsResponse"
             }
           },
           "default": {
@@ -134,7 +134,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1ServerLogsResponse"
+              "$ref": "#/definitions/v1GetServerLogsResponse"
             }
           },
           "default": {
@@ -269,7 +269,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1ServerStatus"
+              "$ref": "#/definitions/v1GetServerStatusResponse"
             }
           },
           "default": {
@@ -291,7 +291,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1SupplierCodesResponse"
+              "$ref": "#/definitions/v1GetSupplierCodesResponse"
             }
           },
           "default": {
@@ -374,7 +374,6 @@
     },
     "/api/v1/defect-reports/preview": {
       "post": {
-        "summary": "PreviewDefectReport возвращает ровно тот набор запчастей, который создаст\nCreateDefectReport. selected_parts в запросе игнорируется: набор строит сервер.",
         "operationId": "PartsService_PreviewDefectReport",
         "responses": {
           "200": {
@@ -413,7 +412,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1InventoryResponse"
+              "$ref": "#/definitions/v1GetInventoryResponse"
             }
           },
           "default": {
@@ -701,7 +700,7 @@
         "operationId": "PartsService_AddPart",
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "",
             "schema": {
               "$ref": "#/definitions/v1Part"
             }
@@ -733,7 +732,7 @@
         "operationId": "PartsService_GetPart",
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "",
             "schema": {
               "$ref": "#/definitions/v1Part"
             }
@@ -793,7 +792,7 @@
         "operationId": "PartsService_UpdatePart",
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "",
             "schema": {
               "$ref": "#/definitions/v1Part"
             }
@@ -835,7 +834,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1ChangePartQuantityResponse"
+              "$ref": "#/definitions/v1DecreasePartQuantityResponse"
             }
           },
           "default": {
@@ -872,7 +871,7 @@
         "operationId": "PartsService_DuplicatePart",
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "",
             "schema": {
               "$ref": "#/definitions/v1Part"
             }
@@ -905,7 +904,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1ChangePartQuantityResponse"
+              "$ref": "#/definitions/v1IncreasePartQuantityResponse"
             }
           },
           "default": {
@@ -942,7 +941,7 @@
         "operationId": "PartsService_MarkPartForDeletion",
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "",
             "schema": {
               "$ref": "#/definitions/v1Part"
             }
@@ -1021,7 +1020,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1StatisticsResponse"
+              "$ref": "#/definitions/v1GetStatisticsResponse"
             }
           },
           "default": {
@@ -1075,7 +1074,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1UserList"
+              "$ref": "#/definitions/v1GetUsersResponse"
             }
           },
           "default": {
@@ -1093,7 +1092,7 @@
         "operationId": "AuthService_CreateUser",
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "",
             "schema": {
               "$ref": "#/definitions/v1User"
             }
@@ -1126,7 +1125,7 @@
         "operationId": "AuthService_GetUser",
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "",
             "schema": {
               "$ref": "#/definitions/v1User"
             }
@@ -1184,7 +1183,7 @@
         "operationId": "AuthService_UpdateUser",
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "",
             "schema": {
               "$ref": "#/definitions/v1User"
             }
@@ -1475,22 +1474,6 @@
         }
       }
     },
-    "v1ActivityLogList": {
-      "type": "object",
-      "properties": {
-        "logs": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1ActivityLog"
-          }
-        },
-        "total": {
-          "type": "integer",
-          "format": "int32"
-        }
-      }
-    },
     "v1AddPartRequest": {
       "type": "object",
       "properties": {
@@ -1621,6 +1604,14 @@
         },
         "tireModel": {
           "type": "string"
+        }
+      }
+    },
+    "v1AddPartResponse": {
+      "type": "object",
+      "properties": {
+        "part": {
+          "$ref": "#/definitions/v1Part"
         }
       }
     },
@@ -1776,18 +1767,6 @@
         }
       }
     },
-    "v1ChangePartQuantityResponse": {
-      "type": "object",
-      "properties": {
-        "success": {
-          "type": "boolean"
-        },
-        "newQuantity": {
-          "type": "integer",
-          "format": "int32"
-        }
-      }
-    },
     "v1CreateDefectReportRequest": {
       "type": "object",
       "properties": {
@@ -1901,6 +1880,26 @@
         },
         "avatarUrl": {
           "type": "string"
+        }
+      }
+    },
+    "v1CreateUserResponse": {
+      "type": "object",
+      "properties": {
+        "user": {
+          "$ref": "#/definitions/v1User"
+        }
+      }
+    },
+    "v1DecreasePartQuantityResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "newQuantity": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     },
@@ -2045,6 +2044,30 @@
         }
       }
     },
+    "v1DuplicatePartResponse": {
+      "type": "object",
+      "properties": {
+        "part": {
+          "$ref": "#/definitions/v1Part"
+        }
+      }
+    },
+    "v1GetActivityLogsResponse": {
+      "type": "object",
+      "properties": {
+        "logs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ActivityLog"
+          }
+        },
+        "total": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
     "v1GetInventoryRequest": {
       "type": "object",
       "properties": {
@@ -2184,7 +2207,7 @@
         }
       }
     },
-    "v1InventoryResponse": {
+    "v1GetInventoryResponse": {
       "type": "object",
       "properties": {
         "parts": {
@@ -2203,6 +2226,152 @@
           "format": "int32"
         },
         "limit": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "v1GetPartResponse": {
+      "type": "object",
+      "properties": {
+        "part": {
+          "$ref": "#/definitions/v1Part"
+        }
+      }
+    },
+    "v1GetServerLogsResponse": {
+      "type": "object",
+      "properties": {
+        "logs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ServerLog"
+          }
+        }
+      }
+    },
+    "v1GetServerStatusResponse": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "uptimeSeconds": {
+          "type": "string",
+          "format": "int64"
+        },
+        "totalUsers": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "activeSessions": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "memoryUsageMb": {
+          "type": "number",
+          "format": "double"
+        },
+        "goroutines": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalParts": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "v1GetStatisticsResponse": {
+      "type": "object",
+      "properties": {
+        "totalParts": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalQuantity": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalValue": {
+          "type": "number",
+          "format": "double"
+        },
+        "totalEarnings": {
+          "type": "number",
+          "format": "double"
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1CategoryCount"
+          }
+        },
+        "monthlySales": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1MonthlySales"
+          }
+        },
+        "partsGrowth": {
+          "type": "number",
+          "format": "double"
+        },
+        "quantityGrowth": {
+          "type": "number",
+          "format": "double"
+        },
+        "valueGrowth": {
+          "type": "number",
+          "format": "double"
+        },
+        "earningsGrowth": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "v1GetSupplierCodesResponse": {
+      "type": "object",
+      "properties": {
+        "codes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1GetUserResponse": {
+      "type": "object",
+      "properties": {
+        "user": {
+          "$ref": "#/definitions/v1User"
+        }
+      }
+    },
+    "v1GetUsersResponse": {
+      "type": "object",
+      "properties": {
+        "users": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1User"
+          }
+        }
+      }
+    },
+    "v1IncreasePartQuantityResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "newQuantity": {
           "type": "integer",
           "format": "int32"
         }
@@ -2244,6 +2413,14 @@
     },
     "v1LogActivityResponse": {
       "type": "object"
+    },
+    "v1MarkPartForDeletionResponse": {
+      "type": "object",
+      "properties": {
+        "part": {
+          "$ref": "#/definitions/v1Part"
+        }
+      }
     },
     "v1MonthlySales": {
       "type": "object",
@@ -2507,112 +2684,6 @@
         }
       }
     },
-    "v1ServerLogsResponse": {
-      "type": "object",
-      "properties": {
-        "logs": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1ServerLog"
-          }
-        }
-      }
-    },
-    "v1ServerStatus": {
-      "type": "object",
-      "properties": {
-        "status": {
-          "type": "string"
-        },
-        "uptimeSeconds": {
-          "type": "string",
-          "format": "int64"
-        },
-        "totalUsers": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "activeSessions": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "memoryUsageMb": {
-          "type": "number",
-          "format": "double"
-        },
-        "goroutines": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "totalParts": {
-          "type": "integer",
-          "format": "int32"
-        }
-      }
-    },
-    "v1StatisticsResponse": {
-      "type": "object",
-      "properties": {
-        "totalParts": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "totalQuantity": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "totalValue": {
-          "type": "number",
-          "format": "double"
-        },
-        "totalEarnings": {
-          "type": "number",
-          "format": "double"
-        },
-        "categories": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1CategoryCount"
-          }
-        },
-        "monthlySales": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1MonthlySales"
-          }
-        },
-        "partsGrowth": {
-          "type": "number",
-          "format": "double"
-        },
-        "quantityGrowth": {
-          "type": "number",
-          "format": "double"
-        },
-        "valueGrowth": {
-          "type": "number",
-          "format": "double"
-        },
-        "earningsGrowth": {
-          "type": "number",
-          "format": "double"
-        }
-      }
-    },
-    "v1SupplierCodesResponse": {
-      "type": "object",
-      "properties": {
-        "codes": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      }
-    },
     "v1UpdateEarningsRequest": {
       "type": "object",
       "properties": {
@@ -2628,6 +2699,22 @@
         "totalEarnings": {
           "type": "number",
           "format": "double"
+        }
+      }
+    },
+    "v1UpdatePartResponse": {
+      "type": "object",
+      "properties": {
+        "part": {
+          "$ref": "#/definitions/v1Part"
+        }
+      }
+    },
+    "v1UpdateUserResponse": {
+      "type": "object",
+      "properties": {
+        "user": {
+          "$ref": "#/definitions/v1User"
         }
       }
     },
@@ -2661,18 +2748,6 @@
         },
         "avatarUrl": {
           "type": "string"
-        }
-      }
-    },
-    "v1UserList": {
-      "type": "object",
-      "properties": {
-        "users": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1User"
-          }
         }
       }
     },

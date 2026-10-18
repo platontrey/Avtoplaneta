@@ -32,13 +32,13 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type OrdersServiceClient interface {
-	CreateOrder(ctx context.Context, in *CreateOrderRequest, opts ...grpc.CallOption) (*Order, error)
-	GetOrders(ctx context.Context, in *GetOrdersRequest, opts ...grpc.CallOption) (*OrderList, error)
-	UpdateOrderStatus(ctx context.Context, in *UpdateOrderStatusRequest, opts ...grpc.CallOption) (*Order, error)
-	CompleteOrder(ctx context.Context, in *CompleteOrderRequest, opts ...grpc.CallOption) (*Order, error)
+	CreateOrder(ctx context.Context, in *CreateOrderRequest, opts ...grpc.CallOption) (*CreateOrderResponse, error)
+	GetOrders(ctx context.Context, in *GetOrdersRequest, opts ...grpc.CallOption) (*GetOrdersResponse, error)
+	UpdateOrderStatus(ctx context.Context, in *UpdateOrderStatusRequest, opts ...grpc.CallOption) (*UpdateOrderStatusResponse, error)
+	CompleteOrder(ctx context.Context, in *CompleteOrderRequest, opts ...grpc.CallOption) (*CompleteOrderResponse, error)
 	DeleteOrder(ctx context.Context, in *DeleteOrderRequest, opts ...grpc.CallOption) (*DeleteOrderResponse, error)
-	AddOrderItem(ctx context.Context, in *AddOrderItemRequest, opts ...grpc.CallOption) (*Order, error)
-	GetMonthlySales(ctx context.Context, in *GetMonthlySalesRequest, opts ...grpc.CallOption) (*MonthlySalesResponse, error)
+	AddOrderItem(ctx context.Context, in *AddOrderItemRequest, opts ...grpc.CallOption) (*AddOrderItemResponse, error)
+	GetMonthlySales(ctx context.Context, in *GetMonthlySalesRequest, opts ...grpc.CallOption) (*GetMonthlySalesResponse, error)
 }
 
 type ordersServiceClient struct {
@@ -49,9 +49,9 @@ func NewOrdersServiceClient(cc grpc.ClientConnInterface) OrdersServiceClient {
 	return &ordersServiceClient{cc}
 }
 
-func (c *ordersServiceClient) CreateOrder(ctx context.Context, in *CreateOrderRequest, opts ...grpc.CallOption) (*Order, error) {
+func (c *ordersServiceClient) CreateOrder(ctx context.Context, in *CreateOrderRequest, opts ...grpc.CallOption) (*CreateOrderResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Order)
+	out := new(CreateOrderResponse)
 	err := c.cc.Invoke(ctx, OrdersService_CreateOrder_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -59,9 +59,9 @@ func (c *ordersServiceClient) CreateOrder(ctx context.Context, in *CreateOrderRe
 	return out, nil
 }
 
-func (c *ordersServiceClient) GetOrders(ctx context.Context, in *GetOrdersRequest, opts ...grpc.CallOption) (*OrderList, error) {
+func (c *ordersServiceClient) GetOrders(ctx context.Context, in *GetOrdersRequest, opts ...grpc.CallOption) (*GetOrdersResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(OrderList)
+	out := new(GetOrdersResponse)
 	err := c.cc.Invoke(ctx, OrdersService_GetOrders_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -69,9 +69,9 @@ func (c *ordersServiceClient) GetOrders(ctx context.Context, in *GetOrdersReques
 	return out, nil
 }
 
-func (c *ordersServiceClient) UpdateOrderStatus(ctx context.Context, in *UpdateOrderStatusRequest, opts ...grpc.CallOption) (*Order, error) {
+func (c *ordersServiceClient) UpdateOrderStatus(ctx context.Context, in *UpdateOrderStatusRequest, opts ...grpc.CallOption) (*UpdateOrderStatusResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Order)
+	out := new(UpdateOrderStatusResponse)
 	err := c.cc.Invoke(ctx, OrdersService_UpdateOrderStatus_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -79,9 +79,9 @@ func (c *ordersServiceClient) UpdateOrderStatus(ctx context.Context, in *UpdateO
 	return out, nil
 }
 
-func (c *ordersServiceClient) CompleteOrder(ctx context.Context, in *CompleteOrderRequest, opts ...grpc.CallOption) (*Order, error) {
+func (c *ordersServiceClient) CompleteOrder(ctx context.Context, in *CompleteOrderRequest, opts ...grpc.CallOption) (*CompleteOrderResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Order)
+	out := new(CompleteOrderResponse)
 	err := c.cc.Invoke(ctx, OrdersService_CompleteOrder_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -99,9 +99,9 @@ func (c *ordersServiceClient) DeleteOrder(ctx context.Context, in *DeleteOrderRe
 	return out, nil
 }
 
-func (c *ordersServiceClient) AddOrderItem(ctx context.Context, in *AddOrderItemRequest, opts ...grpc.CallOption) (*Order, error) {
+func (c *ordersServiceClient) AddOrderItem(ctx context.Context, in *AddOrderItemRequest, opts ...grpc.CallOption) (*AddOrderItemResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Order)
+	out := new(AddOrderItemResponse)
 	err := c.cc.Invoke(ctx, OrdersService_AddOrderItem_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -109,9 +109,9 @@ func (c *ordersServiceClient) AddOrderItem(ctx context.Context, in *AddOrderItem
 	return out, nil
 }
 
-func (c *ordersServiceClient) GetMonthlySales(ctx context.Context, in *GetMonthlySalesRequest, opts ...grpc.CallOption) (*MonthlySalesResponse, error) {
+func (c *ordersServiceClient) GetMonthlySales(ctx context.Context, in *GetMonthlySalesRequest, opts ...grpc.CallOption) (*GetMonthlySalesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(MonthlySalesResponse)
+	out := new(GetMonthlySalesResponse)
 	err := c.cc.Invoke(ctx, OrdersService_GetMonthlySales_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -123,13 +123,13 @@ func (c *ordersServiceClient) GetMonthlySales(ctx context.Context, in *GetMonthl
 // All implementations must embed UnimplementedOrdersServiceServer
 // for forward compatibility.
 type OrdersServiceServer interface {
-	CreateOrder(context.Context, *CreateOrderRequest) (*Order, error)
-	GetOrders(context.Context, *GetOrdersRequest) (*OrderList, error)
-	UpdateOrderStatus(context.Context, *UpdateOrderStatusRequest) (*Order, error)
-	CompleteOrder(context.Context, *CompleteOrderRequest) (*Order, error)
+	CreateOrder(context.Context, *CreateOrderRequest) (*CreateOrderResponse, error)
+	GetOrders(context.Context, *GetOrdersRequest) (*GetOrdersResponse, error)
+	UpdateOrderStatus(context.Context, *UpdateOrderStatusRequest) (*UpdateOrderStatusResponse, error)
+	CompleteOrder(context.Context, *CompleteOrderRequest) (*CompleteOrderResponse, error)
 	DeleteOrder(context.Context, *DeleteOrderRequest) (*DeleteOrderResponse, error)
-	AddOrderItem(context.Context, *AddOrderItemRequest) (*Order, error)
-	GetMonthlySales(context.Context, *GetMonthlySalesRequest) (*MonthlySalesResponse, error)
+	AddOrderItem(context.Context, *AddOrderItemRequest) (*AddOrderItemResponse, error)
+	GetMonthlySales(context.Context, *GetMonthlySalesRequest) (*GetMonthlySalesResponse, error)
 	mustEmbedUnimplementedOrdersServiceServer()
 }
 
@@ -140,25 +140,25 @@ type OrdersServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedOrdersServiceServer struct{}
 
-func (UnimplementedOrdersServiceServer) CreateOrder(context.Context, *CreateOrderRequest) (*Order, error) {
+func (UnimplementedOrdersServiceServer) CreateOrder(context.Context, *CreateOrderRequest) (*CreateOrderResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateOrder not implemented")
 }
-func (UnimplementedOrdersServiceServer) GetOrders(context.Context, *GetOrdersRequest) (*OrderList, error) {
+func (UnimplementedOrdersServiceServer) GetOrders(context.Context, *GetOrdersRequest) (*GetOrdersResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetOrders not implemented")
 }
-func (UnimplementedOrdersServiceServer) UpdateOrderStatus(context.Context, *UpdateOrderStatusRequest) (*Order, error) {
+func (UnimplementedOrdersServiceServer) UpdateOrderStatus(context.Context, *UpdateOrderStatusRequest) (*UpdateOrderStatusResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateOrderStatus not implemented")
 }
-func (UnimplementedOrdersServiceServer) CompleteOrder(context.Context, *CompleteOrderRequest) (*Order, error) {
+func (UnimplementedOrdersServiceServer) CompleteOrder(context.Context, *CompleteOrderRequest) (*CompleteOrderResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CompleteOrder not implemented")
 }
 func (UnimplementedOrdersServiceServer) DeleteOrder(context.Context, *DeleteOrderRequest) (*DeleteOrderResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteOrder not implemented")
 }
-func (UnimplementedOrdersServiceServer) AddOrderItem(context.Context, *AddOrderItemRequest) (*Order, error) {
+func (UnimplementedOrdersServiceServer) AddOrderItem(context.Context, *AddOrderItemRequest) (*AddOrderItemResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method AddOrderItem not implemented")
 }
-func (UnimplementedOrdersServiceServer) GetMonthlySales(context.Context, *GetMonthlySalesRequest) (*MonthlySalesResponse, error) {
+func (UnimplementedOrdersServiceServer) GetMonthlySales(context.Context, *GetMonthlySalesRequest) (*GetMonthlySalesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetMonthlySales not implemented")
 }
 func (UnimplementedOrdersServiceServer) mustEmbedUnimplementedOrdersServiceServer() {}

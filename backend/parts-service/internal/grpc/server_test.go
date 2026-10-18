@@ -224,7 +224,7 @@ func TestPartsGRPCServerAddPartKeepsCarReleasePeriod(t *testing.T) {
 		CarReleasePeriod: "2001-2007",
 	})
 	require.NoError(t, err)
-	require.Equal(t, "2001-2007", created.CarReleasePeriod)
+	require.Equal(t, "2001-2007", created.GetPart().GetCarReleasePeriod())
 	require.Equal(t, "2001-2007", service.snapshot()[0].CarReleasePeriod)
 }
 
@@ -279,10 +279,10 @@ func TestPartsGRPCServerDuplicatePart(t *testing.T) {
 	require.NoError(t, err)
 
 	dup, err := server.DuplicatePart(context.Background(), &partsv1.DuplicatePartRequest{
-		Id: created.Id,
+		Id: created.GetPart().GetId(),
 	})
 	require.NoError(t, err)
-	require.NotEqual(t, created.Id, dup.Id)
-	require.Equal(t, created.Name, dup.Name)
-	require.Empty(t, dup.Photos)
+	require.NotEqual(t, created.GetPart().GetId(), dup.GetPart().GetId())
+	require.Equal(t, created.GetPart().GetName(), dup.GetPart().GetName())
+	require.Empty(t, dup.GetPart().GetPhotos())
 }

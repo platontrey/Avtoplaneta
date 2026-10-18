@@ -29,14 +29,24 @@ vehicle-catalog:
 proto-lint:
 	cd proto && buf lint
 
-# Очистка сгенерированного кода
-proto-clean:
-	rm -rf gen/
+# Автоформатирование proto-файлов
+proto-format:
+	cd proto && buf format -w
 
-# Установка зависимостей для protobuf
+# Проверка обратной совместимости API относительно ветки main
+proto-breaking:
+	cd proto && buf breaking --against '.git#branch=main'
+
+# Очистка сгенерированного кода (сохраняя go.mod и go.sum)
+proto-clean:
+	rm -rf gen/auth gen/messaging gen/orders gen/parts gen/swagger gen/google
+
+# Установка зависимостей для protobuf и Buf тулчейна
 proto-deps:
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest
+	go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest
 	go install github.com/bufbuild/buf/cmd/buf@latest
 
 # Полная перегенерация

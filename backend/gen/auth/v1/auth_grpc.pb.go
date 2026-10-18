@@ -38,17 +38,17 @@ type AuthServiceClient interface {
 	// Валидация сессии — горячий путь, вызывается на каждый защищённый запрос
 	ValidateSession(ctx context.Context, in *ValidateSessionRequest, opts ...grpc.CallOption) (*ValidateSessionResponse, error)
 	// CRUD пользователей
-	GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*User, error)
-	GetUsers(ctx context.Context, in *GetUsersRequest, opts ...grpc.CallOption) (*UserList, error)
-	CreateUser(ctx context.Context, in *CreateUserRequest, opts ...grpc.CallOption) (*User, error)
-	UpdateUser(ctx context.Context, in *UpdateUserRequest, opts ...grpc.CallOption) (*User, error)
+	GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*GetUserResponse, error)
+	GetUsers(ctx context.Context, in *GetUsersRequest, opts ...grpc.CallOption) (*GetUsersResponse, error)
+	CreateUser(ctx context.Context, in *CreateUserRequest, opts ...grpc.CallOption) (*CreateUserResponse, error)
+	UpdateUser(ctx context.Context, in *UpdateUserRequest, opts ...grpc.CallOption) (*UpdateUserResponse, error)
 	DeleteUser(ctx context.Context, in *DeleteUserRequest, opts ...grpc.CallOption) (*DeleteUserResponse, error)
 	// Активность
 	LogActivity(ctx context.Context, in *LogActivityRequest, opts ...grpc.CallOption) (*LogActivityResponse, error)
-	GetActivityLogs(ctx context.Context, in *GetActivityLogsRequest, opts ...grpc.CallOption) (*ActivityLogList, error)
+	GetActivityLogs(ctx context.Context, in *GetActivityLogsRequest, opts ...grpc.CallOption) (*GetActivityLogsResponse, error)
 	// Админ
-	GetServerStatus(ctx context.Context, in *GetServerStatusRequest, opts ...grpc.CallOption) (*ServerStatus, error)
-	GetServerLogs(ctx context.Context, in *GetServerLogsRequest, opts ...grpc.CallOption) (*ServerLogsResponse, error)
+	GetServerStatus(ctx context.Context, in *GetServerStatusRequest, opts ...grpc.CallOption) (*GetServerStatusResponse, error)
+	GetServerLogs(ctx context.Context, in *GetServerLogsRequest, opts ...grpc.CallOption) (*GetServerLogsResponse, error)
 }
 
 type authServiceClient struct {
@@ -69,9 +69,9 @@ func (c *authServiceClient) ValidateSession(ctx context.Context, in *ValidateSes
 	return out, nil
 }
 
-func (c *authServiceClient) GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*User, error) {
+func (c *authServiceClient) GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*GetUserResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(User)
+	out := new(GetUserResponse)
 	err := c.cc.Invoke(ctx, AuthService_GetUser_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -79,9 +79,9 @@ func (c *authServiceClient) GetUser(ctx context.Context, in *GetUserRequest, opt
 	return out, nil
 }
 
-func (c *authServiceClient) GetUsers(ctx context.Context, in *GetUsersRequest, opts ...grpc.CallOption) (*UserList, error) {
+func (c *authServiceClient) GetUsers(ctx context.Context, in *GetUsersRequest, opts ...grpc.CallOption) (*GetUsersResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UserList)
+	out := new(GetUsersResponse)
 	err := c.cc.Invoke(ctx, AuthService_GetUsers_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -89,9 +89,9 @@ func (c *authServiceClient) GetUsers(ctx context.Context, in *GetUsersRequest, o
 	return out, nil
 }
 
-func (c *authServiceClient) CreateUser(ctx context.Context, in *CreateUserRequest, opts ...grpc.CallOption) (*User, error) {
+func (c *authServiceClient) CreateUser(ctx context.Context, in *CreateUserRequest, opts ...grpc.CallOption) (*CreateUserResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(User)
+	out := new(CreateUserResponse)
 	err := c.cc.Invoke(ctx, AuthService_CreateUser_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -99,9 +99,9 @@ func (c *authServiceClient) CreateUser(ctx context.Context, in *CreateUserReques
 	return out, nil
 }
 
-func (c *authServiceClient) UpdateUser(ctx context.Context, in *UpdateUserRequest, opts ...grpc.CallOption) (*User, error) {
+func (c *authServiceClient) UpdateUser(ctx context.Context, in *UpdateUserRequest, opts ...grpc.CallOption) (*UpdateUserResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(User)
+	out := new(UpdateUserResponse)
 	err := c.cc.Invoke(ctx, AuthService_UpdateUser_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -129,9 +129,9 @@ func (c *authServiceClient) LogActivity(ctx context.Context, in *LogActivityRequ
 	return out, nil
 }
 
-func (c *authServiceClient) GetActivityLogs(ctx context.Context, in *GetActivityLogsRequest, opts ...grpc.CallOption) (*ActivityLogList, error) {
+func (c *authServiceClient) GetActivityLogs(ctx context.Context, in *GetActivityLogsRequest, opts ...grpc.CallOption) (*GetActivityLogsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ActivityLogList)
+	out := new(GetActivityLogsResponse)
 	err := c.cc.Invoke(ctx, AuthService_GetActivityLogs_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -139,9 +139,9 @@ func (c *authServiceClient) GetActivityLogs(ctx context.Context, in *GetActivity
 	return out, nil
 }
 
-func (c *authServiceClient) GetServerStatus(ctx context.Context, in *GetServerStatusRequest, opts ...grpc.CallOption) (*ServerStatus, error) {
+func (c *authServiceClient) GetServerStatus(ctx context.Context, in *GetServerStatusRequest, opts ...grpc.CallOption) (*GetServerStatusResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ServerStatus)
+	out := new(GetServerStatusResponse)
 	err := c.cc.Invoke(ctx, AuthService_GetServerStatus_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -149,9 +149,9 @@ func (c *authServiceClient) GetServerStatus(ctx context.Context, in *GetServerSt
 	return out, nil
 }
 
-func (c *authServiceClient) GetServerLogs(ctx context.Context, in *GetServerLogsRequest, opts ...grpc.CallOption) (*ServerLogsResponse, error) {
+func (c *authServiceClient) GetServerLogs(ctx context.Context, in *GetServerLogsRequest, opts ...grpc.CallOption) (*GetServerLogsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ServerLogsResponse)
+	out := new(GetServerLogsResponse)
 	err := c.cc.Invoke(ctx, AuthService_GetServerLogs_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -166,17 +166,17 @@ type AuthServiceServer interface {
 	// Валидация сессии — горячий путь, вызывается на каждый защищённый запрос
 	ValidateSession(context.Context, *ValidateSessionRequest) (*ValidateSessionResponse, error)
 	// CRUD пользователей
-	GetUser(context.Context, *GetUserRequest) (*User, error)
-	GetUsers(context.Context, *GetUsersRequest) (*UserList, error)
-	CreateUser(context.Context, *CreateUserRequest) (*User, error)
-	UpdateUser(context.Context, *UpdateUserRequest) (*User, error)
+	GetUser(context.Context, *GetUserRequest) (*GetUserResponse, error)
+	GetUsers(context.Context, *GetUsersRequest) (*GetUsersResponse, error)
+	CreateUser(context.Context, *CreateUserRequest) (*CreateUserResponse, error)
+	UpdateUser(context.Context, *UpdateUserRequest) (*UpdateUserResponse, error)
 	DeleteUser(context.Context, *DeleteUserRequest) (*DeleteUserResponse, error)
 	// Активность
 	LogActivity(context.Context, *LogActivityRequest) (*LogActivityResponse, error)
-	GetActivityLogs(context.Context, *GetActivityLogsRequest) (*ActivityLogList, error)
+	GetActivityLogs(context.Context, *GetActivityLogsRequest) (*GetActivityLogsResponse, error)
 	// Админ
-	GetServerStatus(context.Context, *GetServerStatusRequest) (*ServerStatus, error)
-	GetServerLogs(context.Context, *GetServerLogsRequest) (*ServerLogsResponse, error)
+	GetServerStatus(context.Context, *GetServerStatusRequest) (*GetServerStatusResponse, error)
+	GetServerLogs(context.Context, *GetServerLogsRequest) (*GetServerLogsResponse, error)
 	mustEmbedUnimplementedAuthServiceServer()
 }
 
@@ -190,16 +190,16 @@ type UnimplementedAuthServiceServer struct{}
 func (UnimplementedAuthServiceServer) ValidateSession(context.Context, *ValidateSessionRequest) (*ValidateSessionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ValidateSession not implemented")
 }
-func (UnimplementedAuthServiceServer) GetUser(context.Context, *GetUserRequest) (*User, error) {
+func (UnimplementedAuthServiceServer) GetUser(context.Context, *GetUserRequest) (*GetUserResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetUser not implemented")
 }
-func (UnimplementedAuthServiceServer) GetUsers(context.Context, *GetUsersRequest) (*UserList, error) {
+func (UnimplementedAuthServiceServer) GetUsers(context.Context, *GetUsersRequest) (*GetUsersResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetUsers not implemented")
 }
-func (UnimplementedAuthServiceServer) CreateUser(context.Context, *CreateUserRequest) (*User, error) {
+func (UnimplementedAuthServiceServer) CreateUser(context.Context, *CreateUserRequest) (*CreateUserResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateUser not implemented")
 }
-func (UnimplementedAuthServiceServer) UpdateUser(context.Context, *UpdateUserRequest) (*User, error) {
+func (UnimplementedAuthServiceServer) UpdateUser(context.Context, *UpdateUserRequest) (*UpdateUserResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateUser not implemented")
 }
 func (UnimplementedAuthServiceServer) DeleteUser(context.Context, *DeleteUserRequest) (*DeleteUserResponse, error) {
@@ -208,13 +208,13 @@ func (UnimplementedAuthServiceServer) DeleteUser(context.Context, *DeleteUserReq
 func (UnimplementedAuthServiceServer) LogActivity(context.Context, *LogActivityRequest) (*LogActivityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method LogActivity not implemented")
 }
-func (UnimplementedAuthServiceServer) GetActivityLogs(context.Context, *GetActivityLogsRequest) (*ActivityLogList, error) {
+func (UnimplementedAuthServiceServer) GetActivityLogs(context.Context, *GetActivityLogsRequest) (*GetActivityLogsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetActivityLogs not implemented")
 }
-func (UnimplementedAuthServiceServer) GetServerStatus(context.Context, *GetServerStatusRequest) (*ServerStatus, error) {
+func (UnimplementedAuthServiceServer) GetServerStatus(context.Context, *GetServerStatusRequest) (*GetServerStatusResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetServerStatus not implemented")
 }
-func (UnimplementedAuthServiceServer) GetServerLogs(context.Context, *GetServerLogsRequest) (*ServerLogsResponse, error) {
+func (UnimplementedAuthServiceServer) GetServerLogs(context.Context, *GetServerLogsRequest) (*GetServerLogsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetServerLogs not implemented")
 }
 func (UnimplementedAuthServiceServer) mustEmbedUnimplementedAuthServiceServer() {}

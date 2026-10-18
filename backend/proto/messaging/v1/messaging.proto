@@ -1,44 +1,46 @@
 syntax = "proto3";
 package messaging.v1;
-option go_package = "avtoplaneta/gen/messaging/v1;messagingv1";
 
+import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
+
+option go_package = "avtoplaneta/gen/messaging/v1;messagingv1";
 
 service MessagingService {
   // Conversations
-  rpc GetConversations(GetConversationsRequest) returns (ConversationList);
-  rpc CreateConversation(CreateConversationRequest) returns (Conversation);
-  rpc GetConversation(GetConversationRequest) returns (Conversation);
-  rpc UpdateConversation(UpdateConversationRequest) returns (Conversation);
+  rpc GetConversations(GetConversationsRequest) returns (GetConversationsResponse);
+  rpc CreateConversation(CreateConversationRequest) returns (CreateConversationResponse);
+  rpc GetConversation(GetConversationRequest) returns (GetConversationResponse);
+  rpc UpdateConversation(UpdateConversationRequest) returns (UpdateConversationResponse);
   rpc DeleteConversation(DeleteConversationRequest) returns (DeleteConversationResponse);
   rpc RemoveParticipant(RemoveParticipantRequest) returns (RemoveParticipantResponse);
 
   // Messages
-  rpc GetMessages(GetMessagesRequest) returns (MessageList);
-  rpc SendMessage(SendMessageRequest) returns (Message);
-  rpc SendVoiceMessage(stream SendVoiceMessageChunk) returns (Message);
+  rpc GetMessages(GetMessagesRequest) returns (GetMessagesResponse);
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  rpc SendVoiceMessage(stream SendVoiceMessageRequest) returns (SendVoiceMessageResponse);
   rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
   rpc MarkMessageRead(MarkMessageReadRequest) returns (MarkMessageReadResponse);
 
   // Reactions
-  rpc AddReaction(AddReactionRequest) returns (Reaction);
+  rpc AddReaction(AddReactionRequest) returns (AddReactionResponse);
   rpc RemoveReaction(RemoveReactionRequest) returns (RemoveReactionResponse);
 
   // Notifications
-  rpc GetNotifications(GetNotificationsRequest) returns (NotificationList);
+  rpc GetNotifications(GetNotificationsRequest) returns (GetNotificationsResponse);
   rpc MarkNotificationRead(MarkNotificationReadRequest) returns (MarkNotificationReadResponse);
   rpc MarkAllNotificationsRead(MarkAllNotificationsReadRequest) returns (MarkAllNotificationsReadResponse);
 
   // User Status
-  rpc GetUserStatuses(GetUserStatusesRequest) returns (UserStatusList);
-  rpc UpdateUserStatus(UpdateUserStatusRequest) returns (UserStatus);
+  rpc GetUserStatuses(GetUserStatusesRequest) returns (GetUserStatusesResponse);
+  rpc UpdateUserStatus(UpdateUserStatusRequest) returns (UpdateUserStatusResponse);
 
   // Search
-  rpc SearchMessages(SearchMessagesRequest) returns (MessageList);
+  rpc SearchMessages(SearchMessagesRequest) returns (SearchMessagesResponse);
 
   // Drom Integration
-  rpc GetDromDialogs(GetDromDialogsRequest) returns (DromDialogList);
-  rpc GetDromMessages(GetDromMessagesRequest) returns (DromMessageList);
+  rpc GetDromDialogs(GetDromDialogsRequest) returns (GetDromDialogsResponse);
+  rpc GetDromMessages(GetDromMessagesRequest) returns (GetDromMessagesResponse);
   rpc SendDromMessage(SendDromMessageRequest) returns (SendDromMessageResponse);
 }
 
@@ -54,12 +56,12 @@ message Conversation {
   int32 unread_count = 7;
 }
 
-message ConversationList {
-  repeated Conversation conversations = 1;
+message GetConversationsRequest {
+  int64 user_id = 1 [(buf.validate.field).int64.gt = 0];
 }
 
-message GetConversationsRequest {
-  int64 user_id = 1;
+message GetConversationsResponse {
+  repeated Conversation conversations = 1;
 }
 
 message CreateConversationRequest {
@@ -67,25 +69,37 @@ message CreateConversationRequest {
   string title = 2;
 }
 
+message CreateConversationResponse {
+  Conversation conversation = 1;
+}
+
 message GetConversationRequest {
-  int64 id = 1;
+  int64 id = 1 [(buf.validate.field).int64.gt = 0];
+}
+
+message GetConversationResponse {
+  Conversation conversation = 1;
 }
 
 message UpdateConversationRequest {
-  int64 id = 1;
-  string title = 2;
+  int64 id = 1 [(buf.validate.field).int64.gt = 0];
+  string title = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message UpdateConversationResponse {
+  Conversation conversation = 1;
 }
 
 message DeleteConversationRequest {
-  int64 id = 1;
+  int64 id = 1 [(buf.validate.field).int64.gt = 0];
 }
 
 message DeleteConversationResponse {}
 
 message RemoveParticipantRequest {
-  int64 conversation_id = 1;
-  int64 user_id = 2;
-  int64 requester_id = 3; // кто удаляет
+  int64 conversation_id = 1 [(buf.validate.field).int64.gt = 0];
+  int64 user_id = 2 [(buf.validate.field).int64.gt = 0];
+  int64 requester_id = 3 [(buf.validate.field).int64.gt = 0]; // кто удаляет
 }
 
 message RemoveParticipantResponse {}
@@ -121,40 +135,48 @@ message Message {
   repeated Reaction reactions = 11;
 }
 
-message MessageList {
-  repeated Message messages = 1;
-}
-
 message GetMessagesRequest {
-  int64 conversation_id = 1;
+  int64 conversation_id = 1 [(buf.validate.field).int64.gt = 0];
   int32 limit = 2;
   int32 offset = 3;
 }
 
+message GetMessagesResponse {
+  repeated Message messages = 1;
+}
+
 message SendMessageRequest {
-  int64 conversation_id = 1;
-  int64 sender_id = 2;
-  string content = 3;
+  int64 conversation_id = 1 [(buf.validate.field).int64.gt = 0];
+  int64 sender_id = 2 [(buf.validate.field).int64.gt = 0];
+  string content = 3 [(buf.validate.field).string.min_len = 1];
   repeated string attachments = 4;
 }
 
-message SendVoiceMessageChunk {
-  int64 conversation_id = 1;
-  int64 sender_id = 2;
+message SendMessageResponse {
+  Message message = 1;
+}
+
+message SendVoiceMessageRequest {
+  int64 conversation_id = 1 [(buf.validate.field).int64.gt = 0];
+  int64 sender_id = 2 [(buf.validate.field).int64.gt = 0];
   string filename = 3;
   string content_type = 4;
   bytes data = 5;
 }
 
+message SendVoiceMessageResponse {
+  Message message = 1;
+}
+
 message DeleteMessageRequest {
-  int64 id = 1;
+  int64 id = 1 [(buf.validate.field).int64.gt = 0];
 }
 
 message DeleteMessageResponse {}
 
 message MarkMessageReadRequest {
-  int64 message_id = 1;
-  int64 user_id = 2;
+  int64 message_id = 1 [(buf.validate.field).int64.gt = 0];
+  int64 user_id = 2 [(buf.validate.field).int64.gt = 0];
 }
 
 message MarkMessageReadResponse {}
@@ -162,13 +184,17 @@ message MarkMessageReadResponse {}
 // ─── Reactions ──────────────────────────────────────────────────────────────
 
 message AddReactionRequest {
-  int64 message_id = 1;
-  int64 user_id = 2;
-  string emoji = 3;
+  int64 message_id = 1 [(buf.validate.field).int64.gt = 0];
+  int64 user_id = 2 [(buf.validate.field).int64.gt = 0];
+  string emoji = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+message AddReactionResponse {
+  Reaction reaction = 1;
 }
 
 message RemoveReactionRequest {
-  int64 reaction_id = 1;
+  int64 reaction_id = 1 [(buf.validate.field).int64.gt = 0];
 }
 
 message RemoveReactionResponse {}
@@ -185,22 +211,22 @@ message Notification {
   int64 related_id = 7;
 }
 
-message NotificationList {
+message GetNotificationsRequest {
+  int64 user_id = 1 [(buf.validate.field).int64.gt = 0];
+}
+
+message GetNotificationsResponse {
   repeated Notification notifications = 1;
 }
 
-message GetNotificationsRequest {
-  int64 user_id = 1;
-}
-
 message MarkNotificationReadRequest {
-  int64 id = 1;
+  int64 id = 1 [(buf.validate.field).int64.gt = 0];
 }
 
 message MarkNotificationReadResponse {}
 
 message MarkAllNotificationsReadRequest {
-  int64 user_id = 1;
+  int64 user_id = 1 [(buf.validate.field).int64.gt = 0];
 }
 
 message MarkAllNotificationsReadResponse {}
@@ -214,26 +240,34 @@ message UserStatus {
   google.protobuf.Timestamp last_seen = 4;
 }
 
-message UserStatusList {
-  repeated UserStatus statuses = 1;
-}
-
 message GetUserStatusesRequest {
   repeated int64 user_ids = 1;
 }
 
+message GetUserStatusesResponse {
+  repeated UserStatus statuses = 1;
+}
+
 message UpdateUserStatusRequest {
-  int64 user_id = 1;
+  int64 user_id = 1 [(buf.validate.field).int64.gt = 0];
   bool is_online = 2;
+}
+
+message UpdateUserStatusResponse {
+  UserStatus status = 1;
 }
 
 // ─── Search ─────────────────────────────────────────────────────────────────
 
 message SearchMessagesRequest {
-  string query = 1;
+  string query = 1 [(buf.validate.field).string.min_len = 1];
   int64 user_id = 2;
   int32 limit = 3;
   int32 offset = 4;
+}
+
+message SearchMessagesResponse {
+  repeated Message messages = 1;
 }
 
 // ─── Drom Integration ───────────────────────────────────────────────────────
@@ -255,7 +289,9 @@ message DromDialog {
   string user_status = 14;
 }
 
-message DromDialogList {
+message GetDromDialogsRequest {}
+
+message GetDromDialogsResponse {
   repeated DromDialog dialogs = 1;
 }
 
@@ -271,20 +307,18 @@ message DromMessage {
   string created_at = 9;
 }
 
-message DromMessageList {
+message GetDromMessagesRequest {
+  string dialog_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetDromMessagesResponse {
   repeated DromMessage messages = 1;
   DromDialog dialog = 2;
 }
 
-message GetDromDialogsRequest {}
-
-message GetDromMessagesRequest {
-  string dialog_id = 1;
-}
-
 message SendDromMessageRequest {
-  string dialog_id = 1;
-  string content = 2;
+  string dialog_id = 1 [(buf.validate.field).string.min_len = 1];
+  string content = 2 [(buf.validate.field).string.min_len = 1];
 }
 
 message SendDromMessageResponse {

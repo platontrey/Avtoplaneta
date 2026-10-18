@@ -52,23 +52,24 @@ func (c *partsGRPCClient) GetPartByID(ctx context.Context, id int64) (*domain.Pa
 		return nil, err
 	}
 
+	p := resp.GetPart()
 	photo := ""
-	if len(resp.Photos) > 0 {
-		photo = resp.Photos[0]
+	if len(p.GetPhotos()) > 0 {
+		photo = p.GetPhotos()[0]
 	}
 
 	return &domain.Part{
-		ID:       resp.GetId(),
-		Name:     resp.GetName(),
-		Quantity: int(resp.GetQuantity()),
-		Price:    resp.GetPrice(),
-		Location: resp.GetLocation(),
+		ID:       p.GetId(),
+		Name:     p.GetName(),
+		Quantity: int(p.GetQuantity()),
+		Price:    p.GetPrice(),
+		Location: p.GetLocation(),
 		Photo:    photo,
 	}, nil
 }
 
 func (c *partsGRPCClient) DecreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error {
-	req := &partsv1.ChangePartQuantityRequest{
+	req := &partsv1.DecreasePartQuantityRequest{
 		Id:          id,
 		Amount:      int32(amount),
 		OperationId: operationID,
@@ -78,7 +79,7 @@ func (c *partsGRPCClient) DecreaseQuantity(ctx context.Context, id int64, amount
 }
 
 func (c *partsGRPCClient) IncreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error {
-	req := &partsv1.ChangePartQuantityRequest{
+	req := &partsv1.IncreasePartQuantityRequest{
 		Id:          id,
 		Amount:      int32(amount),
 		OperationId: operationID,

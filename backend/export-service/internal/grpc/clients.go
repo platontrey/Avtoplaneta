@@ -84,7 +84,9 @@ func (c *Clients) PartsForExport(ctx context.Context) ([]domain.Part, error) {
 		if err != nil {
 			return nil, fmt.Errorf("читать запчасть из потока: %w", err)
 		}
-		parts = append(parts, partFromProto(item))
+		if item.GetPart() != nil {
+			parts = append(parts, partFromProto(item.GetPart()))
+		}
 	}
 	return parts, nil
 }
@@ -98,7 +100,7 @@ func (c *Clients) GetPart(ctx context.Context, partID int64) (*domain.Part, erro
 	if err != nil {
 		return nil, fmt.Errorf("запросить деталь %d: %w", partID, err)
 	}
-	part := partFromProto(resp)
+	part := partFromProto(resp.GetPart())
 	return &part, nil
 }
 
@@ -112,9 +114,9 @@ func (c *Clients) SellerINNs(ctx context.Context) (map[int64]string, error) {
 		return nil, fmt.Errorf("запросить продавцов: %w", err)
 	}
 
-	inns := make(map[int64]string, len(resp.Users))
-	for _, user := range resp.Users {
-		if user.Inn != "" {
+	inns := make(map[int64]string, len(resp.GetUsers()))
+	for _, user := range resp.GetUsers() {
+		if user.GetInn() != "" {
 			inns[user.GetId()] = user.GetInn()
 		}
 	}

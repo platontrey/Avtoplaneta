@@ -1,9 +1,11 @@
 syntax = "proto3";
 package auth.v1;
-option go_package = "avtoplaneta/gen/auth/v1;authv1";
 
-import "google/protobuf/timestamp.proto";
+import "buf/validate/validate.proto";
 import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "avtoplaneta/gen/auth/v1;authv1";
 
 service AuthService {
   // Валидация сессии — горячий путь, вызывается на каждый защищённый запрос
@@ -15,36 +17,35 @@ service AuthService {
   }
 
   // CRUD пользователей
-  rpc GetUser(GetUserRequest) returns (User) {
+  rpc GetUser(GetUserRequest) returns (GetUserResponse) {
     option (google.api.http) = {
       get: "/api/v1/users/{id}"
+      response_body: "user"
     };
   }
-  
-  rpc GetUsers(GetUsersRequest) returns (UserList) {
-    option (google.api.http) = {
-      get: "/api/v1/users"
-    };
+
+  rpc GetUsers(GetUsersRequest) returns (GetUsersResponse) {
+    option (google.api.http) = {get: "/api/v1/users"};
   }
-  
-  rpc CreateUser(CreateUserRequest) returns (User) {
+
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse) {
     option (google.api.http) = {
       post: "/api/v1/users"
       body: "*"
+      response_body: "user"
     };
   }
-  
-  rpc UpdateUser(UpdateUserRequest) returns (User) {
+
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse) {
     option (google.api.http) = {
       put: "/api/v1/users/{id}"
       body: "*"
+      response_body: "user"
     };
   }
-  
+
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse) {
-    option (google.api.http) = {
-      delete: "/api/v1/users/{id}"
-    };
+    option (google.api.http) = {delete: "/api/v1/users/{id}"};
   }
 
   // Активность
@@ -54,24 +55,18 @@ service AuthService {
       body: "*"
     };
   }
-  
-  rpc GetActivityLogs(GetActivityLogsRequest) returns (ActivityLogList) {
-    option (google.api.http) = {
-      get: "/api/v1/activity"
-    };
+
+  rpc GetActivityLogs(GetActivityLogsRequest) returns (GetActivityLogsResponse) {
+    option (google.api.http) = {get: "/api/v1/activity"};
   }
 
   // Админ
-  rpc GetServerStatus(GetServerStatusRequest) returns (ServerStatus) {
-    option (google.api.http) = {
-      get: "/api/v1/admin/status"
-    };
+  rpc GetServerStatus(GetServerStatusRequest) returns (GetServerStatusResponse) {
+    option (google.api.http) = {get: "/api/v1/admin/status"};
   }
-  
-  rpc GetServerLogs(GetServerLogsRequest) returns (ServerLogsResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/admin/logs"
-    };
+
+  rpc GetServerLogs(GetServerLogsRequest) returns (GetServerLogsResponse) {
+    option (google.api.http) = {get: "/api/v1/admin/logs"};
   }
 }
 
@@ -101,22 +96,26 @@ message User {
   string avatar_url = 9;
 }
 
-message UserList {
-  repeated User users = 1;
+message GetUserRequest {
+  int64 id = 1 [(buf.validate.field).int64.gt = 0];
 }
 
-message GetUserRequest {
-  int64 id = 1;
+message GetUserResponse {
+  User user = 1;
 }
 
 message GetUsersRequest {
   // пустой — возвращает всех
 }
 
+message GetUsersResponse {
+  repeated User users = 1;
+}
+
 message CreateUserRequest {
-  string email = 1;
-  string name = 2;
-  string password = 3;
+  string email = 1 [(buf.validate.field).string.email = true];
+  string name = 2 [(buf.validate.field).string.min_len = 1];
+  string password = 3 [(buf.validate.field).string.min_len = 6];
   string role = 4;
   string initials = 5;
   string inn = 6;
@@ -124,8 +123,12 @@ message CreateUserRequest {
   string avatar_url = 8;
 }
 
+message CreateUserResponse {
+  User user = 1;
+}
+
 message UpdateUserRequest {
-  int64 id = 1;
+  int64 id = 1 [(buf.validate.field).int64.gt = 0];
   string name = 2;
   string email = 3;
   string role = 4;
@@ -135,8 +138,12 @@ message UpdateUserRequest {
   string avatar_url = 8;
 }
 
+message UpdateUserResponse {
+  User user = 1;
+}
+
 message DeleteUserRequest {
-  int64 id = 1;
+  int64 id = 1 [(buf.validate.field).int64.gt = 0];
 }
 
 message DeleteUserResponse {}
@@ -144,10 +151,10 @@ message DeleteUserResponse {}
 // ─── Activity Logs ──────────────────────────────────────────────────────────
 
 message LogActivityRequest {
-  int64 user_id = 1;
+  int64 user_id = 1 [(buf.validate.field).int64.gt = 0];
   string user_name = 2;
   string user_email = 3;
-  string action = 4;
+  string action = 4 [(buf.validate.field).string.min_len = 1];
   string resource_type = 5;
   int64 resource_id = 6;
   string details = 7;
@@ -181,7 +188,7 @@ message ActivityLog {
   google.protobuf.Timestamp created_at = 11;
 }
 
-message ActivityLogList {
+message GetActivityLogsResponse {
   repeated ActivityLog logs = 1;
   int32 total = 2;
 }
@@ -190,7 +197,7 @@ message ActivityLogList {
 
 message GetServerStatusRequest {}
 
-message ServerStatus {
+message GetServerStatusResponse {
   string status = 1;
   int64 uptime_seconds = 2;
   int32 total_users = 3;
@@ -212,6 +219,6 @@ message ServerLog {
   string source = 4;
 }
 
-message ServerLogsResponse {
+message GetServerLogsResponse {
   repeated ServerLog logs = 1;
 }
