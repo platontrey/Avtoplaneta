@@ -1,7 +1,10 @@
 package main
 
 import (
+	"strings"
 	"testing"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 func TestParseBriefHTML(t *testing.T) {
@@ -123,5 +126,42 @@ func TestExtractDromMessagesFromHTML(t *testing.T) {
 	}
 	if messages[1].MessageID != "msg_2" || messages[1].Author != "Продавец" || messages[1].Direction != "incoming" {
 		t.Errorf("unexpected message 1: %+v", messages[1])
+	}
+}
+
+func TestExtractCSRFToken(t *testing.T) {
+	htmlSample := `<div><input  name="csrfToken" type="hidden" value="6b15974b5f08024685c798784a70e4a6" id="csrfToken"/></div>`
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlSample))
+	if err != nil {
+		t.Fatalf("failed to parse html: %v", err)
+	}
+	val, exists := doc.Find("input[name='csrfToken']").Attr("value")
+	if !exists || val != "6b15974b5f08024685c798784a70e4a6" {
+		t.Errorf("expected csrf token 6b15974b5f08024685c798784a70e4a6, got %q", val)
+	}
+}
+
+func TestParseDromLoginErrors(t *testing.T) {
+	// 1. Field error
+	fieldErrorHTML := `<div class="control" data-name="password">
+		<label for="password" class="formError">Пароль</label>
+		<div class='comment formError controlErrors' id='password_errors'><div>Данные для входа неверны</div></div>
+	</div>`
+	doc1, _ := goquery.NewDocumentFromReader(strings.NewReader(fieldErrorHTML))
+	errMsg := strings.TrimSpace(doc1.Find("#sign_errors, #password_errors, .formError.controlErrors").First().Text())
+	if errMsg != "Данные для входа неверны" {
+		t.Errorf("expected 'Данные для входа неверны', got %q", errMsg)
+	}
+
+	// 2. Banner error
+	bannerHTML := `<div class="notification-banner notification-banner_alert infoExists sign-form-banner">
+		<div class="notification-banner__title-l">Пользователь не найден</div>
+		<div class="notification-banner__content">Мы не нашли пользователя с такими логином</div>
+	</div>`
+	doc2, _ := goquery.NewDocumentFromReader(strings.NewReader(bannerHTML))
+	title := strings.TrimSpace(doc2.Find(".notification-banner__title-l").First().Text())
+	desc := strings.TrimSpace(doc2.Find(".notification-banner__content").First().Text())
+	if title != "Пользователь не найден" || desc != "Мы не нашли пользователя с такими логином" {
+		t.Errorf("unexpected banner extraction: title=%q, desc=%q", title, desc)
 	}
 }

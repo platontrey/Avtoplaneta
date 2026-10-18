@@ -182,9 +182,22 @@ export default function DromAuthDialog({ isOpen, onClose, onSuccess }: DromAuthD
 
         {/* Alerts */}
         {errorMessage && (
-          <div className="bg-destructive/10 text-destructive border border-destructive/20 p-2.5 rounded-md text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{errorMessage}</span>
+          <div className="bg-destructive/10 text-destructive border border-destructive/20 p-2.5 rounded-md text-xs flex items-start justify-between gap-2">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>{errorMessage}</span>
+            </div>
+            {activeTab === 'password' && (
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                onClick={() => setActiveTab('session')}
+                className="h-6 text-[10px] px-2 whitespace-nowrap ml-2 border-destructive/30 hover:bg-destructive/10 shrink-0"
+              >
+                Ввести Cookie
+              </Button>
+            )}
           </div>
         )}
 
@@ -292,8 +305,8 @@ export default function DromAuthDialog({ isOpen, onClose, onSuccess }: DromAuthD
                   disabled={isSavingSession}
                   className="text-xs font-mono min-h-[100px] resize-none"
                 />
-                <p className="text-[11px] text-muted-foreground">
-                  Резервный способ: если на Drom включена сложная капча, можно скопировать куки из браузера.
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Надёжный способ без капчи: войдите в <span className="text-primary font-medium">drom.ru</span> в браузере, откройте консоль разработчика (F12) &rarr; вкладка Application/Приложение &rarr; Cookies (или Network &rarr; скопируйте заголовок Cookie) и вставьте строку сюда.
                 </p>
               </div>
 

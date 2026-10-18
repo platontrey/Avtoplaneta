@@ -2,7 +2,7 @@
 * Copyright (c) 2025 Avtoplaneta. All rights reserved.
 */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MessageCircle, RefreshCw, Settings, ArrowLeft, ExternalLink, Tag, KeyRound } from 'lucide-react';
 import type { Conversation, DromDialog, DromMessage } from '../features/messaging/types';
 import { useAuth } from '../features/auth/hooks/useAuth';
@@ -40,6 +40,7 @@ export default function MessagesPage() {
    const [hasNewDromMessages, setHasNewDromMessages] = useState(false);
    const [previousMessageCount, setPreviousMessageCount] = useState(0);
    const [mobileShowChat, setMobileShowChat] = useState(false);
+   const activeDromDialogIdRef = useRef<string | null>(null);
 
   const handleSelectConversation = (conversation: Conversation) => {
     setSelectedConversation(conversation);
@@ -81,15 +82,19 @@ export default function MessagesPage() {
   }, [activeTab]);
 
   useEffect(() => {
-    if (activeTab === 'drom' && selectedDromDialog) {
-      loadDromMessages(selectedDromDialog.dialog_id);
-    } else {
+    const dialogId = selectedDromDialog?.dialog_id;
+    activeDromDialogIdRef.current = dialogId || null;
+    if (activeTab === 'drom' && dialogId) {
+      loadDromMessages(dialogId, false);
+    } else if (activeTab === 'drom' && !dialogId) {
       setDromMessages([]);
     }
-  }, [selectedDromDialog, activeTab]);
+  }, [selectedDromDialog?.dialog_id, activeTab]);
 
-  const loadDromDialogs = async () => {
-    setDromDialogsLoading(true);
+  const loadDromDialogs = async (isBackground = false) => {
+    if (!isBackground) {
+      setDromDialogsLoading(true);
+    }
     try {
       const data = await messagingApi.getDromDialogs();
       setDromDialogs(data);
@@ -99,14 +104,23 @@ export default function MessagesPage() {
     } catch (error) {
       console.error('Failed to load Drom dialogs:', error);
     } finally {
-      setDromDialogsLoading(false);
+      if (!isBackground) {
+        setDromDialogsLoading(false);
+      }
     }
   };
 
-  const loadDromMessages = async (dialogId: string) => {
-    setDromMessagesLoading(true);
+  const loadDromMessages = async (dialogId: string, isBackground = false) => {
+    if (!dialogId) return;
+    if (!isBackground) {
+      setDromMessagesLoading(true);
+    }
     try {
       const res = await messagingApi.getDromMessages(dialogId);
+      // Guard against race conditions when clicking between multiple dialogs
+      if (activeDromDialogIdRef.current !== dialogId) {
+        return;
+      }
       const msgs = res.messages || [];
       if (msgs.length > previousMessageCount) {
         setHasNewDromMessages(true);
@@ -114,20 +128,30 @@ export default function MessagesPage() {
       setPreviousMessageCount(msgs.length);
       setDromMessages(msgs);
       if (res.dialog) {
-        setSelectedDromDialog((prev) => (prev ? { ...prev, ...res.dialog } : res.dialog!));
+        setSelectedDromDialog((prev) => {
+          if (!prev || prev.dialog_id !== dialogId) return prev;
+          return { ...prev, ...res.dialog };
+        });
         setDromDialogs((prev) =>
           prev.map((d) => (d.dialog_id === dialogId ? { ...d, ...res.dialog } : d))
         );
       }
     } catch (error) {
-      console.error('Failed to load Drom messages:', error);
+      if (activeDromDialogIdRef.current === dialogId) {
+        console.error('Failed to load Drom messages:', error);
+      }
     } finally {
-      setDromMessagesLoading(false);
+      if (!isBackground && activeDromDialogIdRef.current === dialogId) {
+        setDromMessagesLoading(false);
+      }
     }
   };
 
   const handleSelectDromDialog = (dialog: DromDialog) => {
+    if (selectedDromDialog?.dialog_id === dialog.dialog_id) return;
+    activeDromDialogIdRef.current = dialog.dialog_id;
     setSelectedDromDialog(dialog);
+    setDromMessages([]);
     setMobileShowChat(true);
     setHasNewDromMessages(false);
   };
@@ -141,7 +165,7 @@ export default function MessagesPage() {
       await messagingApi.sendDromMessage(selectedDromDialog.dialog_id, cleanContent);
       setDromMessageInput('');
       setHasNewDromMessages(false);
-      await loadDromMessages(selectedDromDialog.dialog_id);
+      await loadDromMessages(selectedDromDialog.dialog_id, true);
     } catch (error) {
       console.error('Failed to send Drom message:', error);
     } finally {
@@ -152,7 +176,7 @@ export default function MessagesPage() {
   const handleFetchDromMessages = async () => {
     setDromFetching(true);
     try {
-      await loadDromDialogs();
+      await loadDromDialogs(false);
     } catch (error) {
       console.error('Failed to fetch Drom dialogs:', error);
     } finally {
@@ -175,11 +199,12 @@ export default function MessagesPage() {
 
     let interval: NodeJS.Timeout;
 
-    if (selectedDromDialog) {
-      // Poll messages every 5 seconds when dialog is open
+    if (selectedDromDialog?.dialog_id) {
+      const currentId = selectedDromDialog.dialog_id;
+      // Poll messages every 5 seconds when dialog is open without triggering loading skeletons
       interval = setInterval(async () => {
         try {
-          await loadDromMessages(selectedDromDialog.dialog_id);
+          await loadDromMessages(currentId, true);
         } catch (error) {
           console.error('Failed to poll Drom messages:', error);
         }
@@ -188,7 +213,7 @@ export default function MessagesPage() {
       // Poll dialogs using settings interval when no dialog is selected
       interval = setInterval(async () => {
         try {
-          await loadDromDialogs();
+          await loadDromDialogs(true);
         } catch (error) {
           console.error('Failed to poll Drom dialogs:', error);
         }
@@ -198,7 +223,7 @@ export default function MessagesPage() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [activeTab, selectedDromDialog, chatSettings.enableAutoRefresh, chatSettings.refreshInterval]);
+  }, [activeTab, selectedDromDialog?.dialog_id, chatSettings.enableAutoRefresh, chatSettings.refreshInterval]);
 
   if (isLoading) {
     return (

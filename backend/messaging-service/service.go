@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -891,6 +892,8 @@ func (s *messagingService) LoginDrom(ctx context.Context, login, password, code 
 		return nil, err
 	}
 	req1.Header.Set("User-Agent", DromUserAgent)
+	req1.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+	req1.Header.Set("Accept-Language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7")
 
 	resp1, err := client.Do(req1)
 	if err != nil {
@@ -899,12 +902,23 @@ func (s *messagingService) LoginDrom(ctx context.Context, login, password, code 
 	body1, _ := io.ReadAll(resp1.Body)
 	resp1.Body.Close()
 
-	// Extract CSRF token
+	// Extract CSRF token reliably using goquery or fallback regex
 	csrfToken := ""
-	if m := regexp.MustCompile(`name=["']csrfToken["']\s+type=["']hidden["']\s+value=["']([^"']+)["']`).FindSubmatch(body1); len(m) > 1 {
-		csrfToken = string(m[1])
-	} else if m := regexp.MustCompile(`id=["']csrfToken["'][^>]*value=["']([^"']+)["']`).FindSubmatch(body1); len(m) > 1 {
-		csrfToken = string(m[1])
+	if doc1, err := goquery.NewDocumentFromReader(bytes.NewReader(body1)); err == nil {
+		if val, exists := doc1.Find("input[name='csrfToken']").Attr("value"); exists && val != "" {
+			csrfToken = strings.TrimSpace(val)
+		} else if val, exists := doc1.Find("#csrfToken").Attr("value"); exists && val != "" {
+			csrfToken = strings.TrimSpace(val)
+		}
+	}
+	if csrfToken == "" {
+		if m := regexp.MustCompile(`<input[^>]*name=["']csrfToken["'][^>]*value=["']([^"']+)["']`).FindSubmatch(body1); len(m) > 1 {
+			csrfToken = string(m[1])
+		} else if m := regexp.MustCompile(`<input[^>]*value=["']([^"']+)["'][^>]*name=["']csrfToken["']`).FindSubmatch(body1); len(m) > 1 {
+			csrfToken = string(m[1])
+		} else if m := regexp.MustCompile(`name=["']csrfToken["']\s+type=["']hidden["']\s+value=["']([^"']+)["']`).FindSubmatch(body1); len(m) > 1 {
+			csrfToken = string(m[1])
+		}
 	}
 
 	if csrfToken == "" {
@@ -914,11 +928,20 @@ func (s *messagingService) LoginDrom(ctx context.Context, login, password, code 
 		}, nil
 	}
 
-	// 2. POST login form
+	// 2. Clean login input (remove spaces and dashes from phone numbers)
+	cleanLogin := strings.TrimSpace(login)
+	if strings.ContainsAny(cleanLogin, " ()-") {
+		cleanLogin = strings.ReplaceAll(cleanLogin, " ", "")
+		cleanLogin = strings.ReplaceAll(cleanLogin, "-", "")
+		cleanLogin = strings.ReplaceAll(cleanLogin, "(", "")
+		cleanLogin = strings.ReplaceAll(cleanLogin, ")", "")
+	}
+
+	// 3. POST login form
 	formData := url.Values{}
 	formData.Set("csrfToken", csrfToken)
 	formData.Set("radio", "sign")
-	formData.Set("sign", strings.TrimSpace(login))
+	formData.Set("sign", cleanLogin)
 	formData.Set("password", strings.TrimSpace(password))
 	if code != "" {
 		formData.Set("code", strings.TrimSpace(code))
@@ -932,6 +955,8 @@ func (s *messagingService) LoginDrom(ctx context.Context, login, password, code 
 	req2.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req2.Header.Set("Origin", "https://my.drom.ru")
 	req2.Header.Set("Referer", "https://my.drom.ru/sign")
+	req2.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+	req2.Header.Set("Accept-Language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7")
 
 	resp2, err := client.Do(req2)
 	if err != nil {
@@ -940,24 +965,33 @@ func (s *messagingService) LoginDrom(ctx context.Context, login, password, code 
 	body2, _ := io.ReadAll(resp2.Body)
 	resp2.Body.Close()
 
-	// 3. Inspect cookies in cookiejar for drom.ru
-	dromURL, _ := url.Parse("https://my.drom.ru")
-	cookies := jar.Cookies(dromURL)
-
-	hasRing := false
+	// 4. Inspect cookies across all relevant Drom domains
+	seenCookies := make(map[string]bool)
 	var sessionCookies []SessionCookie
-	for _, c := range cookies {
-		sessionCookies = append(sessionCookies, SessionCookie{
-			Name:  c.Name,
-			Value: c.Value,
-		})
-		if c.Name == "ring" || c.Name == "ring_session" {
-			hasRing = true
+	hasRing := false
+	hasAuthCookie := false
+
+	for _, hostURL := range []string{"https://my.drom.ru", "https://baza.drom.ru", "https://drom.ru"} {
+		u, _ := url.Parse(hostURL)
+		for _, c := range jar.Cookies(u) {
+			if !seenCookies[c.Name] {
+				seenCookies[c.Name] = true
+				sessionCookies = append(sessionCookies, SessionCookie{
+					Name:  c.Name,
+					Value: c.Value,
+				})
+			}
+			if c.Name == "ring" || c.Name == "ring_session" {
+				hasRing = true
+			}
+			if c.Name == "uid" || c.Name == "login" || c.Name == "boobs" {
+				hasAuthCookie = true
+			}
 		}
 	}
 
 	finalURL := resp2.Request.URL.String()
-	isLoggedIn := hasRing && !strings.Contains(finalURL, "/sign")
+	isLoggedIn := (hasAuthCookie || hasRing) && !strings.Contains(finalURL, "/sign")
 
 	if isLoggedIn {
 		sessionData := SessionData{Cookies: sessionCookies}
@@ -973,40 +1007,54 @@ func (s *messagingService) LoginDrom(ctx context.Context, login, password, code 
 		}, nil
 	}
 
-	// Check if Drom returned specific errors
-	bodyStr := string(body2)
-	if docReader, err := charset.NewReader(strings.NewReader(bodyStr), resp2.Header.Get("Content-Type")); err == nil {
+	// 5. Check if Drom returned specific errors or 2FA challenge
+	// Correctly decode body directly from raw bytes using the response content-type
+	var bodyStr string
+	if docReader, err := charset.NewReader(bytes.NewReader(body2), resp2.Header.Get("Content-Type")); err == nil {
 		if decoded, err := io.ReadAll(docReader); err == nil {
 			bodyStr = string(decoded)
 		}
 	}
+	if bodyStr == "" {
+		bodyStr = string(body2)
+	}
 
 	doc, _ := goquery.NewDocumentFromReader(strings.NewReader(bodyStr))
 	if doc != nil {
+		// Field-level error messages (e.g. wrong password or login)
 		if errMsg := strings.TrimSpace(doc.Find("#sign_errors, #password_errors, .formError.controlErrors").First().Text()); errMsg != "" {
 			return map[string]interface{}{
 				"success": false,
 				"error":   errMsg,
 			}, nil
 		}
-		if banner := strings.TrimSpace(doc.Find(".notification-banner_alert, .sign-form-banner").First().Text()); banner != "" {
+		// Banner alert (e.g. "Пользователь не найден")
+		if banner := strings.TrimSpace(doc.Find(".notification-banner__title-l, .notification-banner_alert, .sign-form-banner").First().Text()); banner != "" {
+			desc := strings.TrimSpace(doc.Find(".notification-banner__content").First().Text())
+			if desc != "" && desc != banner {
+				banner = banner + ". " + desc
+			}
 			return map[string]interface{}{
 				"success": false,
 				"error":   banner,
 			}, nil
 		}
-	}
-
-	if strings.Contains(bodyStr, "code") || strings.Contains(bodyStr, "подтвержд") || strings.Contains(bodyStr, "SMS") {
-		return map[string]interface{}{
-			"success":   false,
-			"need_code": true,
-			"message":   "Требуется подтверждение входа (SMS/код)",
-		}, nil
+		// Two-factor authentication (SMS or app code)
+		if doc.Find("input[name='code'], #code, .code-input").Length() > 0 ||
+			strings.Contains(bodyStr, "подтвержд") ||
+			strings.Contains(bodyStr, "код подтверждения") ||
+			strings.Contains(bodyStr, "SMS") ||
+			strings.Contains(bodyStr, "Telegram") {
+			return map[string]interface{}{
+				"success":   false,
+				"need_code": true,
+				"message":   "Требуется подтверждение входа (SMS или код из приложения)",
+			}, nil
+		}
 	}
 
 	return map[string]interface{}{
 		"success": false,
-		"error":   "Не удалось войти на Drom. Проверьте правильность введенных данных.",
+		"error":   "Не удалось войти на Drom. Проверьте правильность введенных данных или воспользуйтесь авторизацией по Cookie.",
 	}, nil
 }
