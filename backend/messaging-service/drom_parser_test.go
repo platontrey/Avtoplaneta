@@ -165,3 +165,20 @@ func TestParseDromLoginErrors(t *testing.T) {
 		t.Errorf("unexpected banner extraction: title=%q, desc=%q", title, desc)
 	}
 }
+
+func TestDetectDromCaptchaPage(t *testing.T) {
+	captchaHTML := `<form method="POST" action="/verify">
+		<input type="hidden" name="s" value="abc"/>
+		<input type="hidden" name="t" value="123"/>
+		<input type="hidden" name="g-recaptcha-response" value=""/>
+		<button id="send-button">Отправить</button>
+	</form>`
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(captchaHTML))
+	if err != nil {
+		t.Fatalf("failed to parse html: %v", err)
+	}
+	hasCaptcha := doc.Find("input[name='g-recaptcha-response'], #send-button").Length() > 0
+	if !hasCaptcha {
+		t.Errorf("expected to detect captcha form")
+	}
+}

@@ -248,7 +248,7 @@ class MessagingApi {
     return response.json();
   }
 
-  async loginDrom(login: string, password: string, code?: string): Promise<{ success: boolean; need_code?: boolean; message?: string; error?: string }> {
+  async loginDrom(login: string, password: string, code?: string): Promise<{ success: boolean; need_code?: boolean; captcha_required?: boolean; message?: string; error?: string }> {
     const response = await fetch(`${MESSAGING_BASE_URL}/drom/auth/login`, {
       method: 'POST',
       headers: this.getHeaders(),

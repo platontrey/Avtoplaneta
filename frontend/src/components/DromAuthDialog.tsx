@@ -26,7 +26,7 @@ interface DromAuthDialogProps {
 }
 
 export default function DromAuthDialog({ isOpen, onClose, onSuccess }: DromAuthDialogProps) {
-  const [activeTab, setActiveTab] = useState<'password' | 'session'>('password');
+  const [activeTab, setActiveTab] = useState<'password' | 'session'>('session');
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [authStatus, setAuthStatus] = useState<{
     authenticated: boolean;
@@ -93,6 +93,9 @@ export default function DromAuthDialog({ isOpen, onClose, onSuccess }: DromAuthD
       } else if (res.need_code) {
         setNeedCode(true);
         setSuccessMessage(res.message || 'Требуется ввести код подтверждения из SMS или приложения Drom');
+      } else if (res.captcha_required) {
+        setActiveTab('session');
+        setErrorMessage(res.error || 'Drom заблокировал форму входа проверкой reCAPTCHA. Пожалуйста, используйте авторизацию через Cookie.');
       } else {
         setErrorMessage(res.error || 'Не удалось войти на Drom');
       }
@@ -210,19 +213,66 @@ export default function DromAuthDialog({ isOpen, onClose, onSuccess }: DromAuthD
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'password' | 'session')} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="session" className="text-xs gap-1.5 font-medium">
+              <FileCode2 className="w-3.5 h-3.5" />
+              Вставка Cookie (Надёжно)
+            </TabsTrigger>
             <TabsTrigger value="password" className="text-xs gap-1.5">
               <KeyRound className="w-3.5 h-3.5" />
               Логин и пароль
             </TabsTrigger>
-            <TabsTrigger value="session" className="text-xs gap-1.5">
-              <FileCode2 className="w-3.5 h-3.5" />
-              Вставка Cookie
-            </TabsTrigger>
           </TabsList>
 
-          {/* Tab 1: Login & Password */}
+          {/* Tab 1: Manual Cookie input */}
+          <TabsContent value="session" className="space-y-3 pt-2">
+            <form onSubmit={handleSessionSubmit} className="space-y-3">
+              <div className="bg-muted/40 p-2.5 rounded-md border border-border text-[11px] space-y-1.5 text-muted-foreground">
+                <p className="font-semibold text-foreground">Инструкция по копированию Cookie (1 минута):</p>
+                <ol className="list-decimal list-inside space-y-1">
+                  <li>Откройте <a href="https://my.drom.ru" target="_blank" rel="noreferrer" className="text-primary hover:underline">my.drom.ru</a> в браузере под вашим аккаунтом.</li>
+                  <li>Нажмите <kbd className="px-1 py-0.5 bg-muted rounded border text-[10px] font-mono">F12</kbd> (или Ctrl+Shift+I) &rarr; вкладка <strong>Сеть (Network)</strong> &rarr; обновите страницу.</li>
+                  <li>Кликните на верхний запрос &rarr; скопируйте заголовок <strong>Cookie</strong> (содержит <code>ring=...</code>) и вставьте в поле ниже.</li>
+                </ol>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="drom-raw-session" className="text-xs">
+                  Заголовок Cookie или содержимое drom_session.json
+                </Label>
+                <Textarea
+                  id="drom-raw-session"
+                  value={rawSession}
+                  onChange={(e) => setRawSession(e.target.value)}
+                  placeholder='Вставьте куки (например: ring=...; ring_session=...) или JSON'
+                  disabled={isSavingSession}
+                  className="text-xs font-mono min-h-[90px] resize-none"
+                />
+              </div>
+
+              <Button
+                type="submit"
+                disabled={isSavingSession || !rawSession.trim()}
+                className="w-full text-xs h-9"
+              >
+                {isSavingSession ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 mr-2 animate-spin" />
+                    Сохранение и проверка сессии...
+                  </>
+                ) : (
+                  'Сохранить сессию'
+                )}
+              </Button>
+            </form>
+          </TabsContent>
+
+          {/* Tab 2: Login & Password */}
           <TabsContent value="password" className="space-y-3 pt-2">
             <form onSubmit={handleLoginSubmit} className="space-y-3">
+              <div className="bg-amber-500/10 text-amber-700 dark:text-amber-400 p-2 rounded-md border border-amber-500/20 text-[11px] leading-relaxed">
+                Сервер Drom часто защищает прямой вход проверкой reCAPTCHA. Если автоматический вход не проходит, используйте вкладку «Вставка Cookie».
+              </div>
+
               <div className="space-y-1.5">
                 <Label htmlFor="drom-login" className="text-xs">Телефон или Логин на Drom</Label>
                 <Input
@@ -285,43 +335,6 @@ export default function DromAuthDialog({ isOpen, onClose, onSuccess }: DromAuthD
                   'Подтвердить код'
                 ) : (
                   'Войти в Drom'
-                )}
-              </Button>
-            </form>
-          </TabsContent>
-
-          {/* Tab 2: Manual Cookie input */}
-          <TabsContent value="session" className="space-y-3 pt-2">
-            <form onSubmit={handleSessionSubmit} className="space-y-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="drom-raw-session" className="text-xs">
-                  Cookies или содержимое JSON сессии
-                </Label>
-                <Textarea
-                  id="drom-raw-session"
-                  value={rawSession}
-                  onChange={(e) => setRawSession(e.target.value)}
-                  placeholder='Вставьте куки вида ring=...; ring_session=... или содержимое drom_session.json'
-                  disabled={isSavingSession}
-                  className="text-xs font-mono min-h-[100px] resize-none"
-                />
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Надёжный способ без капчи: войдите в <span className="text-primary font-medium">drom.ru</span> в браузере, откройте консоль разработчика (F12) &rarr; вкладка Application/Приложение &rarr; Cookies (или Network &rarr; скопируйте заголовок Cookie) и вставьте строку сюда.
-                </p>
-              </div>
-
-              <Button
-                type="submit"
-                disabled={isSavingSession || !rawSession.trim()}
-                className="w-full text-xs h-9"
-              >
-                {isSavingSession ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 mr-2 animate-spin" />
-                    Сохранение и проверка...
-                  </>
-                ) : (
-                  'Сохранить сессию'
                 )}
               </Button>
             </form>

@@ -642,17 +642,23 @@ func (s *messagingService) GetDromMessages(ctx context.Context, dialogID string)
 }
 
 func (s *messagingService) SendDromMessage(ctx context.Context, dialogID string, content string) (*DromMessage, error) {
-	if err := sendDromMessageToAPI(dialogID, content); err != nil {
+	msgID, err := sendDromMessageToAPI(dialogID, content)
+	if err != nil {
 		return nil, err
+	}
+
+	messageIDStr := strconv.FormatInt(time.Now().Unix(), 10)
+	if msgID > 0 {
+		messageIDStr = strconv.FormatInt(msgID, 10)
 	}
 
 	message := DromMessage{
 		ID:        time.Now().Unix(),
 		DialogID:  dialogID,
-		MessageID: strconv.FormatInt(time.Now().Unix(), 10),
+		MessageID: messageIDStr,
 		Author:    "Я",
 		Direction: "outgoing",
-		Time:      time.Now().Format("2006-01-02 15:04:05"),
+		Time:      time.Now().Format("15:04"),
 		Text:      content,
 		IsRead:    true,
 		CreatedAt: time.Now().Format("2006-01-02T15:04:05Z"),
@@ -661,31 +667,37 @@ func (s *messagingService) SendDromMessage(ctx context.Context, dialogID string,
 	return &message, nil
 }
 
-func sendDromMessageToAPI(dialogID, text string) error {
+func sendDromMessageToAPI(dialogID, text string) (int64, error) {
+	postURL := fmt.Sprintf("https://my.drom.ru/personal/messaging/view?dialogId=%s&ajax=1", url.QueryEscape(dialogID))
+
 	formData := url.Values{}
 	formData.Set("dialogId", dialogID)
-	formData.Set("text", text)
+	formData.Set("message", text)
+	formData.Set("post", "Отправить")
 	formData.Set("ajax", "1")
-	formData.Set("action", "send")
 
 	// Read session file
 	data, err := os.ReadFile(DromSessionFile)
 	if err != nil {
-		return fmt.Errorf("failed to read drom session: %v", err)
+		return 0, fmt.Errorf("failed to read drom session: %w", err)
 	}
 
 	var session SessionData
 	if err := json.Unmarshal(data, &session); err != nil {
-		return fmt.Errorf("failed to parse drom session: %v", err)
+		return 0, fmt.Errorf("failed to parse drom session: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", DromPostURL, strings.NewReader(formData.Encode()))
+	req, err := http.NewRequest("POST", postURL, strings.NewReader(formData.Encode()))
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	req.Header.Set("User-Agent", DromUserAgent)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+	req.Header.Set("Origin", "https://my.drom.ru")
+	req.Header.Set("Referer", fmt.Sprintf("https://my.drom.ru/personal/messaging/view?dialogId=%s", url.QueryEscape(dialogID)))
+	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+
 	for _, cookie := range session.Cookies {
 		req.AddCookie(&http.Cookie{
 			Name:  cookie.Name,
@@ -693,18 +705,38 @@ func sendDromMessageToAPI(dialogID, text string) error {
 		})
 	}
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return 0, fmt.Errorf("network error sending message to drom: %w", err)
 	}
 	defer resp.Body.Close()
 
+	bodyBytes, _ := io.ReadAll(resp.Body)
+
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("drom post message returned status: %d", resp.StatusCode)
+		return 0, fmt.Errorf("drom post message returned status %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 
-	return nil
+	var result struct {
+		StatusCode      int    `json:"statusCode"`
+		SendingStatus   string `json:"sendingStatus"`
+		LatestMessageId int64  `json:"latestMessageId"`
+		Error           string `json:"error"`
+	}
+
+	if err := json.Unmarshal(bodyBytes, &result); err == nil {
+		if result.StatusCode != 0 && result.StatusCode != 200 {
+			errMsg := result.Error
+			if errMsg == "" {
+				errMsg = fmt.Sprintf("status %d", result.StatusCode)
+			}
+			return 0, fmt.Errorf("drom rejected message: %s", errMsg)
+		}
+		return result.LatestMessageId, nil
+	}
+
+	return 0, nil
 }
 
 func extractDromMessagesFromHTML(htmlContent, interlocutorName string) []DromMessage {
@@ -847,23 +879,35 @@ func (s *messagingService) SaveDromSession(ctx context.Context, rawSession []byt
 		if errArray := json.Unmarshal(rawSession, &cookies); errArray == nil && len(cookies) > 0 {
 			session.Cookies = cookies
 		} else {
-			// Attempt parsing raw cookie header: "ring=abc; ring_session=xyz"
+			// Attempt parsing raw cookie header: "ring=abc; ring_session=xyz" or "Cookie: ring=abc; ..."
 			cookieStr := strings.TrimSpace(string(rawSession))
+			cookieStr = strings.Trim(cookieStr, "\"'")
+			if strings.HasPrefix(strings.ToLower(cookieStr), "cookie:") {
+				cookieStr = strings.TrimSpace(cookieStr[7:])
+			}
 			parts := strings.Split(cookieStr, ";")
 			for _, p := range parts {
 				p = strings.TrimSpace(p)
+				if strings.HasPrefix(strings.ToLower(p), "cookie:") {
+					p = strings.TrimSpace(p[7:])
+				}
 				if idx := strings.Index(p, "="); idx > 0 {
-					session.Cookies = append(session.Cookies, SessionCookie{
-						Name:  strings.TrimSpace(p[:idx]),
-						Value: strings.TrimSpace(p[idx+1:]),
-					})
+					name := strings.TrimSpace(p[:idx])
+					val := strings.TrimSpace(p[idx+1:])
+					val = strings.Trim(val, "\"'")
+					if name != "" && val != "" {
+						session.Cookies = append(session.Cookies, SessionCookie{
+							Name:  name,
+							Value: val,
+						})
+					}
 				}
 			}
 		}
 	}
 
 	if len(session.Cookies) == 0 {
-		return errors.New("не удалось распознать cookies в переданных данных")
+		return errors.New("не удалось распознать cookies в переданных данных (скопируйте строку с ring=... или json)")
 	}
 
 	data, err := json.MarshalIndent(session, "", "  ")
@@ -876,6 +920,18 @@ func (s *messagingService) SaveDromSession(ctx context.Context, rawSession []byt
 	}
 	_ = os.WriteFile("../drom-test/drom_session.json", data, 0644)
 
+	// Validate the session with Drom
+	body, err := makeDromRequest(DromListURL)
+	if err != nil {
+		return fmt.Errorf("сессия сохранена, но Drom не принял её (проверьте, что сессия активна): %w", err)
+	}
+
+	var response InboxListResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return errors.New("сессия сохранена, но Drom вернул недействительный ответ (возможно, не скопирован ключ ring или сессия истекла)")
+	}
+
+	log.Printf("[DROM SESSION] Session successfully verified with Drom, active dialogs count: %d", len(response.Briefs))
 	return nil
 }
 
@@ -902,9 +958,22 @@ func (s *messagingService) LoginDrom(ctx context.Context, login, password, code 
 	body1, _ := io.ReadAll(resp1.Body)
 	resp1.Body.Close()
 
+	// Check if Drom redirected to anti-bot verification (reCAPTCHA / SmartCaptcha)
+	finalURL1 := resp1.Request.URL.String()
+	if strings.Contains(resp1.Request.URL.Path, "verify") || strings.Contains(finalURL1, "/verify") {
+		log.Printf("[DROM LOGIN] Drom redirected to captcha challenge: %s", finalURL1)
+		return map[string]interface{}{
+			"success":          false,
+			"captcha_required": true,
+			"error":            "Drom заблокировал страницу входа проверкой от ботов (reCAPTCHA). Автоматический вход по логину/паролю заблокирован сервером Drom. Пожалуйста, используйте вкладку «Вставка Cookie» — это занимает 30 секунд и надёжно работает.",
+		}, nil
+	}
+
 	// Extract CSRF token reliably using goquery or fallback regex
 	csrfToken := ""
-	if doc1, err := goquery.NewDocumentFromReader(bytes.NewReader(body1)); err == nil {
+	var doc1 *goquery.Document
+	if doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body1)); err == nil {
+		doc1 = doc
 		if val, exists := doc1.Find("input[name='csrfToken']").Attr("value"); exists && val != "" {
 			csrfToken = strings.TrimSpace(val)
 		} else if val, exists := doc1.Find("#csrfToken").Attr("value"); exists && val != "" {
@@ -922,9 +991,16 @@ func (s *messagingService) LoginDrom(ctx context.Context, login, password, code 
 	}
 
 	if csrfToken == "" {
+		if doc1 != nil && doc1.Find("input[name='g-recaptcha-response'], #send-button, .captcha").Length() > 0 {
+			return map[string]interface{}{
+				"success":          false,
+				"captcha_required": true,
+				"error":            "Drom заблокировал страницу входа проверкой reCAPTCHA. Программный вход через логин/пароль заблокирован. Пожалуйста, воспользуйтесь авторизацией по Cookie (вкладка «Вставка Cookie»).",
+			}, nil
+		}
 		return map[string]interface{}{
 			"success": false,
-			"error":   "Не удалось получить CSRF токен со страницы входа Drom",
+			"error":   "Не удалось получить CSRF токен со страницы входа Drom (страница защищена капчей). Воспользуйтесь вкладкой «Вставка Cookie».",
 		}, nil
 	}
 
@@ -943,11 +1019,12 @@ func (s *messagingService) LoginDrom(ctx context.Context, login, password, code 
 	formData.Set("radio", "sign")
 	formData.Set("sign", cleanLogin)
 	formData.Set("password", strings.TrimSpace(password))
+	formData.Set("login_by_password", "1")
 	if code != "" {
 		formData.Set("code", strings.TrimSpace(code))
 	}
 
-	req2, err := http.NewRequestWithContext(ctx, "POST", "https://my.drom.ru/sign", strings.NewReader(formData.Encode()))
+	req2, err := http.NewRequestWithContext(ctx, "POST", "https://my.drom.ru/sign?login_by_password=1", strings.NewReader(formData.Encode()))
 	if err != nil {
 		return nil, err
 	}
