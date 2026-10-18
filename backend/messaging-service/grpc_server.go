@@ -12,9 +12,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/health"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
 	msgv1 "avtoplaneta/gen/messaging/v1"
@@ -394,30 +391,21 @@ func messageToProto(m *Message) *msgv1.Message {
 
 // StartGRPCServer запускает gRPC-сервер на указанном порту
 func StartGRPCServer(port string) error {
+	srv := grpcserver.New(
+		"messaging.v1.MessagingService",
+		port,
+		grpc.ChainUnaryInterceptor(loggingUnaryInterceptor),
+	)
+
+	msgv1.RegisterMessagingServiceServer(srv.RawServer(), NewMessagingGRPCServer())
+
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		return fmt.Errorf("failed to listen on port %s: %w", port, err)
 	}
 
-	srv := grpc.NewServer(
-		grpc.ChainUnaryInterceptor(
-			loggingUnaryInterceptor,
-			recoveryUnaryInterceptor,
-			grpcserver.ValidationUnaryInterceptor(),
-		),
-	)
-
-	msgv1.RegisterMessagingServiceServer(srv, NewMessagingGRPCServer())
-
-	// Health check
-	healthSrv := health.NewServer()
-	healthpb.RegisterHealthServer(srv, healthSrv)
-	healthSrv.SetServingStatus("messaging.v1.MessagingService", healthpb.HealthCheckResponse_SERVING)
-
-	reflection.Register(srv)
-
 	logrus.WithField("port", port).Info("gRPC server listening")
-	return srv.Serve(lis)
+	return srv.RawServer().Serve(lis)
 }
 
 // ─── Interceptors ───────────────────────────────────────────────────────────
@@ -439,14 +427,4 @@ func loggingUnaryInterceptor(ctx context.Context, req interface{}, info *grpc.Un
 	}
 
 	return resp, err
-}
-
-func recoveryUnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			logrus.WithField("panic", r).WithField("method", info.FullMethod).Error("gRPC panic recovered")
-			err = status.Errorf(codes.Internal, "internal server error")
-		}
-	}()
-	return handler(ctx, req)
 }

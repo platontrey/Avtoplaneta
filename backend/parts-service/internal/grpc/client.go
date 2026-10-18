@@ -9,11 +9,11 @@ import (
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
 	authv1 "avtoplaneta/gen/auth/v1"
 	ordersv1 "avtoplaneta/gen/orders/v1"
+	"avtoplaneta/pkg/grpcclient"
 	"parts-service/internal/domain"
 )
 
@@ -30,9 +30,7 @@ func InitGRPCClients() {
 	ordersAddr := getGRPCAddr("ORDERS_GRPC_ADDR", "localhost:9082")
 
 	var err error
-	authConn, err = grpc.NewClient(authAddr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
+	authConn, err = grpcclient.NewClient(authAddr)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to create auth gRPC connection")
 	} else {
@@ -40,9 +38,7 @@ func InitGRPCClients() {
 		logrus.WithField("addr", authAddr).Info("gRPC client to auth-service initialized")
 	}
 
-	ordersConn, err = grpc.NewClient(ordersAddr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
+	ordersConn, err = grpcclient.NewClient(ordersAddr)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to create orders gRPC connection")
 	} else {

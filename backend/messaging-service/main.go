@@ -13,6 +13,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+
+	"avtoplaneta/pkg/tracing"
 )
 
 func main() {
@@ -21,6 +23,18 @@ func main() {
 
 	if err := godotenv.Load("../../.env"); err != nil {
 		log.Println("No .env file found")
+	}
+
+	// Инициализация OpenTelemetry Distributed Tracing
+	tp, err := tracing.InitTracer("messaging-service")
+	if err != nil {
+		log.Printf("Warning: Failed to init tracer for messaging-service: %v", err)
+	} else {
+		defer func() {
+			if err := tp.Shutdown(context.Background()); err != nil {
+				log.Printf("Warning: Error shutting down tracer provider: %v", err)
+			}
+		}()
 	}
 
 	// Initialize database

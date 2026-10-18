@@ -15,10 +15,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	authv1 "avtoplaneta/gen/auth/v1"
+	"avtoplaneta/pkg/grpcclient"
 )
 // Conversations
 func getConversations(c *gin.Context) {
@@ -818,7 +817,7 @@ func getAuthGRPCClient() authv1.AuthServiceClient {
 				addr = "auth-service:9083"
 			}
 		}
-		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := grpcclient.NewClient(addr)
 		if err != nil {
 			log.Printf("Messaging: Failed to create gRPC connection to auth-service: %v", err)
 			return

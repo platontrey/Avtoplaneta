@@ -13,6 +13,7 @@ import (
 
 	"avtoplaneta/pkg/httpserver"
 	"avtoplaneta/pkg/redisclient"
+	"avtoplaneta/pkg/tracing"
 	"orders-service/internal/config"
 	"orders-service/internal/events"
 	"orders-service/internal/grpc"
@@ -30,6 +31,18 @@ func main() {
 	_ = godotenv.Load("../../.env")
 
 	cfg := config.LoadConfig()
+
+	// Инициализация OpenTelemetry Distributed Tracing
+	tp, err := tracing.InitTracer("orders-service")
+	if err != nil {
+		logrus.WithError(err).Warn("Failed to init tracer for orders-service")
+	} else {
+		defer func() {
+			if err := tp.Shutdown(context.Background()); err != nil {
+				logrus.WithError(err).Warn("Error shutting down tracer provider")
+			}
+		}()
+	}
 
 	// Контекст для graceful shutdown
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

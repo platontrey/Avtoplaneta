@@ -12,9 +12,6 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/health"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
 	authv1 "avtoplaneta/gen/auth/v1"
@@ -236,23 +233,15 @@ func NewGRPCServer(
 	sessionStore security.SessionStore,
 	cfg *config.Config,
 ) *grpc.Server {
-	srv := grpc.NewServer(
+	srv := grpcserver.New(
+		"auth.v1.AuthService",
+		"",
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
-		grpc.ChainUnaryInterceptor(
-			loggingUnaryInterceptor,
-			recoveryUnaryInterceptor,
-			grpcserver.ValidationUnaryInterceptor(),
-		),
+		grpc.ChainUnaryInterceptor(loggingUnaryInterceptor),
 	)
 
-	authv1.RegisterAuthServiceServer(srv, NewAuthGRPCServer(authService, sessionStore, cfg))
-
-	healthSrv := health.NewServer()
-	healthpb.RegisterHealthServer(srv, healthSrv)
-	healthSrv.SetServingStatus("auth.v1.AuthService", healthpb.HealthCheckResponse_SERVING)
-
-	reflection.Register(srv)
-	return srv
+	authv1.RegisterAuthServiceServer(srv.RawServer(), NewAuthGRPCServer(authService, sessionStore, cfg))
+	return srv.RawServer()
 }
 
 // StartGRPCServer запускает gRPC сервер на указанном порту
@@ -296,14 +285,4 @@ func loggingUnaryInterceptor(ctx context.Context, req interface{}, info *grpc.Un
 	}
 
 	return resp, err
-}
-
-func recoveryUnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			logrus.WithField("panic", r).WithField("method", info.FullMethod).Error("gRPC panic recovered")
-			err = status.Errorf(codes.Internal, "internal server error")
-		}
-	}()
-	return handler(ctx, req)
 }

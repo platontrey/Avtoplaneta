@@ -10,10 +10,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
-	googlegrpc "google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	partsv1 "avtoplaneta/gen/parts/v1"
+	"avtoplaneta/pkg/grpcclient"
 	"avtoplaneta/pkg/httpserver"
 	"avtoplaneta/pkg/redisclient"
 	"avtoplaneta/pkg/tracing"
@@ -115,7 +114,7 @@ func main() {
 
 	// Подключение к parts-service по gRPC
 	if cfg.PartsGRPCAddr != "" {
-		partsConn, err := googlegrpc.NewClient(cfg.PartsGRPCAddr, googlegrpc.WithTransportCredentials(insecure.NewCredentials()))
+		partsConn, err := grpcclient.NewClient(cfg.PartsGRPCAddr)
 		if err != nil {
 			logrus.WithError(err).Warn("Failed to create gRPC connection to parts-service")
 		} else {
