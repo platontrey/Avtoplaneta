@@ -49,7 +49,7 @@ export function useAuth(): UseAuthReturn {
       logUserActivity({
         action: 'login',
         resource_type: 'system',
-        details: `Пользователь ${userData.name} (${userData.email}) вошел в систему`,
+        details: `Пользователь ${userData.name} (${userData.email || userData.username}) вошел в систему`,
       }).catch(console.warn);
     },
     [queryClient],
@@ -61,7 +61,7 @@ export function useAuth(): UseAuthReturn {
         await logUserActivity({
           action: 'logout',
           resource_type: 'system',
-          details: `Пользователь ${user.name} (${user.email}) вышел из системы`,
+          details: `Пользователь ${user.name} (${user.email || user.username}) вышел из системы`,
         }).catch(console.warn);
       }
       await authApi.logout();

@@ -19,7 +19,7 @@ type JWTClaims struct {
 }
 
 const (
-	AccessTokenTTL  = 24 * time.Hour
+	AccessTokenTTL  = 3 * 24 * time.Hour
 	RefreshTokenTTL = 30 * 24 * time.Hour
 )
 

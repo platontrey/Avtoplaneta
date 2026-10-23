@@ -1,8 +1,10 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme.dart';
+import '../../../core/storage/secure_storage.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -17,8 +19,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   bool _obscure = true;
+  bool _rememberMe = true;
   bool _loading = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    try {
+      final savedLogin = await SecureStorage.getSavedLogin();
+      final savedPassword = await SecureStorage.getSavedPassword();
+      if (!mounted) return;
+      if (savedLogin != null && savedLogin.isNotEmpty) {
+        _emailCtrl.text = savedLogin;
+      }
+      if (savedPassword != null && savedPassword.isNotEmpty) {
+        _passCtrl.text = savedPassword;
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -29,18 +52,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    final loginInput = _emailCtrl.text.trim();
+    final passwordInput = _passCtrl.text;
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
       await ref.read(authProvider.notifier).login(
-            _emailCtrl.text.trim(),
-            _passCtrl.text,
+            loginInput,
+            passwordInput,
           );
+      if (_rememberMe) {
+        await SecureStorage.saveCredentials(
+          login: loginInput,
+          password: passwordInput,
+        );
+      } else {
+        await SecureStorage.clearSavedCredentials();
+      }
+      TextInput.finishAutofillContext();
     } catch (e) {
       if (!mounted) return;
-      String message = 'Неверный email или пароль';
+      String message = 'Неверный логин или пароль';
       if (e is DioException) {
         final status = e.response?.statusCode;
         if (status == null || status >= 500) {
@@ -97,139 +131,172 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   constraints: const BoxConstraints(maxWidth: 480),
                   child: Form(
                     key: _formKey,
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Container(
-                                width: 58,
-                                height: 58,
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                    colors: [
-                                      AppTheme.primaryColor,
-                                      AppTheme.secondaryColor,
+                    child: AutofillGroup(
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Container(
+                                  width: 58,
+                                  height: 58,
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        AppTheme.primaryColor,
+                                        AppTheme.secondaryColor,
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(18),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppTheme.primaryColor
+                                            .withValues(alpha: 0.24),
+                                        blurRadius: 24,
+                                        offset: const Offset(0, 10),
+                                      ),
                                     ],
                                   ),
-                                  borderRadius: BorderRadius.circular(18),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: AppTheme.primaryColor
-                                          .withValues(alpha: 0.24),
-                                      blurRadius: 24,
-                                      offset: const Offset(0, 10),
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  LucideIcons.car,
-                                  size: 31,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Text(
-                              'С возвращением',
-                              style: Theme.of(context).textTheme.headlineMedium,
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Войдите в Автопланету, чтобы продолжить работу со складом.',
-                              style: TextStyle(
-                                color: AppTheme.mutedColor,
-                                height: 1.45,
-                              ),
-                            ),
-                            const SizedBox(height: 28),
-                            TextFormField(
-                              controller: _emailCtrl,
-                              keyboardType: TextInputType.emailAddress,
-                              textInputAction: TextInputAction.next,
-                              autofillHints: const [
-                                AutofillHints.username,
-                                AutofillHints.email,
-                              ],
-                              autocorrect: false,
-                              decoration: const InputDecoration(
-                                labelText: 'Почта или имя пользователя',
-                                prefixIcon: Icon(LucideIcons.user),
-                              ),
-                              validator: (v) => (v == null || v.isEmpty)
-                                  ? 'Введите почту или имя пользователя'
-                                  : null,
-                            ),
-                            const SizedBox(height: 14),
-                            TextFormField(
-                              controller: _passCtrl,
-                              obscureText: _obscure,
-                              textInputAction: TextInputAction.done,
-                              autofillHints: const [AutofillHints.password],
-                              onFieldSubmitted: (_) {
-                                if (!_loading) _submit();
-                              },
-                              decoration: InputDecoration(
-                                labelText: 'Пароль',
-                                prefixIcon:
-                                    const Icon(LucideIcons.lock),
-                                suffixIcon: IconButton(
-                                  tooltip: _obscure
-                                      ? 'Показать пароль'
-                                      : 'Скрыть пароль',
-                                  icon: Icon(
-                                    _obscure
-                                        ? LucideIcons.eye
-                                        : LucideIcons.eye_off,
+                                  child: const Icon(
+                                    LucideIcons.car,
+                                    size: 31,
+                                    color: Colors.white,
                                   ),
-                                  onPressed: () =>
-                                      setState(() => _obscure = !_obscure),
                                 ),
                               ),
-                              validator: (v) => (v == null || v.isEmpty)
-                                  ? 'Введите пароль'
-                                  : null,
-                            ),
-                            if (_error != null) ...[
+                              const SizedBox(height: 24),
+                              Text(
+                                'С возвращением',
+                                style: Theme.of(context).textTheme.headlineMedium,
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Войдите в Автопланету, чтобы продолжить работу со складом.',
+                                style: TextStyle(
+                                  color: AppTheme.mutedColor,
+                                  height: 1.45,
+                                ),
+                              ),
+                              const SizedBox(height: 28),
+                              TextFormField(
+                                controller: _emailCtrl,
+                                keyboardType: TextInputType.text,
+                                textInputAction: TextInputAction.next,
+                                autofillHints: const [
+                                  AutofillHints.username,
+                                  AutofillHints.email,
+                                ],
+                                autocorrect: false,
+                                enableSuggestions: false,
+                                decoration: const InputDecoration(
+                                  labelText: 'Логин или почта',
+                                  prefixIcon: Icon(LucideIcons.user),
+                                ),
+                                validator: (v) => (v == null || v.trim().isEmpty)
+                                    ? 'Введите логин или почту'
+                                    : null,
+                              ),
                               const SizedBox(height: 14),
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.dangerColor
-                                      .withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: AppTheme.dangerColor
-                                        .withValues(alpha: 0.25),
+                              TextFormField(
+                                controller: _passCtrl,
+                                obscureText: _obscure,
+                                textInputAction: TextInputAction.done,
+                                autofillHints: const [AutofillHints.password],
+                                onFieldSubmitted: (_) {
+                                  if (!_loading) _submit();
+                                },
+                                decoration: InputDecoration(
+                                  labelText: 'Пароль',
+                                  prefixIcon:
+                                      const Icon(LucideIcons.lock),
+                                  suffixIcon: IconButton(
+                                    tooltip: _obscure
+                                        ? 'Показать пароль'
+                                        : 'Скрыть пароль',
+                                    icon: Icon(
+                                      _obscure
+                                          ? LucideIcons.eye
+                                          : LucideIcons.eye_off,
+                                    ),
+                                    onPressed: () =>
+                                        setState(() => _obscure = !_obscure),
                                   ),
                                 ),
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      LucideIcons.circle_alert,
-                                      color: AppTheme.dangerColor,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        _error!,
-                                        style: const TextStyle(
-                                          color: AppTheme.dangerColor,
+                                validator: (v) => (v == null || v.isEmpty)
+                                    ? 'Введите пароль'
+                                    : null,
+                              ),
+                              const SizedBox(height: 8),
+                              InkWell(
+                                borderRadius: BorderRadius.circular(8),
+                                onTap: () =>
+                                    setState(() => _rememberMe = !_rememberMe),
+                                child: Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 4),
+                                  child: Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: Checkbox(
+                                          value: _rememberMe,
+                                          onChanged: (v) => setState(
+                                            () => _rememberMe = v ?? true,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(width: 10),
+                                      const Expanded(
+                                        child: Text(
+                                          'Запомнить логин и пароль',
+                                          style: TextStyle(fontSize: 14),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ],
-                            const SizedBox(height: 20),
-                            FilledButton(
+                              if (_error != null) ...[
+                                const SizedBox(height: 14),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.dangerColor
+                                        .withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: AppTheme.dangerColor
+                                          .withValues(alpha: 0.25),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        LucideIcons.circle_alert,
+                                        color: AppTheme.dangerColor,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          _error!,
+                                          style: const TextStyle(
+                                            color: AppTheme.dangerColor,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 20),
+                              FilledButton(
                               onPressed: _loading ? null : _submit,
                               child: _loading
                                   ? const SizedBox(
@@ -286,6 +353,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ],
                         ),
                       ),
+                    ),
                     ),
                   ),
                 ),

@@ -340,10 +340,14 @@ func (s *authService) GetTotalUsersCount() (int, error) {
 }
 
 func (s *authService) LogUserActivity(user *domain.User, action, resourceType string, resourceID *int64, details, ip, userAgent string) error {
+	userIdentifier := user.Email
+	if userIdentifier == "" {
+		userIdentifier = user.Username
+	}
 	log := &domain.UserActivityLog{
 		UserID:       user.ID,
 		UserName:     user.Name,
-		UserEmail:    user.Email,
+		UserEmail:    userIdentifier,
 		Action:       action,
 		ResourceType: resourceType,
 		ResourceID:   resourceID,
