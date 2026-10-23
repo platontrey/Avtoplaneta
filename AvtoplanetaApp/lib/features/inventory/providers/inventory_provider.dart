@@ -66,6 +66,45 @@ bool _matchesTopBottom(String? partVal, String filterVal) {
   return false;
 }
 
+Future<InventoryResponse> _fetchInventoryFromApi(
+  InventoryFilter filter,
+  Map<String, dynamic> params,
+) async {
+  final response = await apiClient.dio.get(
+    '/api/v1/inventory',
+    queryParameters: params,
+  );
+
+  final responseData = response.data;
+  final list = responseData is List
+      ? responseData
+      : responseData is Map && responseData['parts'] is List
+      ? responseData['parts'] as List
+      : const [];
+  final parts = list
+      .map((e) => Part.fromJson(e as Map<String, dynamic>))
+      .toList();
+
+  final effectiveLimit = filter.pageSize == 'all'
+      ? 20
+      : (int.tryParse(filter.pageSize) ?? 20);
+  final hasMore = parts.length == effectiveLimit;
+  final calculatedTotal = hasMore
+      ? (filter.page + 1) * effectiveLimit
+      : (filter.page - 1) * effectiveLimit + parts.length;
+  final total = responseData is Map
+      ? (responseData['total'] as num?)?.toInt() ?? calculatedTotal
+      : calculatedTotal;
+
+  return InventoryResponse(
+    parts: parts,
+    total: total,
+    page: filter.page,
+    limit: effectiveLimit,
+    isOffline: false,
+  );
+}
+
 final inventoryProvider =
     FutureProvider.family<InventoryResponse, InventoryFilter>((
       ref,
@@ -74,41 +113,23 @@ final inventoryProvider =
       final params = filter.toQueryParameters();
 
       try {
-        final response = await apiClient.dio.get(
-          '/api/v1/inventory',
-          queryParameters: params,
-        );
-
-        final responseData = response.data;
-        final list = responseData is List
-            ? responseData
-            : responseData is Map && responseData['parts'] is List
-            ? responseData['parts'] as List
-            : const [];
-        final parts = list
-            .map((e) => Part.fromJson(e as Map<String, dynamic>))
-            .toList();
-
-        final effectiveLimit = filter.pageSize == 'all'
-            ? 20
-            : (int.tryParse(filter.pageSize) ?? 20);
-        final hasMore = parts.length == effectiveLimit;
-        final calculatedTotal = hasMore
-            ? (filter.page + 1) * effectiveLimit
-            : (filter.page - 1) * effectiveLimit + parts.length;
-        final total = responseData is Map
-            ? (responseData['total'] as num?)?.toInt() ?? calculatedTotal
-            : calculatedTotal;
-
-        return InventoryResponse(
-          parts: parts,
-          total: total,
-          page: filter.page,
-          limit: effectiveLimit,
-          isOffline: false,
-        );
+        try {
+          return await _fetchInventoryFromApi(filter, params);
+        } catch (firstErr) {
+          if (ApiClient.isTransientNetworkError(firstErr)) {
+            // При выходе телефона из сна или переключении Wi-Fi/LTE модему требуется ~500 мс:
+            // выполняем 1 быстрый повтор перед переходом в оффлайн-режим.
+            await Future<void>.delayed(const Duration(milliseconds: 600));
+            return await _fetchInventoryFromApi(filter, params);
+          }
+          rethrow;
+        }
       } catch (e) {
-        // Попытка взять данные из локального оффлайн-кэша
+        // Переходим в оффлайн-кэш ТОЛЬКО при реальных сетевых сбоях
+        if (!ApiClient.isTransientNetworkError(e)) {
+          rethrow;
+        }
+
         final cachedList = CacheStorage.getPartsCache();
         if (cachedList != null) {
           var filteredList = cachedList
@@ -474,9 +495,21 @@ final inventoryProvider =
 // Провайдер для одной запчасти с поддержкой локального поиска при оффлайне
 final partProvider = FutureProvider.family<Part, int>((ref, id) async {
   try {
-    final response = await apiClient.dio.get('/api/v1/parts/item/$id');
-    return Part.fromJson(response.data as Map<String, dynamic>);
+    try {
+      final response = await apiClient.dio.get('/api/v1/parts/item/$id');
+      return Part.fromJson(response.data as Map<String, dynamic>);
+    } catch (firstErr) {
+      if (ApiClient.isTransientNetworkError(firstErr)) {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        final response = await apiClient.dio.get('/api/v1/parts/item/$id');
+        return Part.fromJson(response.data as Map<String, dynamic>);
+      }
+      rethrow;
+    }
   } catch (e) {
+    if (!ApiClient.isTransientNetworkError(e)) {
+      rethrow;
+    }
     // В оффлайне пробуем найти деталь в сохраненном кэше
     final cachedList = CacheStorage.getPartsCache();
     if (cachedList != null) {

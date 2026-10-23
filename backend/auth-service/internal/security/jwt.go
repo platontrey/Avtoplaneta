@@ -18,6 +18,11 @@ type JWTClaims struct {
 	jwt.RegisteredClaims
 }
 
+const (
+	AccessTokenTTL  = 24 * time.Hour
+	RefreshTokenTTL = 30 * 24 * time.Hour
+)
+
 // GenerateJWTTokens создает пару access и refresh токенов
 func GenerateJWTTokens(user *domain.User, secret string) (accessToken, refreshToken string, err error) {
 	accessClaims := JWTClaims{
@@ -26,7 +31,7 @@ func GenerateJWTTokens(user *domain.User, secret string) (accessToken, refreshTo
 		Role:   user.Role,
 		Name:   user.Name,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(AccessTokenTTL)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Subject:   fmt.Sprintf("%d", user.ID),
 		},
@@ -39,7 +44,7 @@ func GenerateJWTTokens(user *domain.User, secret string) (accessToken, refreshTo
 	}
 
 	refreshClaims := jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(30 * 24 * time.Hour)),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(RefreshTokenTTL)),
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 		Subject:   fmt.Sprintf("%d", user.ID),
 	}

@@ -4,19 +4,31 @@ import '../api/api_client.dart';
 import '../storage/cache_storage.dart';
 
 class SyncService {
+  static Timer? _initialTimer;
   static Timer? _syncTimer;
   static bool _isSyncing = false;
 
   /// Запуск периодического фонового кэширования
   static void startPeriodicSync() {
+    _initialTimer?.cancel();
     _syncTimer?.cancel();
-    // Запускаем синхронизацию сразу, затем каждые 5 минут
-    _sync();
-    _syncTimer = Timer.periodic(const Duration(minutes: 5), (_) => _sync());
+
+    // Откладываем первый запуск на 20 секунд, чтобы не конкурировать с основной загрузкой экрана склада
+    _initialTimer = Timer(const Duration(seconds: 20), () {
+      final lastCached = CacheStorage.getCachedAt();
+      if (lastCached == null ||
+          DateTime.now().difference(lastCached) > const Duration(minutes: 10)) {
+        _sync();
+      }
+    });
+
+    _syncTimer = Timer.periodic(const Duration(minutes: 15), (_) => _sync());
   }
 
   /// Остановка синхронизации
   static void stopSync() {
+    _initialTimer?.cancel();
+    _initialTimer = null;
     _syncTimer?.cancel();
     _syncTimer = null;
   }
@@ -39,7 +51,6 @@ class SyncService {
           queryParameters: {
             'page': page,
             'limit': limit,
-            // Передаем параметры, если необходимо оптимизировать выдачу на бэкенде
           },
         );
 
@@ -55,6 +66,8 @@ class SyncService {
           hasMore = false;
         } else {
           page++;
+          // Пауза между страницами, чтобы не забивать мобильный канал и не вызывать rate-limit
+          await Future<void>.delayed(const Duration(milliseconds: 150));
         }
       }
 

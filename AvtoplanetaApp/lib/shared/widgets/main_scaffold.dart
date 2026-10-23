@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../app/theme.dart';
 import '../../core/services/update_service.dart';
+import '../../features/inventory/providers/inventory_provider.dart';
 import '../../features/updater/widgets/update_dialog.dart';
 
 class MainScaffold extends ConsumerStatefulWidget {
@@ -35,7 +36,17 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> with WidgetsBinding
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      _recoverFromOfflineIfNeeded();
       _checkUpdatesIfNeeded();
+    }
+  }
+
+  void _recoverFromOfflineIfNeeded() {
+    final filter = ref.read(inventoryFilterProvider);
+    final currentInventory = ref.read(inventoryProvider(filter));
+    if (currentInventory.hasError ||
+        currentInventory.valueOrNull?.isOffline == true) {
+      ref.invalidate(inventoryProvider(filter));
     }
   }
 

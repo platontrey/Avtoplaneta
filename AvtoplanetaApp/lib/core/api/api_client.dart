@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../services/error_reporter.dart';
@@ -14,6 +16,7 @@ class ApiClient {
   factory ApiClient() => _instance;
 
   late final Dio _dio;
+  late final _AuthInterceptor _authInterceptor;
   void Function()? onUnauthorized;
 
   ApiClient._internal() {
@@ -27,8 +30,9 @@ class ApiClient {
       },
     ));
 
+    _authInterceptor = _AuthInterceptor(_dio);
     _dio.interceptors.add(_ContentTypeValidatorInterceptor());
-    _dio.interceptors.add(_AuthInterceptor(_dio));
+    _dio.interceptors.add(_authInterceptor);
     _dio.interceptors.add(_ErrorLoggingInterceptor());
 
     if (kDebugMode) {
@@ -42,6 +46,35 @@ class ApiClient {
 
   Dio get dio => _dio;
 
+  /// Дедуплицированное обновление access/refresh пары токенов.
+  /// Возвращает новый access-токен при успехе или выбрасывает исходную ошибку.
+  Future<String?> refreshAccessToken() => _authInterceptor.refreshToken();
+
+  /// Проверяет, вызвана ли ошибка временным сбоем сети или недоступностью шлюза.
+  static bool isTransientNetworkError(Object err) {
+    if (err is SocketException || err is TimeoutException) {
+      return true;
+    }
+    if (err is DioException) {
+      final type = err.type;
+      if (type == DioExceptionType.connectionTimeout ||
+          type == DioExceptionType.sendTimeout ||
+          type == DioExceptionType.receiveTimeout ||
+          type == DioExceptionType.connectionError) {
+        return true;
+      }
+      if (type == DioExceptionType.unknown &&
+          (err.error is SocketException || err.response == null)) {
+        return true;
+      }
+      final status = err.response?.statusCode;
+      if (status == 502 || status == 503 || status == 504) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /// Преобразует относительный путь из API в публичный URL.
   String resolveUrl(String path) {
     final uri = Uri.tryParse(path);
@@ -53,9 +86,98 @@ class ApiClient {
 /// Перехватчик для автоматического добавления JWT и обновления токена
 class _AuthInterceptor extends Interceptor {
   final Dio _dio;
-  bool _isRefreshing = false;
+  Completer<String?>? _refreshCompleter;
 
   _AuthInterceptor(this._dio);
+
+  bool _isAuthEndpoint(String path) {
+    return path.contains('/auth/login') ||
+        path.contains('/auth/refresh') ||
+        path.contains('/auth/google') ||
+        path.contains('/auth/logout');
+  }
+
+  /// Выполняет обновление токена с объединением параллельных запросов в единую очередь.
+  Future<String?> refreshToken() async {
+    if (_refreshCompleter != null) {
+      return _refreshCompleter!.future;
+    }
+
+    final completer = Completer<String?>();
+    _refreshCompleter = completer;
+
+    try {
+      final storedRefresh = await SecureStorage.getRefreshToken();
+      if (storedRefresh == null || storedRefresh.isEmpty) {
+        await SecureStorage.clearTokens();
+        apiClient.onUnauthorized?.call();
+        completer.complete(null);
+        return null;
+      }
+
+      final refreshDio = Dio(BaseOptions(
+        baseUrl: _dio.options.baseUrl,
+        connectTimeout: const Duration(seconds: 12),
+        receiveTimeout: const Duration(seconds: 12),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ));
+
+      final response = await refreshDio.post(
+        '/auth/refresh',
+        data: {'refresh_token': storedRefresh},
+      );
+
+      final data = response.data;
+      if (data is! Map) {
+        throw DioException(
+          requestOptions: response.requestOptions,
+          response: response,
+          type: DioExceptionType.badResponse,
+          error: 'Некорректный формат ответа /auth/refresh',
+        );
+      }
+
+      final newToken = data['token'] as String?;
+      final newRefresh = data['refresh_token'] as String?;
+      if (newToken == null ||
+          newToken.isEmpty ||
+          newRefresh == null ||
+          newRefresh.isEmpty) {
+        throw DioException(
+          requestOptions: response.requestOptions,
+          response: response,
+          type: DioExceptionType.badResponse,
+          error: 'Пустой токен в ответе /auth/refresh',
+        );
+      }
+
+      await SecureStorage.saveTokens(
+        token: newToken,
+        refreshToken: newRefresh,
+      );
+
+      completer.complete(newToken);
+      return newToken;
+    } catch (e) {
+      final statusCode = e is DioException ? e.response?.statusCode : null;
+      final isExplicitTokenRejection = statusCode == 401 || statusCode == 403;
+
+      // Разлогиниваем пользователя ТОЛЬКО если сервер явно отверг refresh_token (401/403).
+      // При сетевых сбоях, таймаутах или 5xx сохраняем токены для следующих запросов.
+      if (isExplicitTokenRejection) {
+        await SecureStorage.clearTokens();
+        apiClient.onUnauthorized?.call();
+      }
+
+      completer.complete(null);
+      rethrow;
+    } finally {
+      _refreshCompleter = null;
+    }
+  }
 
   @override
   Future<void> onRequest(
@@ -88,46 +210,37 @@ class _AuthInterceptor extends Interceptor {
     DioException err,
     ErrorInterceptorHandler handler,
   ) async {
-    if (err.response?.statusCode == 401 && !_isRefreshing) {
-      _isRefreshing = true;
+    final statusCode = err.response?.statusCode;
+    final alreadyRetried = err.requestOptions.extra['_auth_retried'] == true;
+
+    if (statusCode == 401 &&
+        !alreadyRetried &&
+        !_isAuthEndpoint(err.requestOptions.path)) {
+      String? newToken;
       try {
-        final refreshToken = await SecureStorage.getRefreshToken();
-        if (refreshToken == null || refreshToken.isEmpty) {
-          await SecureStorage.clearTokens();
-          apiClient.onUnauthorized?.call();
-          handler.next(err);
-          return;
-        }
+        newToken = await refreshToken();
+      } catch (_) {
+        handler.next(err);
+        return;
+      }
 
-        // Запрашиваем новый токен через отдельный Dio
-        final refreshDio = Dio(BaseOptions(
-          baseUrl: _dio.options.baseUrl,
-          connectTimeout: const Duration(seconds: 10),
-          receiveTimeout: const Duration(seconds: 10),
-          headers: {'Content-Type': 'application/json'},
-        ));
+      if (newToken == null || newToken.isEmpty) {
+        handler.next(err);
+        return;
+      }
 
-        final response = await refreshDio.post(
-          '/auth/refresh',
-          data: {'refresh_token': refreshToken},
-        );
-
-        final newToken = response.data['token'] as String;
-        final newRefresh = response.data['refresh_token'] as String;
-        await SecureStorage.saveTokens(
-            token: newToken, refreshToken: newRefresh);
-
-        // Повторяем оригинальный запрос с новым токеном
+      // Повторяем оригинальный запрос в отдельном try/catch, чтобы ошибка
+      // самого бизнес-запроса (400/404/500/таймаут) никогда не стирала токены.
+      try {
         final retryOptions = err.requestOptions;
+        retryOptions.extra['_auth_retried'] = true;
         retryOptions.headers['Authorization'] = 'Bearer $newToken';
         final retryResponse = await _dio.fetch(retryOptions);
         handler.resolve(retryResponse);
+      } on DioException catch (retryErr) {
+        handler.next(retryErr);
       } catch (_) {
-        await SecureStorage.clearTokens();
-        apiClient.onUnauthorized?.call();
         handler.next(err);
-      } finally {
-        _isRefreshing = false;
       }
     } else {
       handler.next(err);

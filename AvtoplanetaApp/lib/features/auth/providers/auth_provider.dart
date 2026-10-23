@@ -34,22 +34,12 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
     }
   }
 
-  bool _isNetworkError(Object err) {
+  bool _isNetworkError(Object err) => ApiClient.isTransientNetworkError(err);
+
+  bool _isExplicitAuthError(Object err) {
     if (err is DioException) {
-      final type = err.type;
-      if (type == DioExceptionType.connectionTimeout ||
-          type == DioExceptionType.sendTimeout ||
-          type == DioExceptionType.receiveTimeout ||
-          type == DioExceptionType.connectionError) {
-        return true;
-      }
-      if (err.response == null) {
-        return true;
-      }
       final status = err.response?.statusCode;
-      if (status != null && status >= 500) {
-        return true;
-      }
+      return status == 401 || status == 403;
     }
     return false;
   }
@@ -73,10 +63,28 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
   Future<void> _init() async {
     try {
       final token = await SecureStorage.getToken();
-      if (token == null || token.isEmpty) {
+      final refreshToken = await SecureStorage.getRefreshToken();
+      if ((token == null || token.isEmpty) &&
+          (refreshToken == null || refreshToken.isEmpty)) {
         state = const AsyncValue.data(null);
         return;
       }
+
+      // Оптимистично поднимаем кэшированного пользователя, чтобы при медленном
+      // мобильном интернете интерфейс открывался мгновенно без экрана логина.
+      final cachedJson = await SecureStorage.getUser();
+      if (cachedJson != null) {
+        try {
+          final userMap = jsonDecode(cachedJson) as Map<String, dynamic>;
+          state = AsyncValue.data(User.fromJson(userMap));
+        } catch (_) {}
+      }
+
+      if (token == null || token.isEmpty) {
+        await _tryRefresh();
+        return;
+      }
+
       final response = await apiClient.dio.get('/auth/me');
       final user = User.fromJson(response.data as Map<String, dynamic>);
       await SecureStorage.saveUser(jsonEncode(user.toJson()));
@@ -87,15 +95,15 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
         await _loadCachedUser();
         return;
       }
-      // Токен протух или иная ошибка аутентификации — пробуем обновить
+      // Токен протух или иная ошибка аутентификации — пробуем обновить через единую очередь
       try {
         await _tryRefresh();
       } catch (refreshErr) {
-        if (_isNetworkError(refreshErr)) {
-          await _loadCachedUser();
-        } else {
+        if (_isExplicitAuthError(refreshErr)) {
           await SecureStorage.clearTokens();
           state = const AsyncValue.data(null);
+        } else {
+          await _loadCachedUser();
         }
       }
     }
@@ -183,18 +191,10 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
   }
 
   Future<void> _tryRefresh() async {
-    final refreshToken = await SecureStorage.getRefreshToken();
-    if (refreshToken == null || refreshToken.isEmpty) {
+    final newToken = await apiClient.refreshAccessToken();
+    if (newToken == null || newToken.isEmpty) {
       throw Exception('no refresh token');
     }
-
-    final response = await apiClient.dio.post(
-      '/auth/refresh',
-      data: {'refresh_token': refreshToken},
-    );
-    final newToken = response.data['token'] as String;
-    final newRefresh = response.data['refresh_token'] as String;
-    await SecureStorage.saveTokens(token: newToken, refreshToken: newRefresh);
 
     final meResponse = await apiClient.dio.get('/auth/me');
     final user = User.fromJson(meResponse.data as Map<String, dynamic>);

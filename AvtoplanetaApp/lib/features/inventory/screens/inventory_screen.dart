@@ -34,6 +34,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   final _searchCtrl = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   Timer? _debounce;
+  Timer? _offlineRecoveryTimer;
   final Set<int> _selectedPartIds = {};
   bool _selectionMode = false;
   bool _selectAllByQuery = false;
@@ -56,7 +57,24 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     _scrollController.dispose();
     _searchCtrl.dispose();
     _debounce?.cancel();
+    _offlineRecoveryTimer?.cancel();
     super.dispose();
+  }
+
+  void _syncOfflineRecoveryTimer(bool isOffline, InventoryFilter filter) {
+    if (isOffline) {
+      _offlineRecoveryTimer ??= Timer.periodic(
+        const Duration(seconds: 12),
+        (_) {
+          if (!mounted) return;
+          _lastFilter = null;
+          ref.invalidate(inventoryProvider(filter));
+        },
+      );
+    } else {
+      _offlineRecoveryTimer?.cancel();
+      _offlineRecoveryTimer = null;
+    }
   }
 
   void _onScroll() {
@@ -203,6 +221,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final user = ref.watch(authProvider).valueOrNull;
 
     final isOffline = inventoryAsync.valueOrNull?.isOffline ?? false;
+    _syncOfflineRecoveryTimer(isOffline, filter);
     final visibleParts = inventoryAsync.valueOrNull?.parts ?? const <Part>[];
 
     if (filter.pageSize == 'all' && inventoryAsync.hasValue) {
@@ -443,7 +462,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
-                  vertical: 10,
+                  vertical: 8,
                 ),
                 decoration: BoxDecoration(
                   color: AppTheme.warningColor.withValues(alpha: 0.1),
@@ -452,21 +471,44 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     color: AppTheme.warningColor.withValues(alpha: 0.25),
                   ),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       LucideIcons.cloud_off,
                       size: 18,
                       color: AppTheme.warningColor,
                     ),
-                    SizedBox(width: 10),
-                    Expanded(
+                    const SizedBox(width: 10),
+                    const Expanded(
                       child: Text(
                         'Оффлайн-режим · доступен только просмотр',
                         style: TextStyle(
                           color: AppTheme.warningColor,
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
+                        ),
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () {
+                        _lastFilter = null;
+                        ref.invalidate(inventoryProvider(filter));
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppTheme.warningColor,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      icon: const Icon(LucideIcons.refresh_cw, size: 14),
+                      label: const Text(
+                        'Обновить',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
