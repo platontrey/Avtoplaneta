@@ -875,25 +875,92 @@ func (r *partRepository) BulkUpdateWithProto(ctx context.Context, req *partsv1.B
 			}
 		}
 
+		ops := req.GetOperations()
 		sqlcParts, err := r.queries.BulkUpdateFieldsByIDs(ctx, sqlc.BulkUpdateFieldsByIDsParams{
-			HasPrice:       hasPrice,
-			PriceMode:      priceMode,
-			PriceVal:       priceVal,
-			HasCategory:    req.Operations != nil && req.Operations.Category != nil,
-			Category:       req.Operations.GetCategory(),
-			HasLocation:    req.Operations != nil && req.Operations.Location != nil,
-			Location:       req.Operations.GetLocation(),
-			HasAddress:     req.Operations != nil && req.Operations.Address != nil,
-			Address:        req.Operations.GetAddress(),
-			HasSalesman:    req.Operations != nil && req.Operations.Salesman != nil,
-			Salesman:       req.Operations.GetSalesman(),
-			HasStatus:      req.Operations != nil && req.Operations.Status != nil,
-			Status:         req.Operations.GetStatus(),
-			HasBodyBrand:   req.Operations != nil && req.Operations.BodyBrand != nil,
-			BodyBrand:      req.Operations.GetBodyBrand(),
-			HasEngineBrand: req.Operations != nil && req.Operations.EngineBrand != nil,
-			EngineBrand:    req.Operations.GetEngineBrand(),
-			Ids:            ids,
+			HasPrice:              hasPrice,
+			PriceMode:             priceMode,
+			PriceVal:              priceVal,
+			HasName:               ops != nil && ops.Name != nil,
+			Name:                  ops.GetName(),
+			HasQuantity:           ops != nil && ops.Quantity != nil,
+			Quantity:              ops.GetQuantity(),
+			HasDescription:        ops != nil && ops.Description != nil,
+			Description:           ops.GetDescription(),
+			HasCategory:           ops != nil && ops.Category != nil,
+			Category:              ops.GetCategory(),
+			HasLocation:           ops != nil && ops.Location != nil,
+			Location:              ops.GetLocation(),
+			HasAddress:            ops != nil && ops.Address != nil,
+			Address:               ops.GetAddress(),
+			HasSalesman:           ops != nil && ops.Salesman != nil,
+			Salesman:              ops.GetSalesman(),
+			HasSellerID:           ops != nil && ops.SellerId != nil,
+			SellerID:              ops.GetSellerId(),
+			HasStatus:             ops != nil && ops.Status != nil,
+			Status:                ops.GetStatus(),
+			HasBrand:              ops != nil && ops.Brand != nil,
+			Brand:                 ops.GetBrand(),
+			HasModel:              ops != nil && ops.Model != nil,
+			Model:                 ops.GetModel(),
+			HasVin:                ops != nil && ops.Vin != nil,
+			Vin:                   ops.GetVin(),
+			HasBodyBrand:          ops != nil && ops.BodyBrand != nil,
+			BodyBrand:             ops.GetBodyBrand(),
+			HasEngineBrand:        ops != nil && ops.EngineBrand != nil,
+			EngineBrand:           ops.GetEngineBrand(),
+			HasCarReleaseDate:     ops != nil && ops.CarReleaseDate != nil,
+			CarReleaseDate:        ops.GetCarReleaseDate(),
+			HasCarReleasePeriod:   ops != nil && ops.CarReleasePeriod != nil,
+			CarReleasePeriod:      ops.GetCarReleasePeriod(),
+			HasFrontRear:          ops != nil && ops.FrontRear != nil,
+			FrontRear:             ops.GetFrontRear(),
+			HasLeftRight:          ops != nil && ops.LeftRight != nil,
+			LeftRight:             ops.GetLeftRight(),
+			HasTopBottom:          ops != nil && ops.TopBottom != nil,
+			TopBottom:             ops.GetTopBottom(),
+			HasNumber:             ops != nil && ops.Number != nil,
+			Number:                ops.GetNumber(),
+			HasManufacturer:       ops != nil && ops.Manufacturer != nil,
+			Manufacturer:          ops.GetManufacturer(),
+			HasManufacturerCode:   ops != nil && ops.ManufacturerCode != nil,
+			ManufacturerCode:      ops.GetManufacturerCode(),
+			HasOemCode:            ops != nil && ops.OemCode != nil,
+			OemCode:               ops.GetOemCode(),
+			HasColor:              ops != nil && ops.Color != nil,
+			Color:                 ops.GetColor(),
+			HasCondition:          ops != nil && ops.Condition != nil,
+			Condition:             ops.GetCondition(),
+			HasSupplierCode:       ops != nil && ops.SupplierCode != nil,
+			SupplierCode:          ops.GetSupplierCode(),
+			HasDefect:             ops != nil && ops.Defect != nil,
+			Defect:                ops.GetDefect(),
+			HasTransmission:       ops != nil && ops.Transmission != nil,
+			Transmission:          ops.GetTransmission(),
+			HasTransmissionModel:  ops != nil && ops.TransmissionModel != nil,
+			TransmissionModel:     ops.GetTransmissionModel(),
+			HasDrive:              ops != nil && ops.Drive != nil,
+			Drive:                 ops.GetDrive(),
+			HasWearPercentage:     ops != nil && ops.WearPercentage != nil,
+			WearPercentage:        ops.GetWearPercentage(),
+			HasSeason:             ops != nil && ops.Season != nil,
+			Season:                ops.GetSeason(),
+			HasDiameter:           ops != nil && ops.Diameter != nil,
+			Diameter:              ops.GetDiameter(),
+			HasWidth:              ops != nil && ops.Width != nil,
+			Width:                 ops.GetWidth(),
+			HasProfile:            ops != nil && ops.Profile != nil,
+			Profile:               ops.GetProfile(),
+			HasTireQuantity:       ops != nil && ops.TireQuantity != nil,
+			TireQuantity:          ops.GetTireQuantity(),
+			HasDrilling:           ops != nil && ops.Drilling != nil,
+			Drilling:              ops.GetDrilling(),
+			HasOffset:             ops != nil && ops.Offset != nil,
+			OffsetVal:             ops.GetOffset(),
+			HasCenterHoleDiameter: ops != nil && ops.CenterHoleDiameter != nil,
+			CenterHoleDiameter:    ops.GetCenterHoleDiameter(),
+			HasTireModel:          ops != nil && ops.TireModel != nil,
+			TireModel:             ops.GetTireModel(),
+			Ids:                   ids,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to bulk update by IDs: %w", err)
@@ -918,36 +985,138 @@ func (r *partRepository) BulkUpdateWithProto(ctx context.Context, req *partsv1.B
 			}
 		}
 
-		if req.Operations != nil && req.Operations.Price != nil {
-			switch req.Operations.Price.Mode {
-			case partsv1.PriceOperationMode_PRICE_OPERATION_MODE_PERCENT:
-				updateBuilder = updateBuilder.Set("price", squirrel.Expr("ROUND((price * (1.0 + ? / 100.0))::numeric, 2)::double precision", req.Operations.Price.Value))
-			case partsv1.PriceOperationMode_PRICE_OPERATION_MODE_OFFSET:
-				updateBuilder = updateBuilder.Set("price", squirrel.Expr("GREATEST(0.0, price + ?)", req.Operations.Price.Value))
-			default:
-				updateBuilder = updateBuilder.Set("price", req.Operations.Price.Value)
+		ops := req.GetOperations()
+		if ops != nil {
+			if ops.Price != nil {
+				switch ops.Price.Mode {
+				case partsv1.PriceOperationMode_PRICE_OPERATION_MODE_PERCENT:
+					updateBuilder = updateBuilder.Set("price", squirrel.Expr("ROUND((price * (1.0 + ? / 100.0))::numeric, 2)::double precision", ops.Price.Value))
+				case partsv1.PriceOperationMode_PRICE_OPERATION_MODE_OFFSET:
+					updateBuilder = updateBuilder.Set("price", squirrel.Expr("GREATEST(0.0, price + ?)", ops.Price.Value))
+				default:
+					updateBuilder = updateBuilder.Set("price", ops.Price.Value)
+				}
 			}
-		}
-		if req.Operations != nil && req.Operations.Category != nil {
-			updateBuilder = updateBuilder.Set("category", req.Operations.GetCategory())
-		}
-		if req.Operations != nil && req.Operations.Location != nil {
-			updateBuilder = updateBuilder.Set("location", req.Operations.GetLocation())
-		}
-		if req.Operations != nil && req.Operations.Address != nil {
-			updateBuilder = updateBuilder.Set("address", req.Operations.GetAddress())
-		}
-		if req.Operations != nil && req.Operations.Salesman != nil {
-			updateBuilder = updateBuilder.Set("salesman", req.Operations.GetSalesman())
-		}
-		if req.Operations != nil && req.Operations.Status != nil {
-			updateBuilder = updateBuilder.Set("status", req.Operations.GetStatus())
-		}
-		if req.Operations != nil && req.Operations.BodyBrand != nil {
-			updateBuilder = updateBuilder.Set("body_brand", req.Operations.GetBodyBrand())
-		}
-		if req.Operations != nil && req.Operations.EngineBrand != nil {
-			updateBuilder = updateBuilder.Set("engine_brand", req.Operations.GetEngineBrand())
+			if ops.Name != nil {
+				updateBuilder = updateBuilder.Set("name", ops.GetName())
+			}
+			if ops.Quantity != nil {
+				updateBuilder = updateBuilder.Set("quantity", ops.GetQuantity())
+			}
+			if ops.Description != nil {
+				updateBuilder = updateBuilder.Set("description", ops.GetDescription())
+			}
+			if ops.Category != nil {
+				updateBuilder = updateBuilder.Set("category", ops.GetCategory())
+			}
+			if ops.Location != nil {
+				updateBuilder = updateBuilder.Set("location", ops.GetLocation())
+			}
+			if ops.Address != nil {
+				updateBuilder = updateBuilder.Set("address", ops.GetAddress())
+			}
+			if ops.Salesman != nil {
+				updateBuilder = updateBuilder.Set("salesman", ops.GetSalesman())
+			}
+			if ops.SellerId != nil {
+				updateBuilder = updateBuilder.Set("seller_id", ops.GetSellerId())
+			}
+			if ops.Status != nil {
+				updateBuilder = updateBuilder.Set("status", ops.GetStatus())
+			}
+			if ops.Brand != nil {
+				updateBuilder = updateBuilder.Set("brand", ops.GetBrand())
+			}
+			if ops.Model != nil {
+				updateBuilder = updateBuilder.Set("model", ops.GetModel())
+			}
+			if ops.Vin != nil {
+				updateBuilder = updateBuilder.Set("vin", ops.GetVin())
+			}
+			if ops.BodyBrand != nil {
+				updateBuilder = updateBuilder.Set("body_brand", ops.GetBodyBrand())
+			}
+			if ops.EngineBrand != nil {
+				updateBuilder = updateBuilder.Set("engine_brand", ops.GetEngineBrand())
+			}
+			if ops.CarReleaseDate != nil {
+				updateBuilder = updateBuilder.Set("car_release_date", ops.GetCarReleaseDate())
+			}
+			if ops.CarReleasePeriod != nil {
+				updateBuilder = updateBuilder.Set("car_release_period", ops.GetCarReleasePeriod())
+			}
+			if ops.FrontRear != nil {
+				updateBuilder = updateBuilder.Set("front_rear", ops.GetFrontRear())
+			}
+			if ops.LeftRight != nil {
+				updateBuilder = updateBuilder.Set("left_right", ops.GetLeftRight())
+			}
+			if ops.TopBottom != nil {
+				updateBuilder = updateBuilder.Set("top_bottom", ops.GetTopBottom())
+			}
+			if ops.Number != nil {
+				updateBuilder = updateBuilder.Set("number", ops.GetNumber())
+			}
+			if ops.Manufacturer != nil {
+				updateBuilder = updateBuilder.Set("manufacturer", ops.GetManufacturer())
+			}
+			if ops.ManufacturerCode != nil {
+				updateBuilder = updateBuilder.Set("manufacturer_code", ops.GetManufacturerCode())
+			}
+			if ops.OemCode != nil {
+				updateBuilder = updateBuilder.Set("oem_code", ops.GetOemCode())
+			}
+			if ops.Color != nil {
+				updateBuilder = updateBuilder.Set("color", ops.GetColor())
+			}
+			if ops.Condition != nil {
+				updateBuilder = updateBuilder.Set("condition", ops.GetCondition())
+			}
+			if ops.SupplierCode != nil {
+				updateBuilder = updateBuilder.Set("supplier_code", ops.GetSupplierCode())
+			}
+			if ops.Defect != nil {
+				updateBuilder = updateBuilder.Set("defect", ops.GetDefect())
+			}
+			if ops.Transmission != nil {
+				updateBuilder = updateBuilder.Set("transmission", ops.GetTransmission())
+			}
+			if ops.TransmissionModel != nil {
+				updateBuilder = updateBuilder.Set("transmission_model", ops.GetTransmissionModel())
+			}
+			if ops.Drive != nil {
+				updateBuilder = updateBuilder.Set("drive", ops.GetDrive())
+			}
+			if ops.WearPercentage != nil {
+				updateBuilder = updateBuilder.Set("wear_percentage", ops.GetWearPercentage())
+			}
+			if ops.Season != nil {
+				updateBuilder = updateBuilder.Set("season", ops.GetSeason())
+			}
+			if ops.Diameter != nil {
+				updateBuilder = updateBuilder.Set("diameter", ops.GetDiameter())
+			}
+			if ops.Width != nil {
+				updateBuilder = updateBuilder.Set("width", ops.GetWidth())
+			}
+			if ops.Profile != nil {
+				updateBuilder = updateBuilder.Set("profile", ops.GetProfile())
+			}
+			if ops.TireQuantity != nil {
+				updateBuilder = updateBuilder.Set("tire_quantity", ops.GetTireQuantity())
+			}
+			if ops.Drilling != nil {
+				updateBuilder = updateBuilder.Set("drilling", ops.GetDrilling())
+			}
+			if ops.Offset != nil {
+				updateBuilder = updateBuilder.Set(`"offset"`, ops.GetOffset())
+			}
+			if ops.CenterHoleDiameter != nil {
+				updateBuilder = updateBuilder.Set("center_hole_diameter", ops.GetCenterHoleDiameter())
+			}
+			if ops.TireModel != nil {
+				updateBuilder = updateBuilder.Set("tire_model", ops.GetTireModel())
+			}
 		}
 
 		updateBuilder = updateBuilder.Set("updated_at", squirrel.Expr("NOW()"))

@@ -590,6 +590,39 @@ message BulkFieldOperations {
   optional bool status = 6;
   optional string body_brand = 7;
   optional string engine_brand = 8;
+  optional string name = 9;
+  optional int32 quantity = 10 [(buf.validate.field).int32.gte = 0];
+  optional string description = 11;
+  optional string brand = 12;
+  optional string model = 13;
+  optional int64 seller_id = 14;
+  optional string vin = 15;
+  optional string car_release_date = 22;
+  optional string front_rear = 23;
+  optional string left_right = 24;
+  optional string top_bottom = 25;
+  optional string number = 26;
+  optional string manufacturer = 27;
+  optional string manufacturer_code = 28;
+  optional string oem_code = 29;
+  optional string color = 30;
+  optional string condition = 31;
+  optional string supplier_code = 32;
+  optional string defect = 33;
+  optional string transmission = 34;
+  optional string drive = 35;
+  optional string wear_percentage = 36;
+  optional string transmission_model = 37;
+  optional string car_release_period = 38;
+  optional string season = 40;
+  optional string diameter = 41;
+  optional string width = 42;
+  optional string profile = 43;
+  optional string tire_quantity = 44;
+  optional string drilling = 45;
+  optional string offset = 46;
+  optional string center_hole_diameter = 47;
+  optional string tire_model = 48;
 }
 
 enum BulkScopeType {

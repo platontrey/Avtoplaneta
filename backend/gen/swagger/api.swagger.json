@@ -1668,6 +1668,107 @@
         },
         "engineBrand": {
           "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "description": {
+          "type": "string"
+        },
+        "brand": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "sellerId": {
+          "type": "string",
+          "format": "int64"
+        },
+        "vin": {
+          "type": "string"
+        },
+        "carReleaseDate": {
+          "type": "string"
+        },
+        "frontRear": {
+          "type": "string"
+        },
+        "leftRight": {
+          "type": "string"
+        },
+        "topBottom": {
+          "type": "string"
+        },
+        "number": {
+          "type": "string"
+        },
+        "manufacturer": {
+          "type": "string"
+        },
+        "manufacturerCode": {
+          "type": "string"
+        },
+        "oemCode": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "condition": {
+          "type": "string"
+        },
+        "supplierCode": {
+          "type": "string"
+        },
+        "defect": {
+          "type": "string"
+        },
+        "transmission": {
+          "type": "string"
+        },
+        "drive": {
+          "type": "string"
+        },
+        "wearPercentage": {
+          "type": "string"
+        },
+        "transmissionModel": {
+          "type": "string"
+        },
+        "carReleasePeriod": {
+          "type": "string"
+        },
+        "season": {
+          "type": "string"
+        },
+        "diameter": {
+          "type": "string"
+        },
+        "width": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "tireQuantity": {
+          "type": "string"
+        },
+        "drilling": {
+          "type": "string"
+        },
+        "offset": {
+          "type": "string"
+        },
+        "centerHoleDiameter": {
+          "type": "string"
+        },
+        "tireModel": {
+          "type": "string"
         }
       }
     },

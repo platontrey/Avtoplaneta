@@ -30,37 +30,136 @@ SET
             THEN $3::float8
         ELSE price
     END,
-    category = CASE WHEN $4::boolean THEN $5::text ELSE category END,
-    location = CASE WHEN $6::boolean THEN $7::text ELSE location END,
-    address = CASE WHEN $8::boolean THEN $9::text ELSE address END,
-    salesman = CASE WHEN $10::boolean THEN $11::text ELSE salesman END,
-    status = CASE WHEN $12::boolean THEN $13::boolean ELSE status END,
-    body_brand = CASE WHEN $14::boolean THEN $15::text ELSE body_brand END,
-    engine_brand = CASE WHEN $16::boolean THEN $17::text ELSE engine_brand END,
+    name = CASE WHEN $4::boolean THEN $5::text ELSE name END,
+    quantity = CASE WHEN $6::boolean THEN $7::int4 ELSE quantity END,
+    description = CASE WHEN $8::boolean THEN $9::text ELSE description END,
+    category = CASE WHEN $10::boolean THEN $11::text ELSE category END,
+    location = CASE WHEN $12::boolean THEN $13::text ELSE location END,
+    address = CASE WHEN $14::boolean THEN $15::text ELSE address END,
+    salesman = CASE WHEN $16::boolean THEN $17::text ELSE salesman END,
+    seller_id = CASE WHEN $18::boolean THEN $19::bigint ELSE seller_id END,
+    status = CASE WHEN $20::boolean THEN $21::boolean ELSE status END,
+    brand = CASE WHEN $22::boolean THEN $23::text ELSE brand END,
+    model = CASE WHEN $24::boolean THEN $25::text ELSE model END,
+    vin = CASE WHEN $26::boolean THEN $27::text ELSE vin END,
+    body_brand = CASE WHEN $28::boolean THEN $29::text ELSE body_brand END,
+    engine_brand = CASE WHEN $30::boolean THEN $31::text ELSE engine_brand END,
+    car_release_date = CASE WHEN $32::boolean THEN $33::text ELSE car_release_date END,
+    car_release_period = CASE WHEN $34::boolean THEN $35::text ELSE car_release_period END,
+    front_rear = CASE WHEN $36::boolean THEN $37::text ELSE front_rear END,
+    left_right = CASE WHEN $38::boolean THEN $39::text ELSE left_right END,
+    top_bottom = CASE WHEN $40::boolean THEN $41::text ELSE top_bottom END,
+    number = CASE WHEN $42::boolean THEN $43::text ELSE number END,
+    manufacturer = CASE WHEN $44::boolean THEN $45::text ELSE manufacturer END,
+    manufacturer_code = CASE WHEN $46::boolean THEN $47::text ELSE manufacturer_code END,
+    oem_code = CASE WHEN $48::boolean THEN $49::text ELSE oem_code END,
+    color = CASE WHEN $50::boolean THEN $51::text ELSE color END,
+    condition = CASE WHEN $52::boolean THEN $53::text ELSE condition END,
+    supplier_code = CASE WHEN $54::boolean THEN $55::text ELSE supplier_code END,
+    defect = CASE WHEN $56::boolean THEN $57::text ELSE defect END,
+    transmission = CASE WHEN $58::boolean THEN $59::text ELSE transmission END,
+    transmission_model = CASE WHEN $60::boolean THEN $61::text ELSE transmission_model END,
+    drive = CASE WHEN $62::boolean THEN $63::text ELSE drive END,
+    wear_percentage = CASE WHEN $64::boolean THEN $65::text ELSE wear_percentage END,
+    season = CASE WHEN $66::boolean THEN $67::text ELSE season END,
+    diameter = CASE WHEN $68::boolean THEN $69::text ELSE diameter END,
+    width = CASE WHEN $70::boolean THEN $71::text ELSE width END,
+    profile = CASE WHEN $72::boolean THEN $73::text ELSE profile END,
+    tire_quantity = CASE WHEN $74::boolean THEN $75::text ELSE tire_quantity END,
+    drilling = CASE WHEN $76::boolean THEN $77::text ELSE drilling END,
+    "offset" = CASE WHEN $78::boolean THEN $79::text ELSE "offset" END,
+    center_hole_diameter = CASE WHEN $80::boolean THEN $81::text ELSE center_hole_diameter END,
+    tire_model = CASE WHEN $82::boolean THEN $83::text ELSE tire_model END,
     updated_at = NOW()
-WHERE id = ANY($18::bigint[]) AND deleted_at IS NULL AND quantity >= 0
+WHERE id = ANY($84::bigint[]) AND deleted_at IS NULL AND quantity >= 0
 RETURNING id, name, quantity, description, category, price, salesman, location, address, status, brand, model, photos, seller_id, to_delete_at, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, created_at, updated_at, deleted_at, car_release_period
 `
 
 type BulkUpdateFieldsByIDsParams struct {
-	HasPrice       bool    `json:"has_price"`
-	PriceMode      string  `json:"price_mode"`
-	PriceVal       float64 `json:"price_val"`
-	HasCategory    bool    `json:"has_category"`
-	Category       string  `json:"category"`
-	HasLocation    bool    `json:"has_location"`
-	Location       string  `json:"location"`
-	HasAddress     bool    `json:"has_address"`
-	Address        string  `json:"address"`
-	HasSalesman    bool    `json:"has_salesman"`
-	Salesman       string  `json:"salesman"`
-	HasStatus      bool    `json:"has_status"`
-	Status         bool    `json:"status"`
-	HasBodyBrand   bool    `json:"has_body_brand"`
-	BodyBrand      string  `json:"body_brand"`
-	HasEngineBrand bool    `json:"has_engine_brand"`
-	EngineBrand    string  `json:"engine_brand"`
-	Ids            []int64 `json:"ids"`
+	HasPrice              bool    `json:"has_price"`
+	PriceMode             string  `json:"price_mode"`
+	PriceVal              float64 `json:"price_val"`
+	HasName               bool    `json:"has_name"`
+	Name                  string  `json:"name"`
+	HasQuantity           bool    `json:"has_quantity"`
+	Quantity              int32   `json:"quantity"`
+	HasDescription        bool    `json:"has_description"`
+	Description           string  `json:"description"`
+	HasCategory           bool    `json:"has_category"`
+	Category              string  `json:"category"`
+	HasLocation           bool    `json:"has_location"`
+	Location              string  `json:"location"`
+	HasAddress            bool    `json:"has_address"`
+	Address               string  `json:"address"`
+	HasSalesman           bool    `json:"has_salesman"`
+	Salesman              string  `json:"salesman"`
+	HasSellerID           bool    `json:"has_seller_id"`
+	SellerID              int64   `json:"seller_id"`
+	HasStatus             bool    `json:"has_status"`
+	Status                bool    `json:"status"`
+	HasBrand              bool    `json:"has_brand"`
+	Brand                 string  `json:"brand"`
+	HasModel              bool    `json:"has_model"`
+	Model                 string  `json:"model"`
+	HasVin                bool    `json:"has_vin"`
+	Vin                   string  `json:"vin"`
+	HasBodyBrand          bool    `json:"has_body_brand"`
+	BodyBrand             string  `json:"body_brand"`
+	HasEngineBrand        bool    `json:"has_engine_brand"`
+	EngineBrand           string  `json:"engine_brand"`
+	HasCarReleaseDate     bool    `json:"has_car_release_date"`
+	CarReleaseDate        string  `json:"car_release_date"`
+	HasCarReleasePeriod   bool    `json:"has_car_release_period"`
+	CarReleasePeriod      string  `json:"car_release_period"`
+	HasFrontRear          bool    `json:"has_front_rear"`
+	FrontRear             string  `json:"front_rear"`
+	HasLeftRight          bool    `json:"has_left_right"`
+	LeftRight             string  `json:"left_right"`
+	HasTopBottom          bool    `json:"has_top_bottom"`
+	TopBottom             string  `json:"top_bottom"`
+	HasNumber             bool    `json:"has_number"`
+	Number                string  `json:"number"`
+	HasManufacturer       bool    `json:"has_manufacturer"`
+	Manufacturer          string  `json:"manufacturer"`
+	HasManufacturerCode   bool    `json:"has_manufacturer_code"`
+	ManufacturerCode      string  `json:"manufacturer_code"`
+	HasOemCode            bool    `json:"has_oem_code"`
+	OemCode               string  `json:"oem_code"`
+	HasColor              bool    `json:"has_color"`
+	Color                 string  `json:"color"`
+	HasCondition          bool    `json:"has_condition"`
+	Condition             string  `json:"condition"`
+	HasSupplierCode       bool    `json:"has_supplier_code"`
+	SupplierCode          string  `json:"supplier_code"`
+	HasDefect             bool    `json:"has_defect"`
+	Defect                string  `json:"defect"`
+	HasTransmission       bool    `json:"has_transmission"`
+	Transmission          string  `json:"transmission"`
+	HasTransmissionModel  bool    `json:"has_transmission_model"`
+	TransmissionModel     string  `json:"transmission_model"`
+	HasDrive              bool    `json:"has_drive"`
+	Drive                 string  `json:"drive"`
+	HasWearPercentage     bool    `json:"has_wear_percentage"`
+	WearPercentage        string  `json:"wear_percentage"`
+	HasSeason             bool    `json:"has_season"`
+	Season                string  `json:"season"`
+	HasDiameter           bool    `json:"has_diameter"`
+	Diameter              string  `json:"diameter"`
+	HasWidth              bool    `json:"has_width"`
+	Width                 string  `json:"width"`
+	HasProfile            bool    `json:"has_profile"`
+	Profile               string  `json:"profile"`
+	HasTireQuantity       bool    `json:"has_tire_quantity"`
+	TireQuantity          string  `json:"tire_quantity"`
+	HasDrilling           bool    `json:"has_drilling"`
+	Drilling              string  `json:"drilling"`
+	HasOffset             bool    `json:"has_offset"`
+	OffsetVal             string  `json:"offset_val"`
+	HasCenterHoleDiameter bool    `json:"has_center_hole_diameter"`
+	CenterHoleDiameter    string  `json:"center_hole_diameter"`
+	HasTireModel          bool    `json:"has_tire_model"`
+	TireModel             string  `json:"tire_model"`
+	Ids                   []int64 `json:"ids"`
 }
 
 func (q *Queries) BulkUpdateFieldsByIDs(ctx context.Context, arg BulkUpdateFieldsByIDsParams) ([]Part, error) {
@@ -68,6 +167,12 @@ func (q *Queries) BulkUpdateFieldsByIDs(ctx context.Context, arg BulkUpdateField
 		arg.HasPrice,
 		arg.PriceMode,
 		arg.PriceVal,
+		arg.HasName,
+		arg.Name,
+		arg.HasQuantity,
+		arg.Quantity,
+		arg.HasDescription,
+		arg.Description,
 		arg.HasCategory,
 		arg.Category,
 		arg.HasLocation,
@@ -76,12 +181,72 @@ func (q *Queries) BulkUpdateFieldsByIDs(ctx context.Context, arg BulkUpdateField
 		arg.Address,
 		arg.HasSalesman,
 		arg.Salesman,
+		arg.HasSellerID,
+		arg.SellerID,
 		arg.HasStatus,
 		arg.Status,
+		arg.HasBrand,
+		arg.Brand,
+		arg.HasModel,
+		arg.Model,
+		arg.HasVin,
+		arg.Vin,
 		arg.HasBodyBrand,
 		arg.BodyBrand,
 		arg.HasEngineBrand,
 		arg.EngineBrand,
+		arg.HasCarReleaseDate,
+		arg.CarReleaseDate,
+		arg.HasCarReleasePeriod,
+		arg.CarReleasePeriod,
+		arg.HasFrontRear,
+		arg.FrontRear,
+		arg.HasLeftRight,
+		arg.LeftRight,
+		arg.HasTopBottom,
+		arg.TopBottom,
+		arg.HasNumber,
+		arg.Number,
+		arg.HasManufacturer,
+		arg.Manufacturer,
+		arg.HasManufacturerCode,
+		arg.ManufacturerCode,
+		arg.HasOemCode,
+		arg.OemCode,
+		arg.HasColor,
+		arg.Color,
+		arg.HasCondition,
+		arg.Condition,
+		arg.HasSupplierCode,
+		arg.SupplierCode,
+		arg.HasDefect,
+		arg.Defect,
+		arg.HasTransmission,
+		arg.Transmission,
+		arg.HasTransmissionModel,
+		arg.TransmissionModel,
+		arg.HasDrive,
+		arg.Drive,
+		arg.HasWearPercentage,
+		arg.WearPercentage,
+		arg.HasSeason,
+		arg.Season,
+		arg.HasDiameter,
+		arg.Diameter,
+		arg.HasWidth,
+		arg.Width,
+		arg.HasProfile,
+		arg.Profile,
+		arg.HasTireQuantity,
+		arg.TireQuantity,
+		arg.HasDrilling,
+		arg.Drilling,
+		arg.HasOffset,
+		arg.OffsetVal,
+		arg.HasCenterHoleDiameter,
+		arg.CenterHoleDiameter,
+		arg.HasTireModel,
+		arg.TireModel,
 		arg.Ids,
 	)
 	if err != nil {
