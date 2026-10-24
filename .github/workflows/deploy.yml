@@ -42,19 +42,29 @@ jobs:
       - name: Verify Protobuf Contracts
         run: |
           export PATH="$PATH:$HOME/go/bin:/usr/local/go/bin"
-          cd backend && make proto-lint
+          if ! command -v buf >/dev/null 2>&1; then
+            go install github.com/bufbuild/buf/cmd/buf@latest
+          fi
+          cd backend/proto && buf lint
 
       - name: Compile Backend Services
         run: |
           export PATH="$PATH:$HOME/go/bin:/usr/local/go/bin"
           export GOMAXPROCS=16
-          cd backend && make build-all
+          for svc in auth-service parts-service orders-service messaging-service export-service template-service; do
+            echo "Compiling $svc..."
+            (cd "backend/$svc" && go build -o /dev/null ./...)
+          done
+          (cd backend/pkg && go test -run=^$ ./...)
 
       - name: Run Backend Unit Tests
         run: |
           export PATH="$PATH:$HOME/go/bin:/usr/local/go/bin"
           export GOMAXPROCS=16
-          cd backend && make test
+          for svc in auth-service parts-service orders-service messaging-service export-service template-service pkg; do
+            echo "Testing $svc..."
+            (cd "backend/$svc" && go test ./...)
+          done
 
       - name: Verify Frontend Build
         run: |
