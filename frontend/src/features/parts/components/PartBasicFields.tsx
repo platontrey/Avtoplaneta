@@ -185,10 +185,35 @@ export function PartBasicFields() {
 
             {/* Адрес склада */}
             <FormRow label="Адрес склада" htmlFor="address">
-                <Input
-                    id="address"
-                    {...register("address")}
-                    placeholder="Например: Профсоюзная 2/11"
+                <Controller
+                    name="address"
+                    control={control}
+                    render={({ field }) => {
+                        const warehouseAddresses = [
+                            "Томск, Профсоюзная 2/11",
+                            "г. Томск, пос. Кузовлево, ул. Заречная, 36",
+                        ];
+                        const currentVal = (field.value || "").trim();
+                        const options =
+                            currentVal && !warehouseAddresses.includes(currentVal)
+                                ? [currentVal, ...warehouseAddresses]
+                                : warehouseAddresses;
+                        return (
+                            <ClearableSelect
+                                id="address"
+                                value={field.value || ""}
+                                onValueChange={field.onChange}
+                                placeholder="Выберите адрес склада"
+                                className="h-10 w-full"
+                            >
+                                {options.map((addr) => (
+                                    <SelectItem key={addr} value={addr}>
+                                        {addr}
+                                    </SelectItem>
+                                ))}
+                            </ClearableSelect>
+                        );
+                    }}
                 />
             </FormRow>
 

@@ -1936,13 +1936,44 @@ class _InventoryFilterSheetState extends ConsumerState<_InventoryFilterSheet> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: _addressController,
-                      onChanged: (_) => setState(() {}),
+                    DropdownButtonFormField<String>(
+                      key: ValueKey('filter_address_${_addressController.text.trim()}'),
+                      initialValue: const [
+                        '',
+                        'Томск, Профсоюзная 2/11',
+                        'г. Томск, пос. Кузовлево, ул. Заречная, 36',
+                      ].contains(_addressController.text.trim())
+                          ? _addressController.text.trim()
+                          : '',
+                      isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'Адрес склада',
-                        hintText: 'Профсоюзная 2/11…',
                       ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: '',
+                          child: Text('Все склады'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Томск, Профсоюзная 2/11',
+                          child: Text(
+                            'Томск, Профсоюзная 2/11',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'г. Томск, пос. Кузовлево, ул. Заречная, 36',
+                          child: Text(
+                            'г. Томск, пос. Кузовлево, ул. Заречная, 36',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        setState(() {
+                          _addressController.text = val ?? '';
+                        });
+                      },
                     ),
                     const SizedBox(height: 12),
                     TextField(

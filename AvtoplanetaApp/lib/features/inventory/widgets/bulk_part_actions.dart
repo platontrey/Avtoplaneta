@@ -639,12 +639,31 @@ class _BulkEditSheetState extends State<_BulkEditSheet> {
               // Адрес склада
               _fieldToggle('address', 'Адрес склада'),
               if (_enabled.contains('address'))
-                TextFormField(
-                  controller: _address,
+                DropdownButtonFormField<String>(
+                  initialValue: _address.text.trim().isNotEmpty
+                      ? _address.text.trim()
+                      : null,
+                  isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Адрес склада *',
-                    hintText: 'Например: г. Владивосток, ул. Снеговая, 2Б',
                   ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'Томск, Профсоюзная 2/11',
+                      child: Text(
+                        'Томск, Профсоюзная 2/11',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'г. Томск, пос. Кузовлево, ул. Заречная, 36',
+                      child: Text(
+                        'г. Томск, пос. Кузовлево, ул. Заречная, 36',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) => _address.text = value ?? '',
                   validator: (value) => value == null || value.trim().isEmpty
                       ? 'Укажите адрес склада'
                       : null,

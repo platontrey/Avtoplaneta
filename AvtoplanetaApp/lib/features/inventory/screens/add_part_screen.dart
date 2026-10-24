@@ -682,7 +682,7 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
 
             _section('Расположение'),
             _field(_locationCtrl, 'Место хранения'),
-            _field(_addressCtrl, 'Адрес склада'),
+            _addressField(),
             _field(_salesmanCtrl, 'Продавец'),
 
             const SizedBox(height: 24),
@@ -1222,6 +1222,40 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
         decoration: const InputDecoration(labelText: 'Сезон'),
         items: items,
         onChanged: (value) => _seasonCtrl.text = value ?? '',
+      ),
+    );
+  }
+
+  Widget _addressField() {
+    final current = _addressCtrl.text.trim();
+    const warehouseOptions = [
+      'Томск, Профсоюзная 2/11',
+      'г. Томск, пос. Кузовлево, ул. Заречная, 36',
+    ];
+    final items = [
+      const DropdownMenuItem(value: '', child: Text('Не указано')),
+      ...warehouseOptions.map(
+        (opt) => DropdownMenuItem(
+          value: opt,
+          child: Text(opt, overflow: TextOverflow.ellipsis),
+        ),
+      ),
+      if (current.isNotEmpty && !warehouseOptions.contains(current))
+        DropdownMenuItem(
+          value: current,
+          child: Text(current, overflow: TextOverflow.ellipsis),
+        ),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<String>(
+        key: ValueKey('address_$current'),
+        initialValue: current,
+        isExpanded: true,
+        decoration: const InputDecoration(labelText: 'Адрес склада'),
+        items: items,
+        onChanged: (value) => _addressCtrl.text = value ?? '',
       ),
     );
   }

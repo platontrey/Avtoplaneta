@@ -5,7 +5,14 @@
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { SelectItem } from '@/components/ui/select';
+import { ClearableSelect } from '@/components/ClearableSelect';
 import type { SearchFiltersState } from './searchTypes';
+
+const WAREHOUSE_ADDRESSES = [
+  'Томск, Профсоюзная 2/11',
+  'г. Томск, пос. Кузовлево, ул. Заречная, 36',
+];
 
 export interface WarehouseFiltersTabProps {
   filters: SearchFiltersState;
@@ -34,14 +41,21 @@ export const WarehouseFiltersTab: React.FC<WarehouseFiltersTabProps> = ({
       {/* Адрес склада */}
       <div>
         <Label htmlFor="address-filter">Адрес склада</Label>
-        <Input
-          id="address-filter"
-          type="text"
-          value={filters.address}
-          onChange={(e) => onChange('address', e.target.value)}
-          placeholder="Профсоюзная 2/11..."
-          className="mt-1.5 bg-transparent border border-gray-300"
-        />
+        <div className="mt-1.5">
+          <ClearableSelect
+            id="address-filter"
+            value={filters.address}
+            onValueChange={(val) => onChange('address', val)}
+            placeholder="Все склады"
+            className="w-full bg-transparent border border-gray-300"
+          >
+            {WAREHOUSE_ADDRESSES.map((addr) => (
+              <SelectItem key={addr} value={addr}>
+                {addr}
+              </SelectItem>
+            ))}
+          </ClearableSelect>
+        </div>
       </div>
 
       {/* Продавец */}

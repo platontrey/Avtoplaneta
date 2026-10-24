@@ -375,11 +375,18 @@ export default function BulkEditDialog({
               <Label htmlFor="applyAddress" className="text-sm font-semibold cursor-pointer">Адрес склада</Label>
             </div>
             {form.applyAddress && (
-              <Input
-                placeholder="Например, г. Владивосток, ул. Снеговая, 2Б"
+              <Select
                 value={form.address || ''}
-                onChange={(e) => updateForm('address', e.target.value)}
-              />
+                onValueChange={(val) => updateForm('address', val)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите адрес склада" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Томск, Профсоюзная 2/11">Томск, Профсоюзная 2/11</SelectItem>
+                  <SelectItem value="г. Томск, пос. Кузовлево, ул. Заречная, 36">г. Томск, пос. Кузовлево, ул. Заречная, 36</SelectItem>
+                </SelectContent>
+              </Select>
             )}
           </div>
 
