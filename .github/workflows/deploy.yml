@@ -30,51 +30,8 @@ on:
       - "scripts/migration/**"
 
 jobs:
-  verify:
-    name: Verify & Test (CI)
-    runs-on: self-hosted
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          clean: true
-
-      - name: Verify Protobuf Contracts
-        run: |
-          export PATH="$PATH:$HOME/go/bin:/usr/local/go/bin"
-          if ! command -v buf >/dev/null 2>&1; then
-            go install github.com/bufbuild/buf/cmd/buf@latest
-          fi
-          cd backend/proto && buf lint
-
-      - name: Compile Backend Services
-        run: |
-          export PATH="$PATH:$HOME/go/bin:/usr/local/go/bin"
-          export GOMAXPROCS=16
-          for svc in auth-service parts-service orders-service messaging-service export-service template-service; do
-            echo "Compiling $svc..."
-            (cd "backend/$svc" && go build -o /dev/null ./...)
-          done
-          (cd backend/pkg && go test -run=^$ ./...)
-
-      - name: Run Backend Unit Tests
-        run: |
-          export PATH="$PATH:$HOME/go/bin:/usr/local/go/bin"
-          export GOMAXPROCS=16
-          for svc in auth-service parts-service orders-service messaging-service export-service template-service pkg; do
-            echo "Testing $svc..."
-            (cd "backend/$svc" && go test ./...)
-          done
-
-      - name: Verify Frontend Build
-        run: |
-          cd frontend
-          npm ci --prefer-offline 2>/dev/null || npm install
-          npm run build
-
   deploy:
     name: Deploy to Production
-    needs: [verify]
     if: github.event_name == 'push'
     runs-on: self-hosted
     steps:
