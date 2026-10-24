@@ -536,12 +536,44 @@ class UpdateService {
     );
   }
 
-  /// Проверяет, скачан ли уже APK обновления целиком
+  CancelToken? _bgDownloadCancelToken;
+
+  String _apkFileName(AppUpdateInfo info) {
+    final normBuild = normalizeBuildNumber(info.buildNumber);
+    final safeVersion =
+        info.version.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+    return 'avtoplaneta-update-$safeVersion-$normBuild.apk';
+  }
+
+  /// Очищает старые APK обновлений из временной папки
+  Future<void> _cleanupOldApks(Directory tempDir, String keepFileName) async {
+    try {
+      final entities = tempDir.listSync();
+      for (final entity in entities) {
+        if (entity is File) {
+          final name = entity.uri.pathSegments.isNotEmpty
+              ? entity.uri.pathSegments.last
+              : '';
+          if (name.startsWith('avtoplaneta-update') &&
+              name != keepFileName &&
+              name != '$keepFileName.done') {
+            try {
+              await entity.delete();
+            } catch (_) {}
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// Проверяет, скачан ли уже APK конкретной версии и сборки целиком
   Future<bool> isUpdateDownloaded(AppUpdateInfo info) async {
     try {
       final tempDir = await getTemporaryDirectory();
-      final targetFile = File('${tempDir.path}/avtoplaneta-update.apk');
-      if (!targetFile.existsSync()) return false;
+      final fileName = _apkFileName(info);
+      final targetFile = File('${tempDir.path}/$fileName');
+      final doneMarker = File('${tempDir.path}/$fileName.done');
+      if (!targetFile.existsSync() || !doneMarker.existsSync()) return false;
       final currentBytes = targetFile.lengthSync();
       if (info.fileSizeBytes > 0) {
         return currentBytes == info.fileSizeBytes;
@@ -560,10 +592,13 @@ class UpdateService {
         debugPrint('Обновление уже предварительно загружено в кэш');
         return;
       }
+      _bgDownloadCancelToken?.cancel('Запуск новой фоновой загрузки');
+      _bgDownloadCancelToken = CancelToken();
       debugPrint('Старт тихой фоновой загрузки обновления (${info.version})...');
       await downloadAndInstall(
         info: info,
         autoOpen: false,
+        cancelToken: _bgDownloadCancelToken,
         onProgress: (progress, received, total) {
           // Тихий прогресс в фоне
         },
@@ -581,11 +616,20 @@ class UpdateService {
     CancelToken? cancelToken,
     bool autoOpen = true,
   }) async {
-    final tempDir = await getTemporaryDirectory();
-    final targetFile = File('${tempDir.path}/avtoplaneta-update.apk');
+    if (autoOpen && _bgDownloadCancelToken != null && !_bgDownloadCancelToken!.isCancelled) {
+      _bgDownloadCancelToken!.cancel('Переход к интерактивной загрузке');
+      _bgDownloadCancelToken = null;
+    }
 
-    // Если файл уже скачан и его размер совпадает с ожидаемым — мгновенно открываем установщик
-    if (targetFile.existsSync()) {
+    final tempDir = await getTemporaryDirectory();
+    final fileName = _apkFileName(info);
+    final targetFile = File('${tempDir.path}/$fileName');
+    final doneMarker = File('${tempDir.path}/$fileName.done');
+
+    await _cleanupOldApks(tempDir, fileName);
+
+    // Если файл этой сборки уже полностью скачан и подтвержден маркером .done — открываем установщик
+    if (targetFile.existsSync() && doneMarker.existsSync()) {
       final currentBytes = targetFile.lengthSync();
       final isComplete = (info.fileSizeBytes > 0 && currentBytes == info.fileSizeBytes) ||
           (info.fileSizeBytes == 0 && currentBytes > 10 * 1024 * 1024);
@@ -645,6 +689,12 @@ class UpdateService {
       }
 
       try {
+        if (doneMarker.existsSync()) {
+          try {
+            await doneMarker.delete();
+          } catch (_) {}
+        }
+
         final currentBytes = targetFile.existsSync() ? targetFile.lengthSync() : 0;
         final headers = <String, dynamic>{};
         bool isResuming = false;
@@ -684,6 +734,9 @@ class UpdateService {
 
         if (response.statusCode == 200 || response.statusCode == 206) {
           downloadSuccess = true;
+          try {
+            await doneMarker.writeAsString('${targetFile.lengthSync()}');
+          } catch (_) {}
         }
       } on DioException catch (e) {
         if (CancelToken.isCancel(e)) {

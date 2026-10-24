@@ -10,6 +10,7 @@ class SecureStorage {
   static const _keyUser = 'cached_user';
   static const _keySavedLogin = 'saved_login';
   static const _keySavedPassword = 'saved_password';
+  static const _keyHandledUpdateBuild = 'handled_update_build';
 
   static Future<void> saveTokens({
     required String token,
@@ -53,6 +54,17 @@ class SecureStorage {
       _storage.delete(key: _keySavedLogin),
       _storage.delete(key: _keySavedPassword),
     ]);
+  }
+
+  static Future<void> saveHandledUpdateBuild(int buildNumber) =>
+      _storage.write(
+        key: _keyHandledUpdateBuild,
+        value: buildNumber.toString(),
+      );
+
+  static Future<int> getHandledUpdateBuild() async {
+    final val = await _storage.read(key: _keyHandledUpdateBuild);
+    return int.tryParse(val ?? '') ?? 0;
   }
 
   static Future<void> clearTokens() async {

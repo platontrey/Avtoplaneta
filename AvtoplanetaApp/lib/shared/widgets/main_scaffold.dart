@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../app/theme.dart';
 import '../../core/services/update_service.dart';
+import '../../core/storage/secure_storage.dart';
 import '../../features/inventory/providers/inventory_provider.dart';
 import '../../features/updater/widgets/update_dialog.dart';
 
@@ -17,6 +18,8 @@ class MainScaffold extends ConsumerStatefulWidget {
 
 class _MainScaffoldState extends ConsumerState<MainScaffold> with WidgetsBindingObserver {
   static DateTime? _lastUpdateCheck;
+  static bool _isUpdateDialogOpen = false;
+  static int _sessionDismissedBuild = 0;
 
   @override
   void initState() {
@@ -51,6 +54,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> with WidgetsBinding
   }
 
   Future<void> _checkUpdatesIfNeeded() async {
+    if (_isUpdateDialogOpen) return;
     final now = DateTime.now();
     if (_lastUpdateCheck != null && now.difference(_lastUpdateCheck!) < const Duration(minutes: 15)) {
       return;
@@ -60,15 +64,40 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> with WidgetsBinding
     try {
       final updateService = ref.read(updateServiceProvider);
       final result = await updateService.checkForUpdates();
-      if (result.hasUpdate && result.updateInfo != null && mounted) {
+      if (result.hasUpdate && result.updateInfo != null && mounted && !_isUpdateDialogOpen) {
         final info = result.updateInfo!;
-        // Запускаем фоновую предзагрузку APK для ускорения установки
-        updateService.preDownloadUpdate(info);
-        UpdateDialog.show(
-          context: context,
-          info: info,
-          updateService: updateService,
-        );
+        final normServerBuild = UpdateService.normalizeBuildNumber(info.buildNumber);
+
+        if (!result.isForced && normServerBuild > 0) {
+          int handledBuild = _sessionDismissedBuild;
+          try {
+            final storedHandled = await SecureStorage.getHandledUpdateBuild();
+            if (storedHandled > handledBuild) {
+              handledBuild = storedHandled;
+            }
+          } catch (_) {}
+          if (normServerBuild <= handledBuild) {
+            return;
+          }
+        }
+
+        if (!mounted || _isUpdateDialogOpen) return;
+        _isUpdateDialogOpen = true;
+        try {
+          await UpdateDialog.show(
+            context: context,
+            info: info,
+            updateService: updateService,
+          );
+          if (!result.isForced && normServerBuild > 0) {
+            _sessionDismissedBuild = normServerBuild;
+            try {
+              await SecureStorage.saveHandledUpdateBuild(normServerBuild);
+            } catch (_) {}
+          }
+        } finally {
+          _isUpdateDialogOpen = false;
+        }
       }
     } catch (e) {
       debugPrint('Ошибка автопроверки обновлений: $e');

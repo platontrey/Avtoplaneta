@@ -94,12 +94,14 @@ jobs:
                 /opt/avtoplaneta/backend/app_update_test.go \
                 /opt/avtoplaneta/docker-compose.override.yml
 
-          # 2. Синхронизация с удалением старых файлов, исключая переменные окружения, SSL-сертификаты и git
+          # 2. Синхронизация с удалением старых файлов, исключая переменные окружения, SSL-сертификаты, APK-файлы и git
           rsync -av --delete \
             --exclude=.git \
             --exclude='.env*' \
             --exclude=docker-compose.override.yml \
             --exclude=traefik/acme.json \
+            --exclude=backend/downloads \
+            --exclude=backend/config/app_version.json \
             ./ /opt/avtoplaneta/
 
           cd /opt/avtoplaneta

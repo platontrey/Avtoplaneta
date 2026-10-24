@@ -5,6 +5,7 @@ import 'package:open_filex/open_filex.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/services/update_service.dart';
+import '../../../core/storage/secure_storage.dart';
 
 class UpdateDialog extends StatefulWidget {
   final AppUpdateInfo info;
@@ -72,6 +73,16 @@ class _UpdateDialogState extends State<UpdateDialog> {
     return '${mb.toStringAsFixed(1)} МБ';
   }
 
+  Future<void> _markBuildHandled() async {
+    final normBuild =
+        UpdateService.normalizeBuildNumber(widget.info.buildNumber);
+    if (normBuild > 0) {
+      try {
+        await SecureStorage.saveHandledUpdateBuild(normBuild);
+      } catch (_) {}
+    }
+  }
+
   Future<void> _startDownload() async {
     setState(() {
       _isDownloading = true;
@@ -105,6 +116,12 @@ class _UpdateDialogState extends State<UpdateDialog> {
               ? 'Ошибка запуска установщика: ${result.message}'
               : 'Не удалось открыть файл установки. Проверьте разрешение на установку приложений.';
         });
+      } else {
+        await _markBuildHandled();
+        if (mounted && !widget.info.forceUpdate) {
+          Navigator.of(context).pop();
+          return;
+        }
       }
     } catch (e) {
       if (mounted) {
