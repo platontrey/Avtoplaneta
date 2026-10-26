@@ -514,7 +514,8 @@ export default function BulkEditDialog({
       onSuccess();
     } catch (error) {
       console.error('Error bulk updating parts:', error);
-      alert('Ошибка при массовом обновлении запчастей');
+      const msg = error instanceof Error ? error.message : 'Ошибка при массовом обновлении запчастей';
+      alert(msg);
     } finally {
       setIsLoading(false);
     }

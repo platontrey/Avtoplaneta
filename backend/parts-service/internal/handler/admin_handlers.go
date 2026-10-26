@@ -105,7 +105,7 @@ func (h *Handler) BulkUpdatePartsHandler(c *gin.Context) {
 	updatedCount, err := h.inventoryService.BulkUpdateParts(ctx, &protoReq)
 	if err != nil {
 		logrus.WithError(err).Error("BulkUpdatePartsHandler: Failed to bulk update parts")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось обновить запчасти"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

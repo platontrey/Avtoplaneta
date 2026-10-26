@@ -494,6 +494,74 @@ func (suite *ServiceTestSuite) TestBulkUpdateParts() {
 	assert.Equal(suite.T(), 1, count)
 }
 
+// TestBulkUpdateParts_FilterScope - тест массового обновления по фильтру и защитных механизмов
+func (suite *ServiceTestSuite) TestBulkUpdateParts_FilterScope() {
+	// 1. Попытка обновить весь каталог по пустому фильтру без подтверждения должна вызывать ошибку
+	reqEmpty := &partsv1.BulkUpdatePartsRequest{
+		Scope: &partsv1.BulkUpdateScope{
+			Type:   partsv1.BulkScopeType_BULK_SCOPE_TYPE_FILTER,
+			Filter: &partsv1.GetInventoryRequest{},
+		},
+		Operations: &partsv1.BulkFieldOperations{
+			Location: ptr("Склад 2"),
+		},
+		ConfirmEntireCatalog: false,
+	}
+	count, err := suite.service.BulkUpdateParts(context.Background(), reqEmpty)
+	assert.Error(suite.T(), err)
+	assert.Contains(suite.T(), err.Error(), "confirm_entire_catalog")
+	assert.Equal(suite.T(), 0, count)
+
+	// 2. Успешное обновление по поисковому фильтру (через ES)
+	reqSearch := &partsv1.BulkUpdatePartsRequest{
+		Scope: &partsv1.BulkUpdateScope{
+			Type: partsv1.BulkScopeType_BULK_SCOPE_TYPE_FILTER,
+			Filter: &partsv1.GetInventoryRequest{
+				Search: "Фара",
+			},
+		},
+		Operations: &partsv1.BulkFieldOperations{
+			Location: ptr("Стеллаж А"),
+		},
+	}
+	esPartMatched := search.ElasticsearchPart{ID: 77, Name: "Фара левая"}
+	suite.mockES.On("SearchParts", mock.Anything, 0, 10000).Return([]search.ElasticsearchPart{esPartMatched}, int64(1), nil).Once()
+	suite.mockRepo.On("BulkUpdateWithProto", mock.Anything, mock.MatchedBy(func(r *partsv1.BulkUpdatePartsRequest) bool {
+		return r.Scope != nil && r.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_IDS && len(r.Scope.Ids) == 1 && r.Scope.Ids[0] == 77
+	}), mock.Anything).Return([]domain.Part{{PartCore: domain.PartCore{ID: 77, Name: "Фара левая", Location: "Стеллаж А"}}}, nil).Once()
+
+	countSearch, err := suite.service.BulkUpdateParts(context.Background(), reqSearch)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), 1, countSearch)
+
+	// 3. Фильтр has_photo: "with" не должен считаться пустым фильтром всего каталога
+	reqPhoto := &partsv1.BulkUpdatePartsRequest{
+		Scope: &partsv1.BulkUpdateScope{
+			Type: partsv1.BulkScopeType_BULK_SCOPE_TYPE_FILTER,
+			Filter: &partsv1.GetInventoryRequest{
+				HasPhoto: "with",
+			},
+		},
+		Operations: &partsv1.BulkFieldOperations{
+			Location: ptr("Склад 3"),
+		},
+		ConfirmEntireCatalog: false,
+	}
+	esPhotoMatched := search.ElasticsearchPart{ID: 88, Name: "Деталь с фото"}
+	suite.mockES.On("SearchParts", mock.Anything, 0, 10000).Return([]search.ElasticsearchPart{esPhotoMatched}, int64(1), nil).Once()
+	suite.mockRepo.On("BulkUpdateWithProto", mock.Anything, mock.MatchedBy(func(r *partsv1.BulkUpdatePartsRequest) bool {
+		return r.Scope != nil && r.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_IDS && len(r.Scope.Ids) == 1 && r.Scope.Ids[0] == 88
+	}), mock.Anything).Return([]domain.Part{{PartCore: domain.PartCore{ID: 88, Location: "Склад 3"}}}, nil).Once()
+
+	countPhoto, err := suite.service.BulkUpdateParts(context.Background(), reqPhoto)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), 1, countPhoto)
+}
+
+func ptr[T any](v T) *T {
+	return &v
+}
+
 // TestGetPartByID - тест получения запчасти по ID
 func (suite *ServiceTestSuite) TestGetPartByID() {
 	suite.mockRepo.On("FindByID", mock.Anything, suite.testPart.ID).Return(suite.testPart, nil)

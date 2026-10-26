@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -740,11 +741,17 @@ func (s *inventoryService) invalidateStatisticsCache(ctx context.Context) {
 	}
 }
 
+// ErrEntireCatalogConfirmationRequired возвращается, когда массовая операция по пустому фильтру
+// затрагивает весь каталог, а клиент не передал confirm_entire_catalog.
+var ErrEntireCatalogConfirmationRequired = errors.New("массовая операция над всем каталогом требует явного подтверждения (confirm_entire_catalog)")
+
 func isFilterEmpty(f *partsv1.GetInventoryRequest) bool {
 	if f == nil {
 		return true
 	}
-	return f.Search == "" && f.Category == "" && f.Brand == "" && f.Model == "" &&
+	hasPhotoFilter := f.HasPhoto != "" && f.HasPhoto != "all"
+	return !hasPhotoFilter &&
+		f.Search == "" && f.Category == "" && f.Brand == "" && f.Model == "" &&
 		f.Location == "" && f.Salesman == "" && f.Status == "" && f.Address == "" &&
 		f.Number == "" && f.OemCode == "" && f.Vin == "" && f.BodyBrand == "" &&
 		f.EngineBrand == "" && f.CarReleaseDate == "" && f.CarReleasePeriod == "" &&
@@ -813,7 +820,7 @@ func inventoryQueryParamsFromProtoFilter(f *partsv1.GetInventoryRequest) domain.
 func (s *inventoryService) resolvePartIDsFromFilter(ctx context.Context, f *partsv1.GetInventoryRequest) ([]int64, error) {
 	params := inventoryQueryParamsFromProtoFilter(f)
 
-	if s.shouldUseElasticsearch(params) {
+	if s.shouldUseElasticsearch(params) && s.es != nil {
 		esQuery := s.buildElasticsearchQuery(params)
 		esParts, _, err := s.es.SearchParts(esQuery, 0, 10000)
 		if err != nil {
