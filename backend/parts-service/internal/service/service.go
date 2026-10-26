@@ -820,17 +820,20 @@ func inventoryQueryParamsFromProtoFilter(f *partsv1.GetInventoryRequest) domain.
 func (s *inventoryService) resolvePartIDsFromFilter(ctx context.Context, f *partsv1.GetInventoryRequest) ([]int64, error) {
 	params := inventoryQueryParamsFromProtoFilter(f)
 
-	if s.shouldUseElasticsearch(params) && s.es != nil {
+	// Полнотекстовый поиск через Elasticsearch используем только при наличии поисковой строки Search
+	if strings.TrimSpace(params.Search) != "" && s.es != nil {
 		esQuery := s.buildElasticsearchQuery(params)
-		esParts, _, err := s.es.SearchParts(esQuery, 0, 10000)
+		esParts, total, err := s.es.SearchParts(esQuery, 0, 10000)
 		if err != nil {
 			logrus.WithError(err).Warn("resolvePartIDsFromFilter: Failed to search via Elasticsearch, falling back to database")
-		} else {
+		} else if total <= 10000 {
 			ids := make([]int64, len(esParts))
 			for i, p := range esParts {
 				ids[i] = p.ID
 			}
 			return ids, nil
+		} else {
+			logrus.WithField("total", total).Info("resolvePartIDsFromFilter: Search matched >10000 items in Elasticsearch, resolving all IDs via database")
 		}
 	}
 
@@ -838,7 +841,8 @@ func (s *inventoryService) resolvePartIDsFromFilter(ctx context.Context, f *part
 	filterMap["to_delete_at_is_null"] = true
 	filterMap["quantity_gte"] = 0
 
-	dbParts, err := s.repo.FindWithFilters(ctx, filterMap, 0, 10000)
+	// limit = 0 означает отсутствие лимита в FindWithFilters (выбираются все совпавшие записи)
+	dbParts, err := s.repo.FindWithFilters(ctx, filterMap, 0, 0)
 	if err != nil {
 		return nil, fmt.Errorf("resolvePartIDsFromFilter: database query failed: %w", err)
 	}
@@ -971,7 +975,10 @@ func (s *inventoryService) BulkUpdateParts(ctx context.Context, req *partsv1.Bul
 			}
 
 			params := inventoryQueryParamsFromProtoFilter(req.Scope.Filter)
-			if s.shouldUseElasticsearch(params) {
+			// Резолвим IDs через Elasticsearch ТОЛЬКО если задан свободный текстовый поиск (Search != "").
+			// Для структурных фильтров склада (наличие фото, статус, категория, бренд, склад и т.д.)
+			// запрос выполняется напрямую в PostgreSQL без искусственного лимита Elasticsearch в 10 000.
+			if strings.TrimSpace(params.Search) != "" {
 				resolvedIDs, err := s.resolvePartIDsFromFilter(ctx, req.Scope.Filter)
 				if err != nil {
 					return 0, fmt.Errorf("ошибка разрешения списка запчастей: %w", err)

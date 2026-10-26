@@ -547,11 +547,11 @@ func (suite *ServiceTestSuite) TestBulkUpdateParts_FilterScope() {
 		},
 		ConfirmEntireCatalog: false,
 	}
-	esPhotoMatched := search.ElasticsearchPart{ID: 88, Name: "Деталь с фото"}
-	suite.mockES.On("SearchParts", mock.Anything, 0, 10000).Return([]search.ElasticsearchPart{esPhotoMatched}, int64(1), nil).Once()
 	suite.mockRepo.On("BulkUpdateWithProto", mock.Anything, mock.MatchedBy(func(r *partsv1.BulkUpdatePartsRequest) bool {
-		return r.Scope != nil && r.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_IDS && len(r.Scope.Ids) == 1 && r.Scope.Ids[0] == 88
-	}), mock.Anything).Return([]domain.Part{{PartCore: domain.PartCore{ID: 88, Location: "Склад 3"}}}, nil).Once()
+		return r.Scope != nil && r.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_FILTER
+	}), mock.MatchedBy(func(fm map[string]interface{}) bool {
+		return fm["has_photo"] == true
+	})).Return([]domain.Part{{PartCore: domain.PartCore{ID: 88, Location: "Склад 3"}}}, nil).Once()
 
 	countPhoto, err := suite.service.BulkUpdateParts(context.Background(), reqPhoto)
 	assert.NoError(suite.T(), err)
