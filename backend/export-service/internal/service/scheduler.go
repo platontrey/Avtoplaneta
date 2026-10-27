@@ -11,7 +11,7 @@ const priceListCheckInterval = time.Hour
 
 // StartPriceListScheduler периодически проверяет актуальность XML прайс-листа и пересобирает его при изменениях.
 // Вызов блокирует текущую горутину до отмены контекста.
-func StartPriceListScheduler(ctx context.Context, svc *PriceListService) {
+func StartPriceListScheduler(ctx context.Context, svc *PriceListService, readyChan chan struct{}) {
 	logrus.Info("Планировщик прайс-листа запущен")
 
 	// Асинхронно добиваемся первичной сборки слепка, если parts-service был временно недоступен
@@ -26,6 +26,13 @@ func StartPriceListScheduler(ctx context.Context, svc *PriceListService) {
 			if err == nil {
 				if rebuilt {
 					logrus.WithField("parts_count", meta.PartsCount).Info("XML прайс-лист успешно инициализирован при старте")
+				}
+				if readyChan != nil {
+					select {
+					case <-readyChan:
+					default:
+						close(readyChan)
+					}
 				}
 				return
 			}

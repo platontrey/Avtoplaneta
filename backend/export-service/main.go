@@ -62,8 +62,13 @@ func main() {
 	exportQueue.StartWorker(ctx)
 
 	// 6. Фоновые процессы: планировщик и слушатель изменений склада
-	go service.StartPriceListScheduler(ctx, priceListSvc)
-	go events.StartCatalogEventListener(ctx, rdb, priceListSvc)
+	readyChan := make(chan struct{})
+	if snapshotRepo.GetVersion() != "" {
+		close(readyChan)
+	}
+
+	go service.StartPriceListScheduler(ctx, priceListSvc, readyChan)
+	go events.StartCatalogEventListener(ctx, rdb, priceListSvc, readyChan)
 
 	// 7. HTTP-обработчик и роуты
 	h := handler.NewHandler(priceListSvc, exportQueue, cfg)

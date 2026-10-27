@@ -25,6 +25,7 @@ type ConsumerConfig struct {
 	RecoveryPeriod      time.Duration // Периодичность проверки зависших сообщений PEL (по умолчанию: 30s)
 	MaxDeliveryAttempts int64         // Число попыток доставки до сброса в DLQ (по умолчанию: 5)
 	EnableDLQ           bool          // Отправлять ли сообщения в Dead Letter Queue (<stream>:dead)
+	ReadyChan           <-chan struct{} // Опциональный канал готовности: консьюмер не начинает чтение до получения сигнала
 	Logger              *logrus.Entry // Опциональный логгер с контекстом сервиса
 }
 
@@ -90,6 +91,17 @@ func (w *ConsumerGroupWorker) Start(ctx context.Context) error {
 	}
 
 	w.log.Infof("Starting Redis Streams consumer (worker: %s)", w.cfg.Consumer)
+
+	// Если задан ReadyChan, блокируем вычитку до получения сигнала готовности сервиса
+	if w.cfg.ReadyChan != nil {
+		w.log.Info("Waiting for service readiness before starting Redis consumer...")
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-w.cfg.ReadyChan:
+			w.log.Info("Service reported readiness, starting consumer stream processing")
+		}
+	}
 
 	// 2. Фоновый цикл восстановления зависших сообщений (PEL)
 	go w.startRecoveryLoop(ctx)
