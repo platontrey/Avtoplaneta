@@ -140,3 +140,67 @@ func TestBuildElasticsearchQuery_MultiSearch(t *testing.T) {
 	frag2Must := frag2Bool["must"].([]map[string]interface{})
 	assert.Len(t, frag2Must, 3) // "фара", "левая", "camry"
 }
+
+func TestCleanPartNumber(t *testing.T) {
+	assert.Equal(t, "8628060321", CleanPartNumber("86280-60321"))
+	assert.Equal(t, "8628060321", CleanPartNumber("86280 60321"))
+	assert.Equal(t, "8628060321", CleanPartNumber("  86280-60321  "))
+	assert.Equal(t, "8628060321", CleanPartNumber("8628060321"))
+	assert.Equal(t, "8628015000", CleanPartNumber("86280-15000"))
+	assert.NotEqual(t, CleanPartNumber("86280-60321"), CleanPartNumber("86280-15000"))
+	assert.Equal(t, "a2229003300", CleanPartNumber("A-222-900-33-00"))
+}
+
+func TestBuildElasticsearchQuery_ExactCodes(t *testing.T) {
+	params := domain.InventoryQueryParams{
+		OEMCode:          "86280-60321",
+		ManufacturerCode: "DENSO-001",
+	}
+
+	query := BuildElasticsearchQuery(params)
+	require.NotNil(t, query)
+
+	boolQ, ok := query["bool"].(map[string]interface{})
+	require.True(t, ok)
+
+	filterList, ok := boolQ["filter"].([]map[string]interface{})
+	require.True(t, ok)
+	require.NotEmpty(t, filterList)
+
+	// Проверяем наличие фильтров по oem_code и manufacturer_code
+	foundOEM := false
+	foundMfr := false
+
+	for _, f := range filterList {
+		subBool, ok := f["bool"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		shouldList, ok := subBool["should"].([]map[string]interface{})
+		if !ok {
+			continue
+		}
+		for _, s := range shouldList {
+			if termQ, ok := s["term"].(map[string]interface{}); ok {
+				if _, ok := termQ["oem_code"]; ok {
+					foundOEM = true
+				}
+				if _, ok := termQ["manufacturer_code"]; ok {
+					foundMfr = true
+				}
+			}
+			if matchQ, ok := s["match"].(map[string]interface{}); ok {
+				if m, ok := matchQ["oem_code.text"].(map[string]interface{}); ok {
+					assert.Equal(t, "AND", m["operator"])
+				}
+				if m, ok := matchQ["manufacturer_code.text"].(map[string]interface{}); ok {
+					assert.Equal(t, "AND", m["operator"])
+				}
+			}
+		}
+	}
+
+	assert.True(t, foundOEM, "Фильтр по OEM коду должен присутствовать")
+	assert.True(t, foundMfr, "Фильтр по коду производителя должен присутствовать")
+}
+

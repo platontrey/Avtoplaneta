@@ -155,6 +155,13 @@ func CreatePartsIndex() error {
 	mapping := fmt.Sprintf(`{
 		"settings": {
 			"analysis": {
+				"char_filter": {
+					"code_cleaner": {
+						"type": "pattern_replace",
+						"pattern": "[^a-zA-Z0-9а-яА-ЯёЁ]",
+						"replacement": ""
+					}
+				},
 				"filter": {
 					"russian_stop": {
 						"type": "stop",
@@ -175,13 +182,20 @@ func CreatePartsIndex() error {
 					},
 					"oem_delimiter": {
 						"type": "word_delimiter_graph",
-						"generate_word_parts": true,
-						"generate_number_parts": true,
+						"generate_word_parts": false,
+						"generate_number_parts": false,
 						"catenate_words": true,
 						"catenate_numbers": true,
 						"catenate_all": true,
 						"split_on_case_change": true,
 						"preserve_original": true
+					}
+				},
+				"normalizer": {
+					"code_normalizer": {
+						"type": "custom",
+						"char_filter": ["code_cleaner"],
+						"filter": ["lowercase"]
 					}
 				},
 				"analyzer": {
@@ -342,6 +356,10 @@ func CreatePartsIndex() error {
 				"number": {
 					"type": "keyword",
 					"fields": {
+						"normalized": {
+							"type": "keyword",
+							"normalizer": "code_normalizer"
+						},
 						"text": {
 							"type": "text",
 							"analyzer": "part_number_analyzer",
@@ -352,6 +370,10 @@ func CreatePartsIndex() error {
 				"oem_code": {
 					"type": "keyword",
 					"fields": {
+						"normalized": {
+							"type": "keyword",
+							"normalizer": "code_normalizer"
+						},
 						"text": {
 							"type": "text",
 							"analyzer": "part_number_analyzer",
@@ -362,6 +384,10 @@ func CreatePartsIndex() error {
 				"manufacturer_code": {
 					"type": "keyword",
 					"fields": {
+						"normalized": {
+							"type": "keyword",
+							"normalizer": "code_normalizer"
+						},
 						"text": {
 							"type": "text",
 							"analyzer": "part_number_analyzer",

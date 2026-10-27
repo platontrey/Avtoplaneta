@@ -59,6 +59,18 @@ func ConvertQwertyToRussian(text string) string {
 	return builder.String()
 }
 
+// CleanPartNumber очищает артикул / код детали от пробелов, дефисов и спецсимволов, переводя в нижний регистр.
+func CleanPartNumber(s string) string {
+	var sb strings.Builder
+	sb.Grow(len(s))
+	for _, r := range strings.ToLower(s) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || (r >= 'а' && r <= 'я') || r == 'ё' {
+			sb.WriteRune(r)
+		}
+	}
+	return sb.String()
+}
+
 // escapeESQuery экранирует спецсимволы синтаксиса Lucene для безопасного использования в query_string
 func escapeESQuery(s string) string {
 	needEscape := false
@@ -203,9 +215,9 @@ var defaultSearchableFields = []string{
 	"model^4", "model.text^4", "model.ngram^3",
 	"body_brand^3", "body_brand.text^3", "body_brand.ngram^2",
 	"engine_brand^3", "engine_brand.text^3", "engine_brand.ngram^2",
-	"number^4", "number.text^4",
-	"oem_code^4", "oem_code.text^4",
-	"manufacturer_code^3", "manufacturer_code.text^3",
+	"number^4", "number.normalized^5", "number.text^4",
+	"oem_code^4", "oem_code.normalized^6", "oem_code.text^4",
+	"manufacturer_code^3", "manufacturer_code.normalized^5", "manufacturer_code.text^3",
 	"supplier_code^2", "supplier_code.text^2",
 	"vin^3", "vin.text^3",
 	"category^3", "category.text^3", "category.ngram^2",
@@ -301,6 +313,37 @@ func buildTermQueries(term string, searchableFields []string) []map[string]inter
 			termQueries = append(termQueries, posQueries...)
 		}
 	}
+
+	cleanTerm := CleanPartNumber(term)
+	if cleanTerm != "" && len(cleanTerm) >= 3 {
+		termQueries = append(termQueries,
+			map[string]interface{}{
+				"term": map[string]interface{}{
+					"oem_code.normalized": map[string]interface{}{
+						"value": cleanTerm,
+						"boost": 25.0,
+					},
+				},
+			},
+			map[string]interface{}{
+				"term": map[string]interface{}{
+					"manufacturer_code.normalized": map[string]interface{}{
+						"value": cleanTerm,
+						"boost": 20.0,
+					},
+				},
+			},
+			map[string]interface{}{
+				"term": map[string]interface{}{
+					"number.normalized": map[string]interface{}{
+						"value": cleanTerm,
+						"boost": 20.0,
+					},
+				},
+			},
+		)
+	}
+
 	return termQueries
 }
 
@@ -345,6 +388,36 @@ func buildSearchRelevanceBoosts(searchStr string, searchableFields []string) []m
 				"boost":  15.0,
 			},
 		},
+	}
+
+	cleanSearch := CleanPartNumber(searchStr)
+	if cleanSearch != "" && len(cleanSearch) >= 3 {
+		should = append(should,
+			map[string]interface{}{
+				"term": map[string]interface{}{
+					"oem_code.normalized": map[string]interface{}{
+						"value": cleanSearch,
+						"boost": 150.0,
+					},
+				},
+			},
+			map[string]interface{}{
+				"term": map[string]interface{}{
+					"manufacturer_code.normalized": map[string]interface{}{
+						"value": cleanSearch,
+						"boost": 140.0,
+					},
+				},
+			},
+			map[string]interface{}{
+				"term": map[string]interface{}{
+					"number.normalized": map[string]interface{}{
+						"value": cleanSearch,
+						"boost": 130.0,
+					},
+				},
+			},
+		)
 	}
 
 	if transliteratedSearch != strings.ToLower(searchStr) {
@@ -618,24 +691,56 @@ func BuildElasticsearchQuery(params domain.InventoryQueryParams) map[string]inte
 	}
 
 	if params.Number != "" {
+		clean := CleanPartNumber(params.Number)
+		shouldClauses := []map[string]interface{}{
+			{"term": map[string]interface{}{"number": params.Number}},
+			{"term": map[string]interface{}{"number.normalized": params.Number}},
+		}
+		if clean != "" && clean != params.Number {
+			shouldClauses = append(shouldClauses,
+				map[string]interface{}{"term": map[string]interface{}{"number": clean}},
+				map[string]interface{}{"term": map[string]interface{}{"number.normalized": clean}},
+			)
+		}
+		shouldClauses = append(shouldClauses, map[string]interface{}{
+			"match": map[string]interface{}{
+				"number.text": map[string]interface{}{
+					"query":    params.Number,
+					"operator": "AND",
+				},
+			},
+		})
 		filter = append(filter, map[string]interface{}{
 			"bool": map[string]interface{}{
-				"should": []map[string]interface{}{
-					{"term": map[string]interface{}{"number": params.Number}},
-					{"match": map[string]interface{}{"number.text": params.Number}},
-				},
+				"should":               shouldClauses,
 				"minimum_should_match": 1,
 			},
 		})
 	}
 
 	if params.OEMCode != "" {
+		clean := CleanPartNumber(params.OEMCode)
+		shouldClauses := []map[string]interface{}{
+			{"term": map[string]interface{}{"oem_code": params.OEMCode}},
+			{"term": map[string]interface{}{"oem_code.normalized": params.OEMCode}},
+		}
+		if clean != "" && clean != params.OEMCode {
+			shouldClauses = append(shouldClauses,
+				map[string]interface{}{"term": map[string]interface{}{"oem_code": clean}},
+				map[string]interface{}{"term": map[string]interface{}{"oem_code.normalized": clean}},
+			)
+		}
+		shouldClauses = append(shouldClauses, map[string]interface{}{
+			"match": map[string]interface{}{
+				"oem_code.text": map[string]interface{}{
+					"query":    params.OEMCode,
+					"operator": "AND",
+				},
+			},
+		})
 		filter = append(filter, map[string]interface{}{
 			"bool": map[string]interface{}{
-				"should": []map[string]interface{}{
-					{"term": map[string]interface{}{"oem_code": params.OEMCode}},
-					{"match": map[string]interface{}{"oem_code.text": params.OEMCode}},
-				},
+				"should":               shouldClauses,
 				"minimum_should_match": 1,
 			},
 		})
@@ -862,12 +967,28 @@ func BuildElasticsearchQuery(params domain.InventoryQueryParams) map[string]inte
 	}
 
 	if params.ManufacturerCode != "" {
+		clean := CleanPartNumber(params.ManufacturerCode)
+		shouldClauses := []map[string]interface{}{
+			{"term": map[string]interface{}{"manufacturer_code": params.ManufacturerCode}},
+			{"term": map[string]interface{}{"manufacturer_code.normalized": params.ManufacturerCode}},
+		}
+		if clean != "" && clean != params.ManufacturerCode {
+			shouldClauses = append(shouldClauses,
+				map[string]interface{}{"term": map[string]interface{}{"manufacturer_code": clean}},
+				map[string]interface{}{"term": map[string]interface{}{"manufacturer_code.normalized": clean}},
+			)
+		}
+		shouldClauses = append(shouldClauses, map[string]interface{}{
+			"match": map[string]interface{}{
+				"manufacturer_code.text": map[string]interface{}{
+					"query":    params.ManufacturerCode,
+					"operator": "AND",
+				},
+			},
+		})
 		filter = append(filter, map[string]interface{}{
 			"bool": map[string]interface{}{
-				"should": []map[string]interface{}{
-					{"term": map[string]interface{}{"manufacturer_code": params.ManufacturerCode}},
-					{"match": map[string]interface{}{"manufacturer_code.text": params.ManufacturerCode}},
-				},
+				"should":               shouldClauses,
 				"minimum_should_match": 1,
 			},
 		})

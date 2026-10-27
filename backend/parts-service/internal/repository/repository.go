@@ -649,9 +649,27 @@ func (r *partRepository) buildFilterPredicates(filters map[string]interface{}) [
 				preds = append(preds, squirrel.Expr("(photos IS NULL OR CASE WHEN jsonb_typeof(photos) = 'array' THEN jsonb_array_length(photos) = 0 ELSE true END)"))
 			}
 		case "number_ilike":
-			preds = append(preds, squirrel.Expr("number ILIKE ?", "%"+value.(string)+"%"))
+			val := strings.TrimSpace(value.(string))
+			cleanVal := search.CleanPartNumber(val)
+			if cleanVal != "" {
+				preds = append(preds, squirrel.Or{
+					squirrel.Eq{"number": val},
+					squirrel.Expr("REPLACE(REPLACE(LOWER(number), '-', ''), ' ', '') = ?", cleanVal),
+				})
+			} else {
+				preds = append(preds, squirrel.Eq{"number": val})
+			}
 		case "oem_code_ilike":
-			preds = append(preds, squirrel.Expr("oem_code ILIKE ?", "%"+value.(string)+"%"))
+			val := strings.TrimSpace(value.(string))
+			cleanVal := search.CleanPartNumber(val)
+			if cleanVal != "" {
+				preds = append(preds, squirrel.Or{
+					squirrel.Eq{"oem_code": val},
+					squirrel.Expr("REPLACE(REPLACE(LOWER(oem_code), '-', ''), ' ', '') = ?", cleanVal),
+				})
+			} else {
+				preds = append(preds, squirrel.Eq{"oem_code": val})
+			}
 		case "vin_ilike":
 			preds = append(preds, squirrel.Expr("vin ILIKE ?", "%"+value.(string)+"%"))
 		case "body_brand_ilike":
@@ -716,7 +734,16 @@ func (r *partRepository) buildFilterPredicates(filters map[string]interface{}) [
 			}
 			preds = append(preds, squirrel.Or(conds))
 		case "manufacturer_code_ilike":
-			preds = append(preds, squirrel.Expr("manufacturer_code ILIKE ?", "%"+value.(string)+"%"))
+			val := strings.TrimSpace(value.(string))
+			cleanVal := search.CleanPartNumber(val)
+			if cleanVal != "" {
+				preds = append(preds, squirrel.Or{
+					squirrel.Eq{"manufacturer_code": val},
+					squirrel.Expr("REPLACE(REPLACE(LOWER(manufacturer_code), '-', ''), ' ', '') = ?", cleanVal),
+				})
+			} else {
+				preds = append(preds, squirrel.Eq{"manufacturer_code": val})
+			}
 		case "supplier_code_ilike":
 			preds = append(preds, squirrel.Expr("supplier_code ILIKE ?", "%"+value.(string)+"%"))
 		case "transmission_model_ilike":
