@@ -1498,6 +1498,8 @@ class _InventoryFilterSheetState extends ConsumerState<_InventoryFilterSheet> {
       if (_category.isNotEmpty) _category,
     }.toList()..sort();
     final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    final shelvesAsync = ref.watch(shelvesProvider);
+    final shelves = shelvesAsync.valueOrNull ?? const <String>[];
 
     return DefaultTabController(
       length: 5,
@@ -1927,13 +1929,12 @@ class _InventoryFilterSheetState extends ConsumerState<_InventoryFilterSheet> {
                 ListView(
                   padding: EdgeInsets.fromLTRB(20, 16, 20, keyboardInset + 20),
                   children: [
-                    TextField(
+                    VehiclePickerField(
                       controller: _locationController,
-                      onChanged: (_) => setState(() {}),
-                      decoration: const InputDecoration(
-                        labelText: 'Местоположение',
-                        hintText: 'Стеллаж A-12…',
-                      ),
+                      label: 'Местоположение',
+                      options: shelves,
+                      hint: 'Стеллаж A-12…',
+                      onSelected: (_) => setState(() {}),
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(

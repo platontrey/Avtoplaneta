@@ -544,6 +544,9 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final shelvesAsync = ref.watch(shelvesProvider);
+    final shelves = shelvesAsync.valueOrNull ?? const <String>[];
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -681,7 +684,12 @@ class _AddPartScreenState extends ConsumerState<AddPartScreen> {
             ),
 
             _section('Расположение'),
-            _field(_locationCtrl, 'Место хранения'),
+            VehiclePickerField(
+              controller: _locationCtrl,
+              label: 'Место хранения (полка / стеллаж)',
+              options: shelves,
+              hint: 'Выберите или введите полку',
+            ),
             _addressField(),
             _field(_salesmanCtrl, 'Продавец'),
 

@@ -84,6 +84,9 @@ func (s *inventoryParamsCaptureService) DeleteZeroQuantityPartsBySupplier(contex
 func (s *inventoryParamsCaptureService) GetSupplierCodes(context.Context) ([]string, error) { return nil, nil }
 func (s *inventoryParamsCaptureService) GetNextSupplierCode(context.Context) (string, error) { return "1", nil }
 func (s *inventoryParamsCaptureService) PeekNextSupplierCode(context.Context) (string, error) { return "1", nil }
+func (s *inventoryParamsCaptureService) GetShelves(context.Context) ([]domain.Shelf, error) { return nil, nil }
+func (s *inventoryParamsCaptureService) CreateShelf(context.Context, string) (*domain.Shelf, error) { return nil, nil }
+func (s *inventoryParamsCaptureService) DeleteShelf(context.Context, int64) error { return nil }
 func (s *inventoryParamsCaptureService) UploadPartPhoto(context.Context, int64, *gin.Context) (string, error) { return "", nil }
 func (s *inventoryParamsCaptureService) DeletePartPhoto(context.Context, int64, string) error { return nil }
 func (s *inventoryParamsCaptureService) SavePhotoFromBytes(context.Context, int64, []byte) (string, error) { return "", nil }

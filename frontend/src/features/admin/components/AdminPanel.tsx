@@ -22,6 +22,7 @@ import { UserActivityLogsCard } from './UserActivityLogsCard';
 import { UsersManagementCard } from './UsersManagementCard';
 import { AddUserDialog, EditUserDialog } from './UserDialogs';
 import { ZeroQuantityPartsCard } from './ZeroQuantityPartsCard';
+import { WarehouseShelvesCard } from './WarehouseShelvesCard';
 import { ImageEditorTestCard } from './ImageEditorTestCard';
 
 export const AdminPanel: React.FC = () => {
@@ -397,6 +398,9 @@ export const AdminPanel: React.FC = () => {
         onRefreshCodes={fetchSupplierCodes}
         loading={loading}
       />
+
+      {/* Warehouse Shelves Management */}
+      <WarehouseShelvesCard />
 
       {/* Image Editor Test */}
       <ImageEditorTestCard />

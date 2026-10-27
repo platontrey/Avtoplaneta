@@ -191,6 +191,28 @@ func (m *MockPartRepository) CleanupProcessedOutboxEvents(ctx context.Context) e
 	return args.Error(0)
 }
 
+func (m *MockPartRepository) GetShelves(ctx context.Context) ([]domain.Shelf, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.Shelf), args.Error(1)
+}
+
+func (m *MockPartRepository) CreateShelf(ctx context.Context, name string) (*domain.Shelf, error) {
+	args := m.Called(ctx, name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Shelf), args.Error(1)
+}
+
+func (m *MockPartRepository) DeleteShelf(ctx context.Context, id int64) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+
 // RepositoryTestSuite - набор тестов для репозитория
 type RepositoryTestSuite struct {
 	suite.Suite

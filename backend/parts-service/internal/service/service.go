@@ -58,6 +58,11 @@ type InventoryService interface {
 	GetNextSupplierCode(ctx context.Context) (string, error)                                   // Получение следующего номера поставки
 	PeekNextSupplierCode(ctx context.Context) (string, error)                                  // Просмотр следующего номера поставки без инкремента
 
+	// Полки склада
+	GetShelves(ctx context.Context) ([]domain.Shelf, error)
+	CreateShelf(ctx context.Context, name string) (*domain.Shelf, error)
+	DeleteShelf(ctx context.Context, id int64) error
+
 	// UploadPartPhoto Фото операции
 	UploadPartPhoto(ctx context.Context, id int64, c *gin.Context) (string, error) // Загрузка фото запчасти
 	DeletePartPhoto(ctx context.Context, id int64, photoPath string) error         // Удаление фото запчасти (если photoPath пустой - удаляет все)
@@ -1128,6 +1133,55 @@ func (s *inventoryService) GetNextSupplierCode(ctx context.Context) (string, err
 func (s *inventoryService) PeekNextSupplierCode(ctx context.Context) (string, error) {
 	return s.repo.PeekNextSupplierCode(ctx)
 }
+
+// GetShelves возвращает список полок склада (с кэшированием в Redis)
+func (s *inventoryService) GetShelves(ctx context.Context) ([]domain.Shelf, error) {
+	const cacheKey = "parts:shelves:list"
+	if s.redis != nil {
+		if cached, err := s.redis.Get(ctx, cacheKey).Bytes(); err == nil && len(cached) > 0 {
+			var shelves []domain.Shelf
+			if err := json.Unmarshal(cached, &shelves); err == nil {
+				return shelves, nil
+			}
+		}
+	}
+
+	shelves, err := s.repo.GetShelves(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.redis != nil && len(shelves) > 0 {
+		if data, err := json.Marshal(shelves); err == nil {
+			_ = s.redis.Set(ctx, cacheKey, data, 10*time.Minute).Err()
+		}
+	}
+	return shelves, nil
+}
+
+// CreateShelf добавляет новую полку склада
+func (s *inventoryService) CreateShelf(ctx context.Context, name string) (*domain.Shelf, error) {
+	shelf, err := s.repo.CreateShelf(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	if s.redis != nil {
+		_ = s.redis.Del(ctx, "parts:shelves:list").Err()
+	}
+	return shelf, nil
+}
+
+// DeleteShelf удаляет полку склада по ID
+func (s *inventoryService) DeleteShelf(ctx context.Context, id int64) error {
+	if err := s.repo.DeleteShelf(ctx, id); err != nil {
+		return err
+	}
+	if s.redis != nil {
+		_ = s.redis.Del(ctx, "parts:shelves:list").Err()
+	}
+	return nil
+}
+
 
 // syncPartIndex переиндексирует запчасть в Elasticsearch, отправляет событие в Redis и сбрасывает кэш
 func (s *inventoryService) syncPartIndex(ctx context.Context, id int64) {

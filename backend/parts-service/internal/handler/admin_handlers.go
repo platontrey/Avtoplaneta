@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -198,3 +199,80 @@ func (h *Handler) GetSupplierCodesHandler(c *gin.Context) {
 		"batches":        batches,
 	})
 }
+
+// GetShelvesHandler возвращает список складских полок
+func (h *Handler) GetShelvesHandler(c *gin.Context) {
+	ctx := c.Request.Context()
+	c.Header("Cache-Control", "no-cache")
+
+	shelves, err := h.inventoryService.GetShelves(ctx)
+	if err != nil {
+		logrus.WithError(err).Error("Handler: GetShelves failed")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось загрузить список полок"})
+		return
+	}
+	if shelves == nil {
+		shelves = []domain.Shelf{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"shelves": shelves,
+	})
+}
+
+// CreateShelfHandler добавляет новую складскую полку
+func (h *Handler) CreateShelfHandler(c *gin.Context) {
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный формат запроса"})
+		return
+	}
+
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Название полки не может быть пустым"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	shelf, err := h.inventoryService.CreateShelf(ctx, name)
+	if err != nil {
+		logrus.WithError(err).Error("Handler: CreateShelf failed")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось создать полку"})
+		return
+	}
+
+	h.logUserActivity(c, "create_shelf", "shelf", fmt.Sprintf("Создана полка: %s (id: %d)", shelf.Name, shelf.ID), nil)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Полка успешно создана",
+		"shelf":   shelf,
+	})
+}
+
+// DeleteShelfHandler удаляет складскую полку
+func (h *Handler) DeleteShelfHandler(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Некорректный ID полки"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	if err := h.inventoryService.DeleteShelf(ctx, id); err != nil {
+		logrus.WithError(err).Error("Handler: DeleteShelf failed")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось удалить полку"})
+		return
+	}
+
+	h.logUserActivity(c, "delete_shelf", "shelf", fmt.Sprintf("Удалена полка id: %d", id), nil)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Полка успешно удалена",
+		"id":      id,
+	})
+}
+

@@ -126,6 +126,16 @@ func (m *MockRepository) GetLastCreatedPart(ctx context.Context) (*domain.Part, 
 	return args.Get(0).(*domain.Part), args.Error(1)
 }
 
+func (m *MockRepository) GetShelves(ctx context.Context) ([]domain.Shelf, error) {
+	return nil, nil
+}
+func (m *MockRepository) CreateShelf(ctx context.Context, name string) (*domain.Shelf, error) {
+	return &domain.Shelf{Name: name}, nil
+}
+func (m *MockRepository) DeleteShelf(ctx context.Context, id int64) error {
+	return nil
+}
+
 func (m *MockRepository) CountWithFilters(ctx context.Context, filters map[string]interface{}) (int64, error) {
 	args := m.Called(ctx, filters)
 	return args.Get(0).(int64), args.Error(1)

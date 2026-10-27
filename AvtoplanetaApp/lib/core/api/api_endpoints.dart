@@ -22,6 +22,9 @@ abstract class ApiEndpoints {
   static const String vehicleCatalog = '/api/vehicle-catalog';
   static const String defectReports = '/api/defect-reports';
   static String uploadPartPhoto(int partId) => '/api/uploadpartphoto/$partId';
+  static const String shelves = '/api/v1/shelves';
+  static const String adminShelves = '/api/v1/admin/shelves';
+  static String adminShelfById(int id) => '/api/v1/admin/shelves/$id';
 
   // Statistics
   static const String statistics = '/api/v1/statistics';

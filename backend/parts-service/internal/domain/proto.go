@@ -67,3 +67,16 @@ func (p *Part) ToProto() *partsv1.Part {
 
 	return proto
 }
+
+// ToProto конвертирует модель Shelf в Protobuf сообщение partsv1.Shelf.
+func (s *Shelf) ToProto() *partsv1.Shelf {
+	if s == nil {
+		return nil
+	}
+	return &partsv1.Shelf{
+		Id:        s.ID,
+		Name:      s.Name,
+		CreatedAt: timestamppb.New(s.CreatedAt),
+	}
+}
+

@@ -63,6 +63,9 @@ func (m *mockInventoryService) DeleteZeroQuantityPartsBySupplier(context.Context
 func (m *mockInventoryService) GetSupplierCodes(context.Context) ([]string, error) { return nil, nil }
 func (m *mockInventoryService) GetNextSupplierCode(context.Context) (string, error) { return "1", nil }
 func (m *mockInventoryService) PeekNextSupplierCode(context.Context) (string, error) { return "1", nil }
+func (m *mockInventoryService) GetShelves(context.Context) ([]domain.Shelf, error) { return nil, nil }
+func (m *mockInventoryService) CreateShelf(context.Context, string) (*domain.Shelf, error) { return nil, nil }
+func (m *mockInventoryService) DeleteShelf(context.Context, int64) error { return nil }
 func (m *mockInventoryService) UploadPartPhoto(context.Context, int64, *gin.Context) (string, error) {
 	return "", nil
 }

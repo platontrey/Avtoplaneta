@@ -175,6 +175,16 @@ func (m *mockPartRepository) CleanupProcessedOutboxEvents(ctx context.Context) e
 	args := m.Called(ctx)
 	return args.Error(0)
 }
+func (m *mockPartRepository) GetShelves(ctx context.Context) ([]domain.Shelf, error) {
+	return nil, nil
+}
+func (m *mockPartRepository) CreateShelf(ctx context.Context, name string) (*domain.Shelf, error) {
+	return &domain.Shelf{Name: name}, nil
+}
+func (m *mockPartRepository) DeleteShelf(ctx context.Context, id int64) error {
+	return nil
+}
+
 
 type mockElasticsearchClient struct {
 	mock.Mock

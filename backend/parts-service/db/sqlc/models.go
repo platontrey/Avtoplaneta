@@ -85,3 +85,9 @@ type PartStockOperation struct {
 	Amount        int32              `json:"amount"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 }
+
+type WarehouseShelf struct {
+	ID        int64              `json:"id"`
+	Name      string             `json:"name"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}

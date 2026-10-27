@@ -91,6 +91,12 @@ class _VehicleOptionsSheetState extends State<_VehicleOptionsSheet> {
   @override
   Widget build(BuildContext context) {
     final visible = _visible;
+    final trimmed = _query.trim();
+    final hasExact = widget.options.any(
+      (o) => o.toLowerCase() == trimmed.toLowerCase(),
+    );
+    final canUseCustom = trimmed.isNotEmpty && !hasExact;
+
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SizedBox(
@@ -104,14 +110,14 @@ class _VehicleOptionsSheetState extends State<_VehicleOptionsSheet> {
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   labelText: widget.title,
-                  hintText: 'Поиск',
+                  hintText: 'Поиск или ввод нового значения',
                   prefixIcon: const Icon(LucideIcons.search),
                 ),
                 onChanged: (value) => setState(() => _query = value),
               ),
             ),
             Expanded(
-              child: visible.isEmpty
+              child: visible.isEmpty && !canUseCustom
                   ? const Center(
                       child: Text(
                         'Ничего не найдено — закройте список и введите своё значение',
@@ -119,11 +125,27 @@ class _VehicleOptionsSheetState extends State<_VehicleOptionsSheet> {
                       ),
                     )
                   : ListView.builder(
-                      itemCount: visible.length,
-                      itemBuilder: (_, index) => ListTile(
-                        title: Text(visible[index]),
-                        onTap: () => Navigator.of(context).pop(visible[index]),
-                      ),
+                      itemCount: visible.length + (canUseCustom ? 1 : 0),
+                      itemBuilder: (_, index) {
+                        if (canUseCustom && index == 0) {
+                          return ListTile(
+                            leading: const Icon(LucideIcons.plus, color: Colors.blueAccent),
+                            title: Text(
+                              'Использовать "$trimmed"',
+                              style: const TextStyle(
+                                color: Colors.blueAccent,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            onTap: () => Navigator.of(context).pop(trimmed),
+                          );
+                        }
+                        final item = visible[canUseCustom ? index - 1 : index];
+                        return ListTile(
+                          title: Text(item),
+                          onTap: () => Navigator.of(context).pop(item),
+                        );
+                      },
                     ),
             ),
           ],

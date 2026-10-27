@@ -4799,6 +4799,322 @@ func (x *DeleteZeroQuantityPartsResponse) GetDeletedCount() int32 {
 	return 0
 }
 
+type Shelf struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Shelf) Reset() {
+	*x = Shelf{}
+	mi := &file_parts_v1_parts_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Shelf) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Shelf) ProtoMessage() {}
+
+func (x *Shelf) ProtoReflect() protoreflect.Message {
+	mi := &file_parts_v1_parts_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Shelf.ProtoReflect.Descriptor instead.
+func (*Shelf) Descriptor() ([]byte, []int) {
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *Shelf) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *Shelf) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Shelf) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+type GetShelvesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetShelvesRequest) Reset() {
+	*x = GetShelvesRequest{}
+	mi := &file_parts_v1_parts_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetShelvesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetShelvesRequest) ProtoMessage() {}
+
+func (x *GetShelvesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_parts_v1_parts_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetShelvesRequest.ProtoReflect.Descriptor instead.
+func (*GetShelvesRequest) Descriptor() ([]byte, []int) {
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{51}
+}
+
+type GetShelvesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Shelves       []*Shelf               `protobuf:"bytes,1,rep,name=shelves,proto3" json:"shelves,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetShelvesResponse) Reset() {
+	*x = GetShelvesResponse{}
+	mi := &file_parts_v1_parts_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetShelvesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetShelvesResponse) ProtoMessage() {}
+
+func (x *GetShelvesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_parts_v1_parts_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetShelvesResponse.ProtoReflect.Descriptor instead.
+func (*GetShelvesResponse) Descriptor() ([]byte, []int) {
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *GetShelvesResponse) GetShelves() []*Shelf {
+	if x != nil {
+		return x.Shelves
+	}
+	return nil
+}
+
+type CreateShelfRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateShelfRequest) Reset() {
+	*x = CreateShelfRequest{}
+	mi := &file_parts_v1_parts_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateShelfRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateShelfRequest) ProtoMessage() {}
+
+func (x *CreateShelfRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_parts_v1_parts_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateShelfRequest.ProtoReflect.Descriptor instead.
+func (*CreateShelfRequest) Descriptor() ([]byte, []int) {
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *CreateShelfRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type CreateShelfResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Shelf         *Shelf                 `protobuf:"bytes,1,opt,name=shelf,proto3" json:"shelf,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateShelfResponse) Reset() {
+	*x = CreateShelfResponse{}
+	mi := &file_parts_v1_parts_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateShelfResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateShelfResponse) ProtoMessage() {}
+
+func (x *CreateShelfResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_parts_v1_parts_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateShelfResponse.ProtoReflect.Descriptor instead.
+func (*CreateShelfResponse) Descriptor() ([]byte, []int) {
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *CreateShelfResponse) GetShelf() *Shelf {
+	if x != nil {
+		return x.Shelf
+	}
+	return nil
+}
+
+type DeleteShelfRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteShelfRequest) Reset() {
+	*x = DeleteShelfRequest{}
+	mi := &file_parts_v1_parts_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteShelfRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteShelfRequest) ProtoMessage() {}
+
+func (x *DeleteShelfRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_parts_v1_parts_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteShelfRequest.ProtoReflect.Descriptor instead.
+func (*DeleteShelfRequest) Descriptor() ([]byte, []int) {
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *DeleteShelfRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type DeleteShelfResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteShelfResponse) Reset() {
+	*x = DeleteShelfResponse{}
+	mi := &file_parts_v1_parts_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteShelfResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteShelfResponse) ProtoMessage() {}
+
+func (x *DeleteShelfResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_parts_v1_parts_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteShelfResponse.ProtoReflect.Descriptor instead.
+func (*DeleteShelfResponse) Descriptor() ([]byte, []int) {
+	return file_parts_v1_parts_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *DeleteShelfResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
 var File_parts_v1_parts_proto protoreflect.FileDescriptor
 
 const file_parts_v1_parts_proto_rawDesc = "" +
@@ -5357,7 +5673,23 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x1eDeleteZeroQuantityPartsRequest\x12#\n" +
 	"\rsupplier_code\x18\x01 \x01(\tR\fsupplierCode\"F\n" +
 	"\x1fDeleteZeroQuantityPartsResponse\x12#\n" +
-	"\rdeleted_count\x18\x01 \x01(\x05R\fdeletedCount*\x9b\x01\n" +
+	"\rdeleted_count\x18\x01 \x01(\x05R\fdeletedCount\"f\n" +
+	"\x05Shelf\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x129\n" +
+	"\n" +
+	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x13\n" +
+	"\x11GetShelvesRequest\"?\n" +
+	"\x12GetShelvesResponse\x12)\n" +
+	"\ashelves\x18\x01 \x03(\v2\x0f.parts.v1.ShelfR\ashelves\"(\n" +
+	"\x12CreateShelfRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"<\n" +
+	"\x13CreateShelfResponse\x12%\n" +
+	"\x05shelf\x18\x01 \x01(\v2\x0f.parts.v1.ShelfR\x05shelf\"$\n" +
+	"\x12DeleteShelfRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"/\n" +
+	"\x13DeleteShelfResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess*\x9b\x01\n" +
 	"\x12PriceOperationMode\x12$\n" +
 	" PRICE_OPERATION_MODE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18PRICE_OPERATION_MODE_SET\x10\x01\x12 \n" +
@@ -5366,7 +5698,7 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\rBulkScopeType\x12\x1f\n" +
 	"\x1bBULK_SCOPE_TYPE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13BULK_SCOPE_TYPE_IDS\x10\x01\x12\x1a\n" +
-	"\x16BULK_SCOPE_TYPE_FILTER\x10\x022\x8f\x14\n" +
+	"\x16BULK_SCOPE_TYPE_FILTER\x10\x022\xd6\x16\n" +
 	"\fPartsService\x12h\n" +
 	"\fGetInventory\x12\x1d.parts.v1.GetInventoryRequest\x1a\x1e.parts.v1.GetInventoryResponse\"\x19\x82\xd3\xe4\x93\x02\x13\x12\x11/api/v1/inventory\x12^\n" +
 	"\aAddPart\x12\x18.parts.v1.AddPartRequest\x1a\x19.parts.v1.AddPartResponse\"\x1e\x82\xd3\xe4\x93\x02\x18:\x01*b\x04part\"\r/api/v1/parts\x12l\n" +
@@ -5390,7 +5722,11 @@ const file_parts_v1_parts_proto_rawDesc = "" +
 	"\x0fBulkDeleteParts\x12 .parts.v1.BulkDeletePartsRequest\x1a!.parts.v1.BulkDeletePartsResponse\"*\x82\xd3\xe4\x93\x02$:\x01*\"\x1f/api/v1/admin/parts/bulk-delete\x12\x82\x01\n" +
 	"\x0fBulkUpdateParts\x12 .parts.v1.BulkUpdatePartsRequest\x1a!.parts.v1.BulkUpdatePartsResponse\"*\x82\xd3\xe4\x93\x02$:\x01*\"\x1f/api/v1/admin/parts/bulk-update\x12\x7f\n" +
 	"\x10GetSupplierCodes\x12!.parts.v1.GetSupplierCodesRequest\x1a\".parts.v1.GetSupplierCodesResponse\"$\x82\xd3\xe4\x93\x02\x1e\x12\x1c/api/v1/admin/supplier-codes\x12\x9c\x01\n" +
-	"\x17DeleteZeroQuantityParts\x12(.parts.v1.DeleteZeroQuantityPartsRequest\x1a).parts.v1.DeleteZeroQuantityPartsResponse\",\x82\xd3\xe4\x93\x02&:\x01*\"!/api/v1/admin/parts/zero-quantityB\"Z avtoplaneta/gen/parts/v1;partsv1b\x06proto3"
+	"\x17DeleteZeroQuantityParts\x12(.parts.v1.DeleteZeroQuantityPartsRequest\x1a).parts.v1.DeleteZeroQuantityPartsResponse\",\x82\xd3\xe4\x93\x02&:\x01*\"!/api/v1/admin/parts/zero-quantity\x12`\n" +
+	"\n" +
+	"GetShelves\x12\x1b.parts.v1.GetShelvesRequest\x1a\x1c.parts.v1.GetShelvesResponse\"\x17\x82\xd3\xe4\x93\x02\x11\x12\x0f/api/v1/shelves\x12s\n" +
+	"\vCreateShelf\x12\x1c.parts.v1.CreateShelfRequest\x1a\x1d.parts.v1.CreateShelfResponse\"'\x82\xd3\xe4\x93\x02!:\x01*b\x05shelf\"\x15/api/v1/admin/shelves\x12n\n" +
+	"\vDeleteShelf\x12\x1c.parts.v1.DeleteShelfRequest\x1a\x1d.parts.v1.DeleteShelfResponse\"\"\x82\xd3\xe4\x93\x02\x1c*\x1a/api/v1/admin/shelves/{id}B\"Z avtoplaneta/gen/parts/v1;partsv1b\x06proto3"
 
 var (
 	file_parts_v1_parts_proto_rawDescOnce sync.Once
@@ -5405,7 +5741,7 @@ func file_parts_v1_parts_proto_rawDescGZIP() []byte {
 }
 
 var file_parts_v1_parts_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_parts_v1_parts_proto_msgTypes = make([]protoimpl.MessageInfo, 51)
+var file_parts_v1_parts_proto_msgTypes = make([]protoimpl.MessageInfo, 58)
 var file_parts_v1_parts_proto_goTypes = []any{
 	(PriceOperationMode)(0),                 // 0: parts.v1.PriceOperationMode
 	(BulkScopeType)(0),                      // 1: parts.v1.BulkScopeType
@@ -5459,11 +5795,18 @@ var file_parts_v1_parts_proto_goTypes = []any{
 	(*GetSupplierCodesResponse)(nil),        // 49: parts.v1.GetSupplierCodesResponse
 	(*DeleteZeroQuantityPartsRequest)(nil),  // 50: parts.v1.DeleteZeroQuantityPartsRequest
 	(*DeleteZeroQuantityPartsResponse)(nil), // 51: parts.v1.DeleteZeroQuantityPartsResponse
-	nil,                                     // 52: parts.v1.BulkUpdatePartData.FieldsEntry
-	(*timestamppb.Timestamp)(nil),           // 53: google.protobuf.Timestamp
+	(*Shelf)(nil),                           // 52: parts.v1.Shelf
+	(*GetShelvesRequest)(nil),               // 53: parts.v1.GetShelvesRequest
+	(*GetShelvesResponse)(nil),              // 54: parts.v1.GetShelvesResponse
+	(*CreateShelfRequest)(nil),              // 55: parts.v1.CreateShelfRequest
+	(*CreateShelfResponse)(nil),             // 56: parts.v1.CreateShelfResponse
+	(*DeleteShelfRequest)(nil),              // 57: parts.v1.DeleteShelfRequest
+	(*DeleteShelfResponse)(nil),             // 58: parts.v1.DeleteShelfResponse
+	nil,                                     // 59: parts.v1.BulkUpdatePartData.FieldsEntry
+	(*timestamppb.Timestamp)(nil),           // 60: google.protobuf.Timestamp
 }
 var file_parts_v1_parts_proto_depIdxs = []int32{
-	53, // 0: parts.v1.Part.to_delete_at:type_name -> google.protobuf.Timestamp
+	60, // 0: parts.v1.Part.to_delete_at:type_name -> google.protobuf.Timestamp
 	2,  // 1: parts.v1.GetInventoryResponse.parts:type_name -> parts.v1.Part
 	2,  // 2: parts.v1.GetPartResponse.part:type_name -> parts.v1.Part
 	2,  // 3: parts.v1.DuplicatePartResponse.part:type_name -> parts.v1.Part
@@ -5482,57 +5825,66 @@ var file_parts_v1_parts_proto_depIdxs = []int32{
 	42, // 16: parts.v1.BulkFieldOperations.price:type_name -> parts.v1.BulkPriceOperation
 	1,  // 17: parts.v1.BulkUpdateScope.type:type_name -> parts.v1.BulkScopeType
 	3,  // 18: parts.v1.BulkUpdateScope.filter:type_name -> parts.v1.GetInventoryRequest
-	52, // 19: parts.v1.BulkUpdatePartData.fields:type_name -> parts.v1.BulkUpdatePartData.FieldsEntry
+	59, // 19: parts.v1.BulkUpdatePartData.fields:type_name -> parts.v1.BulkUpdatePartData.FieldsEntry
 	45, // 20: parts.v1.BulkUpdatePartsRequest.parts:type_name -> parts.v1.BulkUpdatePartData
 	44, // 21: parts.v1.BulkUpdatePartsRequest.scope:type_name -> parts.v1.BulkUpdateScope
 	43, // 22: parts.v1.BulkUpdatePartsRequest.operations:type_name -> parts.v1.BulkFieldOperations
-	3,  // 23: parts.v1.PartsService.GetInventory:input_type -> parts.v1.GetInventoryRequest
-	13, // 24: parts.v1.PartsService.AddPart:input_type -> parts.v1.AddPartRequest
-	15, // 25: parts.v1.PartsService.UpdatePart:input_type -> parts.v1.UpdatePartRequest
-	17, // 26: parts.v1.PartsService.DeletePart:input_type -> parts.v1.DeletePartRequest
-	19, // 27: parts.v1.PartsService.MarkPartForDeletion:input_type -> parts.v1.MarkPartForDeletionRequest
-	5,  // 28: parts.v1.PartsService.GetPart:input_type -> parts.v1.GetPartRequest
-	7,  // 29: parts.v1.PartsService.DuplicatePart:input_type -> parts.v1.DuplicatePartRequest
-	9,  // 30: parts.v1.PartsService.DecreasePartQuantity:input_type -> parts.v1.DecreasePartQuantityRequest
-	11, // 31: parts.v1.PartsService.IncreasePartQuantity:input_type -> parts.v1.IncreasePartQuantityRequest
-	21, // 32: parts.v1.PartsService.UploadPartPhoto:input_type -> parts.v1.UploadPartPhotoRequest
-	23, // 33: parts.v1.PartsService.DeletePartPhoto:input_type -> parts.v1.DeletePartPhotoRequest
-	25, // 34: parts.v1.PartsService.GetStatistics:input_type -> parts.v1.GetStatisticsRequest
-	29, // 35: parts.v1.PartsService.UpdateEarnings:input_type -> parts.v1.UpdateEarningsRequest
-	32, // 36: parts.v1.PartsService.CreateDefectReport:input_type -> parts.v1.CreateDefectReportRequest
-	33, // 37: parts.v1.PartsService.PreviewDefectReport:input_type -> parts.v1.PreviewDefectReportRequest
-	36, // 38: parts.v1.PartsService.ListPartsForExport:input_type -> parts.v1.ListPartsForExportRequest
-	38, // 39: parts.v1.PartsService.InventoryVersion:input_type -> parts.v1.InventoryVersionRequest
-	40, // 40: parts.v1.PartsService.BulkDeleteParts:input_type -> parts.v1.BulkDeletePartsRequest
-	46, // 41: parts.v1.PartsService.BulkUpdateParts:input_type -> parts.v1.BulkUpdatePartsRequest
-	48, // 42: parts.v1.PartsService.GetSupplierCodes:input_type -> parts.v1.GetSupplierCodesRequest
-	50, // 43: parts.v1.PartsService.DeleteZeroQuantityParts:input_type -> parts.v1.DeleteZeroQuantityPartsRequest
-	4,  // 44: parts.v1.PartsService.GetInventory:output_type -> parts.v1.GetInventoryResponse
-	14, // 45: parts.v1.PartsService.AddPart:output_type -> parts.v1.AddPartResponse
-	16, // 46: parts.v1.PartsService.UpdatePart:output_type -> parts.v1.UpdatePartResponse
-	18, // 47: parts.v1.PartsService.DeletePart:output_type -> parts.v1.DeletePartResponse
-	20, // 48: parts.v1.PartsService.MarkPartForDeletion:output_type -> parts.v1.MarkPartForDeletionResponse
-	6,  // 49: parts.v1.PartsService.GetPart:output_type -> parts.v1.GetPartResponse
-	8,  // 50: parts.v1.PartsService.DuplicatePart:output_type -> parts.v1.DuplicatePartResponse
-	10, // 51: parts.v1.PartsService.DecreasePartQuantity:output_type -> parts.v1.DecreasePartQuantityResponse
-	12, // 52: parts.v1.PartsService.IncreasePartQuantity:output_type -> parts.v1.IncreasePartQuantityResponse
-	22, // 53: parts.v1.PartsService.UploadPartPhoto:output_type -> parts.v1.UploadPartPhotoResponse
-	24, // 54: parts.v1.PartsService.DeletePartPhoto:output_type -> parts.v1.DeletePartPhotoResponse
-	28, // 55: parts.v1.PartsService.GetStatistics:output_type -> parts.v1.GetStatisticsResponse
-	30, // 56: parts.v1.PartsService.UpdateEarnings:output_type -> parts.v1.UpdateEarningsResponse
-	35, // 57: parts.v1.PartsService.CreateDefectReport:output_type -> parts.v1.CreateDefectReportResponse
-	34, // 58: parts.v1.PartsService.PreviewDefectReport:output_type -> parts.v1.PreviewDefectReportResponse
-	37, // 59: parts.v1.PartsService.ListPartsForExport:output_type -> parts.v1.ListPartsForExportResponse
-	39, // 60: parts.v1.PartsService.InventoryVersion:output_type -> parts.v1.InventoryVersionResponse
-	41, // 61: parts.v1.PartsService.BulkDeleteParts:output_type -> parts.v1.BulkDeletePartsResponse
-	47, // 62: parts.v1.PartsService.BulkUpdateParts:output_type -> parts.v1.BulkUpdatePartsResponse
-	49, // 63: parts.v1.PartsService.GetSupplierCodes:output_type -> parts.v1.GetSupplierCodesResponse
-	51, // 64: parts.v1.PartsService.DeleteZeroQuantityParts:output_type -> parts.v1.DeleteZeroQuantityPartsResponse
-	44, // [44:65] is the sub-list for method output_type
-	23, // [23:44] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	60, // 23: parts.v1.Shelf.created_at:type_name -> google.protobuf.Timestamp
+	52, // 24: parts.v1.GetShelvesResponse.shelves:type_name -> parts.v1.Shelf
+	52, // 25: parts.v1.CreateShelfResponse.shelf:type_name -> parts.v1.Shelf
+	3,  // 26: parts.v1.PartsService.GetInventory:input_type -> parts.v1.GetInventoryRequest
+	13, // 27: parts.v1.PartsService.AddPart:input_type -> parts.v1.AddPartRequest
+	15, // 28: parts.v1.PartsService.UpdatePart:input_type -> parts.v1.UpdatePartRequest
+	17, // 29: parts.v1.PartsService.DeletePart:input_type -> parts.v1.DeletePartRequest
+	19, // 30: parts.v1.PartsService.MarkPartForDeletion:input_type -> parts.v1.MarkPartForDeletionRequest
+	5,  // 31: parts.v1.PartsService.GetPart:input_type -> parts.v1.GetPartRequest
+	7,  // 32: parts.v1.PartsService.DuplicatePart:input_type -> parts.v1.DuplicatePartRequest
+	9,  // 33: parts.v1.PartsService.DecreasePartQuantity:input_type -> parts.v1.DecreasePartQuantityRequest
+	11, // 34: parts.v1.PartsService.IncreasePartQuantity:input_type -> parts.v1.IncreasePartQuantityRequest
+	21, // 35: parts.v1.PartsService.UploadPartPhoto:input_type -> parts.v1.UploadPartPhotoRequest
+	23, // 36: parts.v1.PartsService.DeletePartPhoto:input_type -> parts.v1.DeletePartPhotoRequest
+	25, // 37: parts.v1.PartsService.GetStatistics:input_type -> parts.v1.GetStatisticsRequest
+	29, // 38: parts.v1.PartsService.UpdateEarnings:input_type -> parts.v1.UpdateEarningsRequest
+	32, // 39: parts.v1.PartsService.CreateDefectReport:input_type -> parts.v1.CreateDefectReportRequest
+	33, // 40: parts.v1.PartsService.PreviewDefectReport:input_type -> parts.v1.PreviewDefectReportRequest
+	36, // 41: parts.v1.PartsService.ListPartsForExport:input_type -> parts.v1.ListPartsForExportRequest
+	38, // 42: parts.v1.PartsService.InventoryVersion:input_type -> parts.v1.InventoryVersionRequest
+	40, // 43: parts.v1.PartsService.BulkDeleteParts:input_type -> parts.v1.BulkDeletePartsRequest
+	46, // 44: parts.v1.PartsService.BulkUpdateParts:input_type -> parts.v1.BulkUpdatePartsRequest
+	48, // 45: parts.v1.PartsService.GetSupplierCodes:input_type -> parts.v1.GetSupplierCodesRequest
+	50, // 46: parts.v1.PartsService.DeleteZeroQuantityParts:input_type -> parts.v1.DeleteZeroQuantityPartsRequest
+	53, // 47: parts.v1.PartsService.GetShelves:input_type -> parts.v1.GetShelvesRequest
+	55, // 48: parts.v1.PartsService.CreateShelf:input_type -> parts.v1.CreateShelfRequest
+	57, // 49: parts.v1.PartsService.DeleteShelf:input_type -> parts.v1.DeleteShelfRequest
+	4,  // 50: parts.v1.PartsService.GetInventory:output_type -> parts.v1.GetInventoryResponse
+	14, // 51: parts.v1.PartsService.AddPart:output_type -> parts.v1.AddPartResponse
+	16, // 52: parts.v1.PartsService.UpdatePart:output_type -> parts.v1.UpdatePartResponse
+	18, // 53: parts.v1.PartsService.DeletePart:output_type -> parts.v1.DeletePartResponse
+	20, // 54: parts.v1.PartsService.MarkPartForDeletion:output_type -> parts.v1.MarkPartForDeletionResponse
+	6,  // 55: parts.v1.PartsService.GetPart:output_type -> parts.v1.GetPartResponse
+	8,  // 56: parts.v1.PartsService.DuplicatePart:output_type -> parts.v1.DuplicatePartResponse
+	10, // 57: parts.v1.PartsService.DecreasePartQuantity:output_type -> parts.v1.DecreasePartQuantityResponse
+	12, // 58: parts.v1.PartsService.IncreasePartQuantity:output_type -> parts.v1.IncreasePartQuantityResponse
+	22, // 59: parts.v1.PartsService.UploadPartPhoto:output_type -> parts.v1.UploadPartPhotoResponse
+	24, // 60: parts.v1.PartsService.DeletePartPhoto:output_type -> parts.v1.DeletePartPhotoResponse
+	28, // 61: parts.v1.PartsService.GetStatistics:output_type -> parts.v1.GetStatisticsResponse
+	30, // 62: parts.v1.PartsService.UpdateEarnings:output_type -> parts.v1.UpdateEarningsResponse
+	35, // 63: parts.v1.PartsService.CreateDefectReport:output_type -> parts.v1.CreateDefectReportResponse
+	34, // 64: parts.v1.PartsService.PreviewDefectReport:output_type -> parts.v1.PreviewDefectReportResponse
+	37, // 65: parts.v1.PartsService.ListPartsForExport:output_type -> parts.v1.ListPartsForExportResponse
+	39, // 66: parts.v1.PartsService.InventoryVersion:output_type -> parts.v1.InventoryVersionResponse
+	41, // 67: parts.v1.PartsService.BulkDeleteParts:output_type -> parts.v1.BulkDeletePartsResponse
+	47, // 68: parts.v1.PartsService.BulkUpdateParts:output_type -> parts.v1.BulkUpdatePartsResponse
+	49, // 69: parts.v1.PartsService.GetSupplierCodes:output_type -> parts.v1.GetSupplierCodesResponse
+	51, // 70: parts.v1.PartsService.DeleteZeroQuantityParts:output_type -> parts.v1.DeleteZeroQuantityPartsResponse
+	54, // 71: parts.v1.PartsService.GetShelves:output_type -> parts.v1.GetShelvesResponse
+	56, // 72: parts.v1.PartsService.CreateShelf:output_type -> parts.v1.CreateShelfResponse
+	58, // 73: parts.v1.PartsService.DeleteShelf:output_type -> parts.v1.DeleteShelfResponse
+	50, // [50:74] is the sub-list for method output_type
+	26, // [26:50] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_parts_v1_parts_proto_init() }
@@ -5548,7 +5900,7 @@ func file_parts_v1_parts_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_parts_v1_parts_proto_rawDesc), len(file_parts_v1_parts_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   51,
+			NumMessages:   58,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

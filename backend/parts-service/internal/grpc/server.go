@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -680,6 +681,45 @@ func (s *partsGRPCServer) DeleteZeroQuantityParts(ctx context.Context, req *part
 	}
 	return &partsv1.DeleteZeroQuantityPartsResponse{DeletedCount: int32(count)}, nil
 }
+
+// GetShelves возвращает список полок склада
+func (s *partsGRPCServer) GetShelves(ctx context.Context, _ *partsv1.GetShelvesRequest) (*partsv1.GetShelvesResponse, error) {
+	shelves, err := s.service.GetShelves(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "не удалось получить список полок: %v", err)
+	}
+	protoShelves := make([]*partsv1.Shelf, len(shelves))
+	for i, sh := range shelves {
+		shCopy := sh
+		protoShelves[i] = shCopy.ToProto()
+	}
+	return &partsv1.GetShelvesResponse{Shelves: protoShelves}, nil
+}
+
+// CreateShelf создает новую полку склада
+func (s *partsGRPCServer) CreateShelf(ctx context.Context, req *partsv1.CreateShelfRequest) (*partsv1.CreateShelfResponse, error) {
+	name := strings.TrimSpace(req.GetName())
+	if name == "" {
+		return nil, status.Error(codes.InvalidArgument, "название полки не может быть пустым")
+	}
+	shelf, err := s.service.CreateShelf(ctx, name)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "не удалось создать полку: %v", err)
+	}
+	return &partsv1.CreateShelfResponse{Shelf: shelf.ToProto()}, nil
+}
+
+// DeleteShelf удаляет полку склада
+func (s *partsGRPCServer) DeleteShelf(ctx context.Context, req *partsv1.DeleteShelfRequest) (*partsv1.DeleteShelfResponse, error) {
+	if req.GetId() <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "некорректный идентификатор полки")
+	}
+	if err := s.service.DeleteShelf(ctx, req.GetId()); err != nil {
+		return nil, status.Errorf(codes.Internal, "не удалось удалить полку: %v", err)
+	}
+	return &partsv1.DeleteShelfResponse{Success: true}, nil
+}
+
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

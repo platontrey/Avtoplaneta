@@ -261,6 +261,69 @@
         ]
       }
     },
+    "/api/v1/admin/shelves": {
+      "post": {
+        "operationId": "PartsService_CreateShelf",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/v1Shelf"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateShelfRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
+    "/api/v1/admin/shelves/{id}": {
+      "delete": {
+        "operationId": "PartsService_DeleteShelf",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DeleteShelfResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
     "/api/v1/admin/status": {
       "get": {
         "summary": "Админ",
@@ -1007,6 +1070,29 @@
             "type": "string"
           }
         ],
+        "tags": [
+          "PartsService"
+        ]
+      }
+    },
+    "/api/v1/shelves": {
+      "get": {
+        "summary": "Складские полки",
+        "operationId": "PartsService_GetShelves",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetShelvesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
         "tags": [
           "PartsService"
         ]
@@ -1955,6 +2041,22 @@
         }
       }
     },
+    "v1CreateShelfRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CreateShelfResponse": {
+      "type": "object",
+      "properties": {
+        "shelf": {
+          "$ref": "#/definitions/v1Shelf"
+        }
+      }
+    },
     "v1CreateUserRequest": {
       "type": "object",
       "properties": {
@@ -2124,6 +2226,14 @@
     },
     "v1DeletePartResponse": {
       "type": "object"
+    },
+    "v1DeleteShelfResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        }
+      }
     },
     "v1DeleteUserResponse": {
       "type": "object"
@@ -2381,6 +2491,18 @@
         "totalParts": {
           "type": "integer",
           "format": "int32"
+        }
+      }
+    },
+    "v1GetShelvesResponse": {
+      "type": "object",
+      "properties": {
+        "shelves": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Shelf"
+          }
         }
       }
     },
@@ -2782,6 +2904,22 @@
         },
         "source": {
           "type": "string"
+        }
+      }
+    },
+    "v1Shelf": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "name": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
         }
       }
     },

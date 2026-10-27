@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
+import '../../../core/api/api_endpoints.dart';
 import '../../../core/models/part.dart';
 import '../../../core/storage/cache_storage.dart';
 import '../data/inventory_filter.dart';
@@ -525,3 +526,22 @@ final partProvider = FutureProvider.family<Part, int>((ref, id) async {
     rethrow;
   }
 });
+
+/// Список названий полок склада для выпадающего списка
+final shelvesProvider = FutureProvider<List<String>>((ref) async {
+  try {
+    final response = await apiClient.dio.get(ApiEndpoints.shelves);
+    final data = response.data;
+    if (data is Map && data['shelves'] is List) {
+      final list = data['shelves'] as List;
+      return list.map((item) {
+        if (item is Map) return item['name']?.toString() ?? '';
+        return item.toString();
+      }).where((s) => s.isNotEmpty).toList();
+    }
+    return <String>[];
+  } catch (_) {
+    return <String>[];
+  }
+});
+

@@ -202,6 +202,28 @@ func (m *MockPartRepository) CleanupProcessedOutboxEvents(ctx context.Context) e
 	return args.Error(0)
 }
 
+func (m *MockPartRepository) GetShelves(ctx context.Context) ([]domain.Shelf, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.Shelf), args.Error(1)
+}
+
+func (m *MockPartRepository) CreateShelf(ctx context.Context, name string) (*domain.Shelf, error) {
+	args := m.Called(ctx, name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Shelf), args.Error(1)
+}
+
+func (m *MockPartRepository) DeleteShelf(ctx context.Context, id int64) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+
 // MockElasticsearchClient - мок для Elasticsearch клиента
 type MockElasticsearchClient struct {
 	mock.Mock
@@ -458,6 +480,7 @@ func (suite *ServiceTestSuite) TestBulkDeletePartsWithProto_FilterScope() {
 		Scope: &partsv1.BulkUpdateScope{
 			Type: partsv1.BulkScopeType_BULK_SCOPE_TYPE_FILTER,
 			Filter: &partsv1.GetInventoryRequest{
+				Search:   "Бампер",
 				Category: "Бамперы",
 			},
 		},
@@ -1086,6 +1109,30 @@ func (suite *ServiceTestSuite) TestPositionSynonyms_AndSearch() {
 		}
 	}
 	assert.True(suite.T(), foundPosTerm, "Текстовый поиск 'задний' должен включать terms front_rear со значением 'R'")
+}
+
+func (suite *ServiceTestSuite) TestShelves() {
+	ctx := context.Background()
+	expectedShelves := []domain.Shelf{
+		{ID: 1, Name: "Стеллаж 1 полка 2"},
+		{ID: 2, Name: "Полка А"},
+	}
+
+	suite.mockRepo.On("GetShelves", ctx).Return(expectedShelves, nil).Once()
+	shelves, err := suite.service.GetShelves(ctx)
+	suite.NoError(err)
+	suite.Equal(2, len(shelves))
+	suite.Equal("Стеллаж 1 полка 2", shelves[0].Name)
+
+	newShelf := &domain.Shelf{ID: 3, Name: "Новая полка"}
+	suite.mockRepo.On("CreateShelf", ctx, "Новая полка").Return(newShelf, nil).Once()
+	created, err := suite.service.CreateShelf(ctx, "Новая полка")
+	suite.NoError(err)
+	suite.Equal(int64(3), created.ID)
+
+	suite.mockRepo.On("DeleteShelf", ctx, int64(3)).Return(nil).Once()
+	err = suite.service.DeleteShelf(ctx, 3)
+	suite.NoError(err)
 }
 
 // TestRunSuite - запуск всех тестов сервиса

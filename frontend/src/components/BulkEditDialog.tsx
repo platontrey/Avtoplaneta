@@ -21,6 +21,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { partsKeys } from '@/hooks/useParts';
 import { usePartCatalog } from '@/features/catalog/usePartCatalog';
 import { useVehicleOptions } from '@/features/vehicles/useVehicleCatalog';
+import { useShelves } from '@/hooks/useShelves';
 import type { Part } from '@/lib/types';
 import { ArrowRight, Calculator, CheckCircle2, RotateCcw, Search, SlidersHorizontal } from "lucide-react";
 
@@ -249,6 +250,7 @@ export default function BulkEditDialog({
 }: BulkEditDialogProps) {
   const queryClient = useQueryClient();
   const { data: partCatalog } = usePartCatalog();
+  const { shelves } = useShelves();
   const [isLoading, setIsLoading] = useState(false);
   const [users, setUsers] = useState<{ id: number; name: string; email: string }[]>([]);
   const [scopeType, setScopeType] = useState<'ids' | 'filter'>(initialScopeType || 'ids');
@@ -678,14 +680,22 @@ export default function BulkEditDialog({
           />
         );
 
-      case 'location':
+      case 'location': {
+        const shelfOptions = shelves.map((s) => ({ value: s.name, label: s.name }));
+        if (values.location && !shelfOptions.some((o) => o.value.toLowerCase() === values.location.toLowerCase())) {
+          shelfOptions.unshift({ value: values.location, label: values.location });
+        }
         return (
-          <Input
-            placeholder="Стеллаж / ряд / полка (оставьте пустым для очистки)"
+          <SearchableSelect
             value={values.location}
-            onChange={(e) => updateValue('location', e.target.value)}
+            onValueChange={(val) => updateValue('location', val)}
+            options={shelfOptions}
+            placeholder="Стеллаж / ряд / полка"
+            searchPlaceholder="Поиск или ввод новой полки..."
+            allowCustom={true}
           />
         );
+      }
 
       case 'address':
         return (

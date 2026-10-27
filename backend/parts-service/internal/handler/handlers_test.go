@@ -108,6 +108,28 @@ func (m *MockInventoryService) PeekNextSupplierCode(ctx context.Context) (string
 	return "1", nil
 }
 
+func (m *MockInventoryService) GetShelves(ctx context.Context) ([]domain.Shelf, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.Shelf), args.Error(1)
+}
+
+func (m *MockInventoryService) CreateShelf(ctx context.Context, name string) (*domain.Shelf, error) {
+	args := m.Called(ctx, name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Shelf), args.Error(1)
+}
+
+func (m *MockInventoryService) DeleteShelf(ctx context.Context, id int64) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+
 func (m *MockInventoryService) UploadPartPhoto(ctx context.Context, id int64, c *gin.Context) (string, error) {
 	args := m.Called(ctx, id, c)
 	return args.String(0), args.Error(1)
@@ -194,6 +216,9 @@ func (suite *HandlersTestSuite) SetupTest() {
 	suite.router.GET("/api/admin/supplier-codes", suite.handler.GetSupplierCodesHandler)
 	suite.router.DELETE("/api/admin/bulk-delete-parts", suite.handler.BulkDeletePartsHandler)
 	suite.router.PUT("/api/admin/bulk-update-parts", suite.handler.BulkUpdatePartsHandler)
+	suite.router.GET("/api/v1/shelves", suite.handler.GetShelvesHandler)
+	suite.router.POST("/api/v1/admin/shelves", suite.handler.CreateShelfHandler)
+	suite.router.DELETE("/api/v1/admin/shelves/:id", suite.handler.DeleteShelfHandler)
 }
 
 func (suite *HandlersTestSuite) TearDownTest() {
@@ -545,6 +570,58 @@ func (suite *HandlersTestSuite) TestUpdateEarningsHandler() {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), "Заработок обновлен", response["message"])
+}
+
+// TestGetShelvesHandler - тест получения полок склада
+func (suite *HandlersTestSuite) TestGetShelvesHandler() {
+	expectedShelves := []domain.Shelf{
+		{ID: 1, Name: "Полка 1"},
+		{ID: 2, Name: "Полка 2"},
+	}
+	suite.mockService.On("GetShelves", mock.Anything).Return(expectedShelves, nil)
+
+	req, _ := http.NewRequest("GET", "/api/v1/shelves", nil)
+	w := httptest.NewRecorder()
+	suite.router.ServeHTTP(w, req)
+
+	assert.Equal(suite.T(), http.StatusOK, w.Code)
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.NotNil(suite.T(), response["shelves"])
+}
+
+// TestCreateShelfHandler - тест создания полки склада
+func (suite *HandlersTestSuite) TestCreateShelfHandler() {
+	shelf := &domain.Shelf{ID: 10, Name: "Стеллаж А"}
+	suite.mockService.On("CreateShelf", mock.Anything, "Стеллаж А").Return(shelf, nil)
+
+	body := []byte(`{"name":"Стеллаж А"}`)
+	req, _ := http.NewRequest("POST", "/api/v1/admin/shelves", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	suite.router.ServeHTTP(w, req)
+
+	assert.Equal(suite.T(), http.StatusOK, w.Code)
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "Полка успешно создана", response["message"])
+}
+
+// TestDeleteShelfHandler - тест удаления полки склада
+func (suite *HandlersTestSuite) TestDeleteShelfHandler() {
+	suite.mockService.On("DeleteShelf", mock.Anything, int64(10)).Return(nil)
+
+	req, _ := http.NewRequest("DELETE", "/api/v1/admin/shelves/10", nil)
+	w := httptest.NewRecorder()
+	suite.router.ServeHTTP(w, req)
+
+	assert.Equal(suite.T(), http.StatusOK, w.Code)
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "Полка успешно удалена", response["message"])
 }
 
 // TestRunSuite - запуск всех тестов handlers

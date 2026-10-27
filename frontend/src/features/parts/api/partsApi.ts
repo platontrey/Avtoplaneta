@@ -2,7 +2,7 @@
  * Copyright (c) 2025 Avtoplaneta. All rights reserved.
  */
 
-import type { Part } from '../types';
+import type { Part, Shelf } from '../types';
 import type { PartFilters } from '@/hooks/useParts';
 import { getAuthHeaders } from '@/lib/csrf';
 import { safeFetchJson } from '@/lib/api';
@@ -155,4 +155,31 @@ export const partsApi = {
 
     return result;
   },
+
+  // Shelves (Складские полки)
+  getShelves: async (): Promise<Shelf[]> => {
+    const data = await safeFetchJson<{ shelves?: Shelf[] } | Shelf[]>(`${API_BASE_URL}/api/v1/shelves`, {
+      credentials: 'include',
+    });
+    return Array.isArray(data) ? data : data.shelves || [];
+  },
+
+  createShelf: async (name: string): Promise<Shelf> => {
+    const result = await safeFetchJson<{ shelf: Shelf } | Shelf>(`${API_BASE_URL}/api/v1/admin/shelves`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ name }),
+    });
+    return 'shelf' in result ? result.shelf : result;
+  },
+
+  deleteShelf: async (id: number): Promise<void> => {
+    await safeFetchJson(`${API_BASE_URL}/api/v1/admin/shelves/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
+  },
 };
+

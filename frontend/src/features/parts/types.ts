@@ -57,3 +57,10 @@ export interface Part {
 
 export type { PartFormData } from './schemas/partSchema';
 export type { PartFilters } from '@/hooks/useParts';
+
+export interface Shelf {
+  id: number;
+  name: string;
+  created_at?: string;
+}
+

@@ -121,6 +121,21 @@ service PartsService {
       body: "*"
     };
   }
+
+  // Складские полки
+  rpc GetShelves(GetShelvesRequest) returns (GetShelvesResponse) {
+    option (google.api.http) = {get: "/api/v1/shelves"};
+  }
+  rpc CreateShelf(CreateShelfRequest) returns (CreateShelfResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/admin/shelves"
+      body: "*"
+      response_body: "shelf"
+    };
+  }
+  rpc DeleteShelf(DeleteShelfRequest) returns (DeleteShelfResponse) {
+    option (google.api.http) = {delete: "/api/v1/admin/shelves/{id}"};
+  }
 }
 
 // ─── Part Model ─────────────────────────────────────────────────────────────
@@ -665,4 +680,34 @@ message DeleteZeroQuantityPartsRequest {
 
 message DeleteZeroQuantityPartsResponse {
   int32 deleted_count = 1;
+}
+
+// ─── Shelf Models ──────────────────────────────────────────────────────────
+
+message Shelf {
+  int64 id = 1;
+  string name = 2;
+  google.protobuf.Timestamp created_at = 3;
+}
+
+message GetShelvesRequest {}
+
+message GetShelvesResponse {
+  repeated Shelf shelves = 1;
+}
+
+message CreateShelfRequest {
+  string name = 1;
+}
+
+message CreateShelfResponse {
+  Shelf shelf = 1;
+}
+
+message DeleteShelfRequest {
+  int64 id = 1;
+}
+
+message DeleteShelfResponse {
+  bool success = 1;
 }

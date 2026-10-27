@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { SelectItem } from '@/components/ui/select';
 import { ClearableSelect } from '@/components/ClearableSelect';
+import { SearchableSelect } from '@/components/ui/searchable-select';
+import { useShelves } from '@/hooks/useShelves';
 import type { SearchFiltersState } from './searchTypes';
 
 const WAREHOUSE_ADDRESSES = [
@@ -23,19 +25,29 @@ export const WarehouseFiltersTab: React.FC<WarehouseFiltersTabProps> = ({
   filters,
   onChange,
 }) => {
+  const { shelves } = useShelves();
+
+  const shelfOptions = shelves.map((s) => ({ value: s.name, label: s.name }));
+  if (filters.location && !shelfOptions.some((o) => o.value.toLowerCase() === filters.location.toLowerCase())) {
+    shelfOptions.unshift({ value: filters.location, label: filters.location });
+  }
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {/* Местоположение */}
       <div>
         <Label htmlFor="location-filter">Местоположение (полка/стеллаж)</Label>
-        <Input
-          id="location-filter"
-          type="text"
-          value={filters.location}
-          onChange={(e) => onChange('location', e.target.value)}
-          placeholder="Shelf A-12..."
-          className="mt-1.5 bg-transparent border border-gray-300"
-        />
+        <div className="mt-1.5">
+          <SearchableSelect
+            value={filters.location}
+            onValueChange={(val) => onChange('location', val)}
+            options={shelfOptions}
+            placeholder="Все полки"
+            searchPlaceholder="Поиск или ввод полки..."
+            allowCustom={true}
+            className="w-full bg-transparent border border-gray-300"
+          />
+        </div>
       </div>
 
       {/* Адрес склада */}

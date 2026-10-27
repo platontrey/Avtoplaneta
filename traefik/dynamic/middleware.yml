@@ -1,5 +1,10 @@
 http:
   middlewares:
+    redirect-to-https:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
     dashboard-auth:
       basicAuth:
         users:

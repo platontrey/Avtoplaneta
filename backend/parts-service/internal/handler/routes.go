@@ -107,6 +107,18 @@ func SetupRoutes(r *gin.Engine, handler *Handler) {
 		r.POST(path, handler.DeleteZeroQuantityPartsBySupplierHandler)
 	}
 
+	// Маршруты складских полок
+	for _, path := range []string{"/api/v1/shelves", "/api/shelves"} {
+		r.GET(path, handler.GetShelvesHandler)
+	}
+	for _, path := range []string{"/api/v1/admin/shelves", "/api/admin/shelves"} {
+		r.POST(path, handler.CreateShelfHandler)
+	}
+	for _, path := range []string{"/api/v1/admin/shelves/:id", "/api/admin/shelves/:id"} {
+		r.DELETE(path, handler.DeleteShelfHandler)
+	}
+
+
 	// Статическое обслуживание файлов для загрузок
 	uploads := r.Group("/uploads", uploadsCacheControl())
 	uploads.Static("", "./uploads")

@@ -40,6 +40,9 @@ const (
 	PartsService_BulkUpdateParts_FullMethodName         = "/parts.v1.PartsService/BulkUpdateParts"
 	PartsService_GetSupplierCodes_FullMethodName        = "/parts.v1.PartsService/GetSupplierCodes"
 	PartsService_DeleteZeroQuantityParts_FullMethodName = "/parts.v1.PartsService/DeleteZeroQuantityParts"
+	PartsService_GetShelves_FullMethodName              = "/parts.v1.PartsService/GetShelves"
+	PartsService_CreateShelf_FullMethodName             = "/parts.v1.PartsService/CreateShelf"
+	PartsService_DeleteShelf_FullMethodName             = "/parts.v1.PartsService/DeleteShelf"
 )
 
 // PartsServiceClient is the client API for PartsService service.
@@ -74,6 +77,10 @@ type PartsServiceClient interface {
 	BulkUpdateParts(ctx context.Context, in *BulkUpdatePartsRequest, opts ...grpc.CallOption) (*BulkUpdatePartsResponse, error)
 	GetSupplierCodes(ctx context.Context, in *GetSupplierCodesRequest, opts ...grpc.CallOption) (*GetSupplierCodesResponse, error)
 	DeleteZeroQuantityParts(ctx context.Context, in *DeleteZeroQuantityPartsRequest, opts ...grpc.CallOption) (*DeleteZeroQuantityPartsResponse, error)
+	// Складские полки
+	GetShelves(ctx context.Context, in *GetShelvesRequest, opts ...grpc.CallOption) (*GetShelvesResponse, error)
+	CreateShelf(ctx context.Context, in *CreateShelfRequest, opts ...grpc.CallOption) (*CreateShelfResponse, error)
+	DeleteShelf(ctx context.Context, in *DeleteShelfRequest, opts ...grpc.CallOption) (*DeleteShelfResponse, error)
 }
 
 type partsServiceClient struct {
@@ -306,6 +313,36 @@ func (c *partsServiceClient) DeleteZeroQuantityParts(ctx context.Context, in *De
 	return out, nil
 }
 
+func (c *partsServiceClient) GetShelves(ctx context.Context, in *GetShelvesRequest, opts ...grpc.CallOption) (*GetShelvesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetShelvesResponse)
+	err := c.cc.Invoke(ctx, PartsService_GetShelves_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *partsServiceClient) CreateShelf(ctx context.Context, in *CreateShelfRequest, opts ...grpc.CallOption) (*CreateShelfResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateShelfResponse)
+	err := c.cc.Invoke(ctx, PartsService_CreateShelf_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *partsServiceClient) DeleteShelf(ctx context.Context, in *DeleteShelfRequest, opts ...grpc.CallOption) (*DeleteShelfResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteShelfResponse)
+	err := c.cc.Invoke(ctx, PartsService_DeleteShelf_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PartsServiceServer is the server API for PartsService service.
 // All implementations must embed UnimplementedPartsServiceServer
 // for forward compatibility.
@@ -338,6 +375,10 @@ type PartsServiceServer interface {
 	BulkUpdateParts(context.Context, *BulkUpdatePartsRequest) (*BulkUpdatePartsResponse, error)
 	GetSupplierCodes(context.Context, *GetSupplierCodesRequest) (*GetSupplierCodesResponse, error)
 	DeleteZeroQuantityParts(context.Context, *DeleteZeroQuantityPartsRequest) (*DeleteZeroQuantityPartsResponse, error)
+	// Складские полки
+	GetShelves(context.Context, *GetShelvesRequest) (*GetShelvesResponse, error)
+	CreateShelf(context.Context, *CreateShelfRequest) (*CreateShelfResponse, error)
+	DeleteShelf(context.Context, *DeleteShelfRequest) (*DeleteShelfResponse, error)
 	mustEmbedUnimplementedPartsServiceServer()
 }
 
@@ -410,6 +451,15 @@ func (UnimplementedPartsServiceServer) GetSupplierCodes(context.Context, *GetSup
 }
 func (UnimplementedPartsServiceServer) DeleteZeroQuantityParts(context.Context, *DeleteZeroQuantityPartsRequest) (*DeleteZeroQuantityPartsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteZeroQuantityParts not implemented")
+}
+func (UnimplementedPartsServiceServer) GetShelves(context.Context, *GetShelvesRequest) (*GetShelvesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetShelves not implemented")
+}
+func (UnimplementedPartsServiceServer) CreateShelf(context.Context, *CreateShelfRequest) (*CreateShelfResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateShelf not implemented")
+}
+func (UnimplementedPartsServiceServer) DeleteShelf(context.Context, *DeleteShelfRequest) (*DeleteShelfResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteShelf not implemented")
 }
 func (UnimplementedPartsServiceServer) mustEmbedUnimplementedPartsServiceServer() {}
 func (UnimplementedPartsServiceServer) testEmbeddedByValue()                      {}
@@ -792,6 +842,60 @@ func _PartsService_DeleteZeroQuantityParts_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PartsService_GetShelves_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetShelvesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PartsServiceServer).GetShelves(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PartsService_GetShelves_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PartsServiceServer).GetShelves(ctx, req.(*GetShelvesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PartsService_CreateShelf_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateShelfRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PartsServiceServer).CreateShelf(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PartsService_CreateShelf_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PartsServiceServer).CreateShelf(ctx, req.(*CreateShelfRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PartsService_DeleteShelf_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteShelfRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PartsServiceServer).DeleteShelf(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PartsService_DeleteShelf_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PartsServiceServer).DeleteShelf(ctx, req.(*DeleteShelfRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PartsService_ServiceDesc is the grpc.ServiceDesc for PartsService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -874,6 +978,18 @@ var PartsService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteZeroQuantityParts",
 			Handler:    _PartsService_DeleteZeroQuantityParts_Handler,
+		},
+		{
+			MethodName: "GetShelves",
+			Handler:    _PartsService_GetShelves_Handler,
+		},
+		{
+			MethodName: "CreateShelf",
+			Handler:    _PartsService_CreateShelf_Handler,
+		},
+		{
+			MethodName: "DeleteShelf",
+			Handler:    _PartsService_DeleteShelf_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

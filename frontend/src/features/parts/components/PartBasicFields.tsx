@@ -12,6 +12,7 @@ import FormRow from "@/components/FormRow";
 import SelectUserDropdown from "@/components/SelectUserDropdown";
 import { useVehicleOptions } from "@/features/vehicles/useVehicleCatalog";
 import { usePartCatalog } from "@/features/catalog/usePartCatalog";
+import { useShelves } from "@/hooks/useShelves";
 import { formatCarReleasePeriod } from "@/lib/utils";
 import type { PartFormData } from "../schemas/partSchema";
 import type { User } from "@/features/messaging/types";
@@ -24,6 +25,7 @@ export function PartBasicFields() {
 
     const { brandOptions, modelOptions } = useVehicleOptions(brand, model);
     const { data: partCatalog } = usePartCatalog();
+    const { shelves } = useShelves();
 
     const visibleFields = partCatalog?.attributes?.map((attr) => attr.code) ?? [];
     const shows = (code: string) => visibleFields.length === 0 || visibleFields.includes(code);
@@ -174,12 +176,30 @@ export function PartBasicFields() {
                 />
             </FormRow>
 
-            {/* Местоположение */}
+            {/* Местоположение (полка / стеллаж) */}
             <FormRow label="Местоположение" htmlFor="location">
-                <Input
-                    id="location"
-                    {...register("location")}
-                    placeholder="Стеллаж / ряд"
+                <Controller
+                    name="location"
+                    control={control}
+                    render={({ field }) => {
+                        const currentVal = (field.value || "").trim();
+                        const shelfOptions = shelves.map((s) => ({ value: s.name, label: s.name }));
+                        if (currentVal && !shelfOptions.some((o) => o.value.toLowerCase() === currentVal.toLowerCase())) {
+                            shelfOptions.unshift({ value: currentVal, label: currentVal });
+                        }
+                        return (
+                            <SearchableSelect
+                                value={field.value || ""}
+                                onValueChange={field.onChange}
+                                options={shelfOptions}
+                                placeholder="Выберите или введите полку..."
+                                searchPlaceholder="Поиск или ввод полки..."
+                                emptyMessage="Полка не найдена"
+                                allowCustom={true}
+                                className="h-10 w-full"
+                            />
+                        );
+                    }}
                 />
             </FormRow>
 
