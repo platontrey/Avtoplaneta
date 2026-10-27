@@ -110,12 +110,21 @@ func (h *Handler) HealthCheck(c *gin.Context) {
 func (h *Handler) ServePriceList(c *gin.Context) {
 	path := h.svc.Path()
 
-	if _, err := os.Stat(path); err != nil {
-		// Файла еще нет — первый запрос собирает его сам
+	fi, err := os.Stat(path)
+	if err != nil || fi.Size() == 0 {
+		// Файла еще нет — пытаемся собрать
 		if _, _, buildErr := h.svc.Build(c.Request.Context()); buildErr != nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Прайс-лист пока недоступен"})
+			c.Header("Retry-After", "120")
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Прайс-лист формируется, повторите попытку через 2 минуты"})
 			return
 		}
+		fi, err = os.Stat(path)
+	}
+
+	if err != nil || fi.Size() < 1024 {
+		c.Header("Retry-After", "120")
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Прайс-лист еще не готов, повторите попытку через 2 минуты"})
+		return
 	}
 
 	c.Header("Cache-Control", "no-cache")

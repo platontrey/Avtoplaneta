@@ -292,9 +292,10 @@ services:
       - GOGC=400
       - GOMAXPROCS=4
     depends_on:
-      - parts-service
-      - auth-service
-      - redis
+      parts-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   messaging-service:
     image: avtoplaneta-messaging-service:latest

@@ -237,6 +237,17 @@ func (r *BoltSnapshotRepository) WriteFullXML(targetPath string) (int, error) {
 		return 0, err
 	}
 
+	// Guard Rail: если старый файл уже существовал и имел значительный объем (>10 МБ),
+	// а новый файл содержит подозрительно мало данных (< 50% от прежнего объема),
+	// аварийно блокируем замену, чтобы защитить витрину классифайда от повреждения!
+	if oldFi, err := os.Stat(targetPath); err == nil && oldFi.Size() > 10*1024*1024 {
+		newFi, _ := os.Stat(tmpPath)
+		if newFi != nil && newFi.Size() < oldFi.Size()/2 {
+			_ = os.Remove(tmpPath)
+			return 0, fmt.Errorf("guard rail: новый XML (%d байт) меньше 50%% от существующего (%d байт), замена заблокирована", newFi.Size(), oldFi.Size())
+		}
+	}
+
 	if err := os.Rename(tmpPath, targetPath); err != nil {
 		_ = os.Remove(tmpPath)
 		return 0, fmt.Errorf("атомарное переименование: %w", err)
