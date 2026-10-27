@@ -175,7 +175,7 @@ func BuildYMLOffer(part Part, sellerINN string, baseImageURL string) YMLOffer {
 		Store:       "true",
 		Pickup:      "true",
 		Delivery:    "true",
-		Name:        normalizePartName(part),
+		Name:        buildCanonicalOfferName(part),
 		Description: desc,
 		SalesNotes:  "Способ оплаты уточняйте по телефону",
 		Barcode:     partIDStr,
@@ -277,6 +277,14 @@ func enrichWheelAndTireYMLParams(params *[]YMLParam, part Part) {
 			season = strings.TrimSpace(part.Season)
 		}
 		addParam("Сезон", season)
+
+		// Наличие шипов (устраняет замечание Drom no_tire_spike)
+		spikes := "Нет"
+		textToCheck := strings.ToLower(part.Name + " " + part.Description + " " + part.TireModel + " " + part.Condition)
+		if strings.Contains(textToCheck, "шип") && !strings.Contains(textToCheck, "нешип") && !strings.Contains(textToCheck, "без шип") {
+			spikes = "Да"
+		}
+		addParam("Шипы", spikes)
 	}
 
 	// Модель шины
@@ -365,6 +373,43 @@ func normalizePartName(part Part) string {
 	}
 
 	return name
+}
+
+// buildCanonicalOfferName строит полный эталонный заголовок предложения для Drom:
+// {Название детали}, {Марка}, {Модель}, {Кузов}, {Двигатель}, {Год}, {Перед/Зад}, {Право/Лево}.
+// Именно в таком формате исторически формировались данные в Joomla, что позволяет классификатору Drom
+// однозначно привязывать позицию к авто и исключает ошибки no_lemma, no_exact_model, no_exact_body_and_engine.
+func buildCanonicalOfferName(part Part) string {
+	baseName := normalizePartName(part)
+	if baseName == "" {
+		return ""
+	}
+
+	if isTirePart(part) || isDiscPart(part) {
+		return baseName
+	}
+
+	// Для обычных автозапчастей:
+	// {Название детали}, {Марка}, {Модель}, {Кузов}, {Двигатель}, {Год}, {Перед/Зад}, {Право/Лево}
+	var elements []string
+	elements = append(elements, baseName)
+
+	addElem := func(val string) {
+		val = strings.TrimSpace(val)
+		if val != "" && !strings.EqualFold(val, baseName) {
+			elements = append(elements, val)
+		}
+	}
+
+	addElem(part.Brand)
+	addElem(part.Model)
+	addElem(part.BodyBrand)
+	addElem(part.EngineBrand)
+	addElem(part.CarReleaseDate)
+	addElem(part.FrontRear)
+	addElem(part.LeftRight)
+
+	return strings.Join(elements, ", ")
 }
 
 func cleanDiameter(d string) string {

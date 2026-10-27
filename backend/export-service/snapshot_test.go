@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"export-service/internal/domain"
@@ -85,10 +86,10 @@ func TestSnapshotStore_UpsertAndWriteFullXML(t *testing.T) {
 	if len(parsed.Shop.Offers) != 2 {
 		t.Fatalf("ожидалось 2 предложения в XML, получено %d", len(parsed.Shop.Offers))
 	}
-	if parsed.Shop.Offers[0].Name != "Амортизатор передний" || parsed.Shop.Offers[0].Price != 3500.0 {
+	if parsed.Shop.Offers[0].Name != "Амортизатор передний, Toyota, Corolla" || parsed.Shop.Offers[0].Price != 3500.0 {
 		t.Errorf("неверные данные первого оффера: %+v", parsed.Shop.Offers[0])
 	}
-	if parsed.Shop.Offers[1].Name != "Фара левая LED" || parsed.Shop.Offers[1].Price != 12000.0 {
+	if parsed.Shop.Offers[1].Name != "Фара левая LED, Toyota, Corolla" || parsed.Shop.Offers[1].Price != 12000.0 {
 		t.Errorf("неверные данные второго оффера: %+v", parsed.Shop.Offers[1])
 	}
 
@@ -155,7 +156,7 @@ func TestSnapshotStore_UpsertAndWriteFullXML(t *testing.T) {
 	var parsed3 domain.YMLCatalog
 	_ = xml.Unmarshal(xmlBytes, &parsed3)
 	for _, o := range parsed3.Shop.Offers {
-		if o.Name == "Амортизатор передний" {
+		if strings.HasPrefix(o.Name, "Амортизатор передний") {
 			t.Fatal("удаленная деталь всё ещё присутствует в полном XML")
 		}
 	}

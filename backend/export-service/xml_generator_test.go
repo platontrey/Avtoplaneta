@@ -289,8 +289,9 @@ func TestGenerateXMLPriceListAllFieldsMapping(t *testing.T) {
 	if o.ID != "554433" {
 		t.Errorf("ID: got %q, want 554433", o.ID)
 	}
-	if o.Name != "Фара правая светодиодная" {
-		t.Errorf("Name: got %q, want %q", o.Name, "Фара правая светодиодная")
+	wantName := "Фара правая светодиодная, Toyota, Camry, XV70, 2AR-FE, 2019, перед, право"
+	if o.Name != wantName {
+		t.Errorf("Name: got %q, want %q", o.Name, wantName)
 	}
 	if !o.Available {
 		t.Errorf("Available: got %v, want true", o.Available)
@@ -594,6 +595,9 @@ func TestGenerateXMLPriceListTiresAndWheels(t *testing.T) {
 	}
 	if got := tireOffer.GetParam("Количество"); got != "4" {
 		t.Errorf("tire Количество: got %q, want 4", got)
+	}
+	if got := tireOffer.GetParam("Шипы"); got != "Нет" {
+		t.Errorf("tire Шипы: got %q, want Нет", got)
 	}
 
 	// Проверка диска

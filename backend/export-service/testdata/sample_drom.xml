@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE yml_catalog SYSTEM "shops.dtd">
-<yml_catalog date="2026-10-27 14:33">
+<yml_catalog date="2026-10-27 15:41">
   <shop>
     <name>АВТОПЛАНЕТА</name>
     <company>АВТОПЛАНЕТА</company>
@@ -24,7 +24,7 @@
         <store>true</store>
         <pickup>true</pickup>
         <delivery>true</delivery>
-        <name>Фара правая LED</name>
+        <name>Фара правая LED, Toyota, Camry, XV70, 2AR-FE, 2020, перед, право</name>
         <description><![CDATA[Оригинал, идеальное состояние. Без пробега по РФ.]]></description>
         <sales_notes>Способ оплаты уточняйте по телефону</sales_notes>
         <barcode>0</barcode>
@@ -52,7 +52,7 @@
         <store>true</store>
         <pickup>true</pickup>
         <delivery>true</delivery>
-        <name>Двигатель 1NZ-FE</name>
+        <name>Двигатель 1NZ-FE, Toyota, Corolla, NZE121, 1NZ-FE, 2005</name>
         <description><![CDATA[Контрактный ДВС в сборе с навесным оборудованием. Пробег 64 000 км по Японии. ГТД в комплекте.]]></description>
         <sales_notes>Способ оплаты уточняйте по телефону</sales_notes>
         <barcode>0</barcode>
