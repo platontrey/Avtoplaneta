@@ -14,7 +14,29 @@ const priceListCheckInterval = time.Hour
 func StartPriceListScheduler(ctx context.Context, svc *PriceListService) {
 	logrus.Info("Планировщик прайс-листа запущен")
 
-	rebuildIfStale(ctx, svc)
+	// Асинхронно добиваемся первичной сборки слепка, если parts-service был временно недоступен
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+			meta, rebuilt, err := svc.Build(ctx)
+			if err == nil {
+				if rebuilt {
+					logrus.WithField("parts_count", meta.PartsCount).Info("XML прайс-лист успешно инициализирован при старте")
+				}
+				return
+			}
+			logrus.WithError(err).Warn("parts-service еще не готов для первичной сборки слепка, повтор через 5 секунд...")
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(5 * time.Second):
+			}
+		}
+	}()
 
 	ticker := time.NewTicker(priceListCheckInterval)
 	defer ticker.Stop()
