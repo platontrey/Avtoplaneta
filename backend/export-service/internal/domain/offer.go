@@ -8,56 +8,89 @@ import (
 	"strings"
 )
 
-// Offers представляет корневой элемент XML прайс-листа площадки Drom
-type Offers struct {
-	XMLName xml.Name `xml:"offers"`
-	Offers  []Offer  `xml:"offer"`
+// YMLCatalog представляет корневой элемент выгрузки в формате Yandex Market Language (YML) для Drom.ru
+type YMLCatalog struct {
+	XMLName xml.Name `xml:"yml_catalog"`
+	Date    string   `xml:"date,attr"`
+	Shop    YMLShop  `xml:"shop"`
 }
 
-// Offer представляет структуру товарного предложения в XML-формате Drom
-type Offer struct {
-	XMLName       xml.Name `xml:"offer"`
-	Name          string   `xml:"name"`
-	Available     bool     `xml:"available"`
-	Description   string   `xml:"description,omitempty"`
-	Price         float64  `xml:"price"`
-	CurrencyId    string   `xml:"currencyId,omitempty"`
-	Pictures      []string `xml:"picture,omitempty"`
-	Store         string   `xml:"store,omitempty"`
-	Quantity      int      `xml:"quantity,omitempty"`
-	OemNumber     string   `xml:"oem_number,omitempty"`
-	AnalogNumbers string   `xml:"analog_numbers,omitempty"`
-	Manufacturer  string   `xml:"manufacturer,omitempty"`
-	Ordercode     string   `xml:"ordercode,omitempty"`
-	Condition     string   `xml:"condition,omitempty"`
-	Brandcars     string   `xml:"brandcars,omitempty"`
-	Modelcars     string   `xml:"modelcars,omitempty"`
-	Bodycars      string   `xml:"bodycars,omitempty"`
-	Engine        string   `xml:"engine,omitempty"`
-	Year          string   `xml:"year,omitempty"`
-	Lr            string   `xml:"lr,omitempty"`
-	Fr            string   `xml:"fr,omitempty"`
-	Ud            string   `xml:"ud,omitempty"`
-	Color         string   `xml:"color,omitempty"`
-	Supplier      string   `xml:"supplier,omitempty"`
-	SupplierInn   string   `xml:"supplier_inn,omitempty"`
-	Sklad         string   `xml:"sklad,omitempty"`
-	SupplierArt   string   `xml:"supplier_art,omitempty"`
+// YMLShop содержит реквизиты магазина, валюты, категории и офферы
+type YMLShop struct {
+	XMLName    xml.Name      `xml:"shop"`
+	Name       string        `xml:"name"`
+	Company    string        `xml:"company"`
+	URL        string        `xml:"url"`
+	Platform   string        `xml:"platform,omitempty"`
+	Email      string        `xml:"email,omitempty"`
+	Currencies []YMLCurrency `xml:"currencies>currency"`
+	Categories []YMLCategory `xml:"categories>category"`
+	Offers     []YMLOffer    `xml:"offers>offer"`
+}
 
-	// Параметры шин и дисков для Дром
-	Marking          string `xml:"marking,omitempty"`
-	InSet            string `xml:"inSet,omitempty"`
-	InSetQuantity    string `xml:"in_set_quantity,omitempty"`
-	WheelWidth       string `xml:"wheel_width,omitempty"`
-	WheelDiameter    string `xml:"wheel_diameter,omitempty"`
-	DiscET           string `xml:"disc_et,omitempty"`
-	DiscPCD          string `xml:"disc_pcd,omitempty"`
-	DiscHoleDiameter string `xml:"disc_hole_diameter,omitempty"`
-	DiscDia          string `xml:"disc_dia,omitempty"`
-	TireWidth        string `xml:"tire_width,omitempty"`
-	TireSectionRatio string `xml:"tire_section_ratio,omitempty"`
-	TireSpike        string `xml:"tire_spike,omitempty"`
-	Season           string `xml:"season,omitempty"`
+// YMLCurrency описывает поддерживаемую валюту каталога
+type YMLCurrency struct {
+	ID   string `xml:"id,attr"`
+	Rate string `xml:"rate,attr"`
+}
+
+// YMLCategory описывает товарную категорию YML
+type YMLCategory struct {
+	ID       string `xml:"id,attr"`
+	ParentID string `xml:"parentId,attr,omitempty"`
+	Name     string `xml:",chardata"`
+}
+
+// YMLParam представляет произвольный параметр детали в формате YML: <param name="...">значение</param>
+type YMLParam struct {
+	Name  string `xml:"name,attr"`
+	Value string `xml:",chardata"`
+}
+
+// CDATA оборачивает строку в XML CDATA секцию
+type CDATA struct {
+	Text string `xml:",cdata"`
+}
+
+// YMLOffer представляет товарное предложение в формате YML каталога Drom
+type YMLOffer struct {
+	XMLName     xml.Name   `xml:"offer"`
+	ID          string     `xml:"id,attr"`
+	Available   bool       `xml:"available,attr"`
+	Bid         string     `xml:"bid,attr,omitempty"`
+	URL         string     `xml:"url,omitempty"`
+	Price       float64    `xml:"price"`
+	CurrencyId  string     `xml:"currencyId"`
+	CategoryId  string     `xml:"categoryId"`
+	Pictures    []string   `xml:"picture,omitempty"`
+	Store       string     `xml:"store,omitempty"`
+	Pickup      string     `xml:"pickup,omitempty"`
+	Delivery    string     `xml:"delivery,omitempty"`
+	Name        string     `xml:"name"`
+	Description *CDATA     `xml:"description,omitempty"`
+	SalesNotes  string     `xml:"sales_notes,omitempty"`
+	Barcode     string     `xml:"barcode,omitempty"`
+	Cpa         string     `xml:"cpa,omitempty"`
+	Params      []YMLParam `xml:"param,omitempty"`
+}
+
+// Offer является псевдонимом для YMLOffer для полной совместимости со всеми модулями
+type Offer = YMLOffer
+
+// Offers представляет коллекцию предложений (для частичного/фрагментарного разбора в тестах)
+type Offers struct {
+	XMLName xml.Name   `xml:"offers"`
+	Offers  []YMLOffer `xml:"offer"`
+}
+
+// GetParam возвращает значение параметра по его имени
+func (o *YMLOffer) GetParam(name string) string {
+	for _, p := range o.Params {
+		if p.Name == name {
+			return p.Value
+		}
+	}
+	return ""
 }
 
 // IsEligibleForExport определяет критерии включения детали в XML выгрузку на Drom:
@@ -83,7 +116,12 @@ func HasValidPhotos(photos []string) bool {
 }
 
 // BuildOffer строит предложение Offer из Part и реквизитов продавца
-func BuildOffer(part Part, sellerINN string, baseImageURL string) Offer {
+func BuildOffer(part Part, sellerINN string, baseImageURL string) YMLOffer {
+	return BuildYMLOffer(part, sellerINN, baseImageURL)
+}
+
+// BuildYMLOffer строит валидное YML товарное предложение, соответствующее эталонному формату Multi_YML_Export
+func BuildYMLOffer(part Part, sellerINN string, baseImageURL string) YMLOffer {
 	baseImageURL = strings.TrimRight(strings.TrimSpace(baseImageURL), "/")
 
 	pictures := make([]string, 0, len(part.Photos))
@@ -106,41 +144,160 @@ func BuildOffer(part Part, sellerINN string, baseImageURL string) Offer {
 
 	condition := strings.TrimSpace(part.Condition)
 	if condition == "" {
-		condition = "Б/у"
+		condition = "Б/У"
 	}
 
-	offer := Offer{
-		Name:          normalizePartName(part),
-		Available:     part.Status && part.Quantity >= 0,
-		Description:   strings.TrimSpace(part.Description),
-		Price:         part.Price,
-		CurrencyId:    "RUR",
-		Pictures:      pictures,
-		Store:         strings.TrimSpace(part.Salesman),
-		Quantity:      part.Quantity,
-		OemNumber:     strings.TrimSpace(part.OEMCode),
-		AnalogNumbers: "",
-		Manufacturer:  strings.TrimSpace(part.Manufacturer),
-		Ordercode:     strings.TrimSpace(part.SupplierCode),
-		Condition:     condition,
-		Brandcars:     strings.TrimSpace(part.Brand),
-		Modelcars:     strings.TrimSpace(part.Model),
-		Bodycars:      strings.TrimSpace(part.BodyBrand),
-		Engine:        strings.TrimSpace(part.EngineBrand),
-		Year:          strings.TrimSpace(part.CarReleaseDate),
-		Lr:            strings.TrimSpace(part.LeftRight),
-		Fr:            strings.TrimSpace(part.FrontRear),
-		Ud:            strings.TrimSpace(part.TopBottom),
-		Color:         strings.TrimSpace(part.Color),
-		Supplier:      "Автопланета",
-		SupplierInn:   sellerINN,
-		Sklad:         strings.TrimSpace(part.Location),
-		SupplierArt:   strings.TrimSpace(part.SupplierCode),
+	partIDStr := strconv.FormatInt(part.ID, 10)
+	offerURL := ""
+	if baseImageURL != "" {
+		offerURL = fmt.Sprintf("%s/parts/%d", baseImageURL, part.ID)
+	} else {
+		offerURL = fmt.Sprintf("http://backend-server.ru/parts/%d", part.ID)
 	}
 
-	enrichWheelAndTireParams(&offer, part)
+	var desc *CDATA
+	descText := strings.TrimSpace(part.Description)
+	if descText != "" {
+		desc = &CDATA{Text: descText}
+	} else {
+		desc = &CDATA{Text: "В связи с изменением цены конечную стоимость товара узнавать по WhatsApp 89138538227"}
+	}
 
+	offer := YMLOffer{
+		ID:          partIDStr,
+		Available:   part.Status && part.Quantity >= 1,
+		Bid:         "3",
+		URL:         offerURL,
+		Price:       part.Price,
+		CurrencyId:  "РУБ",
+		CategoryId:  "1",
+		Pictures:    pictures,
+		Store:       "true",
+		Pickup:      "true",
+		Delivery:    "true",
+		Name:        normalizePartName(part),
+		Description: desc,
+		SalesNotes:  "Способ оплаты уточняйте по телефону",
+		Barcode:     partIDStr,
+		Cpa:         "1",
+	}
+
+	params := make([]YMLParam, 0, 16)
+	addParam := func(name, val string) {
+		val = strings.TrimSpace(val)
+		if val != "" {
+			params = append(params, YMLParam{Name: name, Value: val})
+		}
+	}
+
+	// 1. Основные характеристики автомобиля
+	addParam("Марка автомобиля", part.Brand)
+	addParam("Модель автомобиля", part.Model)
+
+	// ВАЖНО: Марка кузова (поколение/шасси, например S50, XV70) разрешена.
+	// КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО выгружать VIN и серийный номер кузова!
+	addParam("Марка кузова", part.BodyBrand)
+
+	addParam("Марка двигателя", part.EngineBrand)
+	addParam("Дата выпуска автомобиля", part.CarReleaseDate)
+	addParam("Перед/зад", part.FrontRear)
+	addParam("Право/лево", part.LeftRight)
+	addParam("Верх/низ", part.TopBottom)
+	addParam("Б/у или новый(-ая)", condition)
+	addParam("Трансмиссия", part.Transmission)
+
+	// 2. Расположение и поставщик
+	loc := strings.TrimSpace(part.Location)
+	if loc == "" {
+		loc = "г. Томск"
+	}
+	addParam("Расположение", loc)
+
+	if sellerINN != "" {
+		addParam("ИНН поставщика", sellerINN)
+	}
+
+	// 3. Коды деталей
+	addParam("ОЕМ код", part.OEMCode)
+	mfgCode := strings.TrimSpace(part.ManufacturerCode)
+	if mfgCode == "" {
+		mfgCode = strings.TrimSpace(part.SupplierCode)
+	}
+	addParam("Код производителя", mfgCode)
+
+	// 4. Дефекты и состояние
+	addParam("Состояние/дефект", part.Defect)
+	addParam("Процент износа", part.WearPercentage)
+
+	// 5. Параметры шин и дисков
+	enrichWheelAndTireYMLParams(&params, part)
+
+	offer.Params = params
 	return offer
+}
+
+func enrichWheelAndTireYMLParams(params *[]YMLParam, part Part) {
+	isTire := isTirePart(part)
+	isDisc := isDiscPart(part)
+
+	addParam := func(name, val string) {
+		val = strings.TrimSpace(val)
+		if val != "" {
+			*params = append(*params, YMLParam{Name: name, Value: val})
+		}
+	}
+
+	// Диаметр
+	if d := cleanDiameter(part.Diameter); d != "" {
+		addParam("Диаметр", d)
+	}
+
+	// Ширина
+	if part.Width != "" {
+		addParam("Ширина", part.Width)
+	}
+
+	// Профиль
+	if part.Profile != "" {
+		addParam("Профиль", part.Profile)
+	}
+
+	// Сезон
+	if isTire || part.Season != "" {
+		seasonLower := strings.ToLower(strings.TrimSpace(part.Season))
+		var season string
+		switch {
+		case strings.Contains(seasonLower, "зим"):
+			season = "Зимняя"
+		case strings.Contains(seasonLower, "лет"):
+			season = "Летняя"
+		case strings.Contains(seasonLower, "всесез"):
+			season = "Всесезонная"
+		case part.Season != "":
+			season = strings.TrimSpace(part.Season)
+		}
+		addParam("Сезон", season)
+	}
+
+	// Модель шины
+	addParam("Модель шины", part.TireModel)
+
+	// Параметры дисков
+	if isDisc || part.Drilling != "" || part.Offset != "" || part.CenterHoleDiameter != "" {
+		pcd := strings.TrimSpace(part.Drilling)
+		pcd = strings.ReplaceAll(pcd, "/", "x")
+		pcd = strings.ReplaceAll(pcd, "*", "x")
+		addParam("Сверловка", pcd)
+		addParam("Вылет", strings.TrimSpace(part.Offset))
+		addParam("Диаметр ЦО", strings.TrimSpace(part.CenterHoleDiameter))
+	}
+
+	// Количество в комплекте
+	inSet := strings.TrimSpace(part.TireQuantity)
+	if inSet == "" && (isTire || isDisc) && part.Quantity > 0 {
+		inSet = strconv.Itoa(part.Quantity)
+	}
+	addParam("Количество", inSet)
 }
 
 // normalizePartName устраняет опечатки, которые ломают лемматизатор Drom (no_lemma),
@@ -235,113 +392,11 @@ func isDiscPart(part Part) bool {
 	return strings.Contains(lower, "диск") || strings.Contains(lower, "колес")
 }
 
-func enrichWheelAndTireParams(offer *Offer, part Part) {
-	isTire := isTirePart(part)
-	isDisc := isDiscPart(part)
-
-	// Комплектность (inSet / in_set_quantity)
-	inSet := strings.TrimSpace(part.TireQuantity)
-	if inSet == "" && (isTire || isDisc) && part.Quantity > 0 {
-		inSet = strconv.Itoa(part.Quantity)
-	}
-	if inSet != "" {
-		offer.InSet = inSet
-		offer.InSetQuantity = inSet
-	}
-
-	// Параметры дисков
-	if isDisc || part.Drilling != "" || part.Offset != "" || part.CenterHoleDiameter != "" {
-		offer.WheelDiameter = cleanDiameter(part.Diameter)
-		offer.WheelWidth = strings.TrimSpace(part.Width)
-
-		pcd := strings.TrimSpace(part.Drilling)
-		pcd = strings.ReplaceAll(pcd, "/", "x")
-		pcd = strings.ReplaceAll(pcd, "*", "x")
-		offer.DiscPCD = pcd
-		offer.DiscET = strings.TrimSpace(part.Offset)
-
-		dia := strings.TrimSpace(part.CenterHoleDiameter)
-		offer.DiscHoleDiameter = dia
-		offer.DiscDia = dia
-
-		var markingParts []string
-		if offer.WheelWidth != "" {
-			w := offer.WheelWidth
-			if !strings.HasSuffix(strings.ToUpper(w), "J") {
-				w += "J"
-			}
-			markingParts = append(markingParts, w)
-		}
-		if offer.WheelDiameter != "" {
-			markingParts = append(markingParts, "R"+offer.WheelDiameter)
-		}
-		if offer.DiscET != "" {
-			et := offer.DiscET
-			if !strings.HasPrefix(strings.ToUpper(et), "ET") {
-				et = "ET" + et
-			}
-			markingParts = append(markingParts, et)
-		}
-		if offer.DiscPCD != "" {
-			markingParts = append(markingParts, offer.DiscPCD)
-		}
-		if offer.DiscDia != "" {
-			diaVal := offer.DiscDia
-			if !strings.HasPrefix(strings.ToUpper(diaVal), "DIA") {
-				diaVal = "DIA" + diaVal
-			}
-			markingParts = append(markingParts, diaVal)
-		}
-		if len(markingParts) > 0 {
-			offer.Marking = strings.Join(markingParts, " ")
-		}
-	}
-
-	// Параметры шин
-	if isTire || part.Season != "" || part.Profile != "" {
-		offer.TireWidth = strings.TrimSpace(part.Width)
-		offer.TireSectionRatio = strings.TrimSpace(part.Profile)
-		if offer.WheelDiameter == "" {
-			offer.WheelDiameter = cleanDiameter(part.Diameter)
-		}
-
-		seasonLower := strings.ToLower(strings.TrimSpace(part.Season))
-		switch {
-		case strings.Contains(seasonLower, "зим"):
-			offer.Season = "Зимняя"
-		case strings.Contains(seasonLower, "лет"):
-			offer.Season = "Летняя"
-		case strings.Contains(seasonLower, "всесез"):
-			offer.Season = "Всесезонная"
-		case part.Season != "":
-			offer.Season = strings.TrimSpace(part.Season)
-		}
-
-		text := strings.ToLower(part.Name + " " + part.Description + " " + part.TireModel)
-		if strings.Contains(text, "нешип") || strings.Contains(text, "липуч") || strings.Contains(text, "friction") {
-			offer.TireSpike = "Нешипованные"
-		} else if strings.Contains(text, "шип") || strings.Contains(text, "spike") || strings.Contains(text, "stud") || strings.Contains(text, "ice north") {
-			offer.TireSpike = "Шипованные"
-		} else if offer.Season == "Зимняя" {
-			offer.TireSpike = "Нешипованные"
-		}
-
-		if offer.TireWidth != "" && offer.TireSectionRatio != "" && offer.WheelDiameter != "" {
-			offer.Marking = fmt.Sprintf("%s/%sR%s", offer.TireWidth, offer.TireSectionRatio, offer.WheelDiameter)
-		}
-	}
-
-	// Fallback диаметра для прочих деталей
-	if offer.WheelDiameter == "" && part.Diameter != "" {
-		offer.WheelDiameter = cleanDiameter(part.Diameter)
-	}
-}
-
 // RenderOfferXML сериализует одиночный оффер в аккуратный XML-фрагмент
-func RenderOfferXML(offer Offer) ([]byte, error) {
+func RenderOfferXML(offer YMLOffer) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := xml.NewEncoder(&buf)
-	enc.Indent("  ", "  ")
+	enc.Indent("    ", "  ")
 	if err := enc.Encode(offer); err != nil {
 		return nil, err
 	}

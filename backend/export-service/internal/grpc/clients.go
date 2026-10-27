@@ -145,9 +145,14 @@ func partFromProto(p *partsv1.Part) domain.Part {
 		TopBottom:      p.GetTopBottom(),
 		Manufacturer:   p.GetManufacturer(),
 		OEMCode:        p.GetOemCode(),
-		Color:          p.GetColor(),
-		Condition:          p.GetCondition(),
-		SupplierCode:       p.GetSupplierCode(),
+		Color:            p.GetColor(),
+		Condition:        p.GetCondition(),
+		SupplierCode:     p.GetSupplierCode(),
+		Category:         p.GetCategory(),
+		Transmission:     p.GetTransmission(),
+		ManufacturerCode: p.GetManufacturerCode(),
+		Defect:           p.GetDefect(),
+		WearPercentage:   p.GetWearPercentage(),
 
 		// Параметры шин и дисков
 		Season:             p.GetSeason(),

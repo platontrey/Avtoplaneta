@@ -78,18 +78,18 @@ func TestSnapshotStore_UpsertAndWriteFullXML(t *testing.T) {
 		t.Fatalf("ReadFile: %v", err)
 	}
 
-	var parsed domain.Offers
+	var parsed domain.YMLCatalog
 	if err := xml.Unmarshal(xmlBytes, &parsed); err != nil {
 		t.Fatalf("ошибка разбора сгенерированного XML: %v", err)
 	}
-	if len(parsed.Offers) != 2 {
-		t.Fatalf("ожидалось 2 предложения в XML, получено %d", len(parsed.Offers))
+	if len(parsed.Shop.Offers) != 2 {
+		t.Fatalf("ожидалось 2 предложения в XML, получено %d", len(parsed.Shop.Offers))
 	}
-	if parsed.Offers[0].Name != "Амортизатор передний" || parsed.Offers[0].Price != 3500.0 {
-		t.Errorf("неверные данные первого оффера: %+v", parsed.Offers[0])
+	if parsed.Shop.Offers[0].Name != "Амортизатор передний" || parsed.Shop.Offers[0].Price != 3500.0 {
+		t.Errorf("неверные данные первого оффера: %+v", parsed.Shop.Offers[0])
 	}
-	if parsed.Offers[1].Name != "Фара левая LED" || parsed.Offers[1].Price != 12000.0 {
-		t.Errorf("неверные данные второго оффера: %+v", parsed.Offers[1])
+	if parsed.Shop.Offers[1].Name != "Фара левая LED" || parsed.Shop.Offers[1].Price != 12000.0 {
+		t.Errorf("неверные данные второго оффера: %+v", parsed.Shop.Offers[1])
 	}
 
 	// 3. Точечное обновление (SaveOffer) детали №2: цена изменилась с 12000 на 14500
@@ -129,13 +129,13 @@ func TestSnapshotStore_UpsertAndWriteFullXML(t *testing.T) {
 	}
 
 	xmlBytes, _ = os.ReadFile(xmlPath)
-	var parsed2 domain.Offers
+	var parsed2 domain.YMLCatalog
 	_ = xml.Unmarshal(xmlBytes, &parsed2)
-	if len(parsed2.Offers) != 3 {
-		t.Fatalf("ожидалось 3 оффера, получено %d", len(parsed2.Offers))
+	if len(parsed2.Shop.Offers) != 3 {
+		t.Fatalf("ожидалось 3 оффера, получено %d", len(parsed2.Shop.Offers))
 	}
-	if parsed2.Offers[1].Price != 14500.0 {
-		t.Errorf("цена детали 2 не обновилась: got %v, want 14500.0", parsed2.Offers[1].Price)
+	if parsed2.Shop.Offers[1].Price != 14500.0 {
+		t.Errorf("цена детали 2 не обновилась: got %v, want 14500.0", parsed2.Shop.Offers[1].Price)
 	}
 
 	// 5. Точечное удаление детали №1 (DeleteOffer)
@@ -152,9 +152,9 @@ func TestSnapshotStore_UpsertAndWriteFullXML(t *testing.T) {
 	}
 
 	xmlBytes, _ = os.ReadFile(xmlPath)
-	var parsed3 domain.Offers
+	var parsed3 domain.YMLCatalog
 	_ = xml.Unmarshal(xmlBytes, &parsed3)
-	for _, o := range parsed3.Offers {
+	for _, o := range parsed3.Shop.Offers {
 		if o.Name == "Амортизатор передний" {
 			t.Fatal("удаленная деталь всё ещё присутствует в полном XML")
 		}
@@ -202,11 +202,11 @@ func TestSnapshotStore_PersistenceAcrossReopen(t *testing.T) {
 	if err != nil || count != 1 {
 		t.Fatalf("GenerateFullXMLBytes: count=%d, err=%v", count, err)
 	}
-	var parsed domain.Offers
+	var parsed domain.YMLCatalog
 	if err := xml.Unmarshal(xmlData, &parsed); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if parsed.Offers[0].Name != "Стойка стабилизатора" {
-		t.Errorf("got %q, want Стойка стабилизатора", parsed.Offers[0].Name)
+	if parsed.Shop.Offers[0].Name != "Стойка стабилизатора" {
+		t.Errorf("got %q, want Стойка стабилизатора", parsed.Shop.Offers[0].Name)
 	}
 }

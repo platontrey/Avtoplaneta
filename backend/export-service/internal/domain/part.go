@@ -26,9 +26,14 @@ type Part struct {
 	TopBottom      string `json:"top_bottom,omitempty"`
 	Manufacturer   string `json:"manufacturer,omitempty"`
 	OEMCode        string `json:"oem_code,omitempty"`
-	Color          string `json:"color,omitempty"`
-	Condition      string `json:"condition,omitempty"`
-	SupplierCode   string `json:"supplier_code,omitempty"`
+	Color            string `json:"color,omitempty"`
+	Condition        string `json:"condition,omitempty"`
+	SupplierCode     string `json:"supplier_code,omitempty"`
+	Category         string `json:"category,omitempty"`
+	Transmission     string `json:"transmission,omitempty"`
+	ManufacturerCode string `json:"manufacturer_code,omitempty"`
+	Defect           string `json:"defect,omitempty"`
+	WearPercentage   string `json:"wear_percentage,omitempty"`
 
 	// Параметры шин и дисков для Drom.ru
 	Season             string `json:"season,omitempty"`

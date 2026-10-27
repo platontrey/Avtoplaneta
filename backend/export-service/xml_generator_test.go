@@ -11,13 +11,21 @@ import (
 	"export-service/internal/service"
 )
 
-func parse(t *testing.T, data []byte) domain.Offers {
+type parsedResult struct {
+	Catalog domain.YMLCatalog
+	Offers  []domain.YMLOffer
+}
+
+func parse(t *testing.T, data []byte) parsedResult {
 	t.Helper()
-	var offers domain.Offers
-	if err := xml.Unmarshal(data, &offers); err != nil {
-		t.Fatalf("прайс-лист не разбирается как XML: %v", err)
+	var catalog domain.YMLCatalog
+	if err := xml.Unmarshal(data, &catalog); err != nil {
+		t.Fatalf("прайс-лист не разбирается как YML каталог: %v", err)
 	}
-	return offers
+	return parsedResult{
+		Catalog: catalog,
+		Offers:  catalog.Shop.Offers,
+	}
 }
 
 // Запчасть, помеченную на удаление, площадка видеть не должна
@@ -126,15 +134,15 @@ func TestGenerateXMLPriceListFillsSupplierINN(t *testing.T) {
 	}
 
 	offers := parse(t, data)
-	if got := offers.Offers[0].SupplierInn; got != "700123456789" {
+	if got := offers.Offers[0].GetParam("ИНН поставщика"); got != "700123456789" {
 		t.Fatalf("ИНН продавца 7: ожидался 700123456789, получен %q", got)
 	}
-	if got := offers.Offers[1].SupplierInn; got != "" {
+	if got := offers.Offers[1].GetParam("ИНН поставщика"); got != "" {
 		t.Fatalf("ИНН продавца 9 неизвестен, но подставлен %q", got)
 	}
 }
 
-// Пустое состояние площадка понимает как «новая», поэтому дефолт «Б/у»
+// Пустое состояние площадка понимает как «Б/У»
 func TestGenerateXMLPriceListDefaultsCondition(t *testing.T) {
 	parts := []domain.Part{
 		{Name: "Без состояния", Status: true, Quantity: 1, Photos: []string{"/p1.jpg"}},
@@ -142,10 +150,10 @@ func TestGenerateXMLPriceListDefaultsCondition(t *testing.T) {
 	}
 
 	offers := parse(t, mustGenerate(t, parts))
-	if got := offers.Offers[0].Condition; got != "Б/у" {
-		t.Fatalf("ожидалось состояние по умолчанию Б/у, получено %q", got)
+	if got := offers.Offers[0].GetParam("Б/у или новый(-ая)"); got != "Б/У" {
+		t.Fatalf("ожидалось состояние по умолчанию Б/У, получено %q", got)
 	}
-	if got := offers.Offers[1].Condition; got != "Новая" {
+	if got := offers.Offers[1].GetParam("Б/у или новый(-ая)"); got != "Новая" {
 		t.Fatalf("указанное состояние затёрто: %q", got)
 	}
 }
@@ -187,7 +195,7 @@ func mustGenerate(t *testing.T, parts []domain.Part) []byte {
 	return data
 }
 
-// Проверка наличия XML заголовка UTF-8 и корневого элемента offers
+// Проверка наличия XML заголовка UTF-8, DOCTYPE и корневого элемента yml_catalog
 func TestGenerateXMLPriceListHeaderAndRoot(t *testing.T) {
 	parts := []domain.Part{
 		{Name: "Тестовая запчасть", Status: true, Quantity: 1, Price: 1500, Photos: []string{"/p.jpg"}},
@@ -198,13 +206,25 @@ func TestGenerateXMLPriceListHeaderAndRoot(t *testing.T) {
 	}
 
 	xmlStr := string(data)
-	if len(xmlStr) < len(xml.Header) || xmlStr[:len(xml.Header)] != xml.Header {
+	if !strings.HasPrefix(xmlStr, xml.Header) {
 		t.Fatalf("отсутствует корректный заголовок xml.Header, получено: %s", xmlStr[:38])
 	}
+	if !strings.Contains(xmlStr, "<!DOCTYPE yml_catalog SYSTEM \"shops.dtd\">") {
+		t.Fatalf("отсутствует обязательный DOCTYPE yml_catalog shops.dtd")
+	}
 
-	offers := parse(t, data)
-	if len(offers.Offers) != 1 {
-		t.Fatalf("ожидалось 1 предложение в <offers>, получено: %d", len(offers.Offers))
+	parsed := parse(t, data)
+	if len(parsed.Offers) != 1 {
+		t.Fatalf("ожидалось 1 предложение в <offers>, получено: %d", len(parsed.Offers))
+	}
+	if parsed.Catalog.Shop.Name != "АВТОПЛАНЕТА" {
+		t.Errorf("Shop Name: got %q, want 'АВТОПЛАНЕТА'", parsed.Catalog.Shop.Name)
+	}
+	if len(parsed.Catalog.Shop.Currencies) == 0 || parsed.Catalog.Shop.Currencies[0].ID != "РУБ" {
+		t.Errorf("Currencies: got %+v, want РУБ", parsed.Catalog.Shop.Currencies)
+	}
+	if len(parsed.Catalog.Shop.Categories) == 0 || parsed.Catalog.Shop.Categories[0].ID != "1" {
+		t.Errorf("Categories: got %+v, want category 1", parsed.Catalog.Shop.Categories)
 	}
 }
 
@@ -221,13 +241,14 @@ func TestGenerateXMLPriceListEmpty(t *testing.T) {
 	}
 }
 
-// Проверка маппинга всех полей запчасти на структуру Offer площадки Drom
+// Проверка маппинга всех полей запчасти на структуру YML Offer площадки Drom
 func TestGenerateXMLPriceListAllFieldsMapping(t *testing.T) {
 	sellerINNs := map[int64]string{
 		42: "7017123456",
 	}
 
 	part := domain.Part{
+		ID:             554433,
 		Name:           "Фара правая светодиодная",
 		Quantity:       3,
 		Description:    "Оригинал в отличном состоянии, все крепления целые",
@@ -250,6 +271,7 @@ func TestGenerateXMLPriceListAllFieldsMapping(t *testing.T) {
 		Color:          "Черный",
 		Condition:      "Б/у",
 		SupplierCode:   "AP-778899",
+		Transmission:   "АКПП",
 	}
 
 	base := "https://backend-server.ru"
@@ -264,20 +286,26 @@ func TestGenerateXMLPriceListAllFieldsMapping(t *testing.T) {
 	}
 
 	o := offers.Offers[0]
+	if o.ID != "554433" {
+		t.Errorf("ID: got %q, want 554433", o.ID)
+	}
 	if o.Name != "Фара правая светодиодная" {
 		t.Errorf("Name: got %q, want %q", o.Name, "Фара правая светодиодная")
 	}
 	if !o.Available {
 		t.Errorf("Available: got %v, want true", o.Available)
 	}
-	if o.Description != "Оригинал в отличном состоянии, все крепления целые" {
-		t.Errorf("Description: got %q, want %q", o.Description, "Оригинал в отличном состоянии, все крепления целые")
+	if o.Description == nil || o.Description.Text != "Оригинал в отличном состоянии, все крепления целые" {
+		t.Errorf("Description: got %+v", o.Description)
 	}
 	if o.Price != 18500.50 {
 		t.Errorf("Price: got %v, want 18500.50", o.Price)
 	}
-	if o.CurrencyId != "RUR" {
-		t.Errorf("CurrencyId: got %q, want RUR", o.CurrencyId)
+	if o.CurrencyId != "РУБ" {
+		t.Errorf("CurrencyId: got %q, want РУБ", o.CurrencyId)
+	}
+	if o.CategoryId != "1" {
+		t.Errorf("CategoryId: got %q, want 1", o.CategoryId)
 	}
 	if len(o.Pictures) != 2 {
 		t.Fatalf("Pictures: ожидалось 2 фото, получено %d", len(o.Pictures))
@@ -288,62 +316,90 @@ func TestGenerateXMLPriceListAllFieldsMapping(t *testing.T) {
 	if o.Pictures[1] != "https://backend-server.ru/uploads/parts/camry_light_2.jpg" {
 		t.Errorf("Pictures[1]: got %q, want https://backend-server.ru/uploads/parts/camry_light_2.jpg", o.Pictures[1])
 	}
-	if o.Store != "Автопланета Север" {
-		t.Errorf("Store: got %q, want %q", o.Store, "Автопланета Север")
+	if o.Store != "true" || o.Pickup != "true" || o.Delivery != "true" {
+		t.Errorf("Store/Pickup/Delivery flags: %v / %v / %v", o.Store, o.Pickup, o.Delivery)
 	}
-	if o.Quantity != 3 {
-		t.Errorf("Quantity: got %d, want 3", o.Quantity)
+
+	// Проверка параметров YML
+	if got := o.GetParam("Марка автомобиля"); got != "Toyota" {
+		t.Errorf("Марка автомобиля: got %q, want Toyota", got)
 	}
-	if o.OemNumber != "81110-33D30" {
-		t.Errorf("OemNumber: got %q, want %q", o.OemNumber, "81110-33D30")
+	if got := o.GetParam("Модель автомобиля"); got != "Camry" {
+		t.Errorf("Модель автомобиля: got %q, want Camry", got)
 	}
-	if o.Manufacturer != "Koito" {
-		t.Errorf("Manufacturer: got %q, want %q", o.Manufacturer, "Koito")
+	if got := o.GetParam("Марка кузова"); got != "XV70" {
+		t.Errorf("Марка кузова: got %q, want XV70", got)
 	}
-	if o.Ordercode != "AP-778899" {
-		t.Errorf("Ordercode: got %q, want %q", o.Ordercode, "AP-778899")
+	if got := o.GetParam("Марка двигателя"); got != "2AR-FE" {
+		t.Errorf("Марка двигателя: got %q, want 2AR-FE", got)
 	}
-	if o.Condition != "Б/у" {
-		t.Errorf("Condition: got %q, want %q", o.Condition, "Б/у")
+	if got := o.GetParam("Дата выпуска автомобиля"); got != "2019" {
+		t.Errorf("Дата выпуска: got %q, want 2019", got)
 	}
-	if o.Brandcars != "Toyota" {
-		t.Errorf("Brandcars: got %q, want %q", o.Brandcars, "Toyota")
+	if got := o.GetParam("Перед/зад"); got != "перед" {
+		t.Errorf("Перед/зад: got %q, want перед", got)
 	}
-	if o.Modelcars != "Camry" {
-		t.Errorf("Modelcars: got %q, want %q", o.Modelcars, "Camry")
+	if got := o.GetParam("Право/лево"); got != "право" {
+		t.Errorf("Право/лево: got %q, want право", got)
 	}
-	if o.Bodycars != "XV70" {
-		t.Errorf("Bodycars: got %q, want %q", o.Bodycars, "XV70")
+	if got := o.GetParam("Верх/низ"); got != "верх" {
+		t.Errorf("Верх/низ: got %q, want верх", got)
 	}
-	if o.Engine != "2AR-FE" {
-		t.Errorf("Engine: got %q, want %q", o.Engine, "2AR-FE")
+	if got := o.GetParam("Б/у или новый(-ая)"); got != "Б/у" {
+		t.Errorf("Б/у или новый(-ая): got %q, want Б/у", got)
 	}
-	if o.Year != "2019" {
-		t.Errorf("Year: got %q, want %q", o.Year, "2019")
+	if got := o.GetParam("Трансмиссия"); got != "АКПП" {
+		t.Errorf("Трансмиссия: got %q, want АКПП", got)
 	}
-	if o.Lr != "право" {
-		t.Errorf("Lr: got %q, want %q", o.Lr, "право")
+	if got := o.GetParam("Расположение"); got != "Склад №2, ряд 4, полка 12" {
+		t.Errorf("Расположение: got %q, want 'Склад №2, ряд 4, полка 12'", got)
 	}
-	if o.Fr != "перед" {
-		t.Errorf("Fr: got %q, want %q", o.Fr, "перед")
+	if got := o.GetParam("ОЕМ код"); got != "81110-33D30" {
+		t.Errorf("ОЕМ код: got %q, want 81110-33D30", got)
 	}
-	if o.Ud != "верх" {
-		t.Errorf("Ud: got %q, want %q", o.Ud, "верх")
+	if got := o.GetParam("Код производителя"); got != "AP-778899" {
+		t.Errorf("Код производителя: got %q, want AP-778899", got)
 	}
-	if o.Color != "Черный" {
-		t.Errorf("Color: got %q, want %q", o.Color, "Черный")
+}
+
+// Проверка строгого запрета на выгрузку VIN и серийных номеров кузова
+func TestGenerateXMLPriceListStrictlyExcludesVINAndFrameNumber(t *testing.T) {
+	part := domain.Part{
+		ID:             998877,
+		Name:           "Крыло переднее левое",
+		Status:         true,
+		Quantity:       1,
+		Price:          7500,
+		Photos:         []string{"/wing.jpg"},
+		Brand:          "Toyota",
+		Model:          "Corolla",
+		BodyBrand:      "NZE121", // Разрешенная марка кузова (поколение)
+		SupplierCode:   "WING-121",
 	}
-	if o.Supplier != "Автопланета" {
-		t.Errorf("Supplier: got %q, want %q", o.Supplier, "Автопланета")
+
+	data, err := service.GenerateXMLPriceList([]domain.Part{part}, nil, "https://backend-server.ru")
+	if err != nil {
+		t.Fatalf("GenerateXMLPriceList failed: %v", err)
 	}
-	if o.SupplierInn != "7017123456" {
-		t.Errorf("SupplierInn: got %q, want %q", o.SupplierInn, "7017123456")
+
+	xmlStr := string(data)
+
+	// 1. Проверяем, что нет тега <vin>
+	if strings.Contains(strings.ToLower(xmlStr), "<vin>") || strings.Contains(strings.ToLower(xmlStr), "</vin>") {
+		t.Errorf("XML содержит запрещенный тег <vin>")
 	}
-	if o.Sklad != "Склад №2, ряд 4, полка 12" {
-		t.Errorf("Sklad: got %q, want %q", o.Sklad, "Склад №2, ряд 4, полка 12")
+
+	// 2. Проверяем, что нет параметров с именем VIN или Номер кузова
+	if strings.Contains(xmlStr, `name="VIN"`) || strings.Contains(xmlStr, `name="vin"`) {
+		t.Errorf("XML содержит запрещенный параметр VIN")
 	}
-	if o.SupplierArt != "AP-778899" {
-		t.Errorf("SupplierArt: got %q, want %q", o.SupplierArt, "AP-778899")
+	if strings.Contains(xmlStr, `name="Номер кузова"`) || strings.Contains(xmlStr, `name="номер кузова"`) {
+		t.Errorf("XML содержит запрещенный параметр 'Номер кузова'")
+	}
+
+	// 3. Проверяем, что параметр 'Марка кузова' присутствует и содержит поколение 'NZE121'
+	if !strings.Contains(xmlStr, `<param name="Марка кузова">NZE121</param>`) {
+		t.Errorf("XML обязан содержать <param name=\"Марка кузова\">NZE121</param>, получен XML:\n%s", xmlStr)
 	}
 }
 
@@ -374,15 +430,15 @@ func TestGenerateXMLPriceListEscaping(t *testing.T) {
 	if o.Name != "Фара левая <Хрусталь> & \"Линза\" 2.0" {
 		t.Errorf("спецсимволы в Name искажены: got %q", o.Name)
 	}
-	if o.Description != "Состояние: 100% OK & проверено > без трещин; цена < 5000" {
-		t.Errorf("спецсимволы в Description искажены: got %q", o.Description)
+	if o.Description == nil || o.Description.Text != "Состояние: 100% OK & проверено > без трещин; цена < 5000" {
+		t.Errorf("спецсимволы в Description искажены: got %+v", o.Description)
 	}
-	if o.OemNumber != "81150-12<34>&56" {
-		t.Errorf("спецсимволы в OEMCode искажены: got %q", o.OemNumber)
+	if got := o.GetParam("ОЕМ код"); got != "81150-12<34>&56" {
+		t.Errorf("спецсимволы в OEMCode искажены: got %q", got)
 	}
 }
 
-// Тест генерирует файл sample_drom.xml с типовыми деталями
+// Тест генерирует файл sample_drom.xml с типовыми деталями в каноническом YML формате
 func TestGenerateSampleXMLFile(t *testing.T) {
 	sellerINNs := map[int64]string{
 		10: "7017998877",
@@ -475,7 +531,7 @@ func TestGenerateSampleXMLFile(t *testing.T) {
 	}
 }
 
-// Проверка формирования параметров шин и дисков для классифайда Drom
+// Проверка формирования параметров шин и дисков для классифайда Drom в формате YML
 func TestGenerateXMLPriceListTiresAndWheels(t *testing.T) {
 	tirePart := domain.Part{
 		ID:           328570,
@@ -521,26 +577,23 @@ func TestGenerateXMLPriceListTiresAndWheels(t *testing.T) {
 	if tireOffer.Name != "Шина Michelin X-Ice North 235/65 R17" {
 		t.Errorf("tire Name: got %q, want %q", tireOffer.Name, "Шина Michelin X-Ice North 235/65 R17")
 	}
-	if tireOffer.Marking != "235/65R17" {
-		t.Errorf("tire Marking: got %q, want %q", tireOffer.Marking, "235/65R17")
+	if got := tireOffer.GetParam("Ширина"); got != "235" {
+		t.Errorf("tire Ширина: got %q, want 235", got)
 	}
-	if tireOffer.TireWidth != "235" {
-		t.Errorf("tire TireWidth: got %q, want 235", tireOffer.TireWidth)
+	if got := tireOffer.GetParam("Профиль"); got != "65" {
+		t.Errorf("tire Профиль: got %q, want 65", got)
 	}
-	if tireOffer.TireSectionRatio != "65" {
-		t.Errorf("tire TireSectionRatio: got %q, want 65", tireOffer.TireSectionRatio)
+	if got := tireOffer.GetParam("Диаметр"); got != "17" {
+		t.Errorf("tire Диаметр: got %q, want 17", got)
 	}
-	if tireOffer.WheelDiameter != "17" {
-		t.Errorf("tire WheelDiameter: got %q, want 17", tireOffer.WheelDiameter)
+	if got := tireOffer.GetParam("Сезон"); got != "Зимняя" {
+		t.Errorf("tire Сезон: got %q, want Зимняя", got)
 	}
-	if tireOffer.Season != "Зимняя" {
-		t.Errorf("tire Season: got %q, want Зимняя", tireOffer.Season)
+	if got := tireOffer.GetParam("Модель шины"); got != "Michelin X-Ice North" {
+		t.Errorf("tire Модель шины: got %q, want Michelin X-Ice North", got)
 	}
-	if tireOffer.TireSpike != "Шипованные" {
-		t.Errorf("tire TireSpike: got %q, want Шипованные", tireOffer.TireSpike)
-	}
-	if tireOffer.InSet != "4" || tireOffer.InSetQuantity != "4" {
-		t.Errorf("tire InSet: got %q / %q, want 4", tireOffer.InSet, tireOffer.InSetQuantity)
+	if got := tireOffer.GetParam("Количество"); got != "4" {
+		t.Errorf("tire Количество: got %q, want 4", got)
 	}
 
 	// Проверка диска
@@ -548,26 +601,23 @@ func TestGenerateXMLPriceListTiresAndWheels(t *testing.T) {
 	if wheelOffer.Name != "Диск литой R16 5x120" {
 		t.Errorf("wheel Name: got %q, want %q", wheelOffer.Name, "Диск литой R16 5x120")
 	}
-	if wheelOffer.Marking != "7.5J R16 ET20 5x120 DIA72" {
-		t.Errorf("wheel Marking: got %q, want %q", wheelOffer.Marking, "7.5J R16 ET20 5x120 DIA72")
+	if got := wheelOffer.GetParam("Ширина"); got != "7.5" {
+		t.Errorf("wheel Ширина: got %q, want 7.5", got)
 	}
-	if wheelOffer.WheelWidth != "7.5" {
-		t.Errorf("wheel WheelWidth: got %q, want 7.5", wheelOffer.WheelWidth)
+	if got := wheelOffer.GetParam("Диаметр"); got != "16" {
+		t.Errorf("wheel Диаметр: got %q, want 16", got)
 	}
-	if wheelOffer.WheelDiameter != "16" {
-		t.Errorf("wheel WheelDiameter: got %q, want 16", wheelOffer.WheelDiameter)
+	if got := wheelOffer.GetParam("Вылет"); got != "20" {
+		t.Errorf("wheel Вылет: got %q, want 20", got)
 	}
-	if wheelOffer.DiscET != "20" {
-		t.Errorf("wheel DiscET: got %q, want 20", wheelOffer.DiscET)
+	if got := wheelOffer.GetParam("Сверловка"); got != "5x120" {
+		t.Errorf("wheel Сверловка: got %q, want 5x120", got)
 	}
-	if wheelOffer.DiscPCD != "5x120" {
-		t.Errorf("wheel DiscPCD: got %q, want 5x120", wheelOffer.DiscPCD)
+	if got := wheelOffer.GetParam("Диаметр ЦО"); got != "72" {
+		t.Errorf("wheel Диаметр ЦО: got %q, want 72", got)
 	}
-	if wheelOffer.DiscDia != "72" || wheelOffer.DiscHoleDiameter != "72" {
-		t.Errorf("wheel DiscDia: got %q / %q, want 72", wheelOffer.DiscDia, wheelOffer.DiscHoleDiameter)
-	}
-	if wheelOffer.InSet != "4" || wheelOffer.InSetQuantity != "4" {
-		t.Errorf("wheel InSet: got %q / %q, want 4", wheelOffer.InSet, wheelOffer.InSetQuantity)
+	if got := wheelOffer.GetParam("Количество"); got != "4" {
+		t.Errorf("wheel Количество: got %q, want 4", got)
 	}
 }
 

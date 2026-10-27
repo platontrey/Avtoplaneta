@@ -10,6 +10,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"strings"
 	"time"
 
 	"export-service/internal/config"
@@ -19,30 +20,52 @@ import (
 // dromHTTPClient переиспользуется для всех исходящих вызовов к API Drom
 var dromHTTPClient = &http.Client{Timeout: 2 * time.Minute}
 
-// GenerateXMLPriceList собирает XML прайс-лист Drom из среза запчастей
+// GenerateXMLPriceList собирает полный YML каталог Drom из среза запчастей
 func GenerateXMLPriceList(parts []domain.Part, sellerINNs map[int64]string, baseImageURL string) ([]byte, error) {
-	offers := domain.Offers{
-		Offers: make([]domain.Offer, 0, len(parts)),
-	}
+	offers := make([]domain.YMLOffer, 0, len(parts))
 
 	for _, part := range parts {
 		// Проверяем соответствие критериям выгрузки (наличие фото, quantity >= 1, активность, отсутствие метки удаления)
 		if !domain.IsEligibleForExport(part) {
 			continue
 		}
-		offers.Offers = append(offers.Offers, domain.BuildOffer(part, sellerINNs[part.SellerID], baseImageURL))
+		offers = append(offers, domain.BuildYMLOffer(part, sellerINNs[part.SellerID], baseImageURL))
 	}
 
-	// Оцениваем средний размер XML оффера (~500 байт на запчасть) для предварительного выделения буфера
+	shopURL := strings.TrimRight(strings.TrimSpace(baseImageURL), "/")
+	if shopURL == "" {
+		shopURL = "http://backend-server.ru"
+	}
+
+	catalog := domain.YMLCatalog{
+		Date: time.Now().Format("2006-01-02 15:04"),
+		Shop: domain.YMLShop{
+			Name:     "АВТОПЛАНЕТА",
+			Company:  "АВТОПЛАНЕТА",
+			URL:      shopURL + "/",
+			Platform: "Avtoplaneta",
+			Email:    "Planeta.zap@mail.ru",
+			Currencies: []domain.YMLCurrency{
+				{ID: "РУБ", Rate: "1"},
+			},
+			Categories: []domain.YMLCategory{
+				{ID: "1", Name: "Автозапчасти"},
+			},
+			Offers: offers,
+		},
+	}
+
 	var buf bytes.Buffer
-	buf.Grow(len(offers.Offers)*500 + len(xml.Header))
+	buf.Grow(len(offers)*600 + 1024)
 	buf.WriteString(xml.Header)
+	buf.WriteString("<!DOCTYPE yml_catalog SYSTEM \"shops.dtd\">\n")
 
 	enc := xml.NewEncoder(&buf)
 	enc.Indent("", "  ")
-	if err := enc.Encode(offers); err != nil {
-		return nil, fmt.Errorf("ошибка маршалинга XML: %w", err)
+	if err := enc.Encode(catalog); err != nil {
+		return nil, fmt.Errorf("ошибка маршалинга YML каталога: %w", err)
 	}
+	buf.WriteByte('\n')
 
 	return buf.Bytes(), nil
 }

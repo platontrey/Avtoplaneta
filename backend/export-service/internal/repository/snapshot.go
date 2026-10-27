@@ -186,7 +186,14 @@ func (r *BoltSnapshotRepository) WriteFullXML(targetPath string) (int, error) {
 		_ = os.Remove(tmpPath)
 		return 0, err
 	}
-	if _, err := bw.WriteString("<offers>\n"); err != nil {
+	if _, err := bw.WriteString("<!DOCTYPE yml_catalog SYSTEM \"shops.dtd\">\n"); err != nil {
+		_ = f.Close()
+		_ = os.Remove(tmpPath)
+		return 0, err
+	}
+	nowStr := time.Now().Format("2006-01-02 15:04")
+	header := fmt.Sprintf("<yml_catalog date=\"%s\">\n<shop>\n  <name>АВТОПЛАНЕТА</name>\n  <company>АВТОПЛАНЕТА</company>\n  <url>http://backend-server.ru/</url>\n  <platform>Avtoplaneta</platform>\n  <email>Planeta.zap@mail.ru</email>\n  <currencies>\n    <currency id=\"РУБ\" rate=\"1\"/>\n  </currencies>\n  <categories>\n    <category id=\"1\">Автозапчасти</category>\n  </categories>\n  <offers>\n", nowStr)
+	if _, err := bw.WriteString(header); err != nil {
 		_ = f.Close()
 		_ = os.Remove(tmpPath)
 		return 0, err
@@ -213,7 +220,7 @@ func (r *BoltSnapshotRepository) WriteFullXML(targetPath string) (int, error) {
 		return 0, fmt.Errorf("запись офферов: %w", err)
 	}
 
-	if _, err := bw.WriteString("</offers>\n"); err != nil {
+	if _, err := bw.WriteString("  </offers>\n</shop>\n</yml_catalog>\n"); err != nil {
 		_ = f.Close()
 		_ = os.Remove(tmpPath)
 		return 0, err
@@ -245,7 +252,9 @@ func (r *BoltSnapshotRepository) GenerateFullXMLBytes() ([]byte, int, error) {
 
 	var buf bytes.Buffer
 	buf.WriteString(xml.Header)
-	buf.WriteString("<offers>\n")
+	buf.WriteString("<!DOCTYPE yml_catalog SYSTEM \"shops.dtd\">\n")
+	nowStr := time.Now().Format("2006-01-02 15:04")
+	buf.WriteString(fmt.Sprintf("<yml_catalog date=\"%s\">\n<shop>\n  <name>АВТОПЛАНЕТА</name>\n  <company>АВТОПЛАНЕТА</company>\n  <url>http://backend-server.ru/</url>\n  <platform>Avtoplaneta</platform>\n  <email>Planeta.zap@mail.ru</email>\n  <currencies>\n    <currency id=\"РУБ\" rate=\"1\"/>\n  </currencies>\n  <categories>\n    <category id=\"1\">Автозапчасти</category>\n  </categories>\n  <offers>\n", nowStr))
 
 	count := 0
 	err := r.db.View(func(tx *bbolt.Tx) error {
@@ -264,7 +273,7 @@ func (r *BoltSnapshotRepository) GenerateFullXMLBytes() ([]byte, int, error) {
 		return nil, 0, err
 	}
 
-	buf.WriteString("</offers>\n")
+	buf.WriteString("  </offers>\n</shop>\n</yml_catalog>\n")
 	return buf.Bytes(), count, nil
 }
 
