@@ -32,6 +32,23 @@ class SupplierBatch {
   }
 }
 
+class AdminShelf {
+  final int id;
+  final String name;
+
+  const AdminShelf({
+    required this.id,
+    required this.name,
+  });
+
+  factory AdminShelf.fromJson(Map<String, dynamic> json) {
+    return AdminShelf(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: (json['name'] ?? '').toString(),
+    );
+  }
+}
+
 class ServerStatusInfo {
   final String serverStatus;
   final String goVersion;
@@ -179,6 +196,20 @@ final supplierBatchesProvider = FutureProvider<List<SupplierBatch>>((ref) async 
       .toList();
 });
 
+final adminShelvesProvider = FutureProvider<List<AdminShelf>>((ref) async {
+  final response = await apiClient.dio.get(ApiEndpoints.shelves);
+  final data = response.data;
+  if (data is Map && data['shelves'] is List) {
+    final list = data['shelves'] as List;
+    return list
+        .whereType<Map>()
+        .map((e) => AdminShelf.fromJson(Map<String, dynamic>.from(e)))
+        .where((s) => s.name.isNotEmpty)
+        .toList();
+  }
+  return <AdminShelf>[];
+});
+
 final serverStatusProvider = FutureProvider<ServerStatusInfo>((ref) async {
   final response = await apiClient.dio.get(ApiEndpoints.adminStatus);
   final data = response.data as Map<String, dynamic>? ?? {};
@@ -249,6 +280,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen>
   void _refreshAll() {
     ref.invalidate(usersListProvider);
     ref.invalidate(supplierBatchesProvider);
+    ref.invalidate(adminShelvesProvider);
+    ref.invalidate(shelvesProvider);
     ref.invalidate(serverStatusProvider);
     ref.invalidate(serverLogsProvider);
     ref.invalidate(userActivityLogsProvider);
@@ -992,12 +1025,342 @@ class _PartsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return RefreshIndicator(
-      onRefresh: () async => ref.invalidate(supplierBatchesProvider),
+      onRefresh: () async {
+        ref.invalidate(adminShelvesProvider);
+        ref.invalidate(shelvesProvider);
+        ref.invalidate(supplierBatchesProvider);
+      },
       child: ListView(
         padding: const EdgeInsets.all(12),
         children: const [
+          _WarehouseShelvesCard(),
+          SizedBox(height: 12),
           _PartsManagementCard(),
         ],
+      ),
+    );
+  }
+}
+
+class _WarehouseShelvesCard extends ConsumerStatefulWidget {
+  const _WarehouseShelvesCard();
+
+  @override
+  ConsumerState<_WarehouseShelvesCard> createState() => _WarehouseShelvesCardState();
+}
+
+class _WarehouseShelvesCardState extends ConsumerState<_WarehouseShelvesCard> {
+  final _shelfNameCtrl = TextEditingController();
+  final _searchCtrl = TextEditingController();
+  bool _creating = false;
+  int? _deletingId;
+
+  @override
+  void dispose() {
+    _shelfNameCtrl.dispose();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _addShelf() async {
+    final name = _shelfNameCtrl.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Введите название полки')),
+      );
+      return;
+    }
+
+    setState(() => _creating = true);
+    try {
+      await apiClient.dio.post(
+        ApiEndpoints.adminShelves,
+        data: {'name': name},
+      );
+      if (!mounted) return;
+      _shelfNameCtrl.clear();
+      ref.invalidate(adminShelvesProvider);
+      ref.invalidate(shelvesProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Полка «$name» успешно добавлена'),
+          backgroundColor: Colors.green.shade800,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ошибка добавления: $e'),
+          backgroundColor: Colors.red.shade800,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _creating = false);
+    }
+  }
+
+  Future<void> _confirmAndDelete(AdminShelf shelf) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Удалить полку?'),
+        content: Text('Полка «${shelf.name}» будет удалена из списка полок.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Удалить'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deletingId = shelf.id);
+    try {
+      await apiClient.dio.delete(ApiEndpoints.adminShelfById(shelf.id));
+      if (!mounted) return;
+      ref.invalidate(adminShelvesProvider);
+      ref.invalidate(shelvesProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Полка «${shelf.name}» удалена'),
+          backgroundColor: Colors.green.shade800,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ошибка удаления: $e'),
+          backgroundColor: Colors.red.shade800,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _deletingId = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final shelvesAsync = ref.watch(adminShelvesProvider);
+
+    return Card(
+      color: AppTheme.surfaceColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(LucideIcons.layers, color: AppTheme.primaryColor, size: 22),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: shelvesAsync.when(
+                    data: (shelves) => Text(
+                      'Полки склада (${shelves.length})',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    loading: () => const Text(
+                      'Полки склада',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    error: (_, _) => const Text(
+                      'Полки склада',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(LucideIcons.refresh_cw, size: 18),
+                  tooltip: 'Обновить список полок',
+                  onPressed: () {
+                    ref.invalidate(adminShelvesProvider);
+                    ref.invalidate(shelvesProvider);
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Справочник полок и мест хранения. Добавленные полки отображаются в выпадающем списке при создании и редактировании деталей.',
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            // Поле добавления новой полки
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _shelfNameCtrl,
+                    enabled: !_creating,
+                    textInputAction: TextInputAction.done,
+                    decoration: InputDecoration(
+                      labelText: 'Название новой полки',
+                      hintText: 'Стеллаж 4, полка Б-2...',
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onSubmitted: (_) => _addShelf(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  onPressed: _creating ? null : _addShelf,
+                  icon: _creating
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(LucideIcons.plus, size: 18),
+                  label: const Text('Добавить'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            shelvesAsync.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (err, _) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'Не удалось загрузить список полок: $err',
+                  style: TextStyle(color: Colors.red.shade300, fontSize: 13),
+                ),
+              ),
+              data: (shelves) {
+                if (shelves.isEmpty) {
+                  return Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(LucideIcons.circle_alert, size: 18, color: Colors.white54),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Пока нет полок. Введите название выше, чтобы добавить первую.',
+                            style: TextStyle(color: Colors.white70, fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final query = _searchCtrl.text.trim().toLowerCase();
+                final filtered = query.isEmpty
+                    ? shelves
+                    : shelves.where((s) => s.name.toLowerCase().contains(query)).toList();
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: _searchCtrl,
+                      decoration: InputDecoration(
+                        hintText: 'Поиск среди полок (${shelves.length})...',
+                        prefixIcon: const Icon(LucideIcons.search, size: 18),
+                        suffixIcon: _searchCtrl.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(LucideIcons.x, size: 16),
+                                onPressed: () {
+                                  setState(() {
+                                    _searchCtrl.clear();
+                                  });
+                                },
+                              )
+                            : null,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: 10),
+                    if (filtered.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: Center(
+                          child: Text(
+                            'Ничего не найдено по запросу «${_searchCtrl.text}»',
+                            style: const TextStyle(color: Colors.white54, fontSize: 13),
+                          ),
+                        ),
+                      )
+                    else ...[
+                      Container(
+                        constraints: const BoxConstraints(maxHeight: 260),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.white12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: filtered.length > 100 ? 100 : filtered.length,
+                          separatorBuilder: (_, _) => const Divider(height: 1, color: Colors.white10),
+                          itemBuilder: (context, idx) {
+                            final shelf = filtered[idx];
+                            final isDeleting = _deletingId == shelf.id;
+                            return ListTile(
+                              dense: true,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                              title: Text(
+                                shelf.name,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              trailing: isDeleting
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : IconButton(
+                                      icon: const Icon(LucideIcons.trash, size: 16, color: Colors.white54),
+                                      tooltip: 'Удалить',
+                                      onPressed: () => _confirmAndDelete(shelf),
+                                    ),
+                            );
+                          },
+                        ),
+                      ),
+                      if (filtered.length > 100) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'Показано первых 100 из ${filtered.length} полок. Уточните поиск для конкретной полки.',
+                          style: const TextStyle(color: Colors.white54, fontSize: 11),
+                        ),
+                      ],
+                    ],
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
