@@ -168,12 +168,6 @@ func (s *PriceListService) UpdatePartInSnapshot(ctx context.Context, partID int6
 		return fmt.Errorf("обновить оффер в слепке: %w", err)
 	}
 
-	// Защита: если слепок еще не был инициализирован полным BulkLoad (версия пуста),
-	// не вызываем WriteFullXML, чтобы не затереть существующий на диске полный XML.
-	if s.repo.GetVersion() == "" {
-		return nil
-	}
-
 	count, err := s.repo.WriteFullXML(s.Path())
 	if err != nil {
 		return fmt.Errorf("записать XML после обновления детали: %w", err)
@@ -196,10 +190,6 @@ func (s *PriceListService) DeletePartFromSnapshot(ctx context.Context, partID in
 
 	if err := s.repo.DeleteOffer(partID); err != nil {
 		return fmt.Errorf("удалить оффер из слепка: %w", err)
-	}
-
-	if s.repo.GetVersion() == "" {
-		return nil
 	}
 
 	count, err := s.repo.WriteFullXML(s.Path())
