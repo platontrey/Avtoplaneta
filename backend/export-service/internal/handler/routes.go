@@ -20,4 +20,10 @@ func SetupRoutes(router *gin.Engine, h *Handler) {
 
 	router.GET(service.PriceListURL, h.ServePriceList)
 	router.HEAD(service.PriceListURL, h.ServePriceList)
+
+	// Алиасы для совместимости с внешними сборщиками (Drom) и старыми ссылками Joomla
+	router.GET("/pricelist.xml", h.ServePriceList)
+	router.HEAD("/pricelist.xml", h.ServePriceList)
+	router.GET("/components/com_jshopping/files/importexport/multi_yml_export/Multi_YML_Export.xml", h.ServePriceList)
+	router.HEAD("/components/com_jshopping/files/importexport/multi_yml_export/Multi_YML_Export.xml", h.ServePriceList)
 }
