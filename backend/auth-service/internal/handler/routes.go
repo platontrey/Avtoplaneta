@@ -58,7 +58,9 @@ func SetupRoutes(r *gin.Engine, h *Handler) {
 
 	// Автообновление мобильного приложения
 	r.GET("/api/app/version", h.GetAppVersionHandler)
+	r.HEAD("/api/app/version", h.GetAppVersionHandler)
 	r.GET("/api/app/download", h.DownloadAppHandler)
+	r.HEAD("/api/app/download", h.DownloadAppHandler)
 
 	// Маршруты панели администратора (канонические /api/v1/admin, /api/admin и устаревшие /admin)
 	registerAdminRoutes := func(prefix string) {

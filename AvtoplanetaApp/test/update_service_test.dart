@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:avtoplaneta_app/core/services/update_service.dart';
@@ -225,6 +226,57 @@ void main() {
         ),
         isFalse,
       );
+    });
+  });
+
+  group('Apk File Integrity Tests', () {
+    late Directory tempDir;
+
+    setUp(() async {
+      tempDir = await Directory.systemTemp.createTemp('apk_test_');
+    });
+
+    tearDown(() async {
+      try {
+        await tempDir.delete(recursive: true);
+      } catch (_) {}
+    });
+
+    test('валидный APK файл с сигнатурой PK (ZIP) и размером > 1 МБ', () {
+      final file = File('${tempDir.path}/valid.apk');
+      // Создаем файл размером 1.1 МБ с сигнатурой ZIP Local File Header (0x50, 0x4B, 0x03, 0x04)
+      final sink = file.openSync(mode: FileMode.write);
+      sink.writeFromSync([0x50, 0x4B, 0x03, 0x04]);
+      sink.writeFromSync(List.filled(1100 * 1024, 0));
+      sink.closeSync();
+
+      expect(UpdateService.isValidApkFile(file), isTrue);
+    });
+
+    test('отклонение сжатого Brotli/Gzip или битого файла (сигнатура не PK)', () {
+      final file = File('${tempDir.path}/brotli_corrupted.apk');
+      // Сигнатура Brotli потока
+      final sink = file.openSync(mode: FileMode.write);
+      sink.writeFromSync([0xCB, 0xFF, 0x7F, 0x88]);
+      sink.writeFromSync(List.filled(1100 * 1024, 0));
+      sink.closeSync();
+
+      expect(UpdateService.isValidApkFile(file), isFalse);
+    });
+
+    test('отклонение неполного или слишком маленького файла (< 1 МБ)', () {
+      final file = File('${tempDir.path}/too_small.apk');
+      final sink = file.openSync(mode: FileMode.write);
+      sink.writeFromSync([0x50, 0x4B, 0x03, 0x04]);
+      sink.writeFromSync(List.filled(100, 0)); // всего 104 байта
+      sink.closeSync();
+
+      expect(UpdateService.isValidApkFile(file), isFalse);
+    });
+
+    test('отклонение несуществующего файла', () {
+      final file = File('${tempDir.path}/non_existent.apk');
+      expect(UpdateService.isValidApkFile(file), isFalse);
     });
   });
 

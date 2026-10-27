@@ -65,6 +65,9 @@ func (h *Handler) DownloadAppHandler(c *gin.Context) {
 			if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
 				c.Header("Content-Disposition", "attachment; filename=\""+name+"\"")
 				c.Header("Content-Type", "application/vnd.android.package-archive")
+				c.Header("Content-Encoding", "identity")
+				c.Header("Cache-Control", "no-transform, public, max-age=3600")
+				c.Header("Accept-Ranges", "bytes")
 				c.File(p)
 				return
 			}

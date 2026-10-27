@@ -566,6 +566,26 @@ class UpdateService {
     } catch (_) {}
   }
 
+  /// Проверяет сигнатуру файла (APK является ZIP-архивом и начинается с сигнатуры PK\x03\x04)
+  static bool isValidApkFile(File file) {
+    if (!file.existsSync()) return false;
+    final len = file.lengthSync();
+    if (len < 1024 * 1024) return false; // Валидный APK не может быть меньше 1 МБ
+    try {
+      final raf = file.openSync(mode: FileMode.read);
+      try {
+        final bytes = raf.readSync(4);
+        if (bytes.length < 4) return false;
+        // ZIP Local File Header magic bytes: 0x50, 0x4B, 0x03, 0x04 ('P', 'K', \x03, \x04)
+        return bytes[0] == 0x50 && bytes[1] == 0x4B && bytes[2] == 0x03 && bytes[3] == 0x04;
+      } finally {
+        raf.closeSync();
+      }
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Проверяет, скачан ли уже APK конкретной версии и сборки целиком
   Future<bool> isUpdateDownloaded(AppUpdateInfo info) async {
     try {
@@ -574,6 +594,13 @@ class UpdateService {
       final targetFile = File('${tempDir.path}/$fileName');
       final doneMarker = File('${tempDir.path}/$fileName.done');
       if (!targetFile.existsSync() || !doneMarker.existsSync()) return false;
+      if (!isValidApkFile(targetFile)) {
+        try {
+          targetFile.deleteSync();
+          doneMarker.deleteSync();
+        } catch (_) {}
+        return false;
+      }
       final currentBytes = targetFile.lengthSync();
       if (info.fileSizeBytes > 0) {
         return currentBytes == info.fileSizeBytes;
@@ -630,19 +657,27 @@ class UpdateService {
 
     // Если файл этой сборки уже полностью скачан и подтвержден маркером .done — открываем установщик
     if (targetFile.existsSync() && doneMarker.existsSync()) {
-      final currentBytes = targetFile.lengthSync();
-      final isComplete = (info.fileSizeBytes > 0 && currentBytes == info.fileSizeBytes) ||
-          (info.fileSizeBytes == 0 && currentBytes > 10 * 1024 * 1024);
-      if (isComplete) {
-        debugPrint('APK уже скачан и готов к установке ($currentBytes байт)');
-        onProgress(1.0, currentBytes, currentBytes);
-        if (autoOpen) {
-          return await OpenFilex.open(
-            targetFile.path,
-            type: 'application/vnd.android.package-archive',
-          );
+      if (!isValidApkFile(targetFile)) {
+        debugPrint('Кэшированный APK поврежден (не ZIP/APK), удаляем кэш');
+        try {
+          targetFile.deleteSync();
+          doneMarker.deleteSync();
+        } catch (_) {}
+      } else {
+        final currentBytes = targetFile.lengthSync();
+        final isComplete = (info.fileSizeBytes > 0 && currentBytes == info.fileSizeBytes) ||
+            (info.fileSizeBytes == 0 && currentBytes > 10 * 1024 * 1024);
+        if (isComplete) {
+          debugPrint('APK уже скачан и готов к установке ($currentBytes байт)');
+          onProgress(1.0, currentBytes, currentBytes);
+          if (autoOpen) {
+            return await OpenFilex.open(
+              targetFile.path,
+              type: 'application/vnd.android.package-archive',
+            );
+          }
+          return OpenResult(type: ResultType.done, message: 'Файл уже загружен');
         }
-        return OpenResult(type: ResultType.done, message: 'Файл уже загружен');
       }
     }
 
@@ -696,7 +731,9 @@ class UpdateService {
         }
 
         final currentBytes = targetFile.existsSync() ? targetFile.lengthSync() : 0;
-        final headers = <String, dynamic>{};
+        final headers = <String, dynamic>{
+          'Accept-Encoding': 'identity',
+        };
         bool isResuming = false;
 
         // Если файл частично скачан (более 2 МБ) и это первая попытка докачки, пробуем Range
@@ -733,6 +770,16 @@ class UpdateService {
         );
 
         if (response.statusCode == 200 || response.statusCode == 206) {
+          if (!isValidApkFile(targetFile)) {
+            debugPrint('Скачанный файл не прошел валидацию структуры APK (magic bytes PK)');
+            try {
+              await targetFile.delete();
+            } catch (_) {}
+            throw DioException(
+              requestOptions: response.requestOptions,
+              error: 'Загруженный файл не является корректным пакетом APK (поврежден или сжат)',
+            );
+          }
           downloadSuccess = true;
           try {
             await doneMarker.writeAsString('${targetFile.lengthSync()}');
@@ -760,6 +807,17 @@ class UpdateService {
 
     if (!autoOpen) {
       return OpenResult(type: ResultType.done, message: 'APK успешно загружен в фоне');
+    }
+
+    if (!isValidApkFile(targetFile)) {
+      try {
+        await targetFile.delete();
+        await doneMarker.delete();
+      } catch (_) {}
+      return OpenResult(
+        type: ResultType.error,
+        message: 'Файл установки поврежден. Пожалуйста, повторите загрузку.',
+      );
     }
 
     final openResult = await OpenFilex.open(
