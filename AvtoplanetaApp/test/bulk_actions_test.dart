@@ -98,5 +98,64 @@ void main() {
         },
       );
     });
+
+    test('includes quantity and tire/wheel parameters in operations payload', () {
+      expect(
+        buildBulkUpdatePayload(
+          ids: [200],
+          quantity: 5,
+          customOperations: {
+            'diameter': '17',
+            'width': '225',
+            'height': '55',
+            'season': 'Зимние (шипованные)',
+            'pcd': '5x114.3',
+            'et': '45',
+            'front_rear': 'F',
+            'left_right': 'L',
+            'drive': 'Полный (4WD)',
+          },
+        ),
+        {
+          'scope': {
+            'type': 'BULK_SCOPE_TYPE_IDS',
+            'ids': [200],
+          },
+          'operations': {
+            'quantity': 5,
+            'diameter': '17',
+            'width': '225',
+            'height': '55',
+            'season': 'Зимние (шипованные)',
+            'pcd': '5x114.3',
+            'et': '45',
+            'front_rear': 'F',
+            'left_right': 'L',
+            'drive': 'Полный (4WD)',
+          },
+        },
+      );
+    });
+
+    test('ALL_BULK_FIELDS contains 40 fields across all 3 sections', () {
+      expect(ALL_BULK_FIELDS.length, 40);
+      final basicFields = ALL_BULK_FIELDS.where((f) => f.section == FieldSection.basic).toList();
+      final specsFields = ALL_BULK_FIELDS.where((f) => f.section == FieldSection.specs).toList();
+      final tiresFields = ALL_BULK_FIELDS.where((f) => f.section == FieldSection.tires).toList();
+
+      expect(basicFields.length, 14);
+      expect(specsFields.length, 17);
+      expect(tiresFields.length, 9);
+
+      // Verify essential key fields
+      expect(ALL_BULK_FIELDS.any((f) => f.key == 'price'), isTrue);
+      expect(ALL_BULK_FIELDS.any((f) => f.key == 'quantity'), isTrue);
+      expect(ALL_BULK_FIELDS.any((f) => f.key == 'location'), isTrue);
+      expect(ALL_BULK_FIELDS.any((f) => f.key == 'front_rear'), isTrue);
+      expect(ALL_BULK_FIELDS.any((f) => f.key == 'left_right'), isTrue);
+      expect(ALL_BULK_FIELDS.any((f) => f.key == 'diameter'), isTrue);
+      expect(ALL_BULK_FIELDS.any((f) => f.key == 'width'), isTrue);
+      expect(ALL_BULK_FIELDS.any((f) => f.key == 'season'), isTrue);
+    });
   });
 }
