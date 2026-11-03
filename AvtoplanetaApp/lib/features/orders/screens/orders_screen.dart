@@ -9,6 +9,7 @@ import '../../../core/errors/failure.dart';
 import '../../../core/models/customer.dart';
 import '../../../core/models/order.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/phone_launcher.dart';
 import '../../../shared/widgets/app_states.dart';
 import '../../../shared/widgets/shimmer_skeletons.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -359,12 +360,18 @@ class _CustomerCard extends StatelessWidget {
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          customer.phone,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14,
+                        InkWell(
+                          onTap: () => PhoneLauncher.makeCall(customer.phone, context),
+                          borderRadius: BorderRadius.circular(4),
+                          child: Text(
+                            customer.phone,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              decoration: TextDecoration.underline,
+                              decorationColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
+                            ),
                           ),
                         ),
                       ],
@@ -674,7 +681,27 @@ class _OrderCard extends StatelessWidget {
                 if (order.orderNumber.isNotEmpty)
                   _info(LucideIcons.hash, 'Сделка ${order.orderNumber}'),
                 if (order.buyerNumber.isNotEmpty)
-                  _info(LucideIcons.phone, order.buyerNumber),
+                  InkWell(
+                    onTap: () => PhoneLauncher.makeCall(order.buyerNumber, context),
+                    borderRadius: BorderRadius.circular(4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(LucideIcons.phone, size: 14, color: Color(0xFF1E88E5)),
+                        const SizedBox(width: 5),
+                        Text(
+                          order.buyerNumber,
+                          style: const TextStyle(
+                            color: Color(0xFF1E88E5),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                            decorationColor: Color(0xFF1E88E5),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 if (order.trackingNumber.isNotEmpty)
                   _info(LucideIcons.truck, 'Трек: ${order.trackingNumber}'),
               ],

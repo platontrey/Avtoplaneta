@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/customer.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/phone_launcher.dart';
 import '../providers/customers_provider.dart';
 import 'customer_form_sheet.dart';
 import 'customer_ui_helpers.dart';
@@ -155,11 +156,18 @@ class CustomerDetailSheet extends ConsumerWidget {
                                 ),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            customer.phone,
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
+                          InkWell(
+                            onTap: () => PhoneLauncher.makeCall(customer.phone, context),
+                            borderRadius: BorderRadius.circular(4),
+                            child: Text(
+                              customer.phone,
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: Theme.of(context).colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                    decoration: TextDecoration.underline,
+                                    decorationColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
+                                  ),
+                            ),
                           ),
                         ],
                       ),
