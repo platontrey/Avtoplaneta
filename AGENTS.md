@@ -533,7 +533,68 @@ DROP TABLE IF EXISTS customer_notes;
 
 ---
 
-## 5. Критические доменные инварианты (Inventory & Orders)
+## 5. Внутренняя архитектура сервисов (Pragmatic Clean Architecture & DDD в Go)
+
+Сеньор-разработчик не переносит бездумно многослойный академический DDD из Java/C# в Go. Мы используем **прагматичную слоистую архитектуру с элементами Domain-Driven Design**, оптимизированную под читаемость, простоту и скорость Go.
+
+### 5.1. Слоистая структура сервиса (`internal/`)
+Каждый микросервис изолирует свои слои по строгому правилу однонаправленного потока зависимостей:
+```
+Transport (handler, grpc) ──► Application (service) ──► Domain (domain)
+                                      │
+                                      ▼
+                           Infrastructure (repository, events, outbox)
+```
+1. **`internal/domain` (Ядро бизнеса)**: Чистые бизнес-модели, инварианты, доменные ошибки, типы сущностей. **НЕ ИМПОРТИРУЕТ** другие внутренние пакеты сервиса.
+2. **`internal/repository` (Вторичный адаптер БД)**: Реализация сохранения данных в PostgreSQL (`sqlc` + `squirrel`) и Redis кэш (`CacheService`).
+3. **`internal/service` (Прикладной слой / Use Cases)**: Оркестрация бизнес-логики, транзакции, вызовы gRPC-клиентов к соседним сервисам, публикация Outbox-событий.
+4. **`internal/handler` и `internal/grpc` (Первичные адаптеры)**: Прием внешних запросов (HTTP Gin / gRPC), сериализация JSON/Proto, вызов методов `service`.
+
+### 5.2. Богатая доменная модель (Rich Domain Model) против анемичной модели
+- ❌ **Антипаттерн (Анемичная модель):** Создание плоских структур данных (`struct` с одними полями) и размазывание логики по процедурным сервисным функциям на 1000 строк.
+-  **Стандарт:** Критические бизнес-правила и инварианты сущностей инкапсулируются в методах самой структуры в `internal/domain`:
+  ```go
+  // Пример в domain.Order:
+  func (o *Order) CanBeCompleted() error {
+      if o.Status == OrderStatusCompleted {
+          return ErrOrderAlreadyCompleted
+      }
+      if len(o.Items) == 0 {
+          return ErrOrderEmpty
+      }
+      return nil
+  }
+
+  func (o *Order) RecalculateTotal() {
+      var subtotal float64
+      for _, item := range o.Items {
+          subtotal += item.Price * float64(item.Quantity)
+      }
+      o.TotalAmount = math.Max(subtotal-o.Discount, 0)
+  }
+  ```
+- **Профит:** Бизнес-логика защищена от несогласованности и тестируется мгновенными чистыми юнит-тестами без необходимости мокать БД, Postgres или Redis.
+
+### 5.3. Защита чистоты домена (Domain vs DTO & Presentation)
+- Структуры в `internal/domain` отражают реальные бизнес-сущности склада и заказов, а не прихоти фронтенда.
+- ❌ **Запрещено:** Засорять сущности домена форматированными строками для фронтенда (`CreatedAtFormatted`, `TimeAgo`). Форматирование дат и относительное время — задача слоя представления (`handler` или клиентского UI).
+- ❌ **Запрещено:** Помещать структуры веб-запросов (`CreateOrderRequest`, `UpdateOrderDetailsRequest`) в `domain`. DTO запросов принадлежат слою `handler` или входным параметрам слоя `service`.
+
+### 5.4. Запрет на академический оверинжиниринг в Go
+- ❌ **Запрещен «маппинг ради маппинга»:** Создание 4–5 одинаковых структур (`DB Model -> Domain Model -> UseCase DTO -> API View`) ради формального следования Clean Architecture. В Go модели `sqlc` маппятся напрямую в `domain`, а домен отдается в JSON без промежуточных пустых прослоек.
+- ❌ **Запрещен «Use Case на каждый чих»:** Запрещено дробить сервис на десятки микро-файлов с однометодовыми интерфейсами (`CreateOrderUseCase`, `GetOrderByIDUseCase`). Бизнес-сервис (например, `OrdersService`) объединяет связную доменную область.
+
+### 5.5. Золотое правило переиспользования: Обязательное использование `backend/pkg/*` (DRY)
+Категорически запрещено писать велосипеды в `internal/`, если готовый и протестированный компонент уже есть в общей библиотеке `avtoplaneta/pkg/`:
+1. **`pkg/metrics`**: Единый сбор Prometheus метрик (`metrics.GinMiddleware(serviceName)` и `metrics.NewOutboxMetrics(serviceName)`). **СТРОГИЙ ЗАПРЕТ** на использование `c.Request.URL.Path` (High Cardinality) и локальные пакеты `internal/metrics`.
+2. **`pkg/outbox`**: Базовый движок Transactional Outbox диспетчера с поддержкой PostgreSQL LISTEN/NOTIFY, поллинга и ретраев.
+3. **`pkg/ginmw`**: Единые middleware CORS (`ginmw.CORS()`), аутентификации (`ginmw.RequireAuth()`) и ролевого доступа (`ginmw.RequireRole()`).
+4. **`pkg/constants`**: Единые системные константы. Запрещен хардкод magic strings (`"events:orders"`, `"outbox_events_channel"`, `PartQuantitySold = -1`, `RoleAdmin = "admin"`).
+5. **`pkg/redisstream`**: Использование `ConsumerGroupWorker` с готовым PEL recovery и DLQ вместо ручных циклов чтения Redis Streams.
+
+---
+
+## 6. Критические доменные инварианты (Inventory & Orders)
 
 ### 5.1. Семантика поля `quantity` (ЖЕЛЕЗНЫЙ ЗАКОН СКЛАДА)
 В системе определены 3 фундаментальных состояния остатка деталей:
@@ -565,7 +626,7 @@ DROP TABLE IF EXISTS customer_notes;
 
 ---
 
-## 6. Межсервисные контракты и маршрутизация Traefik
+## 7. Межсервисные контракты и маршрутизация Traefik
 
 - **100% межсервисных вызовов — строго через gRPC (Protobuf):**
   - Никаких внутренних HTTP-вызовов между сервисами.
@@ -579,7 +640,7 @@ DROP TABLE IF EXISTS customer_notes;
 
 ---
 
-## 7. Frontend (React 19) и Mobile (Flutter)
+## 8. Frontend (React 19) и Mobile (Flutter)
 
 ### 7.1. Frontend (React 19 / TypeScript / Vite / TanStack Query v5)
 - **INP (Interaction to Next Paint):** Целевое значение **< 200ms**.
@@ -593,7 +654,7 @@ DROP TABLE IF EXISTS customer_notes;
 
 ---
 
-## 8. Пошаговый чеклист реализации фичи (Senior Engineering Playbook)
+## 9. Пошаговый чеклист реализации фичи (Senior Engineering Playbook)
 
 Перед тем как считать задачу выполненной, сеньор проходит по шагам:
 
@@ -610,7 +671,10 @@ DROP TABLE IF EXISTS customer_notes;
        - Обновлены proto-файлы в backend/proto/?
        - Выполнен make proto из каталога backend/?
        - Синхронизирован ли swagger.json с фронтендом?
-[ ] 4. БИЗНЕС-ЛОГИКА И РЕЗИЛЬЕНТНОСТЬ:
+[ ] 4. ВНУТРЕННЯЯ АРХИТЕКТУРА И РЕЗИЛЬЕНТНОСТЬ:
+       - Соблюдены ли инварианты в методах domain сущностей (Rich Domain Model)?
+       - Использованы ли общие пакеты из backend/pkg/* (metrics, outbox, ginmw, constants) вместо дублирования?
+       - Очищен ли domain от presentation-полей (TimeAgo, CreatedAtFormatted)?
        - Соблюден ли доменный инвариант quantity >= 0?
        - Ошибки обернуты через fmt.Errorf("...: %w", err)?
        - Контекст ctx context.Context проброшен первым аргументом во все вызовы?
@@ -628,7 +692,7 @@ DROP TABLE IF EXISTS customer_notes;
 
 ---
 
-## 9. Коммуникация и Git / CI/CD Workflow
+## 10. Коммуникация и Git / CI/CD Workflow
 
 - **Язык общения:** **ИСКЛЮЧИТЕЛЬНО РУССКИЙ ЯЗЫК**. Все ответы, комментарии к коду, вопросы к пользователю и отчеты формулируются на русском языке.
 - **Локальные коммиты:** Обязательно фиксировать изменения через `git add` и `git commit` с четким описанием в формате Conventional Commits (например, `feat(parts): add outbox dispatcher for search index`).
