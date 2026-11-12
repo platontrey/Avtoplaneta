@@ -9,9 +9,8 @@ import (
 
 // SetupRoutes настраивает маршруты для приложения с dependency injection
 func SetupRoutes(r *gin.Engine, h *Handler) {
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "healthy"})
-	})
+	// Регистрация health-проверок (/health, /health/live, /health/ready, /live, /ready)
+	h.HealthChecker().RegisterRoutes(r)
 
 	// Add metrics middleware via shared pkg/metrics (с защитой от Cardinality Explosion через c.FullPath())
 	r.Use(metrics.GinMiddleware("auth-service"))
@@ -44,8 +43,8 @@ func SetupRoutes(r *gin.Engine, h *Handler) {
 	r.PUT("/auth/profile", h.AuthMiddleware, h.UpdateProfileHandler)
 	r.PUT("/auth/me", h.AuthMiddleware, h.UpdateProfileHandler)
 	r.POST("/auth/change-password", h.AuthMiddleware, h.ChangePasswordHandler)
-	r.POST("/auth/avatar", h.AuthMiddleware, h.UploadAvatarHandler)
-	r.DELETE("/auth/avatar", h.AuthMiddleware, h.DeleteAvatarHandler)
+	r.POST("/auth/avatar", h.UploadAvatarHandler)
+	r.DELETE("/auth/avatar", h.DeleteAvatarHandler)
 
 	// Зеркалирование для API клиентов /api/users/me
 	r.PUT("/api/users/me", h.AuthMiddleware, h.UpdateProfileHandler)

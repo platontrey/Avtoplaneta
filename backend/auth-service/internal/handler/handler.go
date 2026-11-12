@@ -2,6 +2,7 @@ package handler
 
 import (
 	partsv1 "avtoplaneta/gen/parts/v1"
+	"avtoplaneta/pkg/health"
 
 	"auth-service/internal/config"
 	"auth-service/internal/repository"
@@ -17,6 +18,7 @@ type Handler struct {
 	userRepo     repository.UserRepository
 	config       *config.Config
 	partsClient  partsv1.PartsServiceClient
+	health       *health.Checker
 }
 
 // NewHandler создает новый экземпляр Handler со всеми необходимыми зависимостями
@@ -33,7 +35,16 @@ func NewHandler(
 		csrfManager:  csrfManager,
 		userRepo:     userRepo,
 		config:       cfg,
+		health:       health.NewChecker("auth-service"),
 	}
+}
+
+// HealthChecker возвращает чекер для регистрации readiness/liveness проверок
+func (h *Handler) HealthChecker() *health.Checker {
+	if h.health == nil {
+		h.health = health.NewChecker("auth-service")
+	}
+	return h.health
 }
 
 // SetPartsClient устанавливает gRPC клиент parts-service

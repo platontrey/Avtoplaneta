@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
+
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"avtoplaneta/pkg/health"
 	"avtoplaneta/pkg/metrics"
 )
 
@@ -38,9 +41,15 @@ func init() {
 }
 
 func setupRoutes(r *gin.Engine) {
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "healthy"})
-	})
+	// Регистрация health-проверок (/health, /health/live, /health/ready, /live, /ready)
+	checker := health.NewChecker("messaging-service")
+	checker.AddPinger("postgres", dbPool)
+	if RedisClient != nil {
+		checker.AddReadinessCheck("redis", func(checkCtx context.Context) error {
+			return RedisClient.Ping(checkCtx).Err()
+		})
+	}
+	checker.RegisterRoutes(r)
 
 	// Add metrics middleware via shared pkg/metrics (с защитой от Cardinality Explosion через c.FullPath())
 	r.Use(metrics.GinMiddleware("messaging-service"))

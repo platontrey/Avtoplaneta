@@ -13,7 +13,8 @@ func SetupRoutes(router *gin.Engine, h *Handler) {
 	router.Use(ginmw.CORS())
 	router.Use(metrics.GinMiddleware("export-service"))
 
-	router.GET("/health", h.HealthCheck)
+	// Регистрация health-проверок (/health, /health/live, /health/ready, /live, /ready)
+	h.HealthChecker().RegisterRoutes(router)
 	router.GET("/metrics", metrics.Handler())
 
 	router.GET("/api/export/xml", h.ExportXMLPriceList)

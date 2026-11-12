@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 
@@ -58,11 +59,13 @@ func main() {
 	defer dbPool.Close()
 
 	// 6. Подключение к Redis (кэш, события, распределенные блокировки)
+	var redisClient *redis.Client
 	if cfg.RedisURL != "" {
-		redisClient, err := redisclient.New(cfg.RedisURL, cfg.RedisPassword)
+		client, err := redisclient.New(cfg.RedisURL, cfg.RedisPassword)
 		if err != nil {
 			logrus.WithError(err).Warn("Не удалось подключиться к Redis (кэширование и события отключены)")
 		} else {
+			redisClient = client
 			defer redisClient.Close()
 			logrus.Info("Подключение к Redis успешно установлено")
 		}
@@ -73,11 +76,19 @@ func main() {
 	itemService := service.NewItemService(itemRepo)
 	h := handler.NewHandler(itemService)
 
-	// 6. Настройка HTTP-роутера Gin
+	// Регистрация readiness проверок (Postgres и Redis)
+	h.HealthChecker().AddPinger("postgres", dbPool)
+	if redisClient != nil {
+		h.HealthChecker().AddReadinessCheck("redis", func(checkCtx context.Context) error {
+			return redisClient.Ping(checkCtx).Err()
+		})
+	}
+
+	// 8. Настройка HTTP-роутера Gin
 	router := gin.New()
 	handler.SetupRoutes(router, h)
 
-	// 7. Конкурентный запуск HTTP и gRPC серверов через errgroup
+	// 9. Конкурентный запуск HTTP и gRPC серверов через errgroup
 	g, gCtx := errgroup.WithContext(ctx)
 
 	// Запуск gRPC-сервера

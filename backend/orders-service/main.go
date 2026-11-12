@@ -77,6 +77,14 @@ func main() {
 	ordersService := service.NewOrdersService(orderRepo, partRepo, cacheService, eventPublisher)
 	h := handler.NewHandler(ordersService, eventPublisher)
 
+	// Регистрация readiness проверок (Postgres и Redis)
+	h.HealthChecker().AddPinger("postgres", dbPool)
+	if redisClient != nil {
+		h.HealthChecker().AddReadinessCheck("redis", func(checkCtx context.Context) error {
+			return redisClient.Ping(checkCtx).Err()
+		})
+	}
+
 	// Запуск потребителя событий Redis Streams в фоне
 	eventConsumer := events.NewRedisEventConsumer(redisClient, orderRepo, cacheService)
 	go func() {

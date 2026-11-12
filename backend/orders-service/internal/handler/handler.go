@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"avtoplaneta/pkg/authcontext"
+	"avtoplaneta/pkg/health"
 	"orders-service/internal/domain"
 	"orders-service/internal/service"
 )
@@ -16,6 +17,7 @@ import (
 type Handler struct {
 	ordersService service.OrdersService
 	publisher     domain.EventPublisher
+	health        *health.Checker
 }
 
 // NewHandler создает новый handler с dependency injection
@@ -23,7 +25,16 @@ func NewHandler(ordersService service.OrdersService, publisher domain.EventPubli
 	return &Handler{
 		ordersService: ordersService,
 		publisher:     publisher,
+		health:        health.NewChecker("orders-service"),
 	}
+}
+
+// HealthChecker возвращает чекер для регистрации проверок
+func (h *Handler) HealthChecker() *health.Checker {
+	if h.health == nil {
+		h.health = health.NewChecker("orders-service")
+	}
+	return h.health
 }
 
 // logUserActivity логирует активность пользователя через Redis Streams

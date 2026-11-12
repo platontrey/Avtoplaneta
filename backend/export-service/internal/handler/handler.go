@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 
+	"avtoplaneta/pkg/health"
 	"export-service/internal/config"
 	"export-service/internal/events"
 	"export-service/internal/service"
@@ -17,6 +18,7 @@ type Handler struct {
 	svc    *service.PriceListService
 	queue  *events.ExportQueue
 	config *config.Config
+	health *health.Checker
 }
 
 // NewHandler создает экземпляр HTTP-обработчика
@@ -25,7 +27,16 @@ func NewHandler(svc *service.PriceListService, queue *events.ExportQueue, cfg *c
 		svc:    svc,
 		queue:  queue,
 		config: cfg,
+		health: health.NewChecker("export-service"),
 	}
+}
+
+// HealthChecker возвращает чекер для регистрации проверок
+func (h *Handler) HealthChecker() *health.Checker {
+	if h.health == nil {
+		h.health = health.NewChecker("export-service")
+	}
+	return h.health
 }
 
 // ExportXMLPriceList инициирует сборку XML прайс-листа и возвращает метаданные файла
@@ -103,7 +114,7 @@ func (h *Handler) GetExportStatus(c *gin.Context) {
 
 // HealthCheck отвечает на liveness/readiness проверки
 func (h *Handler) HealthCheck(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "export-service"})
+	h.HealthChecker().ReadyHandler()(c)
 }
 
 // ServePriceList отдает с диска готовый файл прайс-листа

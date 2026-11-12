@@ -740,6 +740,7 @@ backend/
 | `pkg/redisclient` | `redisclient` | Клиент Redis с поддержкой одиночного режима и Sentinel/Cluster. |
 | `pkg/tracing` | `tracing` | Инициализация OpenTelemetry TracerProvider и передача спанов в Grafana Tempo. |
 | `pkg/userdirectory` | `userdirectory` | Кэширующий клиент для получения профилей сотрудников через gRPC к `auth-service`. |
+| `pkg/health` | `health` | Комплексные проверки здоровья: разделение Liveness (`/health/live`, `/live`) и Readiness (`/health/ready`, `/health`, `/ready`) с конкурентным опросом зависимостей (PostgreSQL, Redis), таймаутами и выдачей HTTP 503 при деградации. |
 
 ### Лучшие инженерные практики:
 - **Валидация входных данных** во всех endpoints (декларативно через `buf.validate` в gRPC и валидация Gin).

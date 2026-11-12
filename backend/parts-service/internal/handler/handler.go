@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 
+	"avtoplaneta/pkg/health"
 	"parts-service/internal/catalog"
 	"parts-service/internal/grpc"
 	"parts-service/internal/service"
@@ -18,6 +19,7 @@ type Handler struct {
 	partCatalog      *catalog.PartCatalog
 	vehicleCatalog   *catalog.VehicleCatalog
 	defectReports    *service.DefectReportWorkflow
+	health           *health.Checker
 }
 
 // NewHandler создает новый handler с dependency injection.
@@ -32,7 +34,16 @@ func NewHandler(
 		partCatalog:      partCatalog,
 		vehicleCatalog:   vehicleCatalog,
 		defectReports:    defectReports,
+		health:           health.NewChecker("parts-service"),
 	}
+}
+
+// HealthChecker возвращает чекер для регистрации проверок
+func (h *Handler) HealthChecker() *health.Checker {
+	if h.health == nil {
+		h.health = health.NewChecker("parts-service")
+	}
+	return h.health
 }
 
 // logUserActivity логирует активность пользователя через gRPC

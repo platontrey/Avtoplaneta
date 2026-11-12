@@ -72,6 +72,12 @@ func main() {
 
 	// 7. HTTP-обработчик и роуты
 	h := handler.NewHandler(priceListSvc, exportQueue, cfg)
+	if rdb != nil {
+		h.HealthChecker().AddReadinessCheck("redis", func(checkCtx context.Context) error {
+			return rdb.Ping(checkCtx).Err()
+		})
+	}
+
 	router := gin.Default()
 	handler.SetupRoutes(router, h)
 

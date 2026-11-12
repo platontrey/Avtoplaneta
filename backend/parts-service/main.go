@@ -96,6 +96,14 @@ func main() {
 	defectReports := service.NewDefectReportWorkflow(partCatalog, svc)
 	h := handler.NewHandler(svc, partCatalog, vehicleCatalog, defectReports)
 
+	// Регистрация readiness проверок (Postgres и Redis)
+	h.HealthChecker().AddPinger("postgres", dbPool)
+	if redisClient != nil {
+		h.HealthChecker().AddReadinessCheck("redis", func(checkCtx context.Context) error {
+			return redisClient.Ping(checkCtx).Err()
+		})
+	}
+
 	// Запуск gRPC-сервера
 	grpcPort := os.Getenv("GRPC_PORT")
 	if grpcPort == "" {

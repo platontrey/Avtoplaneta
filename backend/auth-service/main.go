@@ -112,6 +112,14 @@ func main() {
 	// HTTP Handler с явным DI
 	h := handler.NewHandler(authService, sessionStore, csrfManager, userRepo, cfg)
 
+	// Регистрация readiness проверок (Postgres и Redis)
+	h.HealthChecker().AddPinger("postgres", dbPool)
+	if redisClient != nil {
+		h.HealthChecker().AddReadinessCheck("redis", func(checkCtx context.Context) error {
+			return redisClient.Ping(checkCtx).Err()
+		})
+	}
+
 	// Подключение к parts-service по gRPC
 	if cfg.PartsGRPCAddr != "" {
 		partsConn, err := grpcclient.NewClient(cfg.PartsGRPCAddr)

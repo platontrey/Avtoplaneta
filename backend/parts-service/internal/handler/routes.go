@@ -11,9 +11,8 @@ import (
 
 // SetupRoutes настраивает маршруты для приложения с dependency injection
 func SetupRoutes(r *gin.Engine, handler *Handler) {
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "healthy"})
-	})
+	// Регистрация health-проверок (/health, /health/live, /health/ready, /live, /ready)
+	handler.HealthChecker().RegisterRoutes(r)
 
 	// Add metrics middleware via shared pkg/metrics (с защитой от Cardinality Explosion через c.FullPath())
 	r.Use(metrics.GinMiddleware("parts-service"))
@@ -117,7 +116,6 @@ func SetupRoutes(r *gin.Engine, handler *Handler) {
 	for _, path := range []string{"/api/v1/admin/shelves/:id", "/api/admin/shelves/:id"} {
 		r.DELETE(path, handler.DeleteShelfHandler)
 	}
-
 
 	// Статическое обслуживание файлов для загрузок
 	uploads := r.Group("/uploads", uploadsCacheControl())
