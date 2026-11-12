@@ -17,6 +17,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	partsv1 "avtoplaneta/gen/parts/v1"
+	"avtoplaneta/pkg/constants"
 	"avtoplaneta/pkg/userdirectory"
 	"parts-service/internal/catalog"
 	"parts-service/internal/config"
@@ -472,7 +473,7 @@ func (s *inventoryService) AddPart(ctx context.Context, part *domain.Part) (*dom
 
 	// Отправляем событие индексации в Redis Stream
 	err = s.redis.XAdd(ctx, &redis.XAddArgs{
-		Stream: "events:orders",
+		Stream: constants.StreamOrdersEvents,
 		Values: map[string]interface{}{
 			"type":    "part_index_requested",
 			"part_id": fmt.Sprintf("%d", createdPart.ID),
@@ -585,7 +586,7 @@ func (s *inventoryService) UpdatePart(ctx context.Context, id int64, updates map
 
 	// Отправляем событие индексации в Redis Stream
 	err = s.redis.XAdd(ctx, &redis.XAddArgs{
-		Stream: "events:orders",
+		Stream: constants.StreamOrdersEvents,
 		Values: map[string]interface{}{
 			"type":    "part_index_requested",
 			"part_id": fmt.Sprintf("%d", id),
@@ -623,7 +624,7 @@ func (s *inventoryService) DeletePart(ctx context.Context, id int64) error {
 
 	// Отправляем событие удаления из индекса в Redis Stream
 	err = s.redis.XAdd(ctx, &redis.XAddArgs{
-		Stream: "events:orders",
+		Stream: constants.StreamOrdersEvents,
 		Values: map[string]interface{}{
 			"type":    "part_delete_requested",
 			"part_id": fmt.Sprintf("%d", id),
@@ -943,7 +944,7 @@ func (s *inventoryService) BulkDeletePartsWithProto(ctx context.Context, req *pa
 			if s.redis != nil {
 				for _, id := range deletedIDs {
 					_ = s.redis.XAdd(bgCtx, &redis.XAddArgs{
-						Stream: "events:orders",
+						Stream: constants.StreamOrdersEvents,
 						Values: map[string]interface{}{
 							"type":    "part_delete_requested",
 							"part_id": fmt.Sprintf("%d", id),
@@ -1199,7 +1200,7 @@ func (s *inventoryService) syncPartIndex(ctx context.Context, id int64) {
 	// Отправка события в Redis Stream events:orders
 	if s.redis != nil {
 		err := s.redis.XAdd(ctx, &redis.XAddArgs{
-			Stream: "events:orders",
+			Stream: constants.StreamOrdersEvents,
 			Values: map[string]interface{}{
 				"type":    "part_index_requested",
 				"part_id": fmt.Sprintf("%d", id),

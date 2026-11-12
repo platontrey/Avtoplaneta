@@ -7,12 +7,13 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 
+	"avtoplaneta/pkg/constants"
 	"avtoplaneta/pkg/redisstream"
 	"export-service/internal/service"
 )
 
 const (
-	partsEventsStream = "events:orders"
+	partsEventsStream = constants.StreamOrdersEvents
 	exportEventsGroup = "export-catalog-sync-group"
 )
 

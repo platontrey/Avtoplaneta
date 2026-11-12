@@ -12,6 +12,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 
+	"avtoplaneta/pkg/constants"
 	"orders-service/internal/repository"
 )
 
@@ -38,7 +39,7 @@ func NewRedisEventConsumer(client *redis.Client, orderRepo repository.OrderRepos
 		cache:     cache,
 		group:     "orders-service-group",
 		consumer:  fmt.Sprintf("%s-%d", hostname, os.Getpid()),
-		stream:    "events:orders",
+		stream:    constants.StreamOrdersEvents,
 	}
 }
 

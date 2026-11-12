@@ -1,14 +1,16 @@
 package handler
 
 import (
-	"avtoplaneta/pkg/metrics"
 	"github.com/gin-gonic/gin"
 
+	"avtoplaneta/pkg/ginmw"
+	"avtoplaneta/pkg/metrics"
 	"export-service/internal/service"
 )
 
 // SetupRoutes конфигурирует HTTP-маршруты сервиса экспорта
 func SetupRoutes(router *gin.Engine, h *Handler) {
+	router.Use(ginmw.CORS())
 	router.Use(metrics.GinMiddleware("export-service"))
 
 	router.GET("/health", h.HealthCheck)

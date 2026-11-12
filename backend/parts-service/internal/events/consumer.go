@@ -11,6 +11,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 
+	"avtoplaneta/pkg/constants"
 	"parts-service/internal/search"
 	"parts-service/internal/service"
 )
@@ -36,7 +37,7 @@ func NewEventConsumer(client *redis.Client, service service.InventoryService) Ev
 		service:  service,
 		group:    "parts-service-group",
 		consumer: "worker-1",
-		stream:   "events:orders",
+		stream:   constants.StreamOrdersEvents,
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 
+	"avtoplaneta/pkg/constants"
 	"auth-service/internal/domain"
 	"auth-service/internal/security"
 )
@@ -241,7 +242,7 @@ func (h *Handler) RequireRole(requiredRole string) gin.HandlerFunc {
 			return
 		}
 
-		if userObj.Role != requiredRole && userObj.Role != "admin" {
+		if userObj.Role != requiredRole && userObj.Role != constants.RoleAdmin {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Недостаточно прав для выполнения этой операции"})
 			c.Abort()
 			return
@@ -254,9 +255,9 @@ func (h *Handler) RequireRole(requiredRole string) gin.HandlerFunc {
 // RequireMinRole проверяет иерархический минимальный уровень роли (operator < manager < admin)
 func (h *Handler) RequireMinRole(minRole string) gin.HandlerFunc {
 	roleHierarchy := map[string]int{
-		"operator": 1,
-		"manager":  2,
-		"admin":    3,
+		constants.RoleOperator: 1,
+		constants.RoleManager:  2,
+		constants.RoleAdmin:    3,
 	}
 
 	return func(c *gin.Context) {

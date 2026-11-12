@@ -11,6 +11,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 
+	"avtoplaneta/pkg/constants"
 	"avtoplaneta/pkg/metrics"
 	"parts-service/db/sqlc"
 	"parts-service/internal/repository"
@@ -22,12 +23,12 @@ const (
 	fallbackPollInterval = 3 * time.Second
 	defaultBatchSize    = 50
 	cleanupInterval     = 1 * time.Hour
-	outboxChannel       = "outbox_events_channel"
+	outboxChannel       = constants.OutboxChannelParts
 
 	statisticsCacheKey             = "parts:statistics"
 	inventoryCacheKey              = "parts:inventory"
 	inventoryCacheKeyWithoutPhotos = "parts:inventory:without_photos"
-	eventsOrdersStream             = "events:orders"
+	eventsOrdersStream             = constants.StreamOrdersEvents
 )
 
 // Dispatcher отвечает за надежную асинхронную обработку событий из transactional outbox таблицы
@@ -259,12 +260,12 @@ func (d *Dispatcher) handlePartUpsert(ctx context.Context, partID int64) error {
 
 	// 1. Синхронизируем поисковый индекс в Elasticsearch
 	if d.esClient != nil {
-		if part.Quantity >= 0 {
+		if constants.IsVisiblePart(int32(part.Quantity)) {
 			if err := d.esClient.IndexPart(part); err != nil {
 				return fmt.Errorf("failed to index part %d in Elasticsearch: %w", partID, err)
 			}
 		} else {
-			// Запчасть списана/продана (quantity == -1), удаляем из активного индекса
+			// Запчасть списана/продана (quantity == constants.PartQuantitySold), удаляем из активного индекса
 			if err := d.esClient.DeletePartFromIndex(partID); err != nil {
 				return fmt.Errorf("failed to delete sold part %d from Elasticsearch: %w", partID, err)
 			}

@@ -12,6 +12,7 @@ import (
 
 	"auth-service/db/sqlc"
 	"auth-service/internal/repository"
+	"avtoplaneta/pkg/constants"
 	"avtoplaneta/pkg/metrics"
 )
 
@@ -20,8 +21,8 @@ const (
 	fallbackPollInterval = 3 * time.Second
 	defaultBatchSize     = 50
 	cleanupInterval      = 1 * time.Hour
-	outboxChannel        = "auth_outbox_channel"
-	eventsOrdersStream   = "events:orders"
+	outboxChannel        = constants.OutboxChannelAuth
+	eventsOrdersStream   = constants.StreamOrdersEvents
 )
 
 // Dispatcher отвечает за надежную асинхронную обработку событий из transactional outbox таблицы

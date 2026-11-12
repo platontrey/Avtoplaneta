@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode"
 
+	"avtoplaneta/pkg/constants"
 	"parts-service/internal/catalog"
 	"parts-service/internal/domain"
 )
@@ -523,7 +524,7 @@ func BuildElasticsearchQuery(params domain.InventoryQueryParams) map[string]inte
 	filter = append(filter, map[string]interface{}{
 		"range": map[string]interface{}{
 			"quantity": map[string]interface{}{
-				"gte": 0,
+				"gte": constants.PartQuantityDefective,
 			},
 		},
 	})

@@ -6,6 +6,8 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+
+	"avtoplaneta/pkg/constants"
 )
 
 // EventPublisher определяет интерфейс для публикации событий
@@ -40,7 +42,7 @@ func (p *RedisEventPublisher) PublishOrderCompleted(ctx context.Context, orderID
 	}
 
 	err := p.client.XAdd(ctx, &redis.XAddArgs{
-		Stream: "events:orders",
+		Stream: constants.StreamOrdersEvents,
 		Values: event,
 	}).Err()
 
@@ -72,7 +74,7 @@ func (p *RedisEventPublisher) PublishUserAction(ctx context.Context, userID, act
 	}
 
 	err := p.client.XAdd(ctx, &redis.XAddArgs{
-		Stream: "events:orders",
+		Stream: constants.StreamOrdersEvents,
 		Values: event,
 	}).Err()
 

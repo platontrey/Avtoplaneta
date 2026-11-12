@@ -11,6 +11,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 
+	"avtoplaneta/pkg/constants"
 	"avtoplaneta/pkg/metrics"
 	"orders-service/db/sqlc"
 	"orders-service/internal/repository"
@@ -21,8 +22,8 @@ const (
 	fallbackPollInterval = 3 * time.Second
 	defaultBatchSize     = 50
 	cleanupInterval      = 1 * time.Hour
-	outboxChannel        = "orders_outbox_channel"
-	eventsOrdersStream   = "events:orders"
+	outboxChannel        = constants.OutboxChannelOrders
+	eventsOrdersStream   = constants.StreamOrdersEvents
 )
 
 // Dispatcher отвечает за надежную асинхронную обработку событий из transactional outbox таблицы

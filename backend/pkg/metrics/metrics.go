@@ -151,3 +151,19 @@ func (m *OutboxMetrics) IncFailed(eventType string) {
 func (m *OutboxMetrics) ObserveDuration(eventType string, duration time.Duration) {
 	m.ProcessingDuration.WithLabelValues(m.serviceName, eventType).Observe(duration.Seconds())
 }
+
+// RecordEventProcessed реализует outbox.MetricsRecorder
+func (m *OutboxMetrics) RecordEventProcessed(eventType string, durationSec float64) {
+	m.IncProcessed(eventType)
+	if m.ProcessingDuration != nil {
+		m.ProcessingDuration.WithLabelValues(m.serviceName, eventType).Observe(durationSec)
+	}
+}
+
+// RecordEventFailed реализует outbox.MetricsRecorder
+func (m *OutboxMetrics) RecordEventFailed(eventType string, durationSec float64) {
+	m.IncFailed(eventType)
+	if m.ProcessingDuration != nil {
+		m.ProcessingDuration.WithLabelValues(m.serviceName, eventType).Observe(durationSec)
+	}
+}

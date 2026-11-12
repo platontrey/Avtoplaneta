@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 
+	"avtoplaneta/pkg/constants"
 	"avtoplaneta/pkg/metrics"
 )
 
@@ -33,10 +34,10 @@ func SetupRoutes(r *gin.Engine, h *Handler) {
 
 	// Traefik ForwardAuth эндпоинты
 	r.GET("/auth/verify", h.AuthMiddleware, h.VerifyAuthHandler)
-	r.GET("/auth/verify-admin", h.AuthMiddleware, h.RequireRole("admin"), h.VerifyAuthHandler)
+	r.GET("/auth/verify-admin", h.AuthMiddleware, h.RequireRole(constants.RoleAdmin), h.VerifyAuthHandler)
 
 	// Список пользователей для мессенджера и операторов
-	r.GET("/api/users", h.AuthMiddleware, h.RequireMinRole("operator"), h.GetUsersHandler)
+	r.GET("/api/users", h.AuthMiddleware, h.RequireMinRole(constants.RoleOperator), h.GetUsersHandler)
 	r.GET("/api/users/me", h.AuthMiddleware, h.GetCurrentUserHandler)
 
 	// Управление личным профилем текущего пользователя
@@ -67,18 +68,18 @@ func SetupRoutes(r *gin.Engine, h *Handler) {
 		admin.Use(h.AuthMiddleware)
 		{
 			// Управление пользователями - требуется роль admin
-			admin.POST("/users", h.RequireRole("admin"), h.CreateUserHandler)
-			admin.GET("/users", h.RequireMinRole("manager"), h.GetUsersHandler)
-			admin.PUT("/users/:id", h.RequireRole("admin"), h.UpdateUserHandler)
-			admin.DELETE("/users/:id", h.RequireRole("admin"), h.DeleteUserHandler)
+			admin.POST("/users", h.RequireRole(constants.RoleAdmin), h.CreateUserHandler)
+			admin.GET("/users", h.RequireMinRole(constants.RoleManager), h.GetUsersHandler)
+			admin.PUT("/users/:id", h.RequireRole(constants.RoleAdmin), h.UpdateUserHandler)
+			admin.DELETE("/users/:id", h.RequireRole(constants.RoleAdmin), h.DeleteUserHandler)
 
 			// Управление сервером - требуется роль admin
-			admin.GET("/status", h.RequireRole("admin"), h.GetServerStatusHandler)
-			admin.GET("/logs", h.RequireRole("admin"), h.GetServerLogsHandler)
+			admin.GET("/status", h.RequireRole(constants.RoleAdmin), h.GetServerStatusHandler)
+			admin.GET("/logs", h.RequireRole(constants.RoleAdmin), h.GetServerLogsHandler)
 
 			// Логи активности пользователей - требуется роль admin
-			admin.GET("/user-activity-logs", h.RequireRole("admin"), h.GetUserActivityLogsHandler)
-			admin.POST("/user-activity-logs", h.RequireRole("admin"), h.LogUserActivityHandler)
+			admin.GET("/user-activity-logs", h.RequireRole(constants.RoleAdmin), h.GetUserActivityLogsHandler)
+			admin.POST("/user-activity-logs", h.RequireRole(constants.RoleAdmin), h.LogUserActivityHandler)
 		}
 	}
 

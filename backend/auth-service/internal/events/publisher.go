@@ -6,6 +6,8 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+
+	"avtoplaneta/pkg/constants"
 )
 
 // UserEventPublisher определяет интерфейс публикации событий пользователей
@@ -30,7 +32,7 @@ func (p *RedisUserEventPublisher) PublishUserRenamed(ctx context.Context, userID
 	}
 
 	err := p.client.XAdd(ctx, &redis.XAddArgs{
-		Stream: "events:orders",
+		Stream: constants.StreamOrdersEvents,
 		Values: map[string]interface{}{
 			"type":      "seller_renamed",
 			"seller_id": fmt.Sprintf("%d", userID),
