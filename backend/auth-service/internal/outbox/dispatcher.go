@@ -11,8 +11,8 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"auth-service/db/sqlc"
-	"auth-service/internal/metrics"
 	"auth-service/internal/repository"
+	"avtoplaneta/pkg/metrics"
 )
 
 const (
@@ -32,6 +32,7 @@ type Dispatcher struct {
 	redisClient  *redis.Client
 	pollInterval time.Duration
 	batchSize    int32
+	metrics      *metrics.OutboxMetrics
 }
 
 // NewDispatcher создает новый экземпляр диспетчера Outbox для auth-service
@@ -46,6 +47,7 @@ func NewDispatcher(
 		redisClient:  redisClient,
 		pollInterval: defaultPollInterval,
 		batchSize:    defaultBatchSize,
+		metrics:      metrics.NewOutboxMetrics("auth-service"),
 	}
 }
 
@@ -163,11 +165,13 @@ func (d *Dispatcher) processPendingEvents(ctx context.Context) {
 
 			start := time.Now()
 			err := d.processEvent(ctx, event)
-			duration := time.Since(start).Seconds()
+			duration := time.Since(start)
 
 			if err != nil {
-				metrics.OutboxEventsFailedTotal.WithLabelValues(event.EventType).Inc()
-				metrics.OutboxProcessingDuration.WithLabelValues(event.EventType).Observe(duration)
+				if d.metrics != nil {
+					d.metrics.IncFailed(event.EventType)
+					d.metrics.ObserveDuration(event.EventType, duration)
+				}
 
 				logrus.WithError(err).WithFields(logrus.Fields{
 					"event_id":     event.ID,
@@ -179,8 +183,10 @@ func (d *Dispatcher) processPendingEvents(ctx context.Context) {
 					logrus.WithError(markErr).WithField("event_id", event.ID).Error("Auth Outbox: failed to mark event as failed")
 				}
 			} else {
-				metrics.OutboxEventsProcessedTotal.WithLabelValues(event.EventType).Inc()
-				metrics.OutboxProcessingDuration.WithLabelValues(event.EventType).Observe(duration)
+				if d.metrics != nil {
+					d.metrics.IncProcessed(event.EventType)
+					d.metrics.ObserveDuration(event.EventType, duration)
+				}
 
 				if markErr := d.userRepo.MarkOutboxEventProcessed(ctx, event.ID); markErr != nil {
 					logrus.WithError(markErr).WithField("event_id", event.ID).Error("Auth Outbox: failed to mark event as processed")

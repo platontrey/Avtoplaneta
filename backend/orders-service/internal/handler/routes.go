@@ -1,46 +1,10 @@
 package handler
 
 import (
-	"fmt"
-	"time"
-
 	"github.com/gin-gonic/gin"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-)
 
-var (
-	httpRequestsTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "avtoplaneta_orders_http_requests_total",
-			Help: "Total number of HTTP requests in orders-service",
-		},
-		[]string{"method", "endpoint", "status"},
-	)
-	httpRequestDuration = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "avtoplaneta_orders_http_request_duration_seconds",
-			Help:    "HTTP request duration in seconds in orders-service",
-			Buckets: prometheus.DefBuckets,
-		},
-		[]string{"method", "endpoint"},
-	)
-	httpRequestsErrorsTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "avtoplaneta_orders_http_requests_errors_total",
-			Help: "Total number of HTTP request errors in orders-service",
-		},
-		[]string{"method", "endpoint", "status"},
-	)
+	"avtoplaneta/pkg/metrics"
 )
-
-func init() {
-	prometheus.MustRegister(
-		httpRequestsTotal,
-		httpRequestDuration,
-		httpRequestsErrorsTotal,
-	)
-}
 
 // SetupRoutes настраивает маршруты для приложения с dependency injection
 func SetupRoutes(r *gin.Engine, handler *Handler) {
@@ -48,11 +12,11 @@ func SetupRoutes(r *gin.Engine, handler *Handler) {
 		c.JSON(200, gin.H{"status": "healthy"})
 	})
 
-	// Add metrics middleware
-	r.Use(metricsMiddleware())
+	// Add metrics middleware via shared pkg/metrics (с защитой от Cardinality Explosion через c.FullPath())
+	r.Use(metrics.GinMiddleware("orders-service"))
 
 	// Add /metrics endpoint
-	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	r.GET("/metrics", metrics.Handler())
 
 	// Применение middleware аутентификации ко всем бизнес-маршрутам
 	authorized := r.Group("/")
@@ -149,27 +113,6 @@ func SetupRoutes(r *gin.Engine, handler *Handler) {
 			v1.PATCH("/customers/:id", handler.UpdateCustomerHandler)
 			v1.PUT("/customers/:id", handler.UpdateCustomerHandler)
 			v1.DELETE("/customers/:id", handler.DeleteCustomerHandler)
-		}
-	}
-}
-
-// metricsMiddleware измеряет HTTP-задержку и пропускную способность
-func metricsMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		start := time.Now()
-		method := c.Request.Method
-		path := c.Request.URL.Path
-
-		c.Next()
-
-		duration := time.Since(start).Seconds()
-		status := c.Writer.Status()
-
-		httpRequestsTotal.WithLabelValues(method, path, fmt.Sprintf("%d", status)).Inc()
-		httpRequestDuration.WithLabelValues(method, path).Observe(duration)
-
-		if status >= 400 {
-			httpRequestsErrorsTotal.WithLabelValues(method, path, fmt.Sprintf("%d", status)).Inc()
 		}
 	}
 }

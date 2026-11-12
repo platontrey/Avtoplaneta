@@ -2,9 +2,8 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"auth-service/internal/metrics"
+	"avtoplaneta/pkg/metrics"
 )
 
 // SetupRoutes настраивает маршруты для приложения с dependency injection
@@ -13,11 +12,11 @@ func SetupRoutes(r *gin.Engine, h *Handler) {
 		c.JSON(200, gin.H{"status": "healthy"})
 	})
 
-	// Add metrics middleware
-	r.Use(metrics.MetricsMiddleware())
+	// Add metrics middleware via shared pkg/metrics (с защитой от Cardinality Explosion через c.FullPath())
+	r.Use(metrics.GinMiddleware("auth-service"))
 
 	// Add /metrics endpoint
-	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	r.GET("/metrics", metrics.Handler())
 
 	// CORS middleware
 	r.Use(h.CORSMiddleware())
@@ -49,9 +48,9 @@ func SetupRoutes(r *gin.Engine, h *Handler) {
 
 	// Зеркалирование для API клиентов /api/users/me
 	r.PUT("/api/users/me", h.AuthMiddleware, h.UpdateProfileHandler)
-	r.POST("/api/users/me/password", h.AuthMiddleware, h.ChangePasswordHandler)
-	r.POST("/api/users/me/avatar", h.AuthMiddleware, h.UploadAvatarHandler)
-	r.DELETE("/api/users/me/avatar", h.AuthMiddleware, h.DeleteAvatarHandler)
+	r.POST("/api/users/me/password", h.ChangePasswordHandler)
+	r.POST("/api/users/me/avatar", h.UploadAvatarHandler)
+	r.DELETE("/api/users/me/avatar", h.DeleteAvatarHandler)
 
 	// Раздача статических аватаров
 	r.Static("/auth/avatars", "./uploads/avatars")

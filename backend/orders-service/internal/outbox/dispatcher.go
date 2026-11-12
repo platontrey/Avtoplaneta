@@ -11,8 +11,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 
+	"avtoplaneta/pkg/metrics"
 	"orders-service/db/sqlc"
-	"orders-service/internal/metrics"
 	"orders-service/internal/repository"
 )
 
@@ -35,6 +35,7 @@ type Dispatcher struct {
 	cache        repository.CacheService
 	pollInterval time.Duration
 	batchSize    int32
+	metrics      *metrics.OutboxMetrics
 }
 
 // NewDispatcher создает новый экземпляр диспетчера Outbox для orders-service
@@ -53,6 +54,7 @@ func NewDispatcher(
 		cache:        cache,
 		pollInterval: defaultPollInterval,
 		batchSize:    defaultBatchSize,
+		metrics:      metrics.NewOutboxMetrics("orders-service"),
 	}
 }
 
@@ -170,11 +172,13 @@ func (d *Dispatcher) processPendingEvents(ctx context.Context) {
 
 			start := time.Now()
 			err := d.processEvent(ctx, event)
-			duration := time.Since(start).Seconds()
+			duration := time.Since(start)
 
 			if err != nil {
-				metrics.OutboxEventsFailedTotal.WithLabelValues(event.EventType).Inc()
-				metrics.OutboxProcessingDuration.WithLabelValues(event.EventType).Observe(duration)
+				if d.metrics != nil {
+					d.metrics.IncFailed(event.EventType)
+					d.metrics.ObserveDuration(event.EventType, duration)
+				}
 
 				logrus.WithError(err).WithFields(logrus.Fields{
 					"event_id":     event.ID,
@@ -186,8 +190,10 @@ func (d *Dispatcher) processPendingEvents(ctx context.Context) {
 					logrus.WithError(markErr).WithField("event_id", event.ID).Error("Orders Outbox: failed to mark event as failed")
 				}
 			} else {
-				metrics.OutboxEventsProcessedTotal.WithLabelValues(event.EventType).Inc()
-				metrics.OutboxProcessingDuration.WithLabelValues(event.EventType).Observe(duration)
+				if d.metrics != nil {
+					d.metrics.IncProcessed(event.EventType)
+					d.metrics.ObserveDuration(event.EventType, duration)
+				}
 
 				if markErr := d.orderRepo.MarkOutboxEventProcessed(ctx, event.ID); markErr != nil {
 					logrus.WithError(markErr).WithField("event_id", event.ID).Error("Orders Outbox: failed to mark event as processed")

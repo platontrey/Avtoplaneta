@@ -1,13 +1,12 @@
 package main
 
 import (
-	"strconv"
-	"time"
-
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"avtoplaneta/pkg/metrics"
 )
+
 var (
 	dbErrorsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -23,28 +22,6 @@ var (
 		},
 		[]string{"operation", "service", "status"},
 	)
-	httpRequestsTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "avtoplaneta_http_requests_total",
-			Help: "Total number of HTTP requests",
-		},
-		[]string{"method", "endpoint", "status"},
-	)
-	httpRequestDuration = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "avtoplaneta_http_request_duration_seconds",
-			Help:    "HTTP request duration in seconds",
-			Buckets: prometheus.DefBuckets,
-		},
-		[]string{"method", "endpoint"},
-	)
-	httpRequestsErrorsTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "avtoplaneta_http_requests_errors_total",
-			Help: "Total number of HTTP request errors",
-		},
-		[]string{"method", "endpoint", "status"},
-	)
 )
 
 func RecordDBError(operation, service string) {
@@ -55,12 +32,9 @@ func RecordBusinessOperation(operation, service, status string) {
 }
 
 func init() {
-	// Register metrics with Prometheus (avoid registering multiple times if init runs twice in tests)
+	// Register domain-specific metrics with Prometheus
 	_ = prometheus.Register(dbErrorsTotal)
 	_ = prometheus.Register(businessOperationsTotal)
-	_ = prometheus.Register(httpRequestsTotal)
-	_ = prometheus.Register(httpRequestDuration)
-	_ = prometheus.Register(httpRequestsErrorsTotal)
 }
 
 func setupRoutes(r *gin.Engine) {
@@ -68,9 +42,11 @@ func setupRoutes(r *gin.Engine) {
 		c.JSON(200, gin.H{"status": "healthy"})
 	})
 
-	r.Use(metricsMiddleware())
+	// Add metrics middleware via shared pkg/metrics (с защитой от Cardinality Explosion через c.FullPath())
+	r.Use(metrics.GinMiddleware("messaging-service"))
 
-	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	// Add /metrics endpoint
+	r.GET("/metrics", metrics.Handler())
 
 	// Основные v1 маршруты
 	registerMessagingEndpoints(r.Group("/api/v1/messaging"))
@@ -124,25 +100,4 @@ func registerMessagingEndpoints(api *gin.RouterGroup) {
 	api.GET("/drom/auth/status", getDromAuthStatus)
 	api.POST("/drom/auth/login", loginDrom)
 	api.POST("/drom/auth/session", saveDromSession)
-}
-
-func metricsMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		start := time.Now()
-		c.Next()
-		duration := time.Since(start).Seconds()
-		status := strconv.Itoa(c.Writer.Status())
-		method := c.Request.Method
-		endpoint := c.FullPath()
-		if endpoint == "" {
-			endpoint = "unknown"
-		}
-
-		httpRequestsTotal.WithLabelValues(method, endpoint, status).Inc()
-		httpRequestDuration.WithLabelValues(method, endpoint).Observe(duration)
-
-		if c.Writer.Status() >= 400 {
-			httpRequestsErrorsTotal.WithLabelValues(method, endpoint, status).Inc()
-		}
-	}
 }

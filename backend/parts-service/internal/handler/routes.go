@@ -4,9 +4,8 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"parts-service/internal/metrics"
+	"avtoplaneta/pkg/metrics"
 )
 
 // SetupRoutes настраивает маршруты для приложения с dependency injection
@@ -15,11 +14,11 @@ func SetupRoutes(r *gin.Engine, handler *Handler) {
 		c.JSON(200, gin.H{"status": "healthy"})
 	})
 
-	// Add metrics middleware
-	r.Use(metrics.MetricsMiddleware())
+	// Add metrics middleware via shared pkg/metrics (с защитой от Cardinality Explosion через c.FullPath())
+	r.Use(metrics.GinMiddleware("parts-service"))
 
 	// Add /metrics endpoint
-	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	r.GET("/metrics", metrics.Handler())
 
 	// v1 и legacy маршруты для инвентаря
 	for _, path := range []string{"/api/v1/inventory", "/api/inventory"} {
