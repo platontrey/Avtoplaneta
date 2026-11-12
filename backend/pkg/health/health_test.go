@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -42,6 +43,10 @@ func TestChecker_AllHealthy(t *testing.T) {
 	assert.Contains(t, w.Body.String(), `"service":"test-service"`)
 	assert.Contains(t, w.Body.String(), `"database":"ok"`)
 	assert.Contains(t, w.Body.String(), `"cache":"ok"`)
+
+	// Check that Prometheus gauge is 1
+	gaugeVal := testutil.ToFloat64(healthStatusGauge.WithLabelValues("test-service", "database"))
+	assert.Equal(t, float64(1), gaugeVal)
 }
 
 func TestChecker_ReadinessFailure(t *testing.T) {
@@ -73,6 +78,10 @@ func TestChecker_ReadinessFailure(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, wLive.Code)
 	assert.Contains(t, wLive.Body.String(), `"status":"healthy"`)
+
+	// Check that Prometheus gauge is 0 for failed check
+	gaugeVal := testutil.ToFloat64(healthStatusGauge.WithLabelValues("test-service", "database"))
+	assert.Equal(t, float64(0), gaugeVal)
 }
 
 func TestChecker_Timeout(t *testing.T) {

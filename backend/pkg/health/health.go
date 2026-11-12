@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
@@ -15,6 +16,37 @@ const (
 
 	DefaultTimeout = 3 * time.Second
 )
+
+var (
+	healthMetricsOnce sync.Once
+
+	healthStatusGauge = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "service_health_status",
+			Help: "Текущий статус здоровья компонента или сервиса (1 = healthy, 0 = unhealthy)",
+		},
+		[]string{"service", "check"},
+	)
+
+	healthDurationSeconds = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "service_health_check_duration_seconds",
+			Help: "Длительность выполнения проверки здоровья компонента в секундах",
+		},
+		[]string{"service", "check"},
+	)
+)
+
+func registerHealthMetrics() {
+	healthMetricsOnce.Do(func() {
+		_ = prometheus.Register(healthStatusGauge)
+		_ = prometheus.Register(healthDurationSeconds)
+	})
+}
+
+func init() {
+	registerHealthMetrics()
+}
 
 // CheckFunc функция проверки отдельного компонента (БД, кэш, внешние API)
 type CheckFunc func(ctx context.Context) error
@@ -39,6 +71,7 @@ type Checker struct {
 	mu          sync.RWMutex
 	readiness   map[string]CheckFunc
 	liveness    map[string]CheckFunc
+	periodicOnce sync.Once
 }
 
 // Option функциональная опция для настройки Checker
@@ -97,7 +130,7 @@ func (c *Checker) AddPinger(name string, pinger Pinger) {
 	})
 }
 
-// CheckReadiness выполняет все readiness-проверки параллельно
+// CheckReadiness выполняет все readiness-проверки параллельно и обновляет Prometheus метрики
 func (c *Checker) CheckReadiness(ctx context.Context) (Status, bool) {
 	if c == nil {
 		return Status{Status: StatusHealthy, Timestamp: time.Now().UTC().Format(time.RFC3339)}, true
@@ -138,11 +171,17 @@ func (c *Checker) runChecks(ctx context.Context, checks map[string]CheckFunc) (S
 	var wg sync.WaitGroup
 	allHealthy := true
 
+	serviceName := ""
+	if c != nil {
+		serviceName = c.serviceName
+	}
+
 	for name, fn := range checks {
 		wg.Add(1)
 		go func(checkName string, checkFn CheckFunc) {
 			defer wg.Done()
 
+			start := time.Now()
 			errChan := make(chan error, 1)
 			go func() {
 				errChan <- checkFn(timeoutCtx)
@@ -155,14 +194,23 @@ func (c *Checker) runChecks(ctx context.Context, checks map[string]CheckFunc) (S
 			case err := <-errChan:
 				checkErr = err
 			}
+			duration := time.Since(start)
 
 			resultsMu.Lock()
 			defer resultsMu.Unlock()
 			if checkErr != nil {
 				allHealthy = false
 				results[checkName] = checkErr.Error()
+				if serviceName != "" {
+					healthStatusGauge.WithLabelValues(serviceName, checkName).Set(0)
+					healthDurationSeconds.WithLabelValues(serviceName, checkName).Set(duration.Seconds())
+				}
 			} else {
 				results[checkName] = "ok"
+				if serviceName != "" {
+					healthStatusGauge.WithLabelValues(serviceName, checkName).Set(1)
+					healthDurationSeconds.WithLabelValues(serviceName, checkName).Set(duration.Seconds())
+				}
 			}
 		}(name, fn)
 	}
@@ -174,9 +222,12 @@ func (c *Checker) runChecks(ctx context.Context, checks map[string]CheckFunc) (S
 		overallStatus = StatusUnhealthy
 	}
 
-	serviceName := ""
-	if c != nil {
-		serviceName = c.serviceName
+	if serviceName != "" {
+		overallVal := 1.0
+		if !allHealthy {
+			overallVal = 0.0
+		}
+		healthStatusGauge.WithLabelValues(serviceName, "overall").Set(overallVal)
 	}
 
 	return Status{
@@ -185,6 +236,31 @@ func (c *Checker) runChecks(ctx context.Context, checks map[string]CheckFunc) (S
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Checks:    results,
 	}, allHealthy
+}
+
+// StartPeriodicChecks запускает фоновый опрос проверок для непрерывного обновления метрик Prometheus
+func (c *Checker) StartPeriodicChecks(ctx context.Context, interval time.Duration) {
+	if c == nil || interval <= 0 {
+		return
+	}
+	c.periodicOnce.Do(func() {
+		go func() {
+			// Первый опрос сразу при запуске
+			c.CheckReadiness(ctx)
+
+			ticker := time.NewTicker(interval)
+			defer ticker.Stop()
+
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					c.CheckReadiness(ctx)
+				}
+			}
+		}()
+	})
 }
 
 // LiveHandler возвращает Gin-обработчик для проверки жизнеспособности (liveness)
@@ -217,6 +293,7 @@ func (c *Checker) ReadyHandler() gin.HandlerFunc {
 // - GET /health/live  -> liveness
 // - GET /ready        -> readiness алиас
 // - GET /live         -> liveness алиас
+// Также запускает периодический опрос для обновления Prometheus метрик.
 func (c *Checker) RegisterRoutes(r gin.IRoutes) {
 	if c == nil {
 		c = NewChecker("service")
@@ -230,4 +307,7 @@ func (c *Checker) RegisterRoutes(r gin.IRoutes) {
 
 	r.GET("/health/live", liveHandler)
 	r.GET("/live", liveHandler)
+
+	// Автоматический фоновый опрос каждые 15 секунд (синхронно со scrape_interval Prometheus)
+	c.StartPeriodicChecks(context.Background(), 15*time.Second)
 }
