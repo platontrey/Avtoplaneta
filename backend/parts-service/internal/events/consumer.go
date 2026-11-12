@@ -2,16 +2,14 @@ package events
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 
 	"avtoplaneta/pkg/constants"
+	"avtoplaneta/pkg/redisstream"
 	"parts-service/internal/search"
 	"parts-service/internal/service"
 )
@@ -21,193 +19,56 @@ type EventConsumer interface {
 	Start(ctx context.Context) error
 }
 
-// RedisEventConsumer реализует EventConsumer с использованием Redis Streams
+// RedisEventConsumer реализует EventConsumer с использованием Redis Streams через pkg/redisstream
 type RedisEventConsumer struct {
 	client   *redis.Client
 	service  service.InventoryService
 	group    string
 	consumer string
 	stream   string
+	worker   *redisstream.ConsumerGroupWorker
 }
 
 // NewEventConsumer создает новый consumer событий
 func NewEventConsumer(client *redis.Client, service service.InventoryService) EventConsumer {
-	return &RedisEventConsumer{
+	c := &RedisEventConsumer{
 		client:   client,
 		service:  service,
 		group:    "parts-service-group",
 		consumer: "worker-1",
 		stream:   constants.StreamOrdersEvents,
 	}
+
+	if client != nil {
+		c.worker = redisstream.NewConsumerGroupWorker(client, c.processMessage, redisstream.ConsumerConfig{
+			Stream:    c.stream,
+			Group:     c.group,
+			Consumer:  c.consumer,
+			EnableDLQ: true,
+		})
+	}
+
+	return c
 }
 
-// Start запускает обработку событий
+// Start запускает обработку событий через универсальный ConsumerGroupWorker
 func (c *RedisEventConsumer) Start(ctx context.Context) error {
-	// Создаем consumer group, если не существует
-	err := c.client.XGroupCreateMkStream(ctx, c.stream, c.group, "$").Err()
-	if err != nil && err.Error() != "BUSYGROUP Consumer Group name already exists" {
-		logrus.WithError(err).Error("Failed to create consumer group")
-		return err
-	}
-
-	logrus.Info("Starting Redis Streams consumer for order events")
-
-	// Запускаем фоновый цикл восстановления зависших сообщений каждые 30 секунд
-	go func() {
-		ticker := time.NewTicker(30 * time.Second)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				c.recoverPendingMessages(ctx)
-			}
-		}
-	}()
-
-	// Выполняем первоначальное восстановление при старте
-	c.recoverPendingMessages(ctx)
-
-	for {
-		select {
-		case <-ctx.Done():
-			logrus.Info("Stopping Redis Streams consumer")
+	if c.worker == nil {
+		if c.client == nil {
+			logrus.Warn("Redis client is nil, skipping event consumer")
 			return nil
-		default:
-			// Читаем сообщения из потока (новые сообщения с ">")
-			streams, err := c.client.XReadGroup(ctx, &redis.XReadGroupArgs{
-				Group:    c.group,
-				Consumer: c.consumer,
-				Streams:  []string{c.stream, ">"},
-				Count:    10,
-				Block:    time.Second * 5, // Блокируем на 5 секунд
-			}).Result()
-
-			if err != nil && !errors.Is(err, redis.Nil) {
-				logrus.WithError(err).Error("Failed to read from Redis Streams")
-				time.Sleep(time.Second) // Защита от частых ошибок при падении Redis
-				continue
-			}
-
-			if len(streams) == 0 {
-				continue
-			}
-
-			// Обрабатываем сообщения
-			for _, stream := range streams {
-				for _, msg := range stream.Messages {
-					if err := c.processMessage(ctx, msg); err != nil {
-						logrus.WithError(err).WithField("message_id", msg.ID).Error("Failed to process message, letting it stay in PEL for retry")
-						continue // НЕ подтверждаем (no XAck), оно останется в PEL и будет повторно обработано фоновым циклом
-					}
-
-					// Подтверждаем обработку
-					if err := c.client.XAck(ctx, c.stream, c.group, msg.ID).Err(); err != nil {
-						logrus.WithError(err).WithField("message_id", msg.ID).Error("Failed to acknowledge message")
-					}
-				}
-			}
 		}
+		c.worker = redisstream.NewConsumerGroupWorker(c.client, c.processMessage, redisstream.ConsumerConfig{
+			Stream:    c.stream,
+			Group:     c.group,
+			Consumer:  c.consumer,
+			EnableDLQ: true,
+		})
 	}
+	return c.worker.Start(ctx)
 }
 
-// recoverPendingMessages обрабатывает зависшие сообщения (PEL), закрепленные за текущим воркером
-func (c *RedisEventConsumer) recoverPendingMessages(ctx context.Context) {
-	streams, err := c.client.XReadGroup(ctx, &redis.XReadGroupArgs{
-		Group:    c.group,
-		Consumer: c.consumer,
-		Streams:  []string{c.stream, "0"}, // 0 читает зависшие (pending) сообщения текущего воркера
-		Count:    10,
-		Block:    -1, // не блокируем
-	}).Result()
-
-	if err != nil {
-		if !errors.Is(err, redis.Nil) {
-			logrus.WithError(err).Error("Failed to read pending messages from Redis Streams")
-		}
-		return
-	}
-
-	for _, stream := range streams {
-		for _, msg := range stream.Messages {
-			logrus.WithField("message_id", msg.ID).Info("Recovering pending message from PEL")
-
-			// Проверяем количество попыток доставки сообщения
-			timesDelivered := c.getDeliveryCount(ctx, msg.ID)
-			if timesDelivered > 5 {
-				logrus.WithFields(logrus.Fields{
-					"message_id":      msg.ID,
-					"times_delivered": timesDelivered,
-				}).Warn("Message exceeded max delivery attempts (5), sending to DLQ")
-
-				c.sendToDLQ(ctx, msg, fmt.Errorf("exceeded max delivery attempts (%d)", timesDelivered))
-
-				// Подтверждаем в основном стриме, чтобы удалить его из очереди
-				c.client.XAck(ctx, c.stream, c.group, msg.ID)
-				continue
-			}
-
-			if err := c.processMessage(ctx, msg); err != nil {
-				logrus.WithError(err).WithField("message_id", msg.ID).Error("Failed to process recovered pending message")
-				continue
-			}
-
-			// Успешно обработано — подтверждаем
-			if err := c.client.XAck(ctx, c.stream, c.group, msg.ID).Err(); err != nil {
-				logrus.WithError(err).WithField("message_id", msg.ID).Error("Failed to acknowledge recovered message")
-			}
-		}
-	}
-}
-
-// getDeliveryCount возвращает количество доставок сообщения из XPENDING
-func (c *RedisEventConsumer) getDeliveryCount(ctx context.Context, messageID string) int64 {
-	pending, err := c.client.XPendingExt(ctx, &redis.XPendingExtArgs{
-		Stream: c.stream,
-		Group:  c.group,
-		Start:  messageID,
-		End:    messageID,
-		Count:  1,
-	}).Result()
-
-	if err != nil || len(pending) == 0 {
-		return 1 // Если не удалось получить, считаем как 1 попытку
-	}
-
-	return pending[0].RetryCount
-}
-
-// sendToDLQ отправляет сообщение в Dead Letter Queue (стрим с суффиксом :dead)
-func (c *RedisEventConsumer) sendToDLQ(ctx context.Context, msg redis.XMessage, err error) {
-	dlqValues := make(map[string]interface{})
-	for k, v := range msg.Values {
-		dlqValues[k] = v
-	}
-	dlqValues["dlq_error"] = err.Error()
-	dlqValues["dlq_time"] = time.Now().Format(time.RFC3339)
-	dlqValues["original_id"] = msg.ID
-
-	dlqStream := c.stream + ":dead"
-	errAdd := c.client.XAdd(ctx, &redis.XAddArgs{
-		Stream: dlqStream,
-		Values: dlqValues,
-	}).Err()
-
-	if errAdd != nil {
-		logrus.WithError(errAdd).WithFields(logrus.Fields{
-			"original_id": msg.ID,
-			"dlq_stream":  dlqStream,
-		}).Error("Failed to publish message to DLQ")
-	} else {
-		logrus.WithFields(logrus.Fields{
-			"original_id": msg.ID,
-			"dlq_stream":  dlqStream,
-		}).Info("Message successfully moved to DLQ")
-	}
-}
-
-// processMessage обрабатывает отдельное сообщение
+// processMessage обрабатывает отдельное входящее сообщение
 func (c *RedisEventConsumer) processMessage(ctx context.Context, msg redis.XMessage) error {
 	eventType, ok := msg.Values["type"].(string)
 	if !ok {
