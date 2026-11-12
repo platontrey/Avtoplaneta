@@ -13,27 +13,19 @@ import (
 
 	"avtoplaneta/pkg/constants"
 	"avtoplaneta/pkg/metrics"
-	"parts-service/db/sqlc"
+	"avtoplaneta/pkg/outbox"
 	"parts-service/internal/repository"
 	"parts-service/internal/search"
 )
 
 const (
-	defaultPollInterval = 100 * time.Millisecond
-	fallbackPollInterval = 3 * time.Second
-	defaultBatchSize    = 50
-	cleanupInterval     = 1 * time.Hour
-	outboxChannel       = constants.OutboxChannelParts
-
 	statisticsCacheKey             = "parts:statistics"
 	inventoryCacheKey              = "parts:inventory"
 	inventoryCacheKeyWithoutPhotos = "parts:inventory:without_photos"
-	eventsOrdersStream             = constants.StreamOrdersEvents
 )
 
-// Dispatcher отвечает за надежную асинхронную обработку событий из transactional outbox таблицы
-// и синхронизацию состояния БД с Elasticsearch и Redis.
-// Поддерживает sub-millisecond пробуждение через PostgreSQL LISTEN / NOTIFY.
+// Dispatcher отвечает за надежную асинхронную обработку событий transactional outbox
+// в parts-service на базе универсального движка pkg/outbox.Dispatcher.
 type Dispatcher struct {
 	pool         *pgxpool.Pool
 	repo         repository.PartRepository
@@ -41,10 +33,45 @@ type Dispatcher struct {
 	redisClient  *redis.Client
 	pollInterval time.Duration
 	batchSize    int32
-	metrics      *metrics.OutboxMetrics
+	inner        *outbox.Dispatcher
 }
 
-// NewDispatcher создает новый экземпляр диспетчера Outbox
+type outboxStorageAdapter struct {
+	repo repository.PartRepository
+}
+
+func (s *outboxStorageAdapter) FetchPendingOutboxEvents(ctx context.Context, limit int32) ([]outbox.Event, error) {
+	events, err := s.repo.FetchPendingOutboxEvents(ctx, limit)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]outbox.Event, len(events))
+	for i, e := range events {
+		res[i] = outbox.Event{
+			ID:            e.ID,
+			AggregateType: e.AggregateType,
+			AggregateID:   e.AggregateID,
+			EventType:     e.EventType,
+			Payload:       e.Payload,
+			RetryCount:    e.RetryCount,
+		}
+	}
+	return res, nil
+}
+
+func (s *outboxStorageAdapter) MarkOutboxEventProcessed(ctx context.Context, id int64) error {
+	return s.repo.MarkOutboxEventProcessed(ctx, id)
+}
+
+func (s *outboxStorageAdapter) MarkOutboxEventFailed(ctx context.Context, id int64, lastErr string) error {
+	return s.repo.MarkOutboxEventFailed(ctx, id, lastErr)
+}
+
+func (s *outboxStorageAdapter) CleanupProcessedOutboxEvents(ctx context.Context) error {
+	return s.repo.CleanupProcessedOutboxEvents(ctx)
+}
+
+// NewDispatcher создает новый экземпляр диспетчера Outbox для parts-service
 func NewDispatcher(
 	pool *pgxpool.Pool,
 	repo repository.PartRepository,
@@ -56,183 +83,33 @@ func NewDispatcher(
 		repo:         repo,
 		esClient:     esClient,
 		redisClient:  redisClient,
-		pollInterval: defaultPollInterval,
-		batchSize:    defaultBatchSize,
-		metrics:      metrics.NewOutboxMetrics("parts-service"),
+		pollInterval: 10 * time.Millisecond,
+		batchSize:    50,
 	}
 }
 
-// Start запускает цикл диспетчера и фоновую очистку обработанных событий.
-// Если доступен pool подключений БД, подписывается на PostgreSQL LISTEN outbox_events_channel
-// для мгновенной реакции на коммит транзакции.
+// Start запускает цикл диспетчера через pkg/outbox
 func (d *Dispatcher) Start(ctx context.Context) error {
-	logrus.Info("Starting Transactional Outbox dispatcher")
-
-	// Фоновый цикл очистки устаревших обработанных событий
-	go d.startCleanupLoop(ctx)
-
-	notifyCh := make(chan struct{}, 1)
-
-	// Запуск LISTEN слушателя только если передан пул БД
-	if d.pool != nil {
-		go d.startNotifyListener(ctx, notifyCh)
+	storage := &outboxStorageAdapter{repo: d.repo}
+	opts := outbox.Options{
+		Name:         "Parts",
+		Channel:      constants.OutboxChannelParts,
+		BatchSize:    d.batchSize,
+		PollInterval: d.pollInterval,
+		Metrics:      metrics.NewOutboxMetrics("parts-service"),
 	}
 
-	// Если работает LISTEN / NOTIFY, опрос базы служит лишь страховкой (раз в 3 сек)
-	interval := d.pollInterval
-	if d.pool != nil {
-		interval = fallbackPollInterval
-	}
-
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	// Первоначальная проверка при старте
-	d.processPendingEvents(ctx)
-
-	for {
-		select {
-		case <-ctx.Done():
-			logrus.Info("Stopping Transactional Outbox dispatcher")
-			return nil
-
-		case <-notifyCh:
-			// Мгновенное пробуждение от коммита транзакции в PostgreSQL
-			d.processPendingEvents(ctx)
-
-		case <-ticker.C:
-			// Периодическая проверка на случай пропущенных уведомлений
-			d.processPendingEvents(ctx)
-		}
-	}
+	d.inner = outbox.NewDispatcher(d.pool, storage, d.processEvent, opts)
+	return d.inner.Start(ctx)
 }
 
-// startNotifyListener подключается к PostgreSQL и слушает канал outbox_events_channel
-func (d *Dispatcher) startNotifyListener(ctx context.Context, notifyCh chan<- struct{}) {
-	for {
-		if ctx.Err() != nil {
-			return
-		}
-
-		conn, err := d.pool.Acquire(ctx)
-		if err != nil {
-			logrus.WithError(err).Warn("Outbox dispatcher: failed to acquire connection for LISTEN, retrying in 2s")
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(2 * time.Second):
-				continue
-			}
-		}
-
-		_, err = conn.Exec(ctx, "LISTEN "+outboxChannel)
-		if err != nil {
-			conn.Release()
-			logrus.WithError(err).Warn("Outbox dispatcher: failed to execute LISTEN, retrying in 2s")
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(2 * time.Second):
-				continue
-			}
-		}
-
-		logrus.Infof("Outbox dispatcher: successfully subscribed to %s via PostgreSQL LISTEN", outboxChannel)
-
-		// Цикл ожидания уведомлений от PostgreSQL
-		for {
-			notification, err := conn.Conn().WaitForNotification(ctx)
-			if err != nil {
-				conn.Release()
-				if ctx.Err() != nil {
-					return
-				}
-				logrus.WithError(err).Warn("Outbox dispatcher: connection lost while waiting for notification, reconnecting...")
-				break
-			}
-
-			if notification != nil {
-				select {
-				case notifyCh <- struct{}{}:
-				default:
-					// В канале уже есть сигнал пробуждения
-				}
-			}
-		}
-	}
-}
-
-// processPendingEvents выбирает пачку событий и обрабатывает их
-func (d *Dispatcher) processPendingEvents(ctx context.Context) {
-	for {
-		if ctx.Err() != nil {
-			return
-		}
-
-		events, err := d.repo.FetchPendingOutboxEvents(ctx, d.batchSize)
-		if err != nil {
-			logrus.WithError(err).Error("Outbox dispatcher: failed to fetch pending events")
-			return
-		}
-
-		if len(events) == 0 {
-			// Очередь пуста
-			return
-		}
-
-		for _, event := range events {
-			if ctx.Err() != nil {
-				return
-			}
-
-			start := time.Now()
-			err := d.processEvent(ctx, event)
-			duration := time.Since(start)
-
-			if err != nil {
-				if d.metrics != nil {
-					d.metrics.IncFailed(event.EventType)
-					d.metrics.ObserveDuration(event.EventType, duration)
-				}
-
-				logrus.WithError(err).WithFields(logrus.Fields{
-					"event_id":       event.ID,
-					"event_type":     event.EventType,
-					"aggregate_id":   event.AggregateID,
-					"aggregate_type": event.AggregateType,
-				}).Error("Outbox dispatcher: failed to process event")
-
-				if markErr := d.repo.MarkOutboxEventFailed(ctx, event.ID, err.Error()); markErr != nil {
-					logrus.WithError(markErr).WithField("event_id", event.ID).Error("Outbox dispatcher: failed to mark event as failed")
-				}
-			} else {
-				if d.metrics != nil {
-					d.metrics.IncProcessed(event.EventType)
-					d.metrics.ObserveDuration(event.EventType, duration)
-				}
-
-				if markErr := d.repo.MarkOutboxEventProcessed(ctx, event.ID); markErr != nil {
-					logrus.WithError(markErr).WithField("event_id", event.ID).Error("Outbox dispatcher: failed to mark event as processed")
-				}
-			}
-		}
-
-		// Если обработали полную пачку, сразу проверяем следующую, не дожидаясь тика
-		if len(events) < int(d.batchSize) {
-			return
-		}
-	}
-}
-
-// processEvent обрабатывает конкретное событие outbox
-func (d *Dispatcher) processEvent(ctx context.Context, event sqlc.OutboxEvent) error {
+// processEvent диспетчеризирует обработку отдельного события
+func (d *Dispatcher) processEvent(ctx context.Context, event outbox.Event) error {
 	switch event.EventType {
 	case "part_created", "part_updated", "part_photos_updated":
 		return d.handlePartUpsert(ctx, event.AggregateID)
-
 	case "part_deleted":
 		return d.handlePartDelete(ctx, event.AggregateID)
-
 	default:
 		logrus.WithFields(logrus.Fields{
 			"event_id":   event.ID,
@@ -247,7 +124,6 @@ func (d *Dispatcher) handlePartUpsert(ctx context.Context, partID int64) error {
 	part, err := d.repo.FindByID(ctx, partID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			// Запчасть была удалена из БД до завершения обработки события создания/обновления
 			logrus.WithField("part_id", partID).Info("Part not found in DB during outbox upsert, removing from ES")
 			if d.esClient != nil {
 				_ = d.esClient.DeletePartFromIndex(partID)
@@ -302,7 +178,7 @@ func (d *Dispatcher) invalidateCachesAndPublish(ctx context.Context, eventType s
 
 	// Публикация в Redis Stream events:orders для других слушателей
 	err := d.redisClient.XAdd(ctx, &redis.XAddArgs{
-		Stream: eventsOrdersStream,
+		Stream: constants.StreamOrdersEvents,
 		Values: map[string]interface{}{
 			"type":    eventType,
 			"part_id": fmt.Sprintf("%d", partID),
@@ -313,24 +189,5 @@ func (d *Dispatcher) invalidateCachesAndPublish(ctx context.Context, eventType s
 			"type":    eventType,
 			"part_id": partID,
 		}).Warn("Outbox dispatcher: failed to publish event to Redis stream")
-	}
-}
-
-// startCleanupLoop периодически удаляет старые обработанные события outbox
-func (d *Dispatcher) startCleanupLoop(ctx context.Context) {
-	ticker := time.NewTicker(cleanupInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			if err := d.repo.CleanupProcessedOutboxEvents(ctx); err != nil {
-				logrus.WithError(err).Error("Outbox dispatcher: failed to cleanup processed outbox events")
-			} else {
-				logrus.Debug("Outbox dispatcher: cleaned up old processed outbox events")
-			}
-		}
 	}
 }

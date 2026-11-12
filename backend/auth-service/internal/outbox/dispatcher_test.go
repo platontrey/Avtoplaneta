@@ -112,7 +112,6 @@ func TestDispatcher_ProcessSellerRenamed_Success(t *testing.T) {
 	mockRepo := new(MockUserRepo)
 
 	dispatcher := NewDispatcher(nil, mockRepo, nil)
-	dispatcher.pollInterval = 10 * time.Millisecond
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

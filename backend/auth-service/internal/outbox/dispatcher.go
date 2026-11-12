@@ -10,30 +10,53 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 
-	"auth-service/db/sqlc"
 	"auth-service/internal/repository"
 	"avtoplaneta/pkg/constants"
 	"avtoplaneta/pkg/metrics"
+	"avtoplaneta/pkg/outbox"
 )
 
-const (
-	defaultPollInterval  = 100 * time.Millisecond
-	fallbackPollInterval = 3 * time.Second
-	defaultBatchSize     = 50
-	cleanupInterval      = 1 * time.Hour
-	outboxChannel        = constants.OutboxChannelAuth
-	eventsOrdersStream   = constants.StreamOrdersEvents
-)
-
-// Dispatcher отвечает за надежную асинхронную обработку событий из transactional outbox таблицы
-// в auth-service и синхронизацию состояния (seller_renamed) с Redis Streams.
+// Dispatcher отвечает за надежную асинхронную обработку событий transactional outbox
+// в auth-service на базе универсального движка pkg/outbox.Dispatcher.
 type Dispatcher struct {
-	pool         *pgxpool.Pool
-	userRepo     repository.UserRepository
-	redisClient  *redis.Client
-	pollInterval time.Duration
-	batchSize    int32
-	metrics      *metrics.OutboxMetrics
+	userRepo    repository.UserRepository
+	redisClient *redis.Client
+	inner       *outbox.Dispatcher
+}
+
+type outboxStorageAdapter struct {
+	repo repository.UserRepository
+}
+
+func (s *outboxStorageAdapter) FetchPendingOutboxEvents(ctx context.Context, limit int32) ([]outbox.Event, error) {
+	events, err := s.repo.FetchPendingOutboxEvents(ctx, limit)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]outbox.Event, len(events))
+	for i, e := range events {
+		res[i] = outbox.Event{
+			ID:            e.ID,
+			AggregateType: e.AggregateType,
+			AggregateID:   e.AggregateID,
+			EventType:     e.EventType,
+			Payload:       e.Payload,
+			RetryCount:    e.RetryCount,
+		}
+	}
+	return res, nil
+}
+
+func (s *outboxStorageAdapter) MarkOutboxEventProcessed(ctx context.Context, id int64) error {
+	return s.repo.MarkOutboxEventProcessed(ctx, id)
+}
+
+func (s *outboxStorageAdapter) MarkOutboxEventFailed(ctx context.Context, id int64, lastErr string) error {
+	return s.repo.MarkOutboxEventFailed(ctx, id, lastErr)
+}
+
+func (s *outboxStorageAdapter) CleanupProcessedOutboxEvents(ctx context.Context) error {
+	return s.repo.CleanupProcessedOutboxEvents(ctx)
 }
 
 // NewDispatcher создает новый экземпляр диспетчера Outbox для auth-service
@@ -42,171 +65,34 @@ func NewDispatcher(
 	userRepo repository.UserRepository,
 	redisClient *redis.Client,
 ) *Dispatcher {
-	return &Dispatcher{
-		pool:         pool,
-		userRepo:     userRepo,
-		redisClient:  redisClient,
-		pollInterval: defaultPollInterval,
-		batchSize:    defaultBatchSize,
-		metrics:      metrics.NewOutboxMetrics("auth-service"),
+	d := &Dispatcher{
+		userRepo:    userRepo,
+		redisClient: redisClient,
 	}
+
+	storage := &outboxStorageAdapter{repo: userRepo}
+	opts := outbox.Options{
+		Name:         "Auth",
+		Channel:      constants.OutboxChannelAuth,
+		BatchSize:    50,
+		PollInterval: 10 * time.Millisecond,
+		Metrics:      metrics.NewOutboxMetrics("auth-service"),
+	}
+
+	d.inner = outbox.NewDispatcher(pool, storage, d.processEvent, opts)
+	return d
 }
 
-// Start запускает цикл диспетчера и фоновую очистку обработанных событий
+// Start запускает цикл диспетчера через pkg/outbox
 func (d *Dispatcher) Start(ctx context.Context) error {
-	logrus.Info("Starting Auth Transactional Outbox dispatcher")
-
-	go d.startCleanupLoop(ctx)
-
-	notifyCh := make(chan struct{}, 1)
-	if d.pool != nil {
-		go d.startNotifyListener(ctx, notifyCh)
-	}
-
-	interval := d.pollInterval
-	if d.pool != nil {
-		interval = fallbackPollInterval
-	}
-
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	// Первоначальный прогон при старте
-	d.processPendingEvents(ctx)
-
-	for {
-		select {
-		case <-ctx.Done():
-			logrus.Info("Stopping Auth Transactional Outbox dispatcher")
-			return nil
-
-		case <-notifyCh:
-			d.processPendingEvents(ctx)
-
-		case <-ticker.C:
-			d.processPendingEvents(ctx)
-		}
-	}
+	return d.inner.Start(ctx)
 }
 
-// startNotifyListener слушает PostgreSQL LISTEN на канале auth_outbox_channel
-func (d *Dispatcher) startNotifyListener(ctx context.Context, notifyCh chan<- struct{}) {
-	for {
-		if ctx.Err() != nil {
-			return
-		}
-
-		conn, err := d.pool.Acquire(ctx)
-		if err != nil {
-			logrus.WithError(err).Warn("Auth Outbox: failed to acquire connection for LISTEN, retrying in 2s")
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(2 * time.Second):
-				continue
-			}
-		}
-
-		_, err = conn.Exec(ctx, "LISTEN "+outboxChannel)
-		if err != nil {
-			conn.Release()
-			logrus.WithError(err).Warn("Auth Outbox: failed to execute LISTEN, retrying in 2s")
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(2 * time.Second):
-				continue
-			}
-		}
-
-		logrus.Infof("Auth Outbox: successfully subscribed to %s via PostgreSQL LISTEN", outboxChannel)
-
-		for {
-			notification, err := conn.Conn().WaitForNotification(ctx)
-			if err != nil {
-				conn.Release()
-				if ctx.Err() != nil {
-					return
-				}
-				logrus.WithError(err).Warn("Auth Outbox: connection lost while waiting for notification, reconnecting...")
-				break
-			}
-
-			if notification != nil {
-				select {
-				case notifyCh <- struct{}{}:
-				default:
-				}
-			}
-		}
-	}
-}
-
-// processPendingEvents выбирает пачку событий и обрабатывает их
-func (d *Dispatcher) processPendingEvents(ctx context.Context) {
-	for {
-		if ctx.Err() != nil {
-			return
-		}
-
-		events, err := d.userRepo.FetchPendingOutboxEvents(ctx, d.batchSize)
-		if err != nil {
-			logrus.WithError(err).Error("Auth Outbox: failed to fetch pending events")
-			return
-		}
-
-		if len(events) == 0 {
-			return
-		}
-
-		for _, event := range events {
-			if ctx.Err() != nil {
-				return
-			}
-
-			start := time.Now()
-			err := d.processEvent(ctx, event)
-			duration := time.Since(start)
-
-			if err != nil {
-				if d.metrics != nil {
-					d.metrics.IncFailed(event.EventType)
-					d.metrics.ObserveDuration(event.EventType, duration)
-				}
-
-				logrus.WithError(err).WithFields(logrus.Fields{
-					"event_id":     event.ID,
-					"event_type":   event.EventType,
-					"aggregate_id": event.AggregateID,
-				}).Error("Auth Outbox: failed to process event")
-
-				if markErr := d.userRepo.MarkOutboxEventFailed(ctx, event.ID, err.Error()); markErr != nil {
-					logrus.WithError(markErr).WithField("event_id", event.ID).Error("Auth Outbox: failed to mark event as failed")
-				}
-			} else {
-				if d.metrics != nil {
-					d.metrics.IncProcessed(event.EventType)
-					d.metrics.ObserveDuration(event.EventType, duration)
-				}
-
-				if markErr := d.userRepo.MarkOutboxEventProcessed(ctx, event.ID); markErr != nil {
-					logrus.WithError(markErr).WithField("event_id", event.ID).Error("Auth Outbox: failed to mark event as processed")
-				}
-			}
-		}
-
-		if len(events) < int(d.batchSize) {
-			return
-		}
-	}
-}
-
-// processEvent диспетчеризирует обработку отдельного события
-func (d *Dispatcher) processEvent(ctx context.Context, event sqlc.OutboxEvent) error {
+// processEvent обрабатывает событие
+func (d *Dispatcher) processEvent(ctx context.Context, event outbox.Event) error {
 	switch event.EventType {
 	case "seller_renamed":
 		return d.handleSellerRenamed(ctx, event)
-
 	default:
 		logrus.WithFields(logrus.Fields{
 			"event_id":   event.ID,
@@ -217,7 +103,7 @@ func (d *Dispatcher) processEvent(ctx context.Context, event sqlc.OutboxEvent) e
 }
 
 // handleSellerRenamed публикует событие seller_renamed в Redis Streams events:orders
-func (d *Dispatcher) handleSellerRenamed(ctx context.Context, event sqlc.OutboxEvent) error {
+func (d *Dispatcher) handleSellerRenamed(ctx context.Context, event outbox.Event) error {
 	sellerID := event.AggregateID
 	var name string
 
@@ -239,7 +125,7 @@ func (d *Dispatcher) handleSellerRenamed(ctx context.Context, event sqlc.OutboxE
 
 	if d.redisClient != nil {
 		err := d.redisClient.XAdd(ctx, &redis.XAddArgs{
-			Stream: eventsOrdersStream,
+			Stream: constants.StreamOrdersEvents,
 			Values: map[string]interface{}{
 				"type":      "seller_renamed",
 				"seller_id": fmt.Sprintf("%d", sellerID),
@@ -257,21 +143,4 @@ func (d *Dispatcher) handleSellerRenamed(ctx context.Context, event sqlc.OutboxE
 	}).Info("Auth Outbox: successfully published seller_renamed to Redis Streams")
 
 	return nil
-}
-
-// startCleanupLoop периодически удаляет старые обработанные события outbox
-func (d *Dispatcher) startCleanupLoop(ctx context.Context) {
-	ticker := time.NewTicker(cleanupInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			if err := d.userRepo.CleanupProcessedOutboxEvents(ctx); err != nil {
-				logrus.WithError(err).Error("Auth Outbox: failed to cleanup processed outbox events")
-			}
-		}
-	}
 }
