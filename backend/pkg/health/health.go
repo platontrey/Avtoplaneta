@@ -66,11 +66,11 @@ type Status struct {
 
 // Checker агрегатор проверок liveness и readiness сервиса
 type Checker struct {
-	serviceName string
-	timeout     time.Duration
-	mu          sync.RWMutex
-	readiness   map[string]CheckFunc
-	liveness    map[string]CheckFunc
+	serviceName  string
+	timeout      time.Duration
+	mu           sync.RWMutex
+	readiness    map[string]CheckFunc
+	liveness     map[string]CheckFunc
 	periodicOnce sync.Once
 }
 
@@ -170,11 +170,7 @@ func (c *Checker) runChecks(ctx context.Context, checks map[string]CheckFunc) (S
 	var resultsMu sync.Mutex
 	var wg sync.WaitGroup
 	allHealthy := true
-
-	serviceName := ""
-	if c != nil {
-		serviceName = c.serviceName
-	}
+	serviceName := c.serviceName
 
 	for name, fn := range checks {
 		wg.Add(1)
@@ -295,11 +291,12 @@ func (c *Checker) ReadyHandler() gin.HandlerFunc {
 // - GET /live         -> liveness алиас
 // Также запускает периодический опрос для обновления Prometheus метрик.
 func (c *Checker) RegisterRoutes(r gin.IRoutes) {
-	if c == nil {
-		c = NewChecker("service")
+	checker := c
+	if checker == nil {
+		checker = NewChecker("service")
 	}
-	readyHandler := c.ReadyHandler()
-	liveHandler := c.LiveHandler()
+	readyHandler := checker.ReadyHandler()
+	liveHandler := checker.LiveHandler()
 
 	r.GET("/health", readyHandler)
 	r.GET("/health/ready", readyHandler)
@@ -309,5 +306,5 @@ func (c *Checker) RegisterRoutes(r gin.IRoutes) {
 	r.GET("/live", liveHandler)
 
 	// Автоматический фоновый опрос каждые 15 секунд (синхронно со scrape_interval Prometheus)
-	c.StartPeriodicChecks(context.Background(), 15*time.Second)
+	checker.StartPeriodicChecks(context.Background(), 15*time.Second)
 }

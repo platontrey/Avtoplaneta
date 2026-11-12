@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -256,7 +257,7 @@ func (r *messagingRepository) GetMessages(ctx context.Context, conversationID in
 func (r *messagingRepository) GetMessageByID(ctx context.Context, id int64) (*Message, error) {
 	row, err := r.queries.GetMessageByID(ctx, id)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err
@@ -450,7 +451,7 @@ func (r *messagingRepository) GetUserStatuses(ctx context.Context, userIDs []int
 func (r *messagingRepository) GetUserStatusByUserID(ctx context.Context, userID int64) (*UserStatus, error) {
 	us, err := r.queries.GetUserStatusByUserID(ctx, userID)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil // Return nil, nil when status doesn't exist yet
 		}
 		return nil, err

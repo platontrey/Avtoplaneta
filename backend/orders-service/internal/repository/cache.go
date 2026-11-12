@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"encoding/json"
 	"time"
 
@@ -38,7 +39,7 @@ func (c *redisCacheService) GetOrders() ([]domain.Order, error) {
 	key := "orders:active"
 
 	val, err := c.client.Get(context.Background(), key).Result()
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		return nil, nil
 	}
 	if err != nil {

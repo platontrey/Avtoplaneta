@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"runtime"
@@ -260,7 +261,7 @@ func StartGRPCServer(
 
 	logrus.WithField("port", port).Info("gRPC server listening")
 	go func() {
-		if err := srv.Serve(lis); err != nil && err != grpc.ErrServerStopped {
+		if err := srv.Serve(lis); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 			logrus.WithError(err).Error("gRPC server error")
 		}
 	}()

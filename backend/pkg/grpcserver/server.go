@@ -2,6 +2,7 @@ package grpcserver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 
@@ -71,7 +72,7 @@ func (s *Server) Run(ctx context.Context) error {
 			"service": s.serviceName,
 		}).Info("gRPC-сервер запущен")
 
-		if err := s.grpcServer.Serve(lis); err != nil && err != grpc.ErrServerStopped {
+		if err := s.grpcServer.Serve(lis); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 			errChan <- err
 		}
 	}()

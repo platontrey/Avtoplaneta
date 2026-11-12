@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -258,7 +259,7 @@ func (r *orderRepository) Create(ctx context.Context, order *domain.Order) error
 func (r *orderRepository) FindByID(ctx context.Context, id int64) (*domain.Order, error) {
 	o, err := r.getQueries(ctx).GetOrderByID(ctx, id)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("failed to find order with ID %d: record not found", id)
 		}
 		return nil, fmt.Errorf("failed to find order with ID %d: %w", id, err)
@@ -270,7 +271,7 @@ func (r *orderRepository) FindByID(ctx context.Context, id int64) (*domain.Order
 func (r *orderRepository) FindWithItemsByID(ctx context.Context, id int64) (*domain.Order, error) {
 	o, err := r.getQueries(ctx).GetOrderByID(ctx, id)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("failed to find order with ID %d: record not found", id)
 		}
 		return nil, fmt.Errorf("failed to find order with ID %d: %w", id, err)
@@ -434,7 +435,7 @@ func (r *orderRepository) FindOrderItem(ctx context.Context, orderID, partID int
 
 	oi, err := r.getQueries(ctx).FindOrderItem(ctx, params)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("failed to find order item for order %d and part %d: record not found", orderID, partID)
 		}
 		return nil, fmt.Errorf("failed to find order item: %w", err)
