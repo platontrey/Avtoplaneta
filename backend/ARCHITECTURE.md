@@ -407,6 +407,109 @@ type Part struct {
 - `GET /api/export/xml` — пересобрать, если склад менялся (admin)
 - `POST /api/export/drom` — собрать и отправить на API площадки (admin)
 
+## Внутренняя архитектура микросервисов (Clean Architecture & Pragmatic DDD)
+
+Каждый микросервис системы Avtoplaneta спроектирован по принципам **прагматичной чистой архитектуры (Clean Architecture)** с элементами **Domain-Driven Design (DDD)**. Архитектура оптимизирована под идиоматичный Go, читаемость, простоту и производительность без академического усложнения и избыточных слоев абстракций.
+
+### 1. Слоистая структура сервиса (`internal/`)
+
+Код внутри каждого сервиса организован по слоям с однонаправленным потоком зависимостей снаружи внутрь:
+
+```
+            Входящий трафик (HTTP Gin / gRPC)
+                           │
+                           ▼
+         ┌───────────────────────────────────┐
+         │     Transport (handler, grpc)     │
+         └─────────────────┬─────────────────┘
+                           │ (вызывает сценарии use cases)
+                           ▼
+         ┌───────────────────────────────────┐
+         │       Application (service)       │
+         └──────────┬─────────────────┬──────┘
+                    │                 │
+  (оркестрирует)    │                 │ (загружает / сохраняет)
+                    ▼                 ▼
+  ┌───────────────────────┐ ┌───────────────────────────────────┐
+  │    Domain (domain)    │ │   Infrastructure (repository,     │
+  │ (чистые бизнес-правила│ │      events, outbox)              │
+  │  инварианты сущностей)│ └───────────────────────────────────┘
+  └───────────────────────┘
+```
+
+#### Назначение и ответственность слоев:
+1. **`internal/domain` (Бизнес-ядро / Domain Layer):**
+   - Содержит чистые бизнес-структуры (`Part`, `Order`, `OrderItem`, `Customer`, `User`), типизированные перечисления статусов и доменные ошибки (`ErrPartOutOfStock`, `ErrOrderAlreadyCompleted`).
+   - **Правило строгой независимости:** Пакет `domain` не имеет внешних зависимостей и не импортирует никакие другие внутренние пакеты сервиса (`repository`, `service`, `handler`).
+2. **`internal/service` (Прикладной слой / Application Use Cases):**
+   - Оркестрирует выполнение бизнес-сценариев: управление транзакциями базы данных, координация вызовов репозиториев, обращение к межсервисным gRPC-клиентам, создание Outbox-событий.
+   - Зависит от доменных моделей и абстрактных интерфейсов репозиториев.
+3. **`internal/repository` (Слой данных / Infrastructure Adapters):**
+   - Реализует вторичные адаптеры доступа к данным: PostgreSQL через `sqlc` (типобезопасные запросы) и `squirrel` (динамические фильтры), а также Redis кэш.
+   - Преобразует сгенерированные структуры строк базы данных (`sqlc` модели) в чистые структуры `domain`.
+4. **`internal/handler` и `internal/grpc` (Первичные адаптеры / Presentation Layer):**
+   - Прием и валидация входящих внешних запросов (HTTP REST на Gin / gRPC Protobuf).
+   - Извлечение авторизационного контекста пользователя через `pkg/authcontext`.
+   - Вызов соответствующих методов сервиса и сериализация ответов клиенту (JSON / Protobuf).
+
+---
+
+### 2. Богатая доменная модель (Rich Domain Model) против анемичной модели
+
+Вместо процедурного подхода с «анемичными структурами» (Anemic Domain Model), где структуры представляют собой плоские наборы полей, а вся логика валидации и расчетов хаотично размазана по сервисным функциям на тысячи строк, в Avtoplaneta принят стандарт **Rich Domain Model**:
+
+- **Инкапсуляция инвариантов:** Доменные правила, валидация допустимости действий и расчеты живут в методах самой доменной сущности:
+  ```go
+  // Валидация перехода статуса в domain.Order
+  func (o *Order) CanTransitionTo(target OrderStatus) error {
+      if o.Status == OrderStatusCompleted {
+          return ErrCannotModifyCompletedOrder
+      }
+      // Допустимые бизнес-переходы: red -> brown -> yellow -> green
+      ...
+  }
+
+  // Бизнес-расчет стоимости агрегата заказа с учетом скидки
+  func (o *Order) RecalculateTotal() {
+      var subtotal float64
+      for _, item := range o.Items {
+          subtotal += item.Price * float64(item.Quantity)
+      }
+      o.TotalAmount = math.Max(subtotal-o.Discount, 0)
+  }
+  ```
+- **Преимущества:**
+  - Невозможно перевести заказ или деталь в некорректное состояние из-за пропущенной проверки в одном из хэндлеров.
+  - Бизнес-логика защищена от регрессий и тестируется быстрыми модульными юнит-тестами без моков базы данных, Postgres или Redis.
+
+---
+
+### 3. Чистота домена (Domain vs Presentation / DTO)
+
+- Сущности в `internal/domain` моделируют предметную область склада и заказов, а не форматы JSON-ответов для конкретных экранов интерфейса.
+- **Разделение ответственности:**
+  - Презентационные поля (`CreatedAtFormatted`, `TimeAgo`) строго запрещены в `domain`. Форматирование дат и времени — исключительная обязанность слоя представления (`handler` или клиентского UI на React/Flutter).
+  - Входящие структуры веб-запросов (`CreateOrderRequest`, `UpdatePartRequest`) размещаются в слое `handler` или входных параметрах `service`, но не засоряют доменные сущности.
+
+---
+
+### 4. Прагматичный подход к Go (Борьба с Over-engineering)
+
+Архитектура сознательно избегает избыточных абстракций, характерных для Java/C# энтерпрайз-фреймворков:
+- **Отсутствие избыточного маппинга:** Исключены искусственные цепочки структур `DB Model -> Domain Model -> App DTO -> View Model`. В Go сгенерированные `sqlc` модели маппятся напрямую в `domain`, а `domain` отдается хэндлером клиенту (если не требуется Protobuf трансформация).
+- **Связные сервисы вместо микро-файлов:** Логика сгруппирована в связные доменные сервисы (`OrdersService`, `PartsService`), а не распылена на десятки микро-файлов с одним методом (`CreateOrderUseCase`, `GetOrderUseCase`).
+
+---
+
+### 5. Паттерн Transactional Outbox (Надежная доставка событий)
+
+Для гарантированной синхронизации PostgreSQL с внешними системами (Elasticsearch, Redis Streams) используется паттерн **Transactional Outbox**:
+1. В единой ACID-транзакции PostgreSQL обновляются доменные данные (например, таблица `parts`) и записывается событие в таблицу `outbox_events`.
+2. После успешного `COMMIT` триггер базы вызывает функцию `pg_notify('outbox_events_channel', ...)`.
+3. Фоновый диспетчер `pkg/outbox` мгновенно получает сигнал через `LISTEN`, вычитывает пачку событий из таблицы и публикует их во внешнюю систему.
+4. Обеспечивается семантика **At-least-once delivery** с защитой от сбоев сети и падения сервисов без риска рассинхронизации данных.
+
+
 ## Хранилища данных и Сообщения
 
 ### 1. PostgreSQL (Изоляция Database-per-Service и Идемпотентность)
@@ -570,15 +673,24 @@ make start-dev
 - **OpenTelemetry & Grafana Tempo**: Сквозной распределенный трейсинг межсервисных gRPC и HTTP вызовов.
 
 ## Структура проекта (Backend)
+
 ```
 backend/
-├── pkg/                     # Общие библиотеки микросервисов
+├── pkg/                     # Библиотека переиспользуемых пакетов микросервисов
 │   ├── authcontext/         # Извлечение данных пользователя из ForwardAuth заголовков
+│   ├── constants/           # Общесистемные доменные константы, стримы, каналы
+│   ├── ginmw/               # Стандартизированные Gin middleware (CORS, Auth, Roles)
+│   ├── grpcclient/          # Клиентские gRPC фабрики, mTLS и интерцепторы
+│   ├── grpcserver/          # Каркас gRPC серверов, Protovalidate, health check
 │   ├── httpcache/           # Поддержка ETag / If-None-Match кэширования
 │   ├── httpserver/          # Стандартизированный HTTP сервер и Graceful Shutdown
-│   ├── redisclient/         # Клиент Redis и шина событий Redis Streams
-│   ├── tracing/             # OpenTelemetry инструментация
-│   └── userdirectory/       # Клиент справочника пользователей
+│   ├── metrics/             # Единый сбор Prometheus метрик для Gin и Outbox
+│   ├── outbox/              # Диспетчер Transactional Outbox (PostgreSQL LISTEN/NOTIFY)
+│   ├── postgres/            # Пул соединений pgxpool и проверка доступности
+│   ├── redisclient/         # Клиент Redis (кэш, базовые операции)
+│   ├── redisstream/         # ConsumerGroupWorker с авто-восстановлением PEL и DLQ
+│   ├── tracing/             # OpenTelemetry инструментация и экспорт в Tempo
+│   └── userdirectory/       # Кэширующий gRPC-клиент справочника пользователей
 ├── proto/                   # Исходные Protobuf спецификации
 │   ├── auth/v1/auth.proto
 │   ├── parts/v1/parts.proto
@@ -591,10 +703,10 @@ backend/
 │   ├── messaging/v1/
 │   └── swagger/             # api.swagger.json (OpenAPI v2)
 ├── auth-service/
-│   ├── internal/            # config, domain, events, grpc, handler, metrics, repository, security, service
+│   ├── internal/            # config, domain, events, grpc, handler, repository, security, service
 │   └── main.go
 ├── parts-service/
-│   ├── internal/            # catalog, config, domain, events, grpc, handler, metrics, repository, search, service
+│   ├── internal/            # catalog, config, domain, events, grpc, handler, repository, search, service
 │   └── main.go
 ├── orders-service/
 │   ├── internal/            # config, domain, events, grpc, handler, repository, service
@@ -603,15 +715,38 @@ backend/
 │   └── main.go
 ├── export-service/          # Сервис генерации XML фидов
 │   └── main.go
+├── template-service/        # Сервис шаблонов
+│   └── main.go
 └── Makefile                 # Сборка, тестирование, генерация proto и Swagger
 ```
 
-### Лучшие практики:
-- **Валидация входных данных** во всех endpoints
-- **Обработка ошибок** с понятными сообщениями
-- **Логирование** всех важных операций
-- **Безопасность** на всех уровнях
-- **Тестирование** API endpoints
+### Каталог модулей библиотеки `backend/pkg/*`
+
+Все микросервисы обязаны использовать общие инфраструктурные модули из каталога `backend/pkg/` вместо дублирования кода:
+
+| Модуль | Пакет | Назначение и функциональность |
+|---|---|---|
+| `pkg/metrics` | `metrics` | Единая Prometheus инструментация для Gin (`metrics.GinMiddleware(serviceName)` с регистрацией маршрутов через `c.FullPath()`, предотвращающим High Cardinality утечки памяти), эндпоинт метрик `metrics.Handler()` и мониторинг очередей Outbox `metrics.NewOutboxMetrics(serviceName)`. |
+| `pkg/outbox` | `outbox` | Реализация паттерна Transactional Outbox. Поддерживает работу через мгновенные PostgreSQL `LISTEN/NOTIFY` уведомления с автоматическим фоновым поллингом (fallback) и экспоненциальными ретраями. |
+| `pkg/ginmw` | `ginmw` | Стандартизированные Gin middleware: кросс-доменный доступ (`CORS`), проверка сессий ForwardAuth (`RequireAuth`), ролевая авторизация (`RequireRole`, `RequireAdmin`) и хелперы форматирования ответов (`RespondOK`, `RespondError`). |
+| `pkg/constants` | `constants` | Общесистемные константы и предикаты: маркеры остатков (`PartQuantitySold = -1`, `PartQuantityDefective = 0`), стримы Redis Streams (`StreamOrdersEvents`, `StreamPartsEvents`), каналы LISTEN/NOTIFY (`OutboxChannelParts`), роли (`RoleAdmin`). |
+| `pkg/redisstream` | `redisstream` | Высокоуровневый воркер Consumer Group (`ConsumerGroupWorker`): автоматическое создание стрима и группы потребителей, параллельное чтение пачками, автоматическое восстановление зависших сообщений из PEL (Pending Entries List) и отправка битых сообщений в DLQ. |
+| `pkg/grpcclient` | `grpcclient` | Клиентский транспорт gRPC: пул соединений, mTLS, keepalive, таймауты и интерцепторы трейсинга OpenTelemetry. |
+| `pkg/grpcserver` | `grpcserver` | Серверный транспорт gRPC: встроенная декларативная валидация Protovalidate CEL, стандартный протокол `grpc.health.v1`, сбор Prometheus метрик вызовов. |
+| `pkg/httpcache` | `httpcache` | Поддержка условных HTTP-запросов (`If-None-Match`, ETag) с выдачей `304 Not Modified` до сборки тела ответа. |
+| `pkg/httpserver` | `httpserver` | Запуск HTTP-сервера с поддержкой безопасного Graceful Shutdown по системным сигналам SIGINT/SIGTERM. |
+| `pkg/authcontext` | `authcontext` | Парсинг и извлечение данных сессии текущего пользователя (`X-User-ID`, `X-User-Role`, `X-User-Name`, `X-User-Email`), переданных Traefik ForwardAuth. |
+| `pkg/postgres` | `postgres` | Инициализация пула соединений `pgxpool` с health probe и настройкой жизненного цикла соединений. |
+| `pkg/redisclient` | `redisclient` | Клиент Redis с поддержкой одиночного режима и Sentinel/Cluster. |
+| `pkg/tracing` | `tracing` | Инициализация OpenTelemetry TracerProvider и передача спанов в Grafana Tempo. |
+| `pkg/userdirectory` | `userdirectory` | Кэширующий клиент для получения профилей сотрудников через gRPC к `auth-service`. |
+
+### Лучшие инженерные практики:
+- **Валидация входных данных** во всех endpoints (декларативно через `buf.validate` в gRPC и валидация Gin).
+- **Обработка ошибок** с оберткой контекста (`fmt.Errorf("...: %w", err)`).
+- **Логирование** всех ключевых бизнес-операций через Zap/Logrus с контекстом.
+- **Безопасность** на всех уровнях (ForwardAuth, Least Privilege, CORS, CSRF).
+- **Тестирование** бизнес-инвариантов через юнит-тесты доменных моделей.
 
 ## Заключение
 
