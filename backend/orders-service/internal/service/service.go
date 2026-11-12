@@ -696,11 +696,8 @@ func (s *ordersService) CompleteOrder(ctx context.Context, orderID int64) error 
 		return domain.NotFoundError{Resource: "order", ID: orderID}
 	}
 
-	var subtotal float64
-	for _, item := range order.Items {
-		subtotal += item.Price * float64(item.Quantity)
-	}
-	totalAmount := math.Max(subtotal-order.Discount, 0)
+	order.RecalculateTotal()
+	totalAmount := order.TotalAmount
 
 	// 1. Атомарно завершаем заказ и создаем Outbox-событие в единой транзакции
 	err = repository.RunInTransaction(ctx, s.orderRepo.GetPool(), func(txCtx context.Context) error {
