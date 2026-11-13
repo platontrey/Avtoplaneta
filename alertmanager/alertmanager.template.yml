@@ -1,0 +1,63 @@
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: '__EMAIL_SMARTHOST__'
+  smtp_from: '__EMAIL_FROM__'
+  smtp_auth_username: '__EMAIL_AUTH_USERNAME__'
+  smtp_auth_password: '__EMAIL_AUTH_PASSWORD__'
+  smtp_require_tls: true
+
+route:
+  group_by: ['alertname', 'service', 'job', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'telegram_and_email'
+
+receivers:
+  - name: 'telegram_and_email'
+    telegram_configs:
+      - bot_token: '__TELEGRAM_BOT_TOKEN__'
+        chat_id: __TELEGRAM_CHAT_ID__
+        send_resolved: true
+        parse_mode: 'HTML'
+        message: |
+          {{ if eq .Status "firing" }}🔥 <b>ВНИМАНИЕ: СБОЙ СИСТЕМЫ</b> [{{ .CommonLabels.severity | toUpper }}]{{ else }}✅ <b>РАБОТА ВОССТАНОВЛЕНА</b>{{ end }}
+          <b>Событие:</b> <code>{{ .CommonLabels.alertname }}</code>
+          <b>Компонент:</b> {{ if .CommonLabels.service }}{{ .CommonLabels.service }}{{ else }}{{ .CommonLabels.job }}{{ end }}
+          <b>Критичность:</b> {{ .CommonLabels.severity }}
+
+          <b>Подробности:</b>
+          {{ range .Alerts }}
+          • <b>{{ .Annotations.summary }}</b>
+            {{ .Annotations.description }}
+            <i>Время: {{ .StartsAt.Format "15:04:05 02.01.2006" }}</i>
+          {{ end }}
+    email_configs:
+      - to: '__EMAIL_TO__'
+        send_resolved: true
+        headers:
+          subject: '{{ if eq .Status "firing" }}[ALERT]{{ else }}[RESOLVED]{{ end }} {{ .CommonLabels.alertname }} ({{ if .CommonLabels.service }}{{ .CommonLabels.service }}{{ else }}{{ .CommonLabels.job }}{{ end }})'
+        html: |
+          <!DOCTYPE html>
+          <html>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="padding: 15px; border-left: 5px solid {{ if eq .Status "firing" }}#e53e3e{{ else }}#38a169{{ end }}; background: #f7fafc;">
+              <h2 style="margin-top: 0; color: {{ if eq .Status "firing" }}#e53e3e{{ else }}#38a169{{ end }};">
+                {{ if eq .Status "firing" }}🔥 Внимание: Зафиксирован сбой в работе системы{{ else }}✅ Сбой успешно устранен{{ end }}
+              </h2>
+              <p><strong>Событие:</strong> <code>{{ .CommonLabels.alertname }}</code></p>
+              <p><strong>Компонент:</strong> {{ if .CommonLabels.service }}{{ .CommonLabels.service }}{{ else }}{{ .CommonLabels.job }}{{ end }}</p>
+              <p><strong>Уровень критичности:</strong> {{ .CommonLabels.severity }}</p>
+            </div>
+            <h3 style="margin-top: 20px;">Список сработавших алертов:</h3>
+            <ul>
+              {{ range .Alerts }}
+              <li style="margin-bottom: 12px;">
+                <strong>{{ .Annotations.summary }}</strong><br/>
+                <span>{{ .Annotations.description }}</span><br/>
+                <small style="color: #718096;">Время: {{ .StartsAt.Format "15:04:05 02.01.2006" }}</small>
+              </li>
+              {{ end }}
+            </ul>
+          </body>
+          </html>

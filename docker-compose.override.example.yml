@@ -54,6 +54,13 @@ services:
         limits:
           memory: 80M
 
+  alertmanager:
+    mem_limit: 60m
+    deploy:
+      resources:
+        limits:
+          memory: 60M
+
   cadvisor:
     command:
       - '--docker_only=true'                     # Сканировать только Docker контейнеры

@@ -67,3 +67,32 @@ groups:
         annotations:
           summary: "Высокий 95-й перцентиль задержки HTTP в {{ $labels.service }}"
           description: "95% HTTP-запросов в сервисе {{ $labels.service }} выполняются дольше 1.5 секунд ({{ $value }}s)."
+
+  - name: avtoplaneta_host_resources
+    rules:
+      - alert: HostHighCpuLoad
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Высокая утилизация CPU на хосте"
+          description: "Загрузка процессора превышает 90% в течение 5 минут (текущее значение: {{ $value | printf \"%.1f\" }}%)."
+
+      - alert: HostOutOfMemory
+        expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 < 10
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Критически мало оперативной памяти на хосте"
+          description: "Свободная оперативная память хоста составляет менее 10% ({{ $value | printf \"%.1f\" }}%)."
+
+      - alert: HostDiskSpaceFillingUp
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Заканчивается свободное место на диске"
+          description: "Свободное место в корневом разделе хоста составляет менее 15% ({{ $value | printf \"%.1f\" }}%)."

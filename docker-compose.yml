@@ -465,6 +465,27 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
 
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: avtoplaneta-alertmanager
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9093:9093"
+    networks:
+      - avtoplaneta_network
+    environment:
+      - ALERT_TELEGRAM_BOT_TOKEN=${ALERT_TELEGRAM_BOT_TOKEN:-disabled}
+      - ALERT_TELEGRAM_CHAT_ID=${ALERT_TELEGRAM_CHAT_ID:-0}
+      - ALERT_EMAIL_TO=${ALERT_EMAIL_TO:-alerts@example.com}
+      - ALERT_EMAIL_FROM=${ALERT_EMAIL_FROM:-alerts@example.com}
+      - ALERT_EMAIL_SMARTHOST=${ALERT_EMAIL_SMARTHOST:-smtp.example.com:587}
+      - ALERT_EMAIL_AUTH_USERNAME=${ALERT_EMAIL_AUTH_USERNAME:-}
+      - ALERT_EMAIL_AUTH_PASSWORD=${ALERT_EMAIL_AUTH_PASSWORD:-}
+    volumes:
+      - ./alertmanager:/etc/alertmanager:ro
+      - alertmanager-data:/alertmanager
+    entrypoint: ["/etc/alertmanager/entrypoint.sh"]
+
   node-exporter:
     image: prom/node-exporter:latest
     container_name: avtoplaneta-node-exporter
@@ -575,3 +596,4 @@ volumes:
   grafana-data:
   tempo-data:
   loki-data:
+  alertmanager-data:
