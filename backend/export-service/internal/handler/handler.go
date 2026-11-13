@@ -1,13 +1,14 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 
 	"avtoplaneta/pkg/health"
+	"avtoplaneta/pkg/logger"
 	"export-service/internal/config"
 	"export-service/internal/events"
 	"export-service/internal/service"
@@ -43,7 +44,7 @@ func (h *Handler) HealthChecker() *health.Checker {
 func (h *Handler) ExportXMLPriceList(c *gin.Context) {
 	meta, rebuilt, err := h.svc.Build(c.Request.Context())
 	if err != nil {
-		logrus.WithError(err).Error("Ошибка подготовки XML прайс-листа")
+		slog.ErrorContext(c.Request.Context(), "Ошибка подготовки XML прайс-листа", logger.Err(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось подготовить прайс-лист"})
 		return
 	}
@@ -51,7 +52,7 @@ func (h *Handler) ExportXMLPriceList(c *gin.Context) {
 	message := "Прайс-лист актуален, пересборка не потребовалась"
 	if rebuilt {
 		message = "Прайс-лист успешно сгенерирован"
-		logrus.WithField("parts_count", meta.PartsCount).Info("Сгенерирован XML прайс-лист")
+		slog.InfoContext(c.Request.Context(), "Сгенерирован XML прайс-лист", slog.Int("parts_count", meta.PartsCount))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -67,13 +68,13 @@ func (h *Handler) SendPriceListToDrom(c *gin.Context) {
 	if h.queue == nil {
 		xmlData, count, err := h.svc.Generate(c.Request.Context())
 		if err != nil {
-			logrus.WithError(err).Error("Ошибка подготовки XML для Drom")
+			slog.ErrorContext(c.Request.Context(), "Ошибка подготовки XML для Drom", logger.Err(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось подготовить данные для отправки"})
 			return
 		}
 
 		if err := service.SendToDromAPI(c.Request.Context(), h.config, xmlData); err != nil {
-			logrus.WithError(err).Error("Ошибка отправки на Drom API")
+			slog.ErrorContext(c.Request.Context(), "Ошибка отправки на Drom API", logger.Err(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось отправить прайс-лист на Drom"})
 			return
 		}
@@ -87,7 +88,7 @@ func (h *Handler) SendPriceListToDrom(c *gin.Context) {
 
 	task, err := h.queue.Enqueue(c.Request.Context(), "drom", c.ClientIP())
 	if err != nil {
-		logrus.WithError(err).Warn("Попытка запуска экспорта во время активной задачи")
+		slog.WarnContext(c.Request.Context(), "Попытка запуска экспорта во время активной задачи", logger.Err(err))
 		c.JSON(http.StatusConflict, gin.H{
 			"error":  err.Error(),
 			"status": h.queue.GetStatus(c.Request.Context()),

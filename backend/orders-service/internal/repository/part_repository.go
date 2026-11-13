@@ -3,8 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
-
-	"github.com/sirupsen/logrus"
+	"log/slog"
 
 	"orders-service/internal/domain"
 )
@@ -68,7 +67,7 @@ func (r *partRepositoryForOrders) IncreaseQuantity(ctx context.Context, id int64
 }
 
 func (r *partRepositoryForOrders) DeletePart(ctx context.Context, id int64) error {
-	logrus.WithField("part_id", id).Info("Starting part deletion via gRPC")
+	slog.InfoContext(ctx, "Starting part deletion via gRPC", slog.Int64("part_id", id))
 	err := r.client.DeletePart(ctx, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete part with ID %d via gRPC: %w", id, err)

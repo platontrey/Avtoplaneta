@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 
 	"auth-service/internal/repository"
 	"avtoplaneta/pkg/constants"
+	"avtoplaneta/pkg/logger"
 	"avtoplaneta/pkg/metrics"
 	"avtoplaneta/pkg/outbox"
 )
@@ -28,43 +29,39 @@ type outboxStorageAdapter struct {
 	repo repository.UserRepository
 }
 
-func (s *outboxStorageAdapter) FetchPendingOutboxEvents(ctx context.Context, limit int32) ([]outbox.Event, error) {
-	events, err := s.repo.FetchPendingOutboxEvents(ctx, limit)
+func (a *outboxStorageAdapter) FetchPendingOutboxEvents(ctx context.Context, limit int32) ([]outbox.Event, error) {
+	rows, err := a.repo.FetchPendingOutboxEvents(ctx, limit)
 	if err != nil {
 		return nil, err
 	}
-	res := make([]outbox.Event, len(events))
-	for i, e := range events {
-		res[i] = outbox.Event{
-			ID:            e.ID,
-			AggregateType: e.AggregateType,
-			AggregateID:   e.AggregateID,
-			EventType:     e.EventType,
-			Payload:       e.Payload,
-			RetryCount:    e.RetryCount,
+	events := make([]outbox.Event, len(rows))
+	for i, r := range rows {
+		events[i] = outbox.Event{
+			ID:            r.ID,
+			AggregateType: r.AggregateType,
+			AggregateID:   r.AggregateID,
+			EventType:     r.EventType,
+			Payload:       r.Payload,
+			RetryCount:    r.RetryCount,
 		}
 	}
-	return res, nil
+	return events, nil
 }
 
-func (s *outboxStorageAdapter) MarkOutboxEventProcessed(ctx context.Context, id int64) error {
-	return s.repo.MarkOutboxEventProcessed(ctx, id)
+func (a *outboxStorageAdapter) MarkOutboxEventProcessed(ctx context.Context, id int64) error {
+	return a.repo.MarkOutboxEventProcessed(ctx, id)
 }
 
-func (s *outboxStorageAdapter) MarkOutboxEventFailed(ctx context.Context, id int64, lastErr string) error {
-	return s.repo.MarkOutboxEventFailed(ctx, id, lastErr)
+func (a *outboxStorageAdapter) MarkOutboxEventFailed(ctx context.Context, id int64, lastErr string) error {
+	return a.repo.MarkOutboxEventFailed(ctx, id, lastErr)
 }
 
-func (s *outboxStorageAdapter) CleanupProcessedOutboxEvents(ctx context.Context) error {
-	return s.repo.CleanupProcessedOutboxEvents(ctx)
+func (a *outboxStorageAdapter) CleanupProcessedOutboxEvents(ctx context.Context) error {
+	return a.repo.CleanupProcessedOutboxEvents(ctx)
 }
 
-// NewDispatcher создает новый экземпляр диспетчера Outbox для auth-service
-func NewDispatcher(
-	pool *pgxpool.Pool,
-	userRepo repository.UserRepository,
-	redisClient *redis.Client,
-) *Dispatcher {
+// NewDispatcher инициализирует диспетчер Outbox поверх pkg/outbox
+func NewDispatcher(pool *pgxpool.Pool, userRepo repository.UserRepository, redisClient *redis.Client) *Dispatcher {
 	d := &Dispatcher{
 		userRepo:    userRepo,
 		redisClient: redisClient,
@@ -94,10 +91,10 @@ func (d *Dispatcher) processEvent(ctx context.Context, event outbox.Event) error
 	case "seller_renamed":
 		return d.handleSellerRenamed(ctx, event)
 	default:
-		logrus.WithFields(logrus.Fields{
-			"event_id":   event.ID,
-			"event_type": event.EventType,
-		}).Warn("Auth Outbox: unknown event type, skipping")
+		slog.WarnContext(ctx, "Auth Outbox: unknown event type, skipping",
+			slog.Int64("event_id", event.ID),
+			slog.String("event_type", event.EventType),
+		)
 		return nil
 	}
 }
@@ -117,7 +114,10 @@ func (d *Dispatcher) handleSellerRenamed(ctx context.Context, event outbox.Event
 	if name == "" {
 		user, err := d.userRepo.FindByID(sellerID)
 		if err != nil {
-			logrus.WithError(err).WithField("seller_id", sellerID).Warn("User not found during outbox seller_renamed processing")
+			slog.WarnContext(ctx, "User not found during outbox seller_renamed processing",
+				logger.Err(err),
+				slog.Int64("seller_id", sellerID),
+			)
 			return nil
 		}
 		name = user.Name
@@ -137,10 +137,10 @@ func (d *Dispatcher) handleSellerRenamed(ctx context.Context, event outbox.Event
 		}
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"seller_id": sellerID,
-		"name":      name,
-	}).Info("Auth Outbox: successfully published seller_renamed to Redis Streams")
+	slog.InfoContext(ctx, "Auth Outbox: successfully published seller_renamed to Redis Streams",
+		slog.Int64("seller_id", sellerID),
+		slog.String("name", name),
+	)
 
 	return nil
 }

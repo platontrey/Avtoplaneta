@@ -2,12 +2,13 @@ package events
 
 import (
 	"context"
+	"log/slog"
 	"strconv"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 
 	"avtoplaneta/pkg/constants"
+	"avtoplaneta/pkg/logger"
 	"avtoplaneta/pkg/redisstream"
 	"export-service/internal/service"
 )
@@ -21,7 +22,7 @@ const (
 // через надежный инфраструктурный воркер pkg/redisstream с поддержкой ReadyChan.
 func StartCatalogEventListener(ctx context.Context, client *redis.Client, svc *service.PriceListService, readyChan <-chan struct{}) {
 	if client == nil {
-		logrus.Info("Redis не подключен: инкрементальный слушатель событий каталога отключен")
+		slog.InfoContext(ctx, "Redis не подключен: инкрементальный слушатель событий каталога отключен")
 		return
 	}
 
@@ -41,16 +42,22 @@ func StartCatalogEventListener(ctx context.Context, client *redis.Client, svc *s
 		switch eventType {
 		case "part_index_requested":
 			if updateErr := svc.UpdatePartInSnapshot(ctx, partID); updateErr != nil {
-				logrus.WithError(updateErr).WithField("part_id", partID).Warn("Ошибка инкрементального обновления детали в слепке")
+				slog.WarnContext(ctx, "Ошибка инкрементального обновления детали в слепке",
+					logger.Err(updateErr),
+					slog.Int64("part_id", partID),
+				)
 				return updateErr
 			}
-			logrus.WithField("part_id", partID).Info("Деталь точечно обновлена в слепке и XML")
+			slog.InfoContext(ctx, "Деталь точечно обновлена в слепке и XML", slog.Int64("part_id", partID))
 		case "part_delete_requested":
 			if delErr := svc.DeletePartFromSnapshot(ctx, partID); delErr != nil {
-				logrus.WithError(delErr).WithField("part_id", partID).Warn("Ошибка удаления детали из слепка")
+				slog.WarnContext(ctx, "Ошибка удаления детали из слепка",
+					logger.Err(delErr),
+					slog.Int64("part_id", partID),
+				)
 				return delErr
 			}
-			logrus.WithField("part_id", partID).Info("Деталь точечно удалена из слепка и XML")
+			slog.InfoContext(ctx, "Деталь точечно удалена из слепка и XML", slog.Int64("part_id", partID))
 		}
 
 		return nil

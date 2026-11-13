@@ -9,7 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"log/slog"
+
+	"avtoplaneta/pkg/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -745,7 +747,7 @@ func StartGRPCServer(service service.InventoryService, defectReports *service.De
 		return fmt.Errorf("failed to listen on port %s: %w", port, err)
 	}
 
-	logrus.WithField("port", port).Info("gRPC server listening")
+	slog.Info("gRPC server listening", slog.String("port", port))
 	return srv.RawServer().Serve(lis)
 }
 
@@ -756,15 +758,15 @@ func loggingUnaryInterceptor(ctx context.Context, req interface{}, info *grpc.Un
 	resp, err := handler(ctx, req)
 	duration := time.Since(start)
 
-	fields := logrus.Fields{
-		"method":   info.FullMethod,
-		"duration": duration.String(),
-	}
 	if err != nil {
-		fields["error"] = err.Error()
-		logrus.WithFields(fields).Warn("gRPC call failed")
+		slog.WarnContext(ctx, "gRPC call failed",
+			slog.String("method", info.FullMethod),
+			slog.Duration("duration", duration),
+			logger.Err(err))
 	} else if duration > 100*time.Millisecond {
-		logrus.WithFields(fields).Info("gRPC call slow")
+		slog.InfoContext(ctx, "gRPC call slow",
+			slog.String("method", info.FullMethod),
+			slog.Duration("duration", duration))
 	}
 
 	return resp, err

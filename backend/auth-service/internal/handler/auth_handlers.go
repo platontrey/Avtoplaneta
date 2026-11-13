@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -12,10 +13,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/markbates/goth/gothic"
-	"github.com/sirupsen/logrus"
 
 	"auth-service/internal/domain"
 	"auth-service/internal/security"
+	"avtoplaneta/pkg/logger"
 )
 
 var googleTokenInfoURL = "https://oauth2.googleapis.com/tokeninfo"
@@ -34,14 +35,14 @@ func (h *Handler) GoogleAuthHandler(c *gin.Context) {
 func (h *Handler) GoogleAuthCallbackHandler(c *gin.Context) {
 	user, err := gothic.CompleteUserAuth(c.Writer, c.Request)
 	if err != nil {
-		logrus.WithError(err).WithField("ip", c.ClientIP()).Warn("Google OAuth callback failed")
+		slog.WarnContext(c.Request.Context(), "Google OAuth callback failed", logger.Err(err), slog.String("ip", c.ClientIP()))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось завершить аутентификацию"})
 		return
 	}
 
 	createdUser, err := h.authService.CreateUserFromGoogle(user.Email, user.Name)
 	if err != nil {
-		logrus.WithError(err).WithField("email", user.Email).Error("Failed to create user from Google")
+		slog.ErrorContext(c.Request.Context(), "Failed to create user from Google", logger.Err(err), slog.String("email", user.Email))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось создать пользователя"})
 		return
 	}
@@ -52,17 +53,17 @@ func (h *Handler) GoogleAuthCallbackHandler(c *gin.Context) {
 			session.Values["user_id"] = createdUser.ID
 			session.Values["login_time"] = time.Now().Unix()
 			if err := h.sessionStore.Save(c.Request, c.Writer, session); err != nil {
-				logrus.WithError(err).Error("Failed to save session")
+				slog.ErrorContext(c.Request.Context(), "Failed to save session", logger.Err(err))
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось создать сессию"})
 				return
 			}
 		}
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"email": createdUser.Email,
-		"ip":    c.ClientIP(),
-	}).Info("Google login successful")
+	slog.InfoContext(c.Request.Context(), "Google login successful",
+		slog.String("email", createdUser.Email),
+		slog.String("ip", c.ClientIP()),
+	)
 
 	c.JSON(http.StatusOK, createdUser)
 }
@@ -83,14 +84,14 @@ func (h *Handler) GoogleMobileAuthHandler(c *gin.Context) {
 
 	httpReq, err := http.NewRequestWithContext(c.Request.Context(), "GET", reqURL, nil)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to create HTTP request for Google tokeninfo")
+		slog.ErrorContext(c.Request.Context(), "Failed to create HTTP request for Google tokeninfo", logger.Err(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Внутренняя ошибка сервера"})
 		return
 	}
 
 	resp, err := client.Do(httpReq)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to call Google tokeninfo API")
+		slog.ErrorContext(c.Request.Context(), "Failed to call Google tokeninfo API", logger.Err(err))
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Не удалось связаться с сервером Google"})
 		return
 	}
@@ -98,10 +99,10 @@ func (h *Handler) GoogleMobileAuthHandler(c *gin.Context) {
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		logrus.WithFields(logrus.Fields{
-			"status": resp.StatusCode,
-			"body":   string(bodyBytes),
-		}).Warn("Google tokeninfo returned non-200 status")
+		slog.WarnContext(c.Request.Context(), "Google tokeninfo returned non-200 status",
+			slog.Int("status", resp.StatusCode),
+			slog.String("body", string(bodyBytes)),
+		)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Невалидный id_token"})
 		return
 	}
@@ -114,26 +115,26 @@ func (h *Handler) GoogleMobileAuthHandler(c *gin.Context) {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&tokenInfo); err != nil {
-		logrus.WithError(err).Error("Failed to decode Google tokeninfo response")
+		slog.ErrorContext(c.Request.Context(), "Failed to decode Google tokeninfo response", logger.Err(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Ошибка обработки ответа от Google"})
 		return
 	}
 
 	if tokenInfo.Error != "" {
-		logrus.WithField("google_error", tokenInfo.Error).Warn("Google tokeninfo returned error")
+		slog.WarnContext(c.Request.Context(), "Google tokeninfo returned error", slog.String("google_error", tokenInfo.Error))
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Невалидный id_token"})
 		return
 	}
 
 	if tokenInfo.EmailVerified != "true" || tokenInfo.Email == "" {
-		logrus.WithField("email_verified", tokenInfo.EmailVerified).Warn("Google email not verified or empty")
+		slog.WarnContext(c.Request.Context(), "Google email not verified or empty", slog.String("email_verified", tokenInfo.EmailVerified))
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Email не подтвержден в Google"})
 		return
 	}
 
 	createdUser, err := h.authService.CreateUserFromGoogle(tokenInfo.Email, tokenInfo.Name)
 	if err != nil {
-		logrus.WithError(err).WithField("email", tokenInfo.Email).Error("Failed to create user from Google (mobile)")
+		slog.ErrorContext(c.Request.Context(), "Failed to create user from Google (mobile)", logger.Err(err), slog.String("email", tokenInfo.Email))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось войти через Google"})
 		return
 	}
@@ -144,7 +145,7 @@ func (h *Handler) GoogleMobileAuthHandler(c *gin.Context) {
 			session.Values["user_id"] = createdUser.ID
 			session.Values["login_time"] = time.Now().Unix()
 			if err := h.sessionStore.Save(c.Request, c.Writer, session); err != nil {
-				logrus.WithError(err).Error("Failed to save session (mobile)")
+				slog.ErrorContext(c.Request.Context(), "Failed to save session (mobile)", logger.Err(err))
 			}
 		}
 	}
@@ -155,15 +156,15 @@ func (h *Handler) GoogleMobileAuthHandler(c *gin.Context) {
 	}
 	accessToken, refreshToken, err := security.GenerateJWTTokens(createdUser, secret)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to generate JWT tokens (mobile)")
+		slog.ErrorContext(c.Request.Context(), "Failed to generate JWT tokens (mobile)", logger.Err(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось создать токены авторизации"})
 		return
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"email": createdUser.Email,
-		"ip":    c.ClientIP(),
-	}).Info("Google mobile login successful")
+	slog.InfoContext(c.Request.Context(), "Google mobile login successful",
+		slog.String("email", createdUser.Email),
+		slog.String("ip", c.ClientIP()),
+	)
 
 	response := domain.LoginResponse{
 		User:         *createdUser,
@@ -209,7 +210,7 @@ func (h *Handler) UserLoginHandler(c *gin.Context) {
 			session.Values["user_id"] = user.ID
 			session.Values["login_time"] = time.Now().Unix()
 			if err := h.sessionStore.Save(c.Request, c.Writer, session); err != nil {
-				logrus.WithError(err).Error("Failed to save session")
+				slog.ErrorContext(c.Request.Context(), "Failed to save session", logger.Err(err))
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось создать сессию"})
 				return
 			}
@@ -222,7 +223,7 @@ func (h *Handler) UserLoginHandler(c *gin.Context) {
 	}
 	accessToken, refreshToken, err := security.GenerateJWTTokens(user, secret)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to generate JWT tokens")
+		slog.ErrorContext(c.Request.Context(), "Failed to generate JWT tokens", logger.Err(err))
 		accessToken = ""
 		refreshToken = ""
 	}
@@ -249,7 +250,7 @@ func (h *Handler) LogoutHandler(c *gin.Context) {
 	if h.sessionStore != nil {
 		session, err := h.sessionStore.Get(c.Request, "auth-session")
 		if err != nil {
-			logrus.WithError(err).WithField("ip", c.ClientIP()).Warn("Failed to get session during logout")
+			slog.WarnContext(c.Request.Context(), "Failed to get session during logout", logger.Err(err), slog.String("ip", c.ClientIP()))
 		}
 		if session != nil {
 			if val, ok := session.Values["user_id"]; ok {
@@ -258,18 +259,21 @@ func (h *Handler) LogoutHandler(c *gin.Context) {
 			session.Values = make(map[interface{}]interface{})
 			session.Options.MaxAge = -1
 			if err := h.sessionStore.Save(c.Request, c.Writer, session); err != nil {
-				logrus.WithError(err).WithField("ip", c.ClientIP()).Warn("Failed to save session during logout")
+				slog.WarnContext(c.Request.Context(), "Failed to save session during logout", logger.Err(err), slog.String("ip", c.ClientIP()))
 			}
 		}
 	}
 
 	if userID != 0 {
 		if err := h.authService.Logout(userID); err != nil {
-			logrus.WithError(err).WithField("user_id", userID).Warn("Failed to logout user")
+			slog.WarnContext(c.Request.Context(), "Failed to logout user", logger.Err(err), slog.Int64("user_id", userID))
 		}
 	}
 
-	logrus.WithField("email", userEmail).WithField("ip", c.ClientIP()).Info("User logged out")
+	slog.InfoContext(c.Request.Context(), "User logged out",
+		slog.String("email", userEmail),
+		slog.String("ip", c.ClientIP()),
+	)
 	c.JSON(http.StatusOK, gin.H{"message": "Выход выполнен успешно"})
 }
 
@@ -286,13 +290,13 @@ func (h *Handler) GetCurrentUserHandler(c *gin.Context) {
 		}
 		claims, err := security.ValidateJWTToken(tokenString, secret)
 		if err != nil {
-			logrus.WithError(err).Warn("GetCurrentUserHandler: invalid JWT token")
+			slog.WarnContext(c.Request.Context(), "GetCurrentUserHandler: invalid JWT token", logger.Err(err))
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Недействительный токен"})
 			return
 		}
 		user, err := h.authService.GetCurrentUser(claims.UserID)
 		if err != nil {
-			logrus.WithError(err).WithField("user_id", claims.UserID).Error("GetCurrentUserHandler: user not found by JWT claims")
+			slog.ErrorContext(c.Request.Context(), "GetCurrentUserHandler: user not found by JWT claims", logger.Err(err), slog.Int64("user_id", claims.UserID))
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Пользователь не найден"})
 			return
 		}
@@ -307,7 +311,7 @@ func (h *Handler) GetCurrentUserHandler(c *gin.Context) {
 
 	session, err := h.sessionStore.Get(c.Request, "auth-session")
 	if err != nil {
-		logrus.WithError(err).Warn("Failed to get session")
+		slog.WarnContext(c.Request.Context(), "Failed to get session", logger.Err(err))
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Неверный сеанс"})
 		return
 	}
@@ -320,7 +324,7 @@ func (h *Handler) GetCurrentUserHandler(c *gin.Context) {
 
 	if loginTime, ok := session.Values["login_time"].(int64); ok {
 		if time.Now().Unix()-loginTime > 86400*30 {
-			logrus.WithField("user_id", userID).Warn("Session expired")
+			slog.WarnContext(c.Request.Context(), "Session expired", slog.Int64("user_id", userID))
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Сеанс истек, пожалуйста, войдите снова"})
 			return
 		}
@@ -328,7 +332,7 @@ func (h *Handler) GetCurrentUserHandler(c *gin.Context) {
 
 	user, err := h.authService.GetCurrentUser(userID)
 	if err != nil {
-		logrus.WithError(err).WithField("user_id", userID).Error("Failed to get current user")
+		slog.ErrorContext(c.Request.Context(), "Failed to get current user", logger.Err(err), slog.Int64("user_id", userID))
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Пользователь не найден"})
 		return
 	}
@@ -353,7 +357,7 @@ func (h *Handler) GetCSRFTokenHandler(c *gin.Context) {
 
 	token, err := h.authService.GenerateCSRFToken(userID)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to generate CSRF token")
+		slog.ErrorContext(c.Request.Context(), "Failed to generate CSRF token", logger.Err(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось сгенерировать токен CSRF"})
 		return
 	}
@@ -363,7 +367,7 @@ func (h *Handler) GetCSRFTokenHandler(c *gin.Context) {
 		if session != nil {
 			session.Values["csrf_token"] = token
 			if err := h.sessionStore.Save(c.Request, c.Writer, session); err != nil {
-				logrus.WithError(err).Error("Failed to save CSRF token in session")
+				slog.ErrorContext(c.Request.Context(), "Failed to save CSRF token in session", logger.Err(err))
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось сохранить токен CSRF"})
 				return
 			}
@@ -392,26 +396,26 @@ func (h *Handler) RefreshTokenHandler(c *gin.Context) {
 
 	userID, err := security.ValidateRefreshToken(req.RefreshToken, secret)
 	if err != nil {
-		logrus.WithError(err).Warn("RefreshTokenHandler: invalid refresh token")
+		slog.WarnContext(c.Request.Context(), "RefreshTokenHandler: invalid refresh token", logger.Err(err))
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Недействительный refresh token"})
 		return
 	}
 
 	user, err := h.authService.GetCurrentUser(userID)
 	if err != nil {
-		logrus.WithError(err).WithField("user_id", userID).Error("RefreshTokenHandler: user not found")
+		slog.ErrorContext(c.Request.Context(), "RefreshTokenHandler: user not found", logger.Err(err), slog.Int64("user_id", userID))
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Пользователь не найден"})
 		return
 	}
 
 	accessToken, refreshToken, err := security.GenerateJWTTokens(user, secret)
 	if err != nil {
-		logrus.WithError(err).Error("RefreshTokenHandler: failed to generate tokens")
+		slog.ErrorContext(c.Request.Context(), "RefreshTokenHandler: failed to generate tokens", logger.Err(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось обновить токен"})
 		return
 	}
 
-	logrus.WithField("user_id", userID).Info("JWT tokens refreshed")
+	slog.InfoContext(c.Request.Context(), "JWT tokens refreshed", slog.Int64("user_id", userID))
 	c.JSON(http.StatusOK, gin.H{
 		"token":         accessToken,
 		"refresh_token": refreshToken,

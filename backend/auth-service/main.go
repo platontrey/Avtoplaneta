@@ -2,18 +2,19 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 
 	partsv1 "avtoplaneta/gen/parts/v1"
 	"avtoplaneta/pkg/grpcclient"
 	"avtoplaneta/pkg/httpserver"
+	"avtoplaneta/pkg/logger"
 	"avtoplaneta/pkg/redisclient"
 	"avtoplaneta/pkg/tracing"
 
@@ -32,14 +33,25 @@ import (
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
+	logFmt := logger.FormatJSON
+	if os.Getenv("NODE_ENV") != "production" {
+		logFmt = logger.FormatText
+	}
+	logger.Init(logger.Config{
+		Level:       os.Getenv("LOG_LEVEL"),
+		Format:      logFmt,
+		ServiceName: "auth-service",
+	})
+
 	// Инициализация трассировки OpenTelemetry
 	tp, err := tracing.InitTracer("auth-service")
 	if err != nil {
-		logrus.WithError(err).Fatal("Failed to initialize OpenTelemetry tracer")
+		slog.Error("Failed to initialize OpenTelemetry tracer", logger.Err(err))
+		os.Exit(1)
 	}
 	defer func() {
 		if err := tp.Shutdown(context.Background()); err != nil {
-			logrus.WithError(err).Error("Failed to shutdown tracer")
+			slog.Error("Failed to shutdown tracer", logger.Err(err))
 		}
 	}()
 
@@ -55,7 +67,8 @@ func main() {
 	// Подключение к базе данных PostgreSQL
 	dbPool, err := repository.InitDB(cfg)
 	if err != nil {
-		logrus.WithError(err).Fatal("Failed to initialize database")
+		slog.Error("Failed to initialize database", logger.Err(err))
+		os.Exit(1)
 	}
 	defer dbPool.Close()
 
@@ -69,7 +82,8 @@ func main() {
 	// Сессии и безопасность
 	sessionStore, err := security.NewCookieSessionStore(cfg.SessionSecret)
 	if err != nil {
-		logrus.WithError(err).Fatal("Failed to initialize cookie session store")
+		slog.Error("Failed to initialize cookie session store", logger.Err(err))
+		os.Exit(1)
 	}
 
 	csrfManager := security.NewCSRFManager()
@@ -83,7 +97,7 @@ func main() {
 	if cfg.RedisURL != "" {
 		rdb, err := redisclient.New(cfg.RedisURL, "")
 		if err != nil {
-			logrus.WithError(err).Warn("Failed to connect to Redis for user events")
+			slog.Warn("Failed to connect to Redis for user events", logger.Err(err))
 		} else {
 			redisClient = rdb
 			eventPublisher = events.NewRedisUserEventPublisher(rdb)
@@ -95,7 +109,7 @@ func main() {
 	outboxDispatcher := outbox.NewDispatcher(dbPool, userRepo, redisClient)
 	go func() {
 		if err := outboxDispatcher.Start(ctx); err != nil {
-			logrus.WithError(err).Error("Auth outbox dispatcher failed")
+			slog.Error("Auth outbox dispatcher failed", logger.Err(err))
 		}
 	}()
 
@@ -124,10 +138,10 @@ func main() {
 	if cfg.PartsGRPCAddr != "" {
 		partsConn, err := grpcclient.NewClient(cfg.PartsGRPCAddr)
 		if err != nil {
-			logrus.WithError(err).Warn("Failed to create gRPC connection to parts-service")
+			slog.Warn("Failed to create gRPC connection to parts-service", logger.Err(err))
 		} else {
 			h.SetPartsClient(partsv1.NewPartsServiceClient(partsConn))
-			logrus.WithField("addr", cfg.PartsGRPCAddr).Info("Connected to parts-service via gRPC")
+			slog.Info("Connected to parts-service via gRPC", slog.String("addr", cfg.PartsGRPCAddr))
 			defer partsConn.Close()
 		}
 	}
@@ -139,7 +153,8 @@ func main() {
 	}
 	grpcSrv, err := grpcserver.StartGRPCServer(authService, sessionStore, cfg, grpcPort)
 	if err != nil {
-		logrus.WithError(err).Fatalf("Failed to start gRPC server on port %s", grpcPort)
+		slog.Error("Failed to start gRPC server", logger.Err(err), slog.String("port", grpcPort))
+		os.Exit(1)
 	}
 	defer grpcSrv.GracefulStop()
 
@@ -153,6 +168,7 @@ func main() {
 
 	// Запуск HTTP сервера через общий пакет httpserver (graceful shutdown + TLS)
 	if err := httpserver.Run(ctx, cfg.Port, r); err != nil {
-		logrus.WithError(err).Fatal("Server error")
+		slog.Error("Server error", logger.Err(err))
+		os.Exit(1)
 	}
 }

@@ -6,9 +6,8 @@ require (
 	avtoplaneta/pkg v0.0.0-00010101000000-000000000000
 	github.com/gin-gonic/gin v1.12.0
 	github.com/jackc/pgx/v5 v5.11.0
-	github.com/joho/godotenv v1.5.1
 	github.com/prometheus/client_golang v1.25.0
-	github.com/sirupsen/logrus v1.10.2
+	github.com/redis/go-redis/v9 v9.23.0
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/sync v0.23.0
 )
@@ -53,7 +52,6 @@ require (
 	github.com/prometheus/procfs v0.22.0 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.59.1 // indirect
-	github.com/redis/go-redis/v9 v9.23.0 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.1 // indirect

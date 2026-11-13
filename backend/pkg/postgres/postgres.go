@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/sirupsen/logrus"
 )
 
 // Config настройки пула подключений к PostgreSQL
@@ -63,7 +63,7 @@ func Connect(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("postgres ping: %w", err)
 	}
 
-	logrus.Info("Пул соединений PostgreSQL успешно инициализирован")
+	slog.InfoContext(ctx, "Пул соединений PostgreSQL успешно инициализирован")
 	return pool, nil
 }
 
@@ -140,7 +140,7 @@ func RunMigrations(ctx context.Context, pool *pgxpool.Pool, fsys fs.FS, dir stri
 			return fmt.Errorf("commit migration '%s': %w", fileName, err)
 		}
 
-		logrus.WithField("version", fileName).Info("Миграция БД успешно применена")
+		slog.InfoContext(ctx, "Миграция БД успешно применена", slog.String("version", fileName))
 	}
 
 	return nil

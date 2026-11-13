@@ -2,13 +2,14 @@ package handler
 
 import (
 	"context"
+	"log/slog"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 
 	"avtoplaneta/pkg/authcontext"
 	"avtoplaneta/pkg/health"
+	"avtoplaneta/pkg/logger"
 	"orders-service/internal/domain"
 	"orders-service/internal/service"
 )
@@ -45,7 +46,7 @@ func (h *Handler) logUserActivity(ctx context.Context, c *gin.Context, action, r
 
 	user, ok := authcontext.FromRequest(c.Request)
 	if !ok || !user.IsAuthenticated() {
-		logrus.Warn("Cannot log activity - no authenticated user")
+		slog.WarnContext(ctx, "Cannot log activity - no authenticated user")
 		return
 	}
 
@@ -58,6 +59,6 @@ func (h *Handler) logUserActivity(ctx context.Context, c *gin.Context, action, r
 	}
 
 	if err := h.publisher.PublishUserAction(ctx, strconv.FormatInt(user.ID, 10), action, eventDetails); err != nil {
-		logrus.WithError(err).Warn("Failed to publish user action event")
+		slog.WarnContext(ctx, "Failed to publish user action event", logger.Err(err))
 	}
 }

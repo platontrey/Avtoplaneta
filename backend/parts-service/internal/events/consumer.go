@@ -2,13 +2,14 @@ package events
 
 import (
 	"context"
+	"log/slog"
 	"strconv"
 	"strings"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 
 	"avtoplaneta/pkg/constants"
+	"avtoplaneta/pkg/logger"
 	"avtoplaneta/pkg/redisstream"
 	"parts-service/internal/search"
 	"parts-service/internal/service"
@@ -55,7 +56,7 @@ func NewEventConsumer(client *redis.Client, service service.InventoryService) Ev
 func (c *RedisEventConsumer) Start(ctx context.Context) error {
 	if c.worker == nil {
 		if c.client == nil {
-			logrus.Warn("Redis client is nil, skipping event consumer")
+			slog.WarnContext(ctx, "Redis client is nil, skipping event consumer")
 			return nil
 		}
 		c.worker = redisstream.NewConsumerGroupWorker(c.client, c.processMessage, redisstream.ConsumerConfig{
@@ -72,7 +73,7 @@ func (c *RedisEventConsumer) Start(ctx context.Context) error {
 func (c *RedisEventConsumer) processMessage(ctx context.Context, msg redis.XMessage) error {
 	eventType, ok := msg.Values["type"].(string)
 	if !ok {
-		logrus.WithField("message_id", msg.ID).Warn("Invalid message format: missing type")
+		slog.WarnContext(ctx, "Invalid message format: missing type", slog.String("message_id", msg.ID))
 		return nil
 	}
 
@@ -80,7 +81,7 @@ func (c *RedisEventConsumer) processMessage(ctx context.Context, msg redis.XMess
 	case "order_completed":
 		return c.handleOrderCompleted(ctx, msg)
 	case "defect_report_created":
-		logrus.WithField("message_id", msg.ID).Info("Legacy defect_report_created event acknowledged without processing (now processed synchronously)")
+		slog.InfoContext(ctx, "Legacy defect_report_created event acknowledged without processing (now processed synchronously)", slog.String("message_id", msg.ID))
 		return nil
 	case "seller_renamed":
 		return c.handleSellerRenamed(ctx, msg)
@@ -89,12 +90,11 @@ func (c *RedisEventConsumer) processMessage(ctx context.Context, msg redis.XMess
 	case "part_delete_requested":
 		return c.handlePartDeleteRequested(ctx, msg)
 	case "user_action":
-		return c.handleUserAction(msg)
+		return c.handleUserAction(ctx, msg)
 	default:
-		logrus.WithFields(logrus.Fields{
-			"message_id": msg.ID,
-			"type":       eventType,
-		}).Warn("Unknown event type")
+		slog.WarnContext(ctx, "Unknown event type",
+			slog.String("message_id", msg.ID),
+			slog.String("type", eventType))
 		return nil
 	}
 }
@@ -103,61 +103,59 @@ func (c *RedisEventConsumer) processMessage(ctx context.Context, msg redis.XMess
 func (c *RedisEventConsumer) handleOrderCompleted(ctx context.Context, msg redis.XMessage) error {
 	orderIDStr, ok := msg.Values["order_id"].(string)
 	if !ok {
-		logrus.WithField("message_id", msg.ID).Warn("Invalid order_completed event: missing order_id")
+		slog.WarnContext(ctx, "Invalid order_completed event: missing order_id", slog.String("message_id", msg.ID))
 		return nil
 	}
 
 	orderID, err := strconv.ParseUint(orderIDStr, 10, 32)
 	if err != nil {
-		logrus.WithError(err).WithField("order_id", orderIDStr).Error("Invalid order_id format")
+		slog.ErrorContext(ctx, "Invalid order_id format", logger.Err(err), slog.String("order_id", orderIDStr))
 		return err
 	}
 
 	amountStr, ok := msg.Values["amount"].(string)
 	if !ok {
-		logrus.WithField("message_id", msg.ID).Warn("Invalid order_completed event: missing amount")
+		slog.WarnContext(ctx, "Invalid order_completed event: missing amount", slog.String("message_id", msg.ID))
 		return nil
 	}
 
 	amount, err := strconv.ParseFloat(amountStr, 64)
 	if err != nil {
-		logrus.WithError(err).WithField("amount", amountStr).Error("Invalid amount format")
+		slog.ErrorContext(ctx, "Invalid amount format", logger.Err(err), slog.String("amount", amountStr))
 		return err
 	}
 
 	// Обновляем статистику доходов
 	if err := c.service.UpdateEarnings(ctx, amount); err != nil {
-		logrus.WithError(err).WithField("order_id", orderID).Error("Failed to update earnings")
+		slog.ErrorContext(ctx, "Failed to update earnings", logger.Err(err), slog.Uint64("order_id", orderID))
 		return err
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"order_id": orderID,
-		"amount":   amount,
-	}).Info("Successfully processed order completed event")
+	slog.InfoContext(ctx, "Successfully processed order completed event",
+		slog.Uint64("order_id", orderID),
+		slog.Float64("amount", amount))
 
 	return nil
 }
 
 // handleUserAction обрабатывает событие действия пользователя
-func (c *RedisEventConsumer) handleUserAction(msg redis.XMessage) error {
+func (c *RedisEventConsumer) handleUserAction(ctx context.Context, msg redis.XMessage) error {
 	userID, ok := msg.Values["user_id"].(string)
 	if !ok {
-		logrus.WithField("message_id", msg.ID).Warn("Invalid user_action event: missing user_id")
+		slog.WarnContext(ctx, "Invalid user_action event: missing user_id", slog.String("message_id", msg.ID))
 		return nil
 	}
 
 	action, ok := msg.Values["action"].(string)
 	if !ok {
-		logrus.WithField("message_id", msg.ID).Warn("Invalid user_action event: missing action")
+		slog.WarnContext(ctx, "Invalid user_action event: missing action", slog.String("message_id", msg.ID))
 		return nil
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"user_id": userID,
-		"action":  action,
-		"details": msg.Values["details"],
-	}).Info("User action logged via Redis Streams")
+	slog.InfoContext(ctx, "User action logged via Redis Streams",
+		slog.String("user_id", userID),
+		slog.String("action", action),
+		slog.Any("details", msg.Values["details"]))
 
 	return nil
 }
@@ -165,51 +163,51 @@ func (c *RedisEventConsumer) handleUserAction(msg redis.XMessage) error {
 func (c *RedisEventConsumer) handlePartIndexRequested(ctx context.Context, msg redis.XMessage) error {
 	partIDStr, ok := msg.Values["part_id"].(string)
 	if !ok {
-		logrus.WithField("message_id", msg.ID).Warn("Invalid part_index_requested event: missing part_id")
+		slog.WarnContext(ctx, "Invalid part_index_requested event: missing part_id", slog.String("message_id", msg.ID))
 		return nil
 	}
 
 	partID, err := strconv.ParseInt(partIDStr, 10, 64)
 	if err != nil {
-		logrus.WithError(err).WithField("part_id", partIDStr).Error("Invalid part_id format in part_index_requested")
+		slog.ErrorContext(ctx, "Invalid part_id format in part_index_requested", logger.Err(err), slog.String("part_id", partIDStr))
 		return err
 	}
 
 	part, err := c.service.GetPartByID(ctx, partID)
 	if err != nil {
 		// Запчасть могла быть удалена до индексации
-		logrus.WithField("part_id", partID).Info("Part not found for indexing, skipping")
+		slog.InfoContext(ctx, "Part not found for indexing, skipping", slog.Int64("part_id", partID))
 		return nil
 	}
 
 	if err := search.IndexPart(part); err != nil {
-		logrus.WithError(err).WithField("part_id", partID).Error("Failed to index part in Elasticsearch")
+		slog.ErrorContext(ctx, "Failed to index part in Elasticsearch", logger.Err(err), slog.Int64("part_id", partID))
 		return err
 	}
 
-	logrus.WithField("part_id", partID).Info("Successfully indexed part in Elasticsearch via Redis Streams")
+	slog.InfoContext(ctx, "Successfully indexed part in Elasticsearch via Redis Streams", slog.Int64("part_id", partID))
 	return nil
 }
 
 func (c *RedisEventConsumer) handlePartDeleteRequested(ctx context.Context, msg redis.XMessage) error {
 	partIDStr, ok := msg.Values["part_id"].(string)
 	if !ok {
-		logrus.WithField("message_id", msg.ID).Warn("Invalid part_delete_requested event: missing part_id")
+		slog.WarnContext(ctx, "Invalid part_delete_requested event: missing part_id", slog.String("message_id", msg.ID))
 		return nil
 	}
 
 	partID, err := strconv.ParseInt(partIDStr, 10, 64)
 	if err != nil {
-		logrus.WithError(err).WithField("part_id", partIDStr).Error("Invalid part_id format in part_delete_requested")
+		slog.ErrorContext(ctx, "Invalid part_id format in part_delete_requested", logger.Err(err), slog.String("part_id", partIDStr))
 		return err
 	}
 
 	if err := search.DeletePartFromIndex(partID); err != nil {
-		logrus.WithError(err).WithField("part_id", partID).Error("Failed to remove part from Elasticsearch index")
+		slog.ErrorContext(ctx, "Failed to remove part from Elasticsearch index", logger.Err(err), slog.Int64("part_id", partID))
 		return err
 	}
 
-	logrus.WithField("part_id", partID).Info("Successfully deleted part from Elasticsearch via Redis Streams")
+	slog.InfoContext(ctx, "Successfully deleted part from Elasticsearch via Redis Streams", slog.Int64("part_id", partID))
 	return nil
 }
 
@@ -220,7 +218,7 @@ func (c *RedisEventConsumer) handleSellerRenamed(ctx context.Context, msg redis.
 
 	sellerID, err := strconv.ParseInt(strings.TrimSpace(sellerIDRaw), 10, 64)
 	if err != nil || sellerID <= 0 || strings.TrimSpace(name) == "" {
-		logrus.WithField("message_id", msg.ID).Warn("Invalid seller_renamed event")
+		slog.WarnContext(ctx, "Invalid seller_renamed event", slog.String("message_id", msg.ID))
 		return nil
 	}
 
@@ -233,13 +231,12 @@ func (c *RedisEventConsumer) handleSellerRenamed(ctx context.Context, msg redis.
 	}
 
 	if err := search.BulkIndexParts(ctx, updated); err != nil {
-		logrus.WithError(err).WithField("seller_id", sellerID).Warn("Failed to reindex parts after seller rename")
+		slog.WarnContext(ctx, "Failed to reindex parts after seller rename", logger.Err(err), slog.Int64("seller_id", sellerID))
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"seller_id": sellerID,
-		"name":      name,
-		"parts":     len(updated),
-	}).Info("Имя продавца обновлено в запчастях")
+	slog.InfoContext(ctx, "Имя продавца обновлено в запчастях",
+		slog.Int64("seller_id", sellerID),
+		slog.String("name", name),
+		slog.Int("parts", len(updated)))
 	return nil
 }

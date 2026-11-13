@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
+	"avtoplaneta/pkg/logger"
 	"avtoplaneta/pkg/tracing"
 )
 
@@ -22,17 +23,27 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	if err := godotenv.Load("../../.env"); err != nil {
-		log.Println("No .env file found")
+		slog.Debug("No .env file found")
 	}
+
+	logFmt := logger.FormatJSON
+	if os.Getenv("NODE_ENV") != "production" {
+		logFmt = logger.FormatText
+	}
+	logger.Init(logger.Config{
+		Level:       os.Getenv("LOG_LEVEL"),
+		Format:      logFmt,
+		ServiceName: "messaging-service",
+	})
 
 	// Инициализация OpenTelemetry Distributed Tracing
 	tp, err := tracing.InitTracer("messaging-service")
 	if err != nil {
-		log.Printf("Warning: Failed to init tracer for messaging-service: %v", err)
+		slog.Warn("Failed to init tracer for messaging-service", logger.Err(err))
 	} else {
 		defer func() {
 			if err := tp.Shutdown(context.Background()); err != nil {
-				log.Printf("Warning: Error shutting down tracer provider: %v", err)
+				slog.Error("Error shutting down tracer provider", logger.Err(err))
 			}
 		}()
 	}
@@ -50,7 +61,8 @@ func main() {
 	}
 	go func() {
 		if err := StartGRPCServer(grpcPort); err != nil {
-			log.Fatalf("gRPC server failed: %v", err)
+			slog.Error("gRPC server failed", logger.Err(err))
+			os.Exit(1)
 		}
 	}()
 
@@ -63,7 +75,7 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigChan
-		log.Println("Получен сигнал завершения, начинаем graceful shutdown...")
+		slog.Info("Получен сигнал завершения, начинаем graceful shutdown...")
 		cancel()
 	}()
 
@@ -112,7 +124,7 @@ func main() {
 
 	// Запуск сервера в goroutine
 	go func() {
-		log.Println("Messaging service starting on port 8084")
+		slog.Info("Messaging service starting on port 8084")
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(http.ErrServerClosed, err) {
 			errChan <- err
 		}
@@ -121,14 +133,15 @@ func main() {
 	// Ожидание сигнала отмены или ошибки
 	select {
 	case <-ctx.Done():
-		log.Println("Завершение работы messaging service...")
+		slog.Info("Завершение работы messaging service...")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		if err := srv.Shutdown(shutdownCtx); err != nil {
-			log.Printf("Сервер принудительно остановлен: %v", err)
+			slog.Error("Сервер принудительно остановлен", logger.Err(err))
 		}
-		log.Println("Messaging service остановлен")
+		slog.Info("Messaging service остановлен")
 	case err := <-errChan:
-		log.Fatal("Ошибка сервера:", err)
+		slog.Error("Ошибка сервера", logger.Err(err))
+		os.Exit(1)
 	}
 }

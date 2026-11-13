@@ -12,7 +12,6 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/prometheus/client_golang v1.25.0
 	github.com/redis/go-redis/v9 v9.23.0
-	github.com/sirupsen/logrus v1.10.2
 	golang.org/x/net v0.59.0
 	google.golang.org/grpc v1.82.0
 	google.golang.org/protobuf v1.36.12

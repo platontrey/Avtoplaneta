@@ -4,15 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 
 	"avtoplaneta/pkg/constants"
+	"avtoplaneta/pkg/logger"
 	"orders-service/internal/repository"
 )
 
@@ -46,22 +47,22 @@ func NewRedisEventConsumer(client *redis.Client, orderRepo repository.OrderRepos
 // Start запускает цикл прослушивания сообщений из Redis Streams
 func (c *RedisEventConsumer) Start(ctx context.Context) error {
 	if c.client == nil {
-		logrus.Warn("Redis client is nil, skipping event consumer")
+		slog.WarnContext(ctx, "Redis client is nil, skipping event consumer")
 		return nil
 	}
 
 	err := c.client.XGroupCreateMkStream(ctx, c.stream, c.group, "$").Err()
 	if err != nil && err.Error() != "BUSYGROUP Consumer Group name already exists" {
-		logrus.WithError(err).Error("Failed to create consumer group for orders-service")
+		slog.ErrorContext(ctx, "Failed to create consumer group for orders-service", logger.Err(err))
 		return err
 	}
 
-	logrus.Info("Starting Redis Streams consumer for orders-service")
+	slog.InfoContext(ctx, "Starting Redis Streams consumer for orders-service")
 
 	for {
 		select {
 		case <-ctx.Done():
-			logrus.Info("Stopping orders-service Redis Streams consumer")
+			slog.InfoContext(ctx, "Stopping orders-service Redis Streams consumer")
 			return nil
 		default:
 			streams, err := c.client.XReadGroup(ctx, &redis.XReadGroupArgs{
@@ -73,7 +74,7 @@ func (c *RedisEventConsumer) Start(ctx context.Context) error {
 			}).Result()
 
 			if err != nil && !errors.Is(err, redis.Nil) {
-				logrus.WithError(err).Error("Failed to read from Redis Streams in orders-service")
+				slog.ErrorContext(ctx, "Failed to read from Redis Streams in orders-service", logger.Err(err))
 				time.Sleep(time.Second)
 				continue
 			}
@@ -85,12 +86,12 @@ func (c *RedisEventConsumer) Start(ctx context.Context) error {
 			for _, stream := range streams {
 				for _, msg := range stream.Messages {
 					if err := c.processMessage(ctx, msg); err != nil {
-						logrus.WithError(err).WithField("message_id", msg.ID).Error("Failed to process message in orders-service")
+						slog.ErrorContext(ctx, "Failed to process message in orders-service", logger.Err(err), slog.String("message_id", msg.ID))
 						continue
 					}
 
 					if err := c.client.XAck(ctx, c.stream, c.group, msg.ID).Err(); err != nil {
-						logrus.WithError(err).WithField("message_id", msg.ID).Error("Failed to ACK message in orders-service")
+						slog.ErrorContext(ctx, "Failed to ACK message in orders-service", logger.Err(err), slog.String("message_id", msg.ID))
 					}
 				}
 			}
@@ -110,7 +111,7 @@ func (c *RedisEventConsumer) processMessage(ctx context.Context, msg redis.XMess
 	case "part_index_requested", "part_delete_requested":
 		if c.cache != nil {
 			if err := c.cache.InvalidateOrders(); err != nil {
-				logrus.WithError(err).Warn("Failed to invalidate orders cache after part update")
+				slog.WarnContext(ctx, "Failed to invalidate orders cache after part update", logger.Err(err))
 			}
 		}
 		return nil
@@ -126,27 +127,21 @@ func (c *RedisEventConsumer) handleSellerRenamed(ctx context.Context, msg redis.
 
 	sellerID, err := strconv.ParseInt(strings.TrimSpace(sellerIDRaw), 10, 64)
 	if err != nil || sellerID <= 0 || strings.TrimSpace(name) == "" {
-		logrus.WithField("message_id", msg.ID).Warn("Invalid seller_renamed event received in orders-service")
+		slog.WarnContext(ctx, "Invalid seller_renamed event received in orders-service", slog.String("message_id", msg.ID))
 		return nil
 	}
 
 	if err := c.orderRepo.UpdateSellerName(ctx, sellerID, name); err != nil {
-		logrus.WithError(err).WithFields(logrus.Fields{
-			"seller_id": sellerID,
-			"name":      name,
-		}).Error("Failed to update seller name in orders table")
+		slog.ErrorContext(ctx, "Failed to update seller name in orders table", logger.Err(err), slog.Int64("seller_id", sellerID), slog.String("name", name))
 		return err
 	}
 
 	if c.cache != nil {
 		if err := c.cache.InvalidateOrders(); err != nil {
-			logrus.WithError(err).Warn("Failed to invalidate orders cache after seller rename")
+			slog.WarnContext(ctx, "Failed to invalidate orders cache after seller rename", logger.Err(err))
 		}
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"seller_id": sellerID,
-		"name":      name,
-	}).Info("Seller name updated in orders successfully")
+	slog.InfoContext(ctx, "Seller name updated in orders successfully", slog.Int64("seller_id", sellerID), slog.String("name", name))
 	return nil
 }

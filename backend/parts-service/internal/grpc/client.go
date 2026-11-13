@@ -2,11 +2,11 @@ package grpc
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"strconv"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -14,6 +14,7 @@ import (
 	authv1 "avtoplaneta/gen/auth/v1"
 	ordersv1 "avtoplaneta/gen/orders/v1"
 	"avtoplaneta/pkg/grpcclient"
+	"avtoplaneta/pkg/logger"
 	"parts-service/internal/domain"
 )
 
@@ -32,18 +33,18 @@ func InitGRPCClients() {
 	var err error
 	authConn, err = grpcclient.NewClient(authAddr)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to create auth gRPC connection")
+		slog.Error("Failed to create auth gRPC connection", logger.Err(err))
 	} else {
 		authGRPCClient = authv1.NewAuthServiceClient(authConn)
-		logrus.WithField("addr", authAddr).Info("gRPC client to auth-service initialized")
+		slog.Info("gRPC client to auth-service initialized", slog.String("addr", authAddr))
 	}
 
 	ordersConn, err = grpcclient.NewClient(ordersAddr)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to create orders gRPC connection")
+		slog.Error("Failed to create orders gRPC connection", logger.Err(err))
 	} else {
 		ordersGRPCClient = ordersv1.NewOrdersServiceClient(ordersConn)
-		logrus.WithField("addr", ordersAddr).Info("gRPC client to orders-service initialized")
+		slog.Info("gRPC client to orders-service initialized", slog.String("addr", ordersAddr))
 	}
 }
 
@@ -70,7 +71,7 @@ func GetOrdersClient() ordersv1.OrdersServiceClient {
 // LogUserActivityGRPC логирует активность пользователя в auth-service
 func LogUserActivityGRPC(ctx context.Context, userIDStr, userName, userEmail, action, resourceType, details string, resourceID int64) {
 	if authGRPCClient == nil {
-		logrus.Warn("auth gRPC client not initialized, skipping activity log")
+		slog.WarnContext(ctx, "auth gRPC client not initialized, skipping activity log")
 		return
 	}
 
@@ -92,10 +93,9 @@ func LogUserActivityGRPC(ctx context.Context, userIDStr, userName, userEmail, ac
 
 	if _, err := authGRPCClient.LogActivity(ctx, req); err != nil {
 		st := status.Convert(err)
-		logrus.WithFields(logrus.Fields{
-			"code":    st.Code().String(),
-			"message": st.Message(),
-		}).Warn("Failed to log activity via gRPC")
+		slog.WarnContext(ctx, "Failed to log activity via gRPC",
+			slog.String("code", st.Code().String()),
+			slog.String("message", st.Message()))
 	}
 }
 
@@ -112,7 +112,7 @@ func GetMonthlySalesGRPC(ctx context.Context) ([]domain.MonthlySales, error) {
 	if err != nil {
 		st := status.Convert(err)
 		if st.Code() == codes.Unavailable {
-			logrus.Warn("orders-service is unavailable via gRPC")
+			slog.WarnContext(ctx, "orders-service is unavailable via gRPC")
 			return nil, errGRPCNotInitialized()
 		}
 		return nil, nil

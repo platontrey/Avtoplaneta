@@ -14,7 +14,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
+	"log/slog"
+
+	"avtoplaneta/pkg/logger"
 
 	partsv1 "avtoplaneta/gen/parts/v1"
 	"avtoplaneta/pkg/constants"
@@ -121,7 +123,7 @@ func NewInventoryService(repo repository.PartRepository, es search.Elasticsearch
 	if earnings, err := repo.GetTotalEarnings(ctx); err == nil {
 		service.totalEarnings = earnings
 	} else {
-		logrus.WithError(err).Warn("Failed to load total earnings from database, starting with 0")
+		slog.WarnContext(ctx, "Failed to load total earnings from database, starting with 0", logger.Err(err))
 		service.totalEarnings = 0
 	}
 
@@ -139,7 +141,7 @@ func (s *inventoryService) GetInventoryWithCount(ctx context.Context, params dom
 	// Очищаем просроченные запчасти перед поиском
 	if err := s.cleanupExpiredParts(ctx); err != nil {
 		// Логируем ошибку, но продолжаем выполнение
-		logrus.WithError(err).Warn("Failed to cleanup expired parts during inventory fetch")
+		slog.WarnContext(ctx, "Failed to cleanup expired parts during inventory fetch", logger.Err(err))
 	}
 
 	// Выбираем источник данных на основе параметров поиска
@@ -159,7 +161,7 @@ func (s *inventoryService) cleanupExpiredParts(ctx context.Context) error {
 	fourteenDaysAgo := time.Now().AddDate(0, 0, -14)
 	err := s.repo.DeleteExpiredParts(ctx, fourteenDaysAgo)
 	if err != nil {
-		logrus.WithError(err).Warn("Failed to cleanup expired parts")
+		slog.WarnContext(ctx, "Failed to cleanup expired parts", logger.Err(err))
 	}
 	return err
 }
@@ -300,7 +302,7 @@ func (s *inventoryService) getInventoryFromDatabaseWithCount(ctx context.Context
 
 	count, err := s.repo.CountWithFilters(ctx, filters)
 	if err != nil {
-		logrus.WithError(err).Warn("Failed to count parts with filters, falling back to len(parts)")
+		slog.WarnContext(ctx, "Failed to count parts with filters, falling back to len(parts)", logger.Err(err))
 		count = int64(len(parts))
 	}
 
@@ -480,7 +482,7 @@ func (s *inventoryService) AddPart(ctx context.Context, part *domain.Part) (*dom
 		},
 	}).Err()
 	if err != nil {
-		logrus.WithError(err).Warn("Failed to publish part_index_requested to Redis")
+		slog.WarnContext(ctx, "Failed to publish part_index_requested to Redis", logger.Err(err))
 	}
 
 	// Инвалидируем кэш статистики
@@ -508,7 +510,7 @@ func (s *inventoryService) DuplicatePart(ctx context.Context, id int64) (*domain
 	// Генерируем новый свободный порядковый номер детали
 	newNumber, err := s.repo.GetNextPartNumber(ctx)
 	if err != nil || newNumber == "" {
-		logrus.WithError(err).Warn("DuplicatePart: failed to get next part number, falling back to empty")
+		slog.WarnContext(ctx, "DuplicatePart: failed to get next part number, falling back to empty", logger.Err(err))
 	} else {
 		clone.Number = newNumber
 	}
@@ -524,7 +526,7 @@ func (s *inventoryService) DuplicatePart(ctx context.Context, id int64) (*domain
 
 	// Индексируем в ES
 	if err := search.IndexPart(created); err != nil {
-		logrus.WithError(err).Warn("DuplicatePart: failed to index duplicated part in Elasticsearch")
+		slog.WarnContext(ctx, "DuplicatePart: failed to index duplicated part in Elasticsearch", logger.Err(err))
 	}
 
 	// Сброс кэша
@@ -556,7 +558,7 @@ func (s *inventoryService) AddPartsBatch(ctx context.Context, parts []domain.Par
 
 	// Пакетная индексация всех созданных деталей в Elasticsearch
 	if err := search.BulkIndexParts(ctx, createdParts); err != nil {
-		logrus.WithError(err).Warn("Не удалось пакетно проиндексировать созданные запчасти в Elasticsearch")
+		slog.WarnContext(ctx, "Не удалось пакетно проиндексировать созданные запчасти в Elasticsearch", logger.Err(err))
 	}
 
 	// Сброс кэша один раз на весь батч
@@ -593,7 +595,7 @@ func (s *inventoryService) UpdatePart(ctx context.Context, id int64, updates map
 		},
 	}).Err()
 	if err != nil {
-		logrus.WithError(err).Warn("Failed to publish part_index_requested (update) to Redis")
+		slog.WarnContext(ctx, "Failed to publish part_index_requested (update) to Redis", logger.Err(err))
 	}
 
 	// Инвалидируем кэш статистики
@@ -631,7 +633,7 @@ func (s *inventoryService) DeletePart(ctx context.Context, id int64) error {
 		},
 	}).Err()
 	if err != nil {
-		logrus.WithError(err).Warn("Failed to publish part_delete_requested to Redis")
+		slog.WarnContext(ctx, "Failed to publish part_delete_requested to Redis", logger.Err(err))
 	}
 
 	// Инвалидируем кэш статистики
@@ -654,10 +656,10 @@ func (s *inventoryService) GetStatistics(ctx context.Context) (domain.Statistics
 		// Данные найдены в кэше
 		var stats domain.StatisticsResponse
 		if err := json.Unmarshal([]byte(cachedData), &stats); err == nil {
-			logrus.Info("Statistics retrieved from cache")
+			slog.InfoContext(ctx, "Statistics retrieved from cache")
 			return stats, nil
 		}
-		logrus.WithError(err).Warn("Failed to unmarshal cached statistics, falling back to database")
+		slog.WarnContext(ctx, "Failed to unmarshal cached statistics, falling back to database", logger.Err(err))
 	}
 
 	// Получаем данные из базы данных
@@ -672,7 +674,7 @@ func (s *inventoryService) GetStatistics(ctx context.Context) (domain.Statistics
 	// Получаем месячные продажи из orders-service
 	monthlySales, err := s.getMonthlySalesFromOrdersService(ctx)
 	if err != nil {
-		logrus.WithError(err).Warn("Failed to get monthly sales from orders service, using empty list")
+		slog.WarnContext(ctx, "Failed to get monthly sales from orders service, using empty list", logger.Err(err))
 		stats.MonthlySales = []domain.MonthlySales{}
 	} else {
 		stats.MonthlySales = monthlySales
@@ -710,12 +712,12 @@ func (s *inventoryService) GetStatistics(ctx context.Context) (domain.Statistics
 	// Кэшируем результат
 	if data, err := json.Marshal(stats); err == nil {
 		if err := s.redis.Set(ctx, statisticsCacheKey, data, statisticsCacheTTL).Err(); err != nil {
-			logrus.WithError(err).Warn("Failed to cache statistics")
+			slog.WarnContext(ctx, "Failed to cache statistics", logger.Err(err))
 		} else {
-			logrus.Info("Statistics cached successfully")
+			slog.InfoContext(ctx, "Statistics cached successfully")
 		}
 	} else {
-		logrus.WithError(err).Warn("Failed to marshal statistics for caching")
+		slog.WarnContext(ctx, "Failed to marshal statistics for caching", logger.Err(err))
 	}
 
 	return stats, nil
@@ -733,7 +735,7 @@ func (s *inventoryService) getMonthlySalesFromOrdersService(ctx context.Context)
 		if err == nil {
 			return sales, nil
 		}
-		logrus.WithError(err).Warn("Failed to get monthly sales via provider, returning empty list")
+		slog.WarnContext(ctx, "Failed to get monthly sales via provider, returning empty list", logger.Err(err))
 	}
 	return []domain.MonthlySales{}, nil
 }
@@ -741,9 +743,9 @@ func (s *inventoryService) getMonthlySalesFromOrdersService(ctx context.Context)
 // invalidateStatisticsCache инвалидирует кэш статистики
 func (s *inventoryService) invalidateStatisticsCache(ctx context.Context) {
 	if err := s.redis.Del(ctx, statisticsCacheKey).Err(); err != nil {
-		logrus.WithError(err).Warn("Failed to invalidate statistics cache")
+		slog.WarnContext(ctx, "Failed to invalidate statistics cache", logger.Err(err))
 	} else {
-		logrus.Info("Statistics cache invalidated")
+		slog.InfoContext(ctx, "Statistics cache invalidated")
 	}
 }
 
@@ -831,7 +833,7 @@ func (s *inventoryService) resolvePartIDsFromFilter(ctx context.Context, f *part
 		esQuery := s.buildElasticsearchQuery(params)
 		esParts, total, err := s.es.SearchParts(esQuery, 0, 10000)
 		if err != nil {
-			logrus.WithError(err).Warn("resolvePartIDsFromFilter: Failed to search via Elasticsearch, falling back to database")
+			slog.WarnContext(ctx, "resolvePartIDsFromFilter: Failed to search via Elasticsearch, falling back to database", logger.Err(err))
 		} else if total <= 10000 {
 			ids := make([]int64, len(esParts))
 			for i, p := range esParts {
@@ -839,7 +841,7 @@ func (s *inventoryService) resolvePartIDsFromFilter(ctx context.Context, f *part
 			}
 			return ids, nil
 		} else {
-			logrus.WithField("total", total).Info("resolvePartIDsFromFilter: Search matched >10000 items in Elasticsearch, resolving all IDs via database")
+			slog.InfoContext(ctx, "resolvePartIDsFromFilter: Search matched >10000 items in Elasticsearch, resolving all IDs via database", slog.Int64("total", total))
 		}
 	}
 
@@ -894,9 +896,7 @@ func (s *inventoryService) BulkDeletePartsWithProto(ctx context.Context, req *pa
 		return 0, nil
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"count": len(ids),
-	}).Info("InventoryService.BulkDeletePartsWithProto: Starting bulk delete")
+	slog.InfoContext(ctx, "InventoryService.BulkDeletePartsWithProto: Starting bulk delete", slog.Int("count", len(ids)))
 
 	// 1. Считываем фотографии для последующего фонового удаления файлов с диска
 	partsToDelete, err := s.repo.FindWithFilters(ctx, map[string]interface{}{"ids_in": ids}, 0, len(ids))
@@ -913,13 +913,13 @@ func (s *inventoryService) BulkDeletePartsWithProto(ctx context.Context, req *pa
 
 	// 2. Мгновенное удаление записей в PostgreSQL (транзакция 50-150 мс)
 	if err := s.repo.BulkDelete(ctx, ids); err != nil {
-		logrus.WithError(err).Error("InventoryService.BulkDeletePartsWithProto: Failed to bulk delete in database")
+		slog.ErrorContext(ctx, "InventoryService.BulkDeletePartsWithProto: Failed to bulk delete in database", logger.Err(err))
 		return 0, err
 	}
 
 	// 3. Пакетное удаление из Elasticsearch
 	if err := search.BulkDeletePartsFromIndex(ctx, ids); err != nil {
-		logrus.WithError(err).Warn("InventoryService.BulkDeletePartsWithProto: Failed to bulk delete from Elasticsearch")
+		slog.WarnContext(ctx, "InventoryService.BulkDeletePartsWithProto: Failed to bulk delete from Elasticsearch", logger.Err(err))
 	}
 
 	// 4. Сброс Redis-кэша инвентаря и статистики
@@ -937,7 +937,7 @@ func (s *inventoryService) BulkDeletePartsWithProto(ctx context.Context, req *pa
 
 			for _, photo := range photos {
 				if err := DeletePhotoFile(photo); err != nil {
-					logrus.WithError(err).WithField("photo", photo).Warn("Failed to delete photo file in background")
+					slog.WarnContext(bgCtx, "Failed to delete photo file in background", logger.Err(err), slog.String("photo", photo))
 				}
 			}
 
@@ -955,7 +955,7 @@ func (s *inventoryService) BulkDeletePartsWithProto(ctx context.Context, req *pa
 		}(photosToDelete, ids)
 	}
 
-	logrus.WithField("deleted_count", len(ids)).Info("InventoryService.BulkDeletePartsWithProto: Successfully deleted parts")
+	slog.InfoContext(ctx, "InventoryService.BulkDeletePartsWithProto: Successfully deleted parts", slog.Int("deleted_count", len(ids)))
 	return len(ids), nil
 }
 
@@ -965,10 +965,9 @@ func (s *inventoryService) BulkUpdateParts(ctx context.Context, req *partsv1.Bul
 		return 0, nil
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"has_scope":    req.Scope != nil,
-		"legacy_parts": len(req.Parts),
-	}).Info("InventoryService.BulkUpdateParts: Starting bulk update")
+	slog.InfoContext(ctx, "InventoryService.BulkUpdateParts: Starting bulk update",
+		slog.Bool("has_scope", req.Scope != nil),
+		slog.Int("legacy_parts", len(req.Parts)))
 
 	var updatedParts []domain.Part
 	var updatedCount int
@@ -1007,7 +1006,7 @@ func (s *inventoryService) BulkUpdateParts(ctx context.Context, req *partsv1.Bul
 
 		parts, err := s.repo.BulkUpdateWithProto(ctx, req, filterMap)
 		if err != nil {
-			logrus.WithError(err).Error("InventoryService.BulkUpdateParts: Failed to update with proto scope")
+			slog.ErrorContext(ctx, "InventoryService.BulkUpdateParts: Failed to update with proto scope", logger.Err(err))
 			return 0, err
 		}
 		updatedParts = parts
@@ -1027,7 +1026,7 @@ func (s *inventoryService) BulkUpdateParts(ctx context.Context, req *partsv1.Bul
 		}
 		count, err := s.repo.BulkUpdate(ctx, updates)
 		if err != nil {
-			logrus.WithError(err).Error("InventoryService.BulkUpdateParts: Failed legacy bulk update")
+			slog.ErrorContext(ctx, "InventoryService.BulkUpdateParts: Failed legacy bulk update", logger.Err(err))
 			return 0, err
 		}
 		updatedCount = count
@@ -1042,7 +1041,7 @@ func (s *inventoryService) BulkUpdateParts(ctx context.Context, req *partsv1.Bul
 	// 1. Elasticsearch Bulk Indexing (синхронизация полнотекстового индекса)
 	if len(updatedParts) > 0 {
 		if err := search.BulkIndexParts(ctx, updatedParts); err != nil {
-			logrus.WithError(err).Warn("InventoryService.BulkUpdateParts: Failed to sync parts with Elasticsearch")
+			slog.WarnContext(ctx, "InventoryService.BulkUpdateParts: Failed to sync parts with Elasticsearch", logger.Err(err))
 		}
 	}
 
@@ -1053,7 +1052,7 @@ func (s *inventoryService) BulkUpdateParts(ctx context.Context, req *partsv1.Bul
 		s.invalidateStatisticsCache(ctx)
 	}
 
-	logrus.WithField("updated_count", updatedCount).Info("InventoryService.BulkUpdateParts: Successfully completed bulk update")
+	slog.InfoContext(ctx, "InventoryService.BulkUpdateParts: Successfully completed bulk update", slog.Int("updated_count", updatedCount))
 	return updatedCount, nil
 }
 
@@ -1082,7 +1081,7 @@ func (s *inventoryService) DeleteZeroQuantityPartsBySupplier(ctx context.Context
 
 	if len(deletedIDs) > 0 {
 		if esErr := search.BulkDeletePartsFromIndex(ctx, deletedIDs); esErr != nil {
-			logrus.WithError(esErr).Warn("Failed to bulk delete zero-quantity parts from Elasticsearch")
+			slog.WarnContext(ctx, "Failed to bulk delete zero-quantity parts from Elasticsearch", logger.Err(esErr))
 		}
 	}
 
@@ -1188,13 +1187,13 @@ func (s *inventoryService) DeleteShelf(ctx context.Context, id int64) error {
 func (s *inventoryService) syncPartIndex(ctx context.Context, id int64) {
 	updatedPart, err := s.repo.FindByID(ctx, id)
 	if err != nil || updatedPart == nil {
-		logrus.WithError(err).WithField("part_id", id).Warn("syncPartIndex: failed to find part for reindexing")
+		slog.WarnContext(ctx, "syncPartIndex: failed to find part for reindexing", logger.Err(err), slog.Int64("part_id", id))
 		return
 	}
 
 	// Синхронная прямая индексация в Elasticsearch (Refresh: "true") для мгновенной видимости в фильтрах "с фото"
 	if err := search.IndexPart(updatedPart); err != nil {
-		logrus.WithError(err).WithField("part_id", id).Warn("syncPartIndex: failed to index part in Elasticsearch")
+		slog.WarnContext(ctx, "syncPartIndex: failed to index part in Elasticsearch", logger.Err(err), slog.Int64("part_id", id))
 	}
 
 	// Отправка события в Redis Stream events:orders
@@ -1207,7 +1206,7 @@ func (s *inventoryService) syncPartIndex(ctx context.Context, id int64) {
 			},
 		}).Err()
 		if err != nil {
-			logrus.WithError(err).Warn("syncPartIndex: failed to publish part_index_requested to Redis")
+			slog.WarnContext(ctx, "syncPartIndex: failed to publish part_index_requested to Redis", logger.Err(err))
 		}
 
 		s.redis.Del(ctx, inventoryCacheKey)
@@ -1299,12 +1298,12 @@ func (s *inventoryService) UpdateEarnings(ctx context.Context, amount float64) e
 
 	// Сохраняем в базу данных для персистентности
 	if err := s.repo.UpdateTotalEarnings(ctx, s.totalEarnings); err != nil {
-		logrus.WithError(err).Error("Failed to save total earnings to database")
+		slog.ErrorContext(ctx, "Failed to save total earnings to database", logger.Err(err))
 		return err
 	}
 
 	s.invalidateStatisticsCache(ctx)
-	logrus.WithField("totalEarnings", s.totalEarnings).Info("Updated total earnings in database")
+	slog.InfoContext(ctx, "Updated total earnings in database", slog.Float64("totalEarnings", s.totalEarnings))
 	return nil
 }
 

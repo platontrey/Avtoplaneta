@@ -1,10 +1,10 @@
 package handler
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 
 	"avtoplaneta/pkg/ginmw"
 	"avtoplaneta/pkg/metrics"
@@ -27,13 +27,13 @@ func LoggingMiddleware() gin.HandlerFunc {
 		c.Next()
 
 		latency := time.Since(start)
-		logrus.WithFields(logrus.Fields{
-			"status":  c.Writer.Status(),
-			"method":  c.Request.Method,
-			"path":    c.Request.URL.Path,
-			"ip":      c.ClientIP(),
-			"latency": latency.String(),
-		}).Info("HTTP request")
+		slog.InfoContext(c.Request.Context(), "HTTP request",
+			slog.Int("status", c.Writer.Status()),
+			slog.String("method", c.Request.Method),
+			slog.String("path", c.Request.URL.Path),
+			slog.String("ip", c.ClientIP()),
+			slog.Duration("latency", latency),
+		)
 	}
 }
 

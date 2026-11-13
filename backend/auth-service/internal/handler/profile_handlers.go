@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -10,9 +11,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 
 	"auth-service/internal/domain"
+	"avtoplaneta/pkg/logger"
 )
 
 const (
@@ -30,7 +31,7 @@ func (h *Handler) getUserFromContext(c *gin.Context) (*domain.User, bool) {
 
 	user, ok := val.(domain.User)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Недействительный пользователь в сессии"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Внутренняя ошибка авторизации"})
 		return nil, false
 	}
 
@@ -50,9 +51,18 @@ func (h *Handler) UpdateProfileHandler(c *gin.Context) {
 		return
 	}
 
+	req.Username = strings.ToLower(strings.TrimSpace(req.Username))
+	req.Name = strings.TrimSpace(req.Name)
+	req.INN = strings.TrimSpace(req.INN)
+
+	if req.Username == "" && req.Name == "" && req.INN == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Необходимо указать хотя бы одно поле для обновления"})
+		return
+	}
+
 	updatedUser, err := h.authService.UpdateProfile(user.ID, req)
 	if err != nil {
-		logrus.WithError(err).WithField("user_id", user.ID).Warn("Failed to update user profile")
+		slog.WarnContext(c.Request.Context(), "Failed to update user profile", logger.Err(err), slog.Int64("user_id", user.ID))
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -80,7 +90,7 @@ func (h *Handler) ChangePasswordHandler(c *gin.Context) {
 	}
 
 	if err := h.authService.ChangePassword(user.ID, req.OldPassword, req.NewPassword); err != nil {
-		logrus.WithError(err).WithField("user_id", user.ID).Warn("Failed to change password")
+		slog.WarnContext(c.Request.Context(), "Failed to change password", logger.Err(err), slog.Int64("user_id", user.ID))
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -99,7 +109,7 @@ func (h *Handler) UploadAvatarHandler(c *gin.Context) {
 
 	file, header, err := c.Request.FormFile("avatar")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Файл аватара не передан (ожидается поле 'avatar')"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Файл аватара обязателен"})
 		return
 	}
 	defer file.Close()
@@ -109,24 +119,23 @@ func (h *Handler) UploadAvatarHandler(c *gin.Context) {
 		return
 	}
 
-	// Считываем первые 512 байт для точного определения MIME-типа (magic bytes)
-	buff := make([]byte, 512)
-	n, err := file.Read(buff)
+	// Валидация MIME-типа по первым 512 байтам
+	buffer := make([]byte, 512)
+	n, err := file.Read(buffer)
 	if err != nil && err != io.EOF {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Ошибка чтения файла"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Ошибка чтения файла"})
 		return
 	}
-	buff = buff[:n]
+	contentType := http.DetectContentType(buffer[:n])
 
-	// Сбрасываем указатель файла обратно в начало
+	// Возвращаем указатель в начало файла
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Ошибка обработки файла"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Ошибка перемотки файла"})
 		return
 	}
 
-	mimeType := http.DetectContentType(buff)
 	var ext string
-	switch mimeType {
+	switch contentType {
 	case "image/jpeg":
 		ext = ".jpg"
 	case "image/png":
@@ -139,7 +148,7 @@ func (h *Handler) UploadAvatarHandler(c *gin.Context) {
 	}
 
 	if err := os.MkdirAll(avatarStorageDir, 0755); err != nil {
-		logrus.WithError(err).Error("Failed to create avatars directory")
+		slog.ErrorContext(c.Request.Context(), "Failed to create avatars directory", logger.Err(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Внутренняя ошибка файлового хранилища"})
 		return
 	}
@@ -149,14 +158,14 @@ func (h *Handler) UploadAvatarHandler(c *gin.Context) {
 
 	out, err := os.Create(dstPath)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to create avatar file")
+		slog.ErrorContext(c.Request.Context(), "Failed to create avatar file", logger.Err(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось сохранить файл аватара"})
 		return
 	}
 	defer out.Close()
 
 	if _, err := io.Copy(out, file); err != nil {
-		logrus.WithError(err).Error("Failed to write avatar file")
+		slog.ErrorContext(c.Request.Context(), "Failed to write avatar file", logger.Err(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось записать файл аватара"})
 		return
 	}
@@ -172,7 +181,7 @@ func (h *Handler) UploadAvatarHandler(c *gin.Context) {
 	avatarURL := "/auth/avatars/" + filename
 	updatedUser, err := h.authService.UpdateAvatar(user.ID, avatarURL)
 	if err != nil {
-		logrus.WithError(err).WithField("user_id", user.ID).Error("Failed to save avatar URL to DB")
+		slog.ErrorContext(c.Request.Context(), "Failed to save avatar URL to DB", logger.Err(err), slog.Int64("user_id", user.ID))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось обновить профиль пользователя"})
 		return
 	}
@@ -202,7 +211,7 @@ func (h *Handler) DeleteAvatarHandler(c *gin.Context) {
 
 	updatedUser, err := h.authService.DeleteAvatar(user.ID)
 	if err != nil {
-		logrus.WithError(err).WithField("user_id", user.ID).Error("Failed to delete avatar from DB")
+		slog.ErrorContext(c.Request.Context(), "Failed to delete avatar from DB", logger.Err(err), slog.Int64("user_id", user.ID))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось удалить аватар"})
 		return
 	}

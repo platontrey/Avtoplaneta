@@ -2,37 +2,28 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"github.com/sirupsen/logrus"
+
+	"avtoplaneta/pkg/logger"
 )
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins for testing
+		return true // Allow all origins for dev
 	},
 }
 
-// Client represents a connected WebSocket user
 type Client struct {
 	UserID int64
 	Conn   *websocket.Conn
 	Send   chan []byte
-}
-
-// Hub manages active connections and broadcasts messages
-type Hub struct {
-	clients    map[int64]map[*Client]bool
-	broadcast  chan BroadcastMessage
-	register   chan *Client
-	unregister chan *Client
-	mu         sync.RWMutex
 }
 
 type BroadcastMessage struct {
@@ -40,7 +31,17 @@ type BroadcastMessage struct {
 	Payload      interface{} `json:"payload"`
 }
 
-var globalHub = &Hub{
+type Hub struct {
+	// Registered clients: map[userID]map[*Client]bool
+	clients map[int64]map[*Client]bool
+
+	broadcast  chan BroadcastMessage
+	register   chan *Client
+	unregister chan *Client
+	mu         sync.RWMutex
+}
+
+var globalHub = Hub{
 	clients:    make(map[int64]map[*Client]bool),
 	broadcast:  make(chan BroadcastMessage, 1024),
 	register:   make(chan *Client, 256),
@@ -48,7 +49,7 @@ var globalHub = &Hub{
 }
 
 func (h *Hub) Run() {
-	logrus.Info("WebSocket Hub is running...")
+	slog.Info("WebSocket Hub is running...")
 	for {
 		select {
 		case client := <-h.register:
@@ -58,7 +59,7 @@ func (h *Hub) Run() {
 			}
 			h.clients[client.UserID][client] = true
 			h.mu.Unlock()
-			logrus.Infof("User %d connected via WebSocket", client.UserID)
+			slog.Info("User connected via WebSocket", slog.Int64("user_id", client.UserID))
 
 		case client := <-h.unregister:
 			h.mu.Lock()
@@ -72,12 +73,12 @@ func (h *Hub) Run() {
 				}
 			}
 			h.mu.Unlock()
-			logrus.Infof("User %d disconnected from WebSocket", client.UserID)
+			slog.Info("User disconnected from WebSocket", slog.Int64("user_id", client.UserID))
 
 		case msg := <-h.broadcast:
 			payloadBytes, err := json.Marshal(msg.Payload)
 			if err != nil {
-				logrus.WithError(err).Error("Failed to marshal broadcast message payload")
+				slog.Error("Failed to marshal broadcast message payload", logger.Err(err))
 				continue
 			}
 
@@ -137,11 +138,12 @@ func (c *Client) ReadPump() {
 	}
 }
 
-// ServeWebSocket handles websocket requests from clients
 func ServeWebSocket(c *gin.Context) {
-	userIDStr := c.Query("userId")
+	userIDStr := c.Query("user_id")
 	if userIDStr == "" {
-		userIDStr = c.GetHeader("X-User-ID")
+		if u, exists := c.Get("user_id"); exists {
+			userIDStr = fmt.Sprintf("%v", u)
+		}
 	}
 	if userIDStr == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
@@ -156,7 +158,7 @@ func ServeWebSocket(c *gin.Context) {
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to upgrade HTTP connection to WebSocket")
+		slog.ErrorContext(c.Request.Context(), "Failed to upgrade HTTP connection to WebSocket", logger.Err(err))
 		return
 	}
 

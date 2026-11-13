@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"math"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 
 	"avtoplaneta/pkg/constants"
+	"avtoplaneta/pkg/logger"
 	"avtoplaneta/pkg/metrics"
 	"avtoplaneta/pkg/outbox"
 	"orders-service/internal/repository"
@@ -107,10 +108,9 @@ func (d *Dispatcher) processEvent(ctx context.Context, event outbox.Event) error
 	case "user_action":
 		return d.handleUserAction(ctx, event)
 	default:
-		logrus.WithFields(logrus.Fields{
-			"event_id":   event.ID,
-			"event_type": event.EventType,
-		}).Warn("Orders Outbox: unknown event type, skipping")
+		slog.WarnContext(ctx, "Orders Outbox: unknown event type, skipping",
+			slog.Int64("event_id", event.ID),
+			slog.String("event_type", event.EventType))
 		return nil
 	}
 }
@@ -120,7 +120,9 @@ func (d *Dispatcher) handleOrderCompleted(ctx context.Context, event outbox.Even
 	orderID := event.AggregateID
 	order, err := d.orderRepo.FindWithItemsByID(ctx, orderID)
 	if err != nil {
-		logrus.WithError(err).WithField("order_id", orderID).Warn("Order not found during outbox completion processing")
+		slog.WarnContext(ctx, "Order not found during outbox completion processing",
+			logger.Err(err),
+			slog.Int64("order_id", orderID))
 		return nil
 	}
 
@@ -133,7 +135,9 @@ func (d *Dispatcher) handleOrderCompleted(ctx context.Context, event outbox.Even
 
 			part, errPart := d.partRepo.FindByID(ctx, item.PartID)
 			if errPart != nil {
-				logrus.WithError(errPart).WithField("part_id", item.PartID).Warn("Part not found in parts-service during outbox processing")
+				slog.WarnContext(ctx, "Part not found in parts-service during outbox processing",
+					logger.Err(errPart),
+					slog.Int64("part_id", item.PartID))
 				continue
 			}
 
@@ -184,7 +188,7 @@ func (d *Dispatcher) handleOrderCompleted(ctx context.Context, event outbox.Even
 	// 3. Инвалидация кэша заказов
 	if d.cache != nil {
 		if err := d.cache.InvalidateOrders(); err != nil {
-			logrus.WithError(err).Warn("Orders Outbox: failed to invalidate orders cache")
+			slog.WarnContext(ctx, "Orders Outbox: failed to invalidate orders cache", logger.Err(err))
 		}
 	}
 

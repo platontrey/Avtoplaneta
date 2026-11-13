@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -67,10 +67,10 @@ func (s *Server) Run(ctx context.Context) error {
 
 	errChan := make(chan error, 1)
 	go func() {
-		logrus.WithFields(logrus.Fields{
-			"port":    s.port,
-			"service": s.serviceName,
-		}).Info("gRPC-сервер запущен")
+		slog.Info("gRPC-сервер запущен",
+			slog.String("port", s.port),
+			slog.String("service", s.serviceName),
+		)
 
 		if err := s.grpcServer.Serve(lis); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 			errChan <- err
@@ -79,9 +79,9 @@ func (s *Server) Run(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
-		logrus.WithField("service", s.serviceName).Info("Graceful остановка gRPC-сервера...")
+		slog.InfoContext(ctx, "Graceful остановка gRPC-сервера...", slog.String("service", s.serviceName))
 		s.grpcServer.GracefulStop()
-		logrus.WithField("service", s.serviceName).Info("gRPC-сервер успешно остановлен")
+		slog.Info("gRPC-сервер успешно остановлен", slog.String("service", s.serviceName))
 		return nil
 
 	case err := <-errChan:

@@ -3,11 +3,12 @@ package events
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 
 	"avtoplaneta/pkg/constants"
+	"avtoplaneta/pkg/logger"
 )
 
 // UserEventPublisher определяет интерфейс публикации событий пользователей
@@ -41,16 +42,17 @@ func (p *RedisUserEventPublisher) PublishUserRenamed(ctx context.Context, userID
 	}).Err()
 
 	if err != nil {
-		logrus.WithError(err).WithFields(logrus.Fields{
-			"user_id": userID,
-			"name":    newName,
-		}).Error("Failed to publish seller_renamed event to Redis")
+		slog.ErrorContext(ctx, "Failed to publish seller_renamed event to Redis",
+			logger.Err(err),
+			slog.Int64("user_id", userID),
+			slog.String("name", newName),
+		)
 		return err
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"user_id": userID,
-		"name":    newName,
-	}).Info("seller_renamed event published to Redis")
+	slog.InfoContext(ctx, "seller_renamed event published to Redis",
+		slog.Int64("user_id", userID),
+		slog.String("name", newName),
+	)
 	return nil
 }

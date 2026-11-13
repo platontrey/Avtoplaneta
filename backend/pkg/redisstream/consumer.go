@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 )
 
 // Handler функция обработки одного входящего сообщения Redis Streams
@@ -17,16 +17,16 @@ type Handler func(ctx context.Context, msg redis.XMessage) error
 
 // ConsumerConfig конфигурация Consumer Group воркера
 type ConsumerConfig struct {
-	Stream              string        // Имя стрима (например, "events:orders")
-	Group               string        // Имя Consumer Group (например, "parts-service-group")
-	Consumer            string        // Имя консьюмера (по умолчанию: hostname-pid)
-	BatchSize           int64         // Размер выборки (по умолчанию: 10)
-	BlockDuration       time.Duration // Длительность блокировки XReadGroup (по умолчанию: 5s)
-	RecoveryPeriod      time.Duration // Периодичность проверки зависших сообщений PEL (по умолчанию: 30s)
-	MaxDeliveryAttempts int64         // Число попыток доставки до сброса в DLQ (по умолчанию: 5)
-	EnableDLQ           bool          // Отправлять ли сообщения в Dead Letter Queue (<stream>:dead)
+	Stream              string          // Имя стрима (например, "events:orders")
+	Group               string          // Имя Consumer Group (например, "parts-service-group")
+	Consumer            string          // Имя консьюмера (по умолчанию: hostname-pid)
+	BatchSize           int64           // Размер выборки (по умолчанию: 10)
+	BlockDuration       time.Duration   // Длительность блокировки XReadGroup (по умолчанию: 5s)
+	RecoveryPeriod      time.Duration   // Периодичность проверки зависших сообщений PEL (по умолчанию: 30s)
+	MaxDeliveryAttempts int64           // Число попыток доставки до сброса в DLQ (по умолчанию: 5)
+	EnableDLQ           bool            // Отправлять ли сообщения в Dead Letter Queue (<stream>:dead)
 	ReadyChan           <-chan struct{} // Опциональный канал готовности: консьюмер не начинает чтение до получения сигнала
-	Logger              *logrus.Entry // Опциональный логгер с контекстом сервиса
+	Logger              *slog.Logger    // Опциональный логгер с контекстом сервиса
 }
 
 // ConsumerGroupWorker реализует надежную At-Least-Once обработку сообщений из Redis Streams
@@ -34,7 +34,7 @@ type ConsumerGroupWorker struct {
 	client  *redis.Client
 	handler Handler
 	cfg     ConsumerConfig
-	log     *logrus.Entry
+	log     *slog.Logger
 }
 
 // NewConsumerGroupWorker создает настроенный воркер
@@ -61,11 +61,11 @@ func NewConsumerGroupWorker(client *redis.Client, handler Handler, cfg ConsumerC
 
 	logger := cfg.Logger
 	if logger == nil {
-		logger = logrus.WithFields(logrus.Fields{
-			"component": "redis-consumer",
-			"stream":    cfg.Stream,
-			"group":     cfg.Group,
-		})
+		logger = slog.Default().With(
+			slog.String("component", "redis-consumer"),
+			slog.String("stream", cfg.Stream),
+			slog.String("group", cfg.Group),
+		)
 	}
 
 	return &ConsumerGroupWorker{
@@ -79,27 +79,27 @@ func NewConsumerGroupWorker(client *redis.Client, handler Handler, cfg ConsumerC
 // Start запускает цикл прослушивания сообщений и фоновое восстановление PEL
 func (w *ConsumerGroupWorker) Start(ctx context.Context) error {
 	if w.client == nil {
-		w.log.Warn("Redis client is nil, skipping consumer worker")
+		w.log.WarnContext(ctx, "Redis client is nil, skipping consumer worker")
 		return nil
 	}
 
 	// 1. Создаем Consumer Group, если она еще не создана
 	err := w.client.XGroupCreateMkStream(ctx, w.cfg.Stream, w.cfg.Group, "$").Err()
 	if err != nil && !strings.Contains(err.Error(), "BUSYGROUP") {
-		w.log.WithError(err).Error("Failed to create consumer group")
+		w.log.ErrorContext(ctx, "Failed to create consumer group", slog.Any("error", err))
 		return fmt.Errorf("redis stream create group: %w", err)
 	}
 
-	w.log.Infof("Starting Redis Streams consumer (worker: %s)", w.cfg.Consumer)
+	w.log.InfoContext(ctx, "Starting Redis Streams consumer", slog.String("worker", w.cfg.Consumer))
 
 	// Если задан ReadyChan, блокируем вычитку до получения сигнала готовности сервиса
 	if w.cfg.ReadyChan != nil {
-		w.log.Info("Waiting for service readiness before starting Redis consumer...")
+		w.log.InfoContext(ctx, "Waiting for service readiness before starting Redis consumer...")
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-w.cfg.ReadyChan:
-			w.log.Info("Service reported readiness, starting consumer stream processing")
+			w.log.InfoContext(ctx, "Service reported readiness, starting consumer stream processing")
 		}
 	}
 
@@ -113,7 +113,7 @@ func (w *ConsumerGroupWorker) Start(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			w.log.Info("Stopping Redis Streams consumer")
+			w.log.InfoContext(ctx, "Stopping Redis Streams consumer")
 			return nil
 
 		default:
@@ -126,7 +126,7 @@ func (w *ConsumerGroupWorker) Start(ctx context.Context) error {
 			}).Result()
 
 			if err != nil && !errors.Is(err, redis.Nil) {
-				w.log.WithError(err).Error("Failed to read from Redis Streams")
+				w.log.ErrorContext(ctx, "Failed to read from Redis Streams", slog.Any("error", err))
 				time.Sleep(time.Second) // Защита от спама при временном падении Redis
 				continue
 			}
@@ -138,12 +138,18 @@ func (w *ConsumerGroupWorker) Start(ctx context.Context) error {
 			for _, stream := range streams {
 				for _, msg := range stream.Messages {
 					if err := w.handler(ctx, msg); err != nil {
-						w.log.WithError(err).WithField("message_id", msg.ID).Error("Failed to process stream message, leaving in PEL")
+						w.log.ErrorContext(ctx, "Failed to process stream message, leaving in PEL",
+							slog.Any("error", err),
+							slog.String("message_id", msg.ID),
+						)
 						continue
 					}
 
 					if err := w.client.XAck(ctx, w.cfg.Stream, w.cfg.Group, msg.ID).Err(); err != nil {
-						w.log.WithError(err).WithField("message_id", msg.ID).Error("Failed to ACK stream message")
+						w.log.ErrorContext(ctx, "Failed to ACK stream message",
+							slog.Any("error", err),
+							slog.String("message_id", msg.ID),
+						)
 					}
 				}
 			}
@@ -178,22 +184,22 @@ func (w *ConsumerGroupWorker) recoverPendingMessages(ctx context.Context) {
 
 	if err != nil {
 		if !errors.Is(err, redis.Nil) {
-			w.log.WithError(err).Error("Failed to read pending messages from Redis PEL")
+			w.log.ErrorContext(ctx, "Failed to read pending messages from Redis PEL", slog.Any("error", err))
 		}
 		return
 	}
 
 	for _, stream := range streams {
 		for _, msg := range stream.Messages {
-			w.log.WithField("message_id", msg.ID).Info("Recovering pending message from PEL")
+			w.log.InfoContext(ctx, "Recovering pending message from PEL", slog.String("message_id", msg.ID))
 
 			deliveryCount := w.getDeliveryCount(ctx, msg.ID)
 			if deliveryCount > w.cfg.MaxDeliveryAttempts {
-				w.log.WithFields(logrus.Fields{
-					"message_id":       msg.ID,
-					"delivery_count":   deliveryCount,
-					"max_attempts":     w.cfg.MaxDeliveryAttempts,
-				}).Warn("Message exceeded max delivery attempts")
+				w.log.WarnContext(ctx, "Message exceeded max delivery attempts",
+					slog.String("message_id", msg.ID),
+					slog.Int64("delivery_count", deliveryCount),
+					slog.Int64("max_attempts", w.cfg.MaxDeliveryAttempts),
+				)
 
 				if w.cfg.EnableDLQ {
 					w.sendToDLQ(ctx, msg, fmt.Errorf("exceeded max delivery attempts (%d)", deliveryCount))
@@ -205,12 +211,18 @@ func (w *ConsumerGroupWorker) recoverPendingMessages(ctx context.Context) {
 			}
 
 			if err := w.handler(ctx, msg); err != nil {
-				w.log.WithError(err).WithField("message_id", msg.ID).Error("Failed to process recovered message")
+				w.log.ErrorContext(ctx, "Failed to process recovered message",
+					slog.Any("error", err),
+					slog.String("message_id", msg.ID),
+				)
 				continue
 			}
 
 			if err := w.client.XAck(ctx, w.cfg.Stream, w.cfg.Group, msg.ID).Err(); err != nil {
-				w.log.WithError(err).WithField("message_id", msg.ID).Error("Failed to acknowledge recovered message")
+				w.log.ErrorContext(ctx, "Failed to acknowledge recovered message",
+					slog.Any("error", err),
+					slog.String("message_id", msg.ID),
+				)
 			}
 		}
 	}
@@ -250,14 +262,15 @@ func (w *ConsumerGroupWorker) sendToDLQ(ctx context.Context, msg redis.XMessage,
 	}).Err()
 
 	if err != nil {
-		w.log.WithError(err).WithFields(logrus.Fields{
-			"original_id": msg.ID,
-			"dlq_stream":  dlqStream,
-		}).Error("Failed to publish message to DLQ")
+		w.log.ErrorContext(ctx, "Failed to publish message to DLQ",
+			slog.Any("error", err),
+			slog.String("original_id", msg.ID),
+			slog.String("dlq_stream", dlqStream),
+		)
 	} else {
-		w.log.WithFields(logrus.Fields{
-			"original_id": msg.ID,
-			"dlq_stream":  dlqStream,
-		}).Info("Message successfully routed to DLQ")
+		w.log.InfoContext(ctx, "Message successfully routed to DLQ",
+			slog.String("original_id", msg.ID),
+			slog.String("dlq_stream", dlqStream),
+		)
 	}
 }

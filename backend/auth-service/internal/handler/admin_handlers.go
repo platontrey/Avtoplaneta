@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 
 	partsv1 "avtoplaneta/gen/parts/v1"
+	"avtoplaneta/pkg/logger"
 
 	"auth-service/internal/domain"
 )
@@ -38,12 +39,12 @@ func (h *Handler) CreateUserHandler(c *gin.Context) {
 func (h *Handler) GetUsersHandler(c *gin.Context) {
 	users, err := h.authService.GetUsers()
 	if err != nil {
-		logrus.WithError(err).Error("Failed to get users")
+		slog.ErrorContext(c.Request.Context(), "Failed to get users", logger.Err(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось получить пользователей"})
 		return
 	}
 
-	logrus.WithField("users_count", len(users)).Info("Returning users list")
+	slog.InfoContext(c.Request.Context(), "Returning users list", slog.Int("users_count", len(users)))
 	c.JSON(http.StatusOK, gin.H{"users": users})
 }
 
@@ -92,13 +93,13 @@ func (h *Handler) DeleteUserHandler(c *gin.Context) {
 func (h *Handler) GetServerStatusHandler(c *gin.Context) {
 	totalUsers, err := h.authService.GetTotalUsersCount()
 	if err != nil {
-		logrus.WithError(err).Error("Failed to get total users count")
+		slog.ErrorContext(c.Request.Context(), "Failed to get total users count", logger.Err(err))
 		totalUsers = 0
 	}
 
 	totalParts, err := h.getTotalPartsCount()
 	if err != nil {
-		logrus.WithError(err).Error("Failed to get total parts count")
+		slog.ErrorContext(c.Request.Context(), "Failed to get total parts count", logger.Err(err))
 		totalParts = 0
 	}
 
@@ -189,7 +190,7 @@ func (h *Handler) GetUserActivityLogsHandler(c *gin.Context) {
 
 	logs, err := h.authService.GetUserActivityLogs(filters)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to get user activity logs")
+		slog.ErrorContext(c.Request.Context(), "Failed to get user activity logs", logger.Err(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось получить логи"})
 		return
 	}
@@ -219,7 +220,7 @@ func (h *Handler) LogUserActivityHandler(c *gin.Context) {
 
 	u := user.(domain.User)
 	if err := h.authService.LogUserActivity(&u, req.Action, req.ResourceType, req.ResourceID, req.Details, c.ClientIP(), c.GetHeader("User-Agent")); err != nil {
-		logrus.WithError(err).Warn("Failed to log user activity")
+		slog.WarnContext(c.Request.Context(), "Failed to log user activity", logger.Err(err))
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Активность залогирована"})
@@ -229,12 +230,12 @@ func (h *Handler) LogUserActivityHandler(c *gin.Context) {
 func (h *Handler) InternalGetUsersHandler(c *gin.Context) {
 	users, err := h.authService.GetUsers()
 	if err != nil {
-		logrus.WithError(err).Error("Failed to get users for internal request")
+		slog.ErrorContext(c.Request.Context(), "Failed to get users for internal request", logger.Err(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось получить пользователей"})
 		return
 	}
 
-	logrus.WithField("users_count", len(users)).Info("Returning users list for internal request")
+	slog.InfoContext(c.Request.Context(), "Returning users list for internal request", slog.Int("users_count", len(users)))
 	c.JSON(http.StatusOK, gin.H{"users": users})
 }
 
@@ -266,13 +267,13 @@ func (h *Handler) InternalLogUserActivityHandler(c *gin.Context) {
 
 	user, err := h.authService.GetCurrentUser(userID)
 	if err != nil {
-		logrus.WithError(err).WithField("user_id", userID).Warn("Failed to get user for internal logging")
+		slog.WarnContext(c.Request.Context(), "Failed to get user for internal logging", logger.Err(err), slog.Int64("user_id", userID))
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Пользователь не найден"})
 		return
 	}
 
 	if err := h.authService.LogUserActivity(user, req.Action, req.ResourceType, req.ResourceID, req.Details, c.ClientIP(), c.GetHeader("User-Agent")); err != nil {
-		logrus.WithError(err).Warn("Failed to log user activity internally")
+		slog.WarnContext(c.Request.Context(), "Failed to log user activity internally", logger.Err(err))
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Активность залогирована"})
@@ -284,10 +285,10 @@ func (h *Handler) getTotalPartsCount() (int, error) {
 		defer cancel()
 		resp, err := h.partsClient.GetStatistics(ctx, &partsv1.GetStatisticsRequest{})
 		if err == nil {
-			logrus.WithField("total_parts", resp.TotalParts).Info("Fetched total parts count from parts-service via gRPC")
+			slog.Info("Fetched total parts count from parts-service via gRPC", slog.Int("total_parts", int(resp.TotalParts)))
 			return int(resp.TotalParts), nil
 		}
-		logrus.WithError(err).Warn("Failed to fetch parts statistics via gRPC, attempting HTTP fallback")
+		slog.Warn("Failed to fetch parts statistics via gRPC, attempting HTTP fallback", logger.Err(err))
 	}
 
 	if h.config == nil || h.config.PartsServiceURL == "" {
@@ -297,14 +298,14 @@ func (h *Handler) getTotalPartsCount() (int, error) {
 	url := fmt.Sprintf("%s/api/statistics", h.config.PartsServiceURL)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to create parts statistics request")
+		slog.Error("Failed to create parts statistics request", logger.Err(err))
 		return 0, err
 	}
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to fetch parts statistics")
+		slog.Error("Failed to fetch parts statistics", logger.Err(err))
 		return 0, err
 	}
 	defer func(Body io.ReadCloser) {
@@ -319,7 +320,7 @@ func (h *Handler) getTotalPartsCount() (int, error) {
 		TotalParts int `json:"total_parts"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
-		logrus.WithError(err).Error("Failed to decode parts statistics response")
+		slog.Error("Failed to decode parts statistics response", logger.Err(err))
 		return 0, err
 	}
 

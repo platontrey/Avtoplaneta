@@ -41,7 +41,7 @@ template-service/
 3. **Observability (Метрики и логирование):**
    - `GET /health` — проверка жизнеспособности сервиса.
    - `GET /metrics` — сбор метрик в формате Prometheus (RPS, latency p95/p99, статус-коды).
-   - JSON-логирование в production (`logrus.JSONFormatter`).
+   - JSON-логирование в production (`slog` (JSON-хэндлер)).
 
 4. **Безопасность контейнера:**
    - Мультистейдж сборка: компиляция в Alpine Go с кеш-моунтами `--mount=type=cache`, запуск в легковесном `alpine:3.19`.

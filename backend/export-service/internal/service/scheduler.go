@@ -2,9 +2,10 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"avtoplaneta/pkg/logger"
 )
 
 const priceListCheckInterval = time.Hour
@@ -12,7 +13,7 @@ const priceListCheckInterval = time.Hour
 // StartPriceListScheduler периодически проверяет актуальность XML прайс-листа и пересобирает его при изменениях.
 // Вызов блокирует текущую горутину до отмены контекста.
 func StartPriceListScheduler(ctx context.Context, svc *PriceListService, readyChan chan struct{}) {
-	logrus.Info("Планировщик прайс-листа запущен")
+	slog.InfoContext(ctx, "Планировщик прайс-листа запущен")
 
 	// Асинхронно добиваемся первичной сборки слепка, если parts-service был временно недоступен
 	go func() {
@@ -25,7 +26,7 @@ func StartPriceListScheduler(ctx context.Context, svc *PriceListService, readyCh
 			meta, rebuilt, err := svc.Build(ctx)
 			if err == nil {
 				if rebuilt {
-					logrus.WithField("parts_count", meta.PartsCount).Info("XML прайс-лист успешно инициализирован при старте")
+					slog.InfoContext(ctx, "XML прайс-лист успешно инициализирован при старте", slog.Int("parts_count", meta.PartsCount))
 				}
 				if readyChan != nil {
 					select {
@@ -36,7 +37,7 @@ func StartPriceListScheduler(ctx context.Context, svc *PriceListService, readyCh
 				}
 				return
 			}
-			logrus.WithError(err).Warn("parts-service еще не готов для первичной сборки слепка, повтор через 5 секунд...")
+			slog.WarnContext(ctx, "parts-service еще не готов для первичной сборки слепка, повтор через 5 секунд...", logger.Err(err))
 			select {
 			case <-ctx.Done():
 				return
@@ -51,7 +52,7 @@ func StartPriceListScheduler(ctx context.Context, svc *PriceListService, readyCh
 	for {
 		select {
 		case <-ctx.Done():
-			logrus.Info("Планировщик прайс-листа остановлен")
+			slog.InfoContext(ctx, "Планировщик прайс-листа остановлен")
 			return
 		case <-ticker.C:
 			rebuildIfStale(ctx, svc)
@@ -62,13 +63,13 @@ func StartPriceListScheduler(ctx context.Context, svc *PriceListService, readyCh
 func rebuildIfStale(ctx context.Context, svc *PriceListService) {
 	meta, rebuilt, err := svc.Build(ctx)
 	if err != nil {
-		logrus.WithError(err).Error("Не удалось собрать XML прайс-лист по расписанию")
+		slog.ErrorContext(ctx, "Не удалось собрать XML прайс-лист по расписанию", logger.Err(err))
 		return
 	}
 	if !rebuilt {
-		logrus.Debug("XML прайс-лист актуален, плановая пересборка пропущена")
+		slog.DebugContext(ctx, "XML прайс-лист актуален, плановая пересборка пропущена")
 		return
 	}
 
-	logrus.WithField("parts_count", meta.PartsCount).Info("XML прайс-лист пересобран по расписанию")
+	slog.InfoContext(ctx, "XML прайс-лист пересобран по расписанию", slog.Int("parts_count", meta.PartsCount))
 }

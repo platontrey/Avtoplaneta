@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"runtime"
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -17,6 +17,7 @@ import (
 
 	authv1 "avtoplaneta/gen/auth/v1"
 	"avtoplaneta/pkg/grpcserver"
+	"avtoplaneta/pkg/logger"
 
 	"auth-service/internal/config"
 	"auth-service/internal/domain"
@@ -145,7 +146,7 @@ func (s *AuthGRPCServer) LogActivity(ctx context.Context, req *authv1.LogActivit
 	}
 
 	if err := s.authService.LogUserActivity(user, req.GetAction(), req.GetResourceType(), resourceID, req.GetDetails(), req.GetIpAddress(), req.GetUserAgent()); err != nil {
-		logrus.WithError(err).Warn("Failed to log activity via gRPC")
+		slog.WarnContext(ctx, "Failed to log activity via gRPC", logger.Err(err))
 	}
 
 	return &authv1.LogActivityResponse{}, nil
@@ -259,10 +260,10 @@ func StartGRPCServer(
 
 	srv := NewGRPCServer(authService, sessionStore, cfg)
 
-	logrus.WithField("port", port).Info("gRPC server listening")
+	slog.Info("gRPC server listening", slog.String("port", port))
 	go func() {
 		if err := srv.Serve(lis); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-			logrus.WithError(err).Error("gRPC server error")
+			slog.Error("gRPC server error", logger.Err(err))
 		}
 	}()
 
@@ -274,15 +275,17 @@ func loggingUnaryInterceptor(ctx context.Context, req interface{}, info *grpc.Un
 	resp, err := handler(ctx, req)
 	duration := time.Since(start)
 
-	fields := logrus.Fields{
-		"method":   info.FullMethod,
-		"duration": duration.String(),
-	}
 	if err != nil {
-		fields["error"] = err.Error()
-		logrus.WithFields(fields).Warn("gRPC call failed")
+		slog.WarnContext(ctx, "gRPC call failed",
+			slog.String("method", info.FullMethod),
+			slog.Duration("duration", duration),
+			logger.Err(err),
+		)
 	} else if duration > 100*time.Millisecond {
-		logrus.WithFields(fields).Info("gRPC call slow")
+		slog.InfoContext(ctx, "gRPC call slow",
+			slog.String("method", info.FullMethod),
+			slog.Duration("duration", duration),
+		)
 	}
 
 	return resp, err

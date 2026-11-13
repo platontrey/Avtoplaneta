@@ -1,18 +1,18 @@
 package ginmw
 
 import (
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 
 	"avtoplaneta/pkg/authcontext"
 )
 
 const (
-	defaultAllowedOrigin = "http://localhost:5173"
+	defaultAllowedOrigin  = "http://localhost:5173"
 	defaultAllowedHeaders = "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-User-ID, X-User-Email, X-User-Name, X-User-Role, X-User-Username"
 	defaultAllowedMethods = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
 )
@@ -52,7 +52,7 @@ func RequireAuth() gin.HandlerFunc {
 
 		user, ok := authcontext.FromRequest(c.Request)
 		if !ok || !user.IsAuthenticated() {
-			logrus.WithField("ip", c.ClientIP()).Warn("Unauthorized request rejected by RequireAuth middleware")
+			slog.WarnContext(c.Request.Context(), "Unauthorized request rejected by RequireAuth middleware", slog.String("ip", c.ClientIP()))
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 			return
 		}
@@ -88,11 +88,11 @@ func RequireRole(allowedRoles ...string) gin.HandlerFunc {
 		}
 
 		if !hasRole {
-			logrus.WithFields(logrus.Fields{
-				"user_id":       user.ID,
-				"user_role":     user.Role,
-				"allowed_roles": allowedRoles,
-			}).Warn("Forbidden: insufficient role privileges")
+			slog.WarnContext(c.Request.Context(), "Forbidden: insufficient role privileges",
+				slog.Int64("user_id", user.ID),
+				slog.String("user_role", user.Role),
+				slog.Any("allowed_roles", allowedRoles),
+			)
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Insufficient permissions"})
 			return
 		}

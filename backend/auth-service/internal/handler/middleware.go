@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
+	"log/slog"
 
 	"avtoplaneta/pkg/constants"
 	"auth-service/internal/domain"
@@ -150,7 +150,7 @@ func (h *Handler) InternalOnlyMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		clientIP := c.ClientIP()
 		if clientIP != "127.0.0.1" && clientIP != "::1" && clientIP != "[::1]" {
-			logrus.WithField("ip", clientIP).Warn("Access denied to internal endpoint")
+			slog.WarnContext(c.Request.Context(), "Access denied to internal endpoint", slog.String("ip", clientIP))
 			c.JSON(http.StatusForbidden, gin.H{"error": "Доступ запрещен"})
 			c.Abort()
 			return

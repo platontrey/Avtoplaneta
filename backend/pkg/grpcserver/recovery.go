@@ -3,9 +3,9 @@ package grpcserver
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"runtime/debug"
 
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -23,11 +23,11 @@ func RecoveryUnaryInterceptor() grpc.UnaryServerInterceptor {
 	) (resp interface{}, err error) {
 		defer func() {
 			if r := recover(); r != nil {
-				logrus.WithFields(logrus.Fields{
-					"method": info.FullMethod,
-					"panic":  fmt.Sprintf("%v", r),
-					"stack":  string(debug.Stack()),
-				}).Error("gRPC handler panic recovered")
+				slog.ErrorContext(ctx, "gRPC handler panic recovered",
+					slog.String("method", info.FullMethod),
+					slog.String("panic", fmt.Sprintf("%v", r)),
+					slog.String("stack", string(debug.Stack())),
+				)
 
 				err = status.Errorf(codes.Internal, "внутренняя ошибка сервера")
 			}

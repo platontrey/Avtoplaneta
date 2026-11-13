@@ -3,10 +3,10 @@ package redisclient
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 )
 
 // New создает клиент Redis и проверяет подключение через Ping
@@ -24,6 +24,6 @@ func New(addr, password string) (*redis.Client, error) {
 		return nil, fmt.Errorf("failed to connect to Redis at %s: %w", addr, err)
 	}
 
-	logrus.WithField("addr", addr).Info("Redis connected successfully")
+	slog.Info("Redis connected successfully", slog.String("addr", addr))
 	return client, nil
 }

@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 
 	"avtoplaneta/pkg/constants"
+	"avtoplaneta/pkg/logger"
 	"avtoplaneta/pkg/metrics"
 	"avtoplaneta/pkg/outbox"
 	"parts-service/internal/repository"
@@ -111,10 +112,9 @@ func (d *Dispatcher) processEvent(ctx context.Context, event outbox.Event) error
 	case "part_deleted":
 		return d.handlePartDelete(ctx, event.AggregateID)
 	default:
-		logrus.WithFields(logrus.Fields{
-			"event_id":   event.ID,
-			"event_type": event.EventType,
-		}).Warn("Outbox dispatcher: unknown event type, skipping")
+		slog.WarnContext(ctx, "Outbox dispatcher: unknown event type, skipping",
+			slog.Int64("event_id", event.ID),
+			slog.String("event_type", event.EventType))
 		return nil
 	}
 }
@@ -124,7 +124,8 @@ func (d *Dispatcher) handlePartUpsert(ctx context.Context, partID int64) error {
 	part, err := d.repo.FindByID(ctx, partID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			logrus.WithField("part_id", partID).Info("Part not found in DB during outbox upsert, removing from ES")
+			slog.InfoContext(ctx, "Part not found in DB during outbox upsert, removing from ES",
+				slog.Int64("part_id", partID))
 			if d.esClient != nil {
 				_ = d.esClient.DeletePartFromIndex(partID)
 			}
@@ -173,7 +174,7 @@ func (d *Dispatcher) invalidateCachesAndPublish(ctx context.Context, eventType s
 
 	// Инвалидация кэшей
 	if err := d.redisClient.Del(ctx, inventoryCacheKey, inventoryCacheKeyWithoutPhotos, statisticsCacheKey).Err(); err != nil {
-		logrus.WithError(err).Warn("Outbox dispatcher: failed to invalidate Redis caches")
+		slog.WarnContext(ctx, "Outbox dispatcher: failed to invalidate Redis caches", logger.Err(err))
 	}
 
 	// Публикация в Redis Stream events:orders для других слушателей
@@ -185,9 +186,9 @@ func (d *Dispatcher) invalidateCachesAndPublish(ctx context.Context, eventType s
 		},
 	}).Err()
 	if err != nil {
-		logrus.WithError(err).WithFields(logrus.Fields{
-			"type":    eventType,
-			"part_id": partID,
-		}).Warn("Outbox dispatcher: failed to publish event to Redis stream")
+		slog.WarnContext(ctx, "Outbox dispatcher: failed to publish event to Redis stream",
+			logger.Err(err),
+			slog.String("type", eventType),
+			slog.Int64("part_id", partID))
 	}
 }

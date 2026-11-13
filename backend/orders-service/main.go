@@ -3,15 +3,18 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
+	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/sirupsen/logrus"
 
 	"avtoplaneta/pkg/httpserver"
+	"avtoplaneta/pkg/logger"
 	"avtoplaneta/pkg/redisclient"
 	"avtoplaneta/pkg/tracing"
 	"orders-service/internal/config"
@@ -32,14 +35,21 @@ func main() {
 
 	cfg := config.LoadConfig()
 
+	// Инициализация структурированного логирования
+	logger.Init(logger.Config{
+		Level:  cfg.LogLevel,
+		Format:      logger.Format(cfg.LogFormat),
+		ServiceName: "orders-service",
+	})
+
 	// Инициализация OpenTelemetry Distributed Tracing
 	tp, err := tracing.InitTracer("orders-service")
 	if err != nil {
-		logrus.WithError(err).Warn("Failed to init tracer for orders-service")
+		slog.Warn("Failed to init tracer for orders-service", logger.Err(err))
 	} else {
 		defer func() {
 			if err := tp.Shutdown(context.Background()); err != nil {
-				logrus.WithError(err).Warn("Error shutting down tracer provider")
+				slog.Warn("Error shutting down tracer provider", logger.Err(err))
 			}
 		}()
 	}
@@ -51,21 +61,24 @@ func main() {
 	// Инициализация базы данных и миграций
 	dbPool, err := repository.InitDB(cfg)
 	if err != nil {
-		logrus.WithError(err).Fatal("Failed to initialize orders database")
+		slog.Error("Failed to initialize orders database", logger.Err(err))
+		os.Exit(1)
 	}
 	defer dbPool.Close()
 
 	// Инициализация клиента Redis
 	redisClient, err := redisclient.New(cfg.RedisURL, cfg.RedisPassword)
 	if err != nil {
-		logrus.WithError(err).Fatal("Failed to connect to Redis")
+		slog.Error("Failed to connect to Redis", logger.Err(err))
+		os.Exit(1)
 	}
 	defer redisClient.Close()
 
 	// gRPC клиент к parts-service
 	partsClient, err := grpc.NewPartsGRPCClient(cfg.PartsServiceGRPCURL)
 	if err != nil {
-		logrus.WithError(err).Fatalf("Failed to connect to parts-service via gRPC at %s", cfg.PartsServiceGRPCURL)
+		slog.Error(fmt.Sprintf("Failed to connect to parts-service via gRPC at %s", cfg.PartsServiceGRPCURL), logger.Err(err))
+		os.Exit(1)
 	}
 	defer partsClient.Close()
 
@@ -89,7 +102,7 @@ func main() {
 	eventConsumer := events.NewRedisEventConsumer(redisClient, orderRepo, cacheService)
 	go func() {
 		if err := eventConsumer.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
-			logrus.WithError(err).Error("Redis event consumer failed in orders-service")
+			slog.Error("Redis event consumer failed in orders-service", logger.Err(err))
 		}
 	}()
 
@@ -97,14 +110,15 @@ func main() {
 	outboxDispatcher := outbox.NewDispatcher(dbPool, orderRepo, partRepo, redisClient, cacheService)
 	go func() {
 		if err := outboxDispatcher.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
-			logrus.WithError(err).Error("Orders outbox dispatcher failed")
+			slog.Error("Orders outbox dispatcher failed", logger.Err(err))
 		}
 	}()
 
 	// Запуск gRPC-сервера в фоне
 	go func() {
 		if err := grpc.StartGRPCServer(ordersService, eventPublisher, cfg.GRPCPort); err != nil {
-			logrus.WithError(err).Fatal("orders-service gRPC server failed")
+			slog.Error("orders-service gRPC server failed", logger.Err(err))
+			os.Exit(1)
 		}
 	}()
 
@@ -115,6 +129,7 @@ func main() {
 
 	// Запуск HTTP-сервера с поддержкой TLS и graceful shutdown
 	if err := httpserver.Run(ctx, cfg.Port, r); err != nil {
-		logrus.WithError(err).Fatal("orders-service HTTP server failed")
+		slog.Error("orders-service HTTP server failed", logger.Err(err))
+		os.Exit(1)
 	}
 }

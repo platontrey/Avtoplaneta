@@ -9,6 +9,8 @@ type Config struct {
 	RedisURL         string
 	RedisPassword    string
 	ElasticsearchURL string
+	LogLevel         string
+	LogFormat        string
 }
 
 // LoadConfig загружает конфигурацию из переменных окружения
@@ -19,6 +21,8 @@ func LoadConfig() *Config {
 		RedisURL:         os.Getenv("REDIS_URL"),
 		RedisPassword:    os.Getenv("REDIS_PASSWORD"),
 		ElasticsearchURL: os.Getenv("ELASTICSEARCH_URL"),
+		LogLevel:         os.Getenv("LOG_LEVEL"),
+		LogFormat:        os.Getenv("LOG_FORMAT"),
 	}
 
 	// Значения по умолчанию
@@ -36,6 +40,16 @@ func LoadConfig() *Config {
 	}
 	if config.ElasticsearchURL == "" {
 		config.ElasticsearchURL = "http://localhost:9200"
+	}
+	if config.LogLevel == "" {
+		config.LogLevel = "info"
+	}
+	if config.LogFormat == "" {
+		if os.Getenv("NODE_ENV") == "production" {
+			config.LogFormat = "json"
+		} else {
+			config.LogFormat = "text"
+		}
 	}
 
 	return config

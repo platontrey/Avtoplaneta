@@ -2,12 +2,13 @@ package events
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 
 	"avtoplaneta/pkg/constants"
+	"avtoplaneta/pkg/logger"
 )
 
 // EventPublisher определяет интерфейс для публикации событий
@@ -47,14 +48,17 @@ func (p *RedisEventPublisher) PublishOrderCompleted(ctx context.Context, orderID
 	}).Err()
 
 	if err != nil {
-		logrus.WithError(err).WithField("order_id", orderID).Error("Failed to publish order completed event")
+		slog.ErrorContext(ctx, "Failed to publish order completed event",
+			slog.Int64("order_id", orderID),
+			logger.Err(err),
+		)
 		return err
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"order_id": orderID,
-		"amount":   amount,
-	}).Info("Order completed event published to Redis Streams")
+	slog.InfoContext(ctx, "Order completed event published to Redis Streams",
+		slog.Int64("order_id", orderID),
+		slog.Float64("amount", amount),
+	)
 
 	return nil
 }
@@ -79,17 +83,18 @@ func (p *RedisEventPublisher) PublishUserAction(ctx context.Context, userID, act
 	}).Err()
 
 	if err != nil {
-		logrus.WithError(err).WithFields(logrus.Fields{
-			"user_id": userID,
-			"action":  action,
-		}).Error("Failed to publish user action event")
+		slog.ErrorContext(ctx, "Failed to publish user action event",
+			slog.String("user_id", userID),
+			slog.String("action", action),
+			logger.Err(err),
+		)
 		return err
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"user_id": userID,
-		"action":  action,
-	}).Info("User action event published to Redis Streams")
+	slog.InfoContext(ctx, "User action event published to Redis Streams",
+		slog.String("user_id", userID),
+		slog.String("action", action),
+	)
 
 	return nil
 }

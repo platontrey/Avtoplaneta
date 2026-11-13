@@ -2,13 +2,14 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"encoding/json"
+	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 
+	"avtoplaneta/pkg/logger"
 	"orders-service/internal/domain"
 )
 
@@ -43,17 +44,17 @@ func (c *redisCacheService) GetOrders() ([]domain.Order, error) {
 		return nil, nil
 	}
 	if err != nil {
-		logrus.WithError(err).Error("Failed to get orders from cache")
+		slog.Error("Failed to get orders from cache", logger.Err(err))
 		return nil, err
 	}
 
 	var orders []domain.Order
 	if err := json.Unmarshal([]byte(val), &orders); err != nil {
-		logrus.WithError(err).Error("Failed to unmarshal orders from cache")
+		slog.Error("Failed to unmarshal orders from cache", logger.Err(err))
 		return nil, err
 	}
 
-	logrus.Info("Orders retrieved from cache")
+	slog.Info("Orders retrieved from cache")
 	return orders, nil
 }
 
@@ -67,16 +68,16 @@ func (c *redisCacheService) SetOrders(orders []domain.Order) error {
 
 	data, err := json.Marshal(orders)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to marshal orders for cache")
+		slog.Error("Failed to marshal orders for cache", logger.Err(err))
 		return err
 	}
 
 	if err := c.client.Set(context.Background(), key, data, ttl).Err(); err != nil {
-		logrus.WithError(err).Error("Failed to set orders in cache")
+		slog.Error("Failed to set orders in cache", logger.Err(err))
 		return err
 	}
 
-	logrus.Info("Orders cached successfully")
+	slog.Info("Orders cached successfully")
 	return nil
 }
 
@@ -88,10 +89,10 @@ func (c *redisCacheService) InvalidateOrders() error {
 	key := "orders:active"
 
 	if err := c.client.Del(context.Background(), key).Err(); err != nil {
-		logrus.WithError(err).Error("Failed to invalidate orders cache")
+		slog.Error("Failed to invalidate orders cache", logger.Err(err))
 		return err
 	}
 
-	logrus.Info("Orders cache invalidated")
+	slog.Info("Orders cache invalidated")
 	return nil
 }

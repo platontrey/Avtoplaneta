@@ -2,13 +2,14 @@ package handler
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 
 	"avtoplaneta/pkg/authcontext"
+	"avtoplaneta/pkg/logger"
 	"orders-service/internal/domain"
 )
 
@@ -63,13 +64,14 @@ func (h *Handler) CreateOrderHandler(c *gin.Context) {
 
 	order, err := h.ordersService.CreateOrder(ctx, req, user.ID, user.Name)
 	if err != nil {
-		logrus.WithError(err).WithFields(logrus.Fields{
-			"user_id":      user.ID,
-			"user_name":    user.Name,
-			"buyer_number": req.BuyerNumber,
-			"order_number": req.OrderNumber,
-			"items_count":  len(req.Items),
-		}).Error("Failed to create order")
+		slog.ErrorContext(ctx, "Failed to create order",
+			slog.Int64("user_id", user.ID),
+			slog.String("user_name", user.Name),
+			slog.String("buyer_number", req.BuyerNumber),
+			slog.String("order_number", req.OrderNumber),
+			slog.Int("items_count", len(req.Items)),
+			logger.Err(err),
+		)
 
 		if domain.IsValidationError(err) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -170,9 +172,9 @@ func (h *Handler) CompleteOrderHandler(c *gin.Context) {
 		return
 	}
 
-	h.logUserActivity(ctx, c, "complete_order", "order", fmt.Sprintf("Completed order ID: %d", orderID), &orderID)
+	h.logUserActivity(ctx, c, "complete_order", "order", fmt.Sprintf("Completed order: %d", orderID), &orderID)
 
-	c.JSON(http.StatusOK, gin.H{"message": "Order completed"})
+	c.JSON(http.StatusOK, gin.H{"message": "Order completed successfully"})
 }
 
 // DeleteOrderHandler удаляет заказ
@@ -194,9 +196,9 @@ func (h *Handler) DeleteOrderHandler(c *gin.Context) {
 		return
 	}
 
-	h.logUserActivity(ctx, c, "delete_order", "order", fmt.Sprintf("Deleted order ID: %d", orderID), &orderID)
+	h.logUserActivity(ctx, c, "delete_order", "order", fmt.Sprintf("Deleted order: %d", orderID), &orderID)
 
-	c.JSON(http.StatusOK, gin.H{"message": "Order deleted"})
+	c.JSON(http.StatusOK, gin.H{"message": "Order deleted successfully"})
 }
 
 // AddOrderItemHandler добавляет позицию в заказ
@@ -216,11 +218,12 @@ func (h *Handler) AddOrderItemHandler(c *gin.Context) {
 	}
 
 	if err := h.ordersService.AddOrderItem(ctx, orderID, req); err != nil {
-		logrus.WithError(err).WithFields(logrus.Fields{
-			"order_id": orderID,
-			"part_id":  req.PartID,
-			"quantity": req.Quantity,
-		}).Error("Failed to add item to order")
+		slog.ErrorContext(ctx, "Failed to add item to order",
+			slog.Int64("order_id", orderID),
+			slog.Int64("part_id", req.PartID),
+			slog.Int("quantity", req.Quantity),
+			logger.Err(err),
+		)
 
 		if domain.IsNotFoundError(err) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})

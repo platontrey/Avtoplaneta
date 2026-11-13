@@ -7,7 +7,6 @@ require (
 	avtoplaneta/pkg v0.0.0-00010101000000-000000000000
 	github.com/gin-gonic/gin v1.12.0
 	github.com/redis/go-redis/v9 v9.23.0
-	github.com/sirupsen/logrus v1.10.2
 	go.etcd.io/bbolt v1.5.0
 	google.golang.org/grpc v1.82.0
 )
@@ -49,6 +48,8 @@ require (
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.1 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.6.0 // indirect
+	go.opentelemetry.io/otel v1.44.0 // indirect
+	go.opentelemetry.io/otel/trace v1.44.0 // indirect
 	go.uber.org/atomic v1.12.0 // indirect
 	golang.org/x/arch v0.27.0 // indirect
 	golang.org/x/crypto v0.57.0 // indirect

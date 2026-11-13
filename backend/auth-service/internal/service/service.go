@@ -3,15 +3,15 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
-
-	"github.com/sirupsen/logrus"
 
 	"auth-service/internal/domain"
 	"auth-service/internal/events"
 	"auth-service/internal/repository"
 	"auth-service/internal/security"
+	"avtoplaneta/pkg/logger"
 )
 
 // AuthService определяет интерфейс бизнес-логики аутентификации и пользователей
@@ -78,42 +78,31 @@ func (s *authService) AuthenticateUser(email, password string) (*domain.User, er
 
 	if s.rateLimiter != nil {
 		if limited, _ := s.rateLimiter.IsLimited(strings.ToLower(trimmedIdentifier)+":user", 10, time.Minute); limited {
-			logrus.WithFields(logrus.Fields{
-				"identifier": trimmedIdentifier,
-			}).Warn("Rate limit exceeded for user login")
+			slog.Warn("Rate limit exceeded for user login", slog.String("identifier", trimmedIdentifier))
 			return nil, fmt.Errorf("слишком много попыток входа")
 		}
 	}
 
 	user, err := s.userRepo.FindByEmailOrName(trimmedIdentifier)
 	if err != nil {
-		logrus.WithFields(logrus.Fields{
-			"identifier": trimmedIdentifier,
-		}).Warn("User not found during login")
+		slog.Warn("User not found during login", slog.String("identifier", trimmedIdentifier))
 		time.Sleep(time.Second)
 		return nil, fmt.Errorf("неверные учетные данные")
 	}
 
 	if user.Provider != "local" || user.Password == "" {
-		logrus.WithFields(logrus.Fields{
-			"identifier": trimmedIdentifier,
-		}).Warn("Attempt to login with non-local user")
+		slog.Warn("Attempt to login with non-local user", slog.String("identifier", trimmedIdentifier))
 		time.Sleep(time.Second)
 		return nil, fmt.Errorf("неверные учетные данные")
 	}
 
 	if err := security.CheckPassword(user.Password, password); err != nil {
-		logrus.WithFields(logrus.Fields{
-			"identifier": trimmedIdentifier,
-		}).Warn("Invalid password during login")
+		slog.Warn("Invalid password during login", slog.String("identifier", trimmedIdentifier))
 		time.Sleep(time.Second)
 		return nil, fmt.Errorf("неверные учетные данные")
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"email": user.Email,
-		"name":  user.Name,
-	}).Info("User authenticated successfully")
+	slog.Info("User authenticated successfully", slog.String("email", user.Email), slog.String("name", user.Name))
 
 	return user, nil
 }
@@ -121,7 +110,7 @@ func (s *authService) AuthenticateUser(email, password string) (*domain.User, er
 func (s *authService) CreateUserFromGoogle(email, name string) (*domain.User, error) {
 	existing, err := s.userRepo.FindByEmailOrName(email)
 	if err == nil {
-		logrus.WithField("email", email).Info("Existing Google user found")
+		slog.Info("Existing Google user found", slog.String("email", email))
 		return existing, nil
 	}
 
@@ -137,18 +126,18 @@ func (s *authService) CreateUserFromGoogle(email, name string) (*domain.User, er
 	}
 
 	if _, err := s.userRepo.Create(user); err != nil {
-		logrus.WithError(err).WithField("email", email).Error("Failed to create Google user")
+		slog.Error("Failed to create Google user", logger.Err(err), slog.String("email", email))
 		return nil, err
 	}
 
-	logrus.WithField("email", email).Info("New Google user created")
+	slog.Info("New Google user created", slog.String("email", email))
 	return user, nil
 }
 
 func (s *authService) GetCurrentUser(userID int64) (*domain.User, error) {
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil {
-		logrus.WithError(err).WithField("user_id", userID).Error("Failed to get current user")
+		slog.Error("Failed to get current user", logger.Err(err), slog.Int64("user_id", userID))
 		return nil, err
 	}
 
@@ -161,7 +150,7 @@ func (s *authService) Logout(userID int64) error {
 		s.csrfManager.Invalidate(userID)
 	}
 
-	logrus.WithField("user_id", userID).Info("User logged out")
+	slog.Info("User logged out", slog.Int64("user_id", userID))
 	return nil
 }
 
@@ -200,7 +189,7 @@ func (s *authService) CreateUser(req domain.CreateUserRequest) (*domain.User, er
 
 	hashedPassword, err := security.HashPassword(req.Password)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to hash password")
+		slog.Error("Failed to hash password", logger.Err(err))
 		return nil, fmt.Errorf("не удалось создать пользователя")
 	}
 
@@ -217,17 +206,17 @@ func (s *authService) CreateUser(req domain.CreateUserRequest) (*domain.User, er
 	}
 
 	if _, err := s.userRepo.Create(user); err != nil {
-		logrus.WithError(err).WithField("username", req.Username).Error("Failed to create user")
+		slog.Error("Failed to create user", logger.Err(err), slog.String("username", req.Username))
 		return nil, err
 	}
 
 	user.Password = ""
 
-	logrus.WithFields(logrus.Fields{
-		"username": req.Username,
-		"email":    req.Email,
-		"role":     req.Role,
-	}).Info("User created successfully")
+	slog.Info("User created successfully",
+		slog.String("username", req.Username),
+		slog.String("email", req.Email),
+		slog.String("role", req.Role),
+	)
 
 	return user, nil
 }
@@ -235,7 +224,7 @@ func (s *authService) CreateUser(req domain.CreateUserRequest) (*domain.User, er
 func (s *authService) GetUsers() ([]domain.User, error) {
 	users, err := s.userRepo.FindAll()
 	if err != nil {
-		logrus.WithError(err).Error("Failed to get users")
+		slog.Error("Failed to get users", logger.Err(err))
 		return nil, err
 	}
 
@@ -299,7 +288,7 @@ func (s *authService) UpdateUser(userID int64, req domain.UpdateUserRequest) (*d
 	oldName := user.Name
 	updatedUser, err := s.userRepo.Update(userID, updateParams)
 	if err != nil {
-		logrus.WithError(err).WithField("user_id", userID).Error("Failed to update user")
+		slog.Error("Failed to update user", logger.Err(err), slog.Int64("user_id", userID))
 		return nil, err
 	}
 
@@ -307,11 +296,11 @@ func (s *authService) UpdateUser(userID int64, req domain.UpdateUserRequest) (*d
 
 	if s.eventPublisher != nil && updatedUser.Name != "" && updatedUser.Name != oldName {
 		if err := s.eventPublisher.PublishUserRenamed(context.Background(), userID, updatedUser.Name); err != nil {
-			logrus.WithError(err).WithField("user_id", userID).Warn("Failed to publish seller_renamed event")
+			slog.Warn("Failed to publish seller_renamed event", logger.Err(err), slog.Int64("user_id", userID))
 		}
 	}
 
-	logrus.WithField("user_id", userID).Info("User updated successfully")
+	slog.Info("User updated successfully", slog.Int64("user_id", userID))
 	return updatedUser, nil
 }
 
@@ -322,18 +311,18 @@ func (s *authService) DeleteUser(userID int64) error {
 	}
 
 	if err := s.userRepo.Delete(userID); err != nil {
-		logrus.WithError(err).WithField("user_id", userID).Error("Failed to delete user")
+		slog.Error("Failed to delete user", logger.Err(err), slog.Int64("user_id", userID))
 		return err
 	}
 
-	logrus.WithField("user_id", userID).Info("User deleted successfully")
+	slog.Info("User deleted successfully", slog.Int64("user_id", userID))
 	return nil
 }
 
 func (s *authService) GetTotalUsersCount() (int, error) {
 	count, err := s.userRepo.CountAll()
 	if err != nil {
-		logrus.WithError(err).Error("Failed to get users count")
+		slog.Error("Failed to get users count", logger.Err(err))
 		return 0, err
 	}
 	return count, nil
@@ -357,10 +346,11 @@ func (s *authService) LogUserActivity(user *domain.User, action, resourceType st
 	}
 
 	if _, err := s.activityRepo.Create(log); err != nil {
-		logrus.WithError(err).WithFields(logrus.Fields{
-			"user_id": user.ID,
-			"action":  action,
-		}).Error("Failed to log user activity")
+		slog.Error("Failed to log user activity",
+			logger.Err(err),
+			slog.Int64("user_id", user.ID),
+			slog.String("action", action),
+		)
 		return err
 	}
 
@@ -370,7 +360,7 @@ func (s *authService) LogUserActivity(user *domain.User, action, resourceType st
 func (s *authService) GetUserActivityLogs(filters domain.ActivityLogFilters) ([]domain.UserActivityLog, error) {
 	logs, err := s.activityRepo.FindWithFilters(filters)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to get user activity logs")
+		slog.Error("Failed to get user activity logs", logger.Err(err))
 		return nil, err
 	}
 	return logs, nil
@@ -408,7 +398,7 @@ func (s *authService) UpdateProfile(userID int64, req domain.UpdateProfileReques
 	oldName := user.Name
 	updatedUser, err := s.userRepo.UpdateProfile(userID, name, req.Username, strings.TrimSpace(req.INN))
 	if err != nil {
-		logrus.WithError(err).WithField("user_id", userID).Error("Failed to update profile")
+		slog.Error("Failed to update profile", logger.Err(err), slog.Int64("user_id", userID))
 		return nil, err
 	}
 
@@ -416,7 +406,7 @@ func (s *authService) UpdateProfile(userID int64, req domain.UpdateProfileReques
 
 	if s.eventPublisher != nil && updatedUser.Name != "" && updatedUser.Name != oldName {
 		if err := s.eventPublisher.PublishUserRenamed(context.Background(), userID, updatedUser.Name); err != nil {
-			logrus.WithError(err).WithField("user_id", userID).Warn("Failed to publish seller_renamed event")
+			slog.Warn("Failed to publish seller_renamed event", logger.Err(err), slog.Int64("user_id", userID))
 		}
 	}
 
@@ -486,4 +476,3 @@ func (s *authService) DeleteAvatar(userID int64) (*domain.User, error) {
 	_ = s.LogUserActivity(user, "delete_avatar", "user", &userID, "Пользователь удалил аватарку", "", "")
 	return updatedUser, nil
 }
-

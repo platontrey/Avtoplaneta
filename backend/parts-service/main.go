@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"os/signal"
 	"runtime"
@@ -9,10 +10,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 
 	"avtoplaneta/pkg/httpserver"
+	"avtoplaneta/pkg/logger"
 	"avtoplaneta/pkg/redisclient"
 	"avtoplaneta/pkg/tracing"
 	"parts-service/internal/catalog"
@@ -29,33 +30,43 @@ import (
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	tp, err := tracing.InitTracer("parts-service")
-	if err != nil {
-		logrus.WithError(err).Fatal("failed to initialize tracer")
-	}
-	defer func() {
-		if err := tp.Shutdown(context.Background()); err != nil {
-			logrus.WithError(err).Error("failed to shutdown tracer")
-		}
-	}()
-
 	gin.SetMode(gin.ReleaseMode)
 	_ = godotenv.Load("../../.env")
 
 	cfg := config.LoadConfig()
+
+	// Инициализация структурированного логирования
+	logger.Init(logger.Config{
+		Level:       cfg.LogLevel,
+		Format:      logger.Format(cfg.LogFormat),
+		ServiceName: "parts-service",
+	})
+
+	tp, err := tracing.InitTracer("parts-service")
+	if err != nil {
+		slog.Error("failed to initialize tracer", logger.Err(err))
+		os.Exit(1)
+	}
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			slog.Error("failed to shutdown tracer", logger.Err(err))
+		}
+	}()
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	dbPool, err := repository.InitDB(cfg)
 	if err != nil {
-		logrus.WithError(err).Fatal("Failed to initialize database")
+		slog.Error("Failed to initialize database", logger.Err(err))
+		os.Exit(1)
 	}
 	defer dbPool.Close()
 
 	redisClient, err := redisclient.New(cfg.RedisURL, cfg.RedisPassword)
 	if err != nil {
-		logrus.WithError(err).Fatal("Failed to connect to Redis")
+		slog.Error("Failed to connect to Redis", logger.Err(err))
+		os.Exit(1)
 	}
 	defer redisClient.Close()
 
@@ -65,10 +76,10 @@ func main() {
 	// Инициализация Elasticsearch
 	var esClient search.ElasticsearchClient
 	if err := search.InitElasticsearch(cfg.ElasticsearchURL); err != nil {
-		logrus.WithError(err).Warn("Elasticsearch is unavailable, running without full-text search")
+		slog.Warn("Elasticsearch is unavailable, running without full-text search", logger.Err(err))
 	} else {
 		if err := search.CreatePartsIndex(); err != nil {
-			logrus.WithError(err).Warn("Failed to create parts index")
+			slog.Warn("Failed to create parts index", logger.Err(err))
 		}
 		esClient = search.NewElasticsearchAdapter()
 	}
@@ -81,17 +92,19 @@ func main() {
 
 	if esClient != nil {
 		if err := svc.ReindexAllParts(ctx); err != nil {
-			logrus.WithError(err).Warn("Failed to reindex parts")
+			slog.Warn("Failed to reindex parts", logger.Err(err))
 		}
 	}
 
 	partCatalog, err := catalog.LoadPartCatalog()
 	if err != nil {
-		logrus.WithError(err).Fatal("Failed to load parts catalog")
+		slog.Error("Failed to load parts catalog", logger.Err(err))
+		os.Exit(1)
 	}
 	vehicleCatalog, err := catalog.LoadVehicleCatalog()
 	if err != nil {
-		logrus.WithError(err).Fatal("Failed to load vehicle catalog")
+		slog.Error("Failed to load vehicle catalog", logger.Err(err))
+		os.Exit(1)
 	}
 	defectReports := service.NewDefectReportWorkflow(partCatalog, svc)
 	h := handler.NewHandler(svc, partCatalog, vehicleCatalog, defectReports)
@@ -111,7 +124,8 @@ func main() {
 	}
 	go func() {
 		if err := grpc.StartGRPCServer(svc, defectReports, grpcPort); err != nil {
-			logrus.WithError(err).Fatal("gRPC server failed")
+			slog.Error("gRPC server failed", logger.Err(err))
+			os.Exit(1)
 		}
 	}()
 
@@ -119,7 +133,7 @@ func main() {
 	eventConsumer := events.NewEventConsumer(redisClient, svc)
 	go func() {
 		if err := eventConsumer.Start(ctx); err != nil {
-			logrus.WithError(err).Error("Redis event consumer error")
+			slog.Error("Redis event consumer error", logger.Err(err))
 		}
 	}()
 
@@ -127,7 +141,7 @@ func main() {
 	outboxDispatcher := outbox.NewDispatcher(dbPool, repo, esClient, redisClient)
 	go func() {
 		if err := outboxDispatcher.Start(ctx); err != nil {
-			logrus.WithError(err).Error("Outbox dispatcher error")
+			slog.Error("Outbox dispatcher error", logger.Err(err))
 		}
 	}()
 
@@ -139,6 +153,7 @@ func main() {
 
 	// Запуск HTTP-сервера с поддержкой TLS и graceful shutdown
 	if err := httpserver.Run(ctx, cfg.Port, r); err != nil {
-		logrus.WithError(err).Fatal("HTTP server failed")
+		slog.Error("HTTP server failed", logger.Err(err))
+		os.Exit(1)
 	}
 }

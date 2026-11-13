@@ -10,7 +10,9 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
+	"log/slog"
+
+	"avtoplaneta/pkg/logger"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	partsv1 "avtoplaneta/gen/parts/v1"
@@ -21,7 +23,7 @@ import (
 func (h *Handler) BulkDeletePartsHandler(c *gin.Context) {
 	bodyBytes, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		logrus.WithError(err).Error("BulkDeletePartsHandler: Failed to read request body")
+		slog.ErrorContext(c.Request.Context(), "BulkDeletePartsHandler: Failed to read request body", logger.Err(err))
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Не удалось прочитать тело запроса"})
 		return
 	}
@@ -37,7 +39,7 @@ func (h *Handler) BulkDeletePartsHandler(c *gin.Context) {
 			protoReq.ConfirmEntireCatalog = requestData.ConfirmEntireCatalog
 			protoReq.Ids = requestData.IDs
 		} else {
-			logrus.WithError(err).Error("BulkDeletePartsHandler: Failed to unmarshal request")
+			slog.ErrorContext(c.Request.Context(), "BulkDeletePartsHandler: Failed to unmarshal request", logger.Err(err))
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный формат данных"})
 			return
 		}
@@ -46,7 +48,7 @@ func (h *Handler) BulkDeletePartsHandler(c *gin.Context) {
 	ctx := c.Request.Context()
 	deletedCount, err := h.inventoryService.BulkDeletePartsWithProto(ctx, &protoReq)
 	if err != nil {
-		logrus.WithError(err).Error("BulkDeletePartsHandler: Failed to bulk delete parts")
+		slog.ErrorContext(ctx, "BulkDeletePartsHandler: Failed to bulk delete parts", logger.Err(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -54,7 +56,7 @@ func (h *Handler) BulkDeletePartsHandler(c *gin.Context) {
 	// Логируем массовое удаление
 	h.logUserActivity(c, "bulk_delete_parts", "part", fmt.Sprintf("Bulk deleted %d parts", deletedCount), nil)
 
-	logrus.WithField("deleted_count", deletedCount).Info("BulkDeletePartsHandler: Successfully deleted parts")
+	slog.InfoContext(ctx, "BulkDeletePartsHandler: Successfully deleted parts", slog.Int("deleted_count", deletedCount))
 	c.JSON(http.StatusOK, gin.H{
 		"message":       "Запчасти удалены успешно",
 		"deleted_count": deletedCount,
@@ -65,7 +67,7 @@ func (h *Handler) BulkDeletePartsHandler(c *gin.Context) {
 func (h *Handler) BulkUpdatePartsHandler(c *gin.Context) {
 	bodyBytes, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		logrus.WithError(err).Error("BulkUpdatePartsHandler: Failed to read request body")
+		slog.ErrorContext(c.Request.Context(), "BulkUpdatePartsHandler: Failed to read request body", logger.Err(err))
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Не удалось прочитать тело запроса"})
 		return
 	}
@@ -91,7 +93,7 @@ func (h *Handler) BulkUpdatePartsHandler(c *gin.Context) {
 				protoReq.Parts = append(protoReq.Parts, partData)
 			}
 		} else {
-			logrus.WithError(err).Warn("BulkUpdatePartsHandler: Invalid Protobuf request payload")
+			slog.WarnContext(c.Request.Context(), "BulkUpdatePartsHandler: Invalid Protobuf request payload", logger.Err(err))
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный формат данных"})
 			return
 		}
@@ -105,13 +107,13 @@ func (h *Handler) BulkUpdatePartsHandler(c *gin.Context) {
 	ctx := c.Request.Context()
 	updatedCount, err := h.inventoryService.BulkUpdateParts(ctx, &protoReq)
 	if err != nil {
-		logrus.WithError(err).Error("BulkUpdatePartsHandler: Failed to bulk update parts")
+		slog.ErrorContext(ctx, "BulkUpdatePartsHandler: Failed to bulk update parts", logger.Err(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	h.logUserActivity(c, "bulk_update_parts", "part", fmt.Sprintf("Bulk updated %d parts", updatedCount), nil)
-	logrus.WithField("updated_count", updatedCount).Info("BulkUpdatePartsHandler: Successfully updated parts")
+	slog.InfoContext(ctx, "BulkUpdatePartsHandler: Successfully updated parts", slog.Int("updated_count", updatedCount))
 	c.JSON(http.StatusOK, gin.H{
 		"message":       "Запчасти обновлены успешно",
 		"updated_count": updatedCount,
@@ -170,13 +172,13 @@ func (h *Handler) GetSupplierCodesHandler(c *gin.Context) {
 		var err error
 		batches, err = batchProvider.GetSupplierBatches(ctx)
 		if err != nil {
-			logrus.WithError(err).Error("Handler: GetSupplierBatches failed")
+			slog.ErrorContext(ctx, "Handler: GetSupplierBatches failed", logger.Err(err))
 		}
 	}
 
 	codes, err := h.inventoryService.GetSupplierCodes(ctx)
 	if err != nil {
-		logrus.WithError(err).Error("Handler: GetSupplierCodes failed")
+		slog.ErrorContext(ctx, "Handler: GetSupplierCodes failed", logger.Err(err))
 		codes = []string{}
 	}
 
@@ -207,7 +209,7 @@ func (h *Handler) GetShelvesHandler(c *gin.Context) {
 
 	shelves, err := h.inventoryService.GetShelves(ctx)
 	if err != nil {
-		logrus.WithError(err).Error("Handler: GetShelves failed")
+		slog.ErrorContext(ctx, "Handler: GetShelves failed", logger.Err(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось загрузить список полок"})
 		return
 	}
@@ -239,7 +241,7 @@ func (h *Handler) CreateShelfHandler(c *gin.Context) {
 	ctx := c.Request.Context()
 	shelf, err := h.inventoryService.CreateShelf(ctx, name)
 	if err != nil {
-		logrus.WithError(err).Error("Handler: CreateShelf failed")
+		slog.ErrorContext(ctx, "Handler: CreateShelf failed", logger.Err(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось создать полку"})
 		return
 	}
@@ -263,7 +265,7 @@ func (h *Handler) DeleteShelfHandler(c *gin.Context) {
 
 	ctx := c.Request.Context()
 	if err := h.inventoryService.DeleteShelf(ctx, id); err != nil {
-		logrus.WithError(err).Error("Handler: DeleteShelf failed")
+		slog.ErrorContext(ctx, "Handler: DeleteShelf failed", logger.Err(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось удалить полку"})
 		return
 	}

@@ -14,7 +14,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/sirupsen/logrus"
+	"log/slog"
+
+	"avtoplaneta/pkg/logger"
 
 	partsv1 "avtoplaneta/gen/parts/v1"
 	"parts-service/db/sqlc"
@@ -498,10 +500,9 @@ func (r *partRepository) DecreaseQuantity(ctx context.Context, id int64, amount 
 		}
 
 		if rowsAffected == 0 {
-			logrus.WithFields(logrus.Fields{
-				"operation_id": operationID,
-				"part_id":      id,
-			}).Info("Stock operation already recorded, skipping decrease (idempotent)")
+			slog.InfoContext(ctx, "Stock operation already recorded, skipping decrease (idempotent)",
+				slog.String("operation_id", operationID),
+				slog.Int64("part_id", id))
 			return nil
 		}
 	}
@@ -547,10 +548,9 @@ func (r *partRepository) IncreaseQuantity(ctx context.Context, id int64, amount 
 		}
 
 		if rowsAffected == 0 {
-			logrus.WithFields(logrus.Fields{
-				"operation_id": operationID,
-				"part_id":      id,
-			}).Info("Stock operation already recorded, skipping increase (idempotent)")
+			slog.InfoContext(ctx, "Stock operation already recorded, skipping increase (idempotent)",
+				slog.String("operation_id", operationID),
+				slog.Int64("part_id", id))
 			return nil
 		}
 	}
@@ -1198,7 +1198,7 @@ func (r *partRepository) GetStatistics(ctx context.Context) (domain.StatisticsRe
 
 	totals, err := r.queries.GetStatsTotals(ctx)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to get totals")
+		slog.ErrorContext(ctx, "Failed to get totals", logger.Err(err))
 		return stats, err
 	}
 	stats.TotalParts = int(totals.TotalParts)
@@ -1223,7 +1223,7 @@ func (r *partRepository) GetStatistics(ctx context.Context) (domain.StatisticsRe
 
 	categories, err := r.queries.GetStatsCategories(ctx)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to get categories")
+		slog.ErrorContext(ctx, "Failed to get categories", logger.Err(err))
 		return stats, err
 	}
 
@@ -1236,35 +1236,33 @@ func (r *partRepository) GetStatistics(ctx context.Context) (domain.StatisticsRe
 	}
 	stats.Categories = catList
 
-	logrus.WithFields(logrus.Fields{
-		"total_parts":      stats.TotalParts,
-		"total_value":      stats.TotalValue,
-		"parts_growth":     stats.PartsGrowth,
-		"quantity_growth":  stats.QuantityGrowth,
-		"value_growth":     stats.ValueGrowth,
-		"categories_count": len(stats.Categories),
-	}).Info("Statistics retrieved successfully")
+	slog.InfoContext(ctx, "Statistics retrieved successfully",
+		slog.Int("total_parts", stats.TotalParts),
+		slog.Float64("total_value", stats.TotalValue),
+		slog.Float64("parts_growth", stats.PartsGrowth),
+		slog.Float64("quantity_growth", stats.QuantityGrowth),
+		slog.Float64("value_growth", stats.ValueGrowth),
+		slog.Int("categories_count", len(stats.Categories)))
 
 	return stats, nil
 }
 
 func (r *partRepository) BulkDelete(ctx context.Context, ids []int64) error {
-	logrus.WithFields(logrus.Fields{
-		"ids":   ids,
-		"count": len(ids),
-	}).Info("PartRepository.BulkDelete: Starting bulk delete")
+	slog.InfoContext(ctx, "PartRepository.BulkDelete: Starting bulk delete",
+		slog.Any("ids", ids),
+		slog.Int("count", len(ids)))
 
 	if err := r.queries.BulkDeleteByIDs(ctx, ids); err != nil {
-		logrus.WithError(err).Error("PartRepository.BulkDelete: Failed to execute delete query")
+		slog.ErrorContext(ctx, "PartRepository.BulkDelete: Failed to execute delete query", logger.Err(err))
 		return err
 	}
 
-	logrus.Info("PartRepository.BulkDelete: Successfully completed bulk delete")
+	slog.InfoContext(ctx, "PartRepository.BulkDelete: Successfully completed bulk delete")
 	return nil
 }
 
 func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]interface{}) (int, error) {
-	logrus.WithField("count", len(updates)).Info("PartRepository.BulkUpdate: Starting bulk update")
+	slog.InfoContext(ctx, "PartRepository.BulkUpdate: Starting bulk update", slog.Int("count", len(updates)))
 
 	if len(updates) == 0 {
 		return 0, nil
@@ -1295,7 +1293,7 @@ func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]in
 		) ON COMMIT DROP
 	`)
 	if err != nil {
-		logrus.WithError(err).Error("PartRepository.BulkUpdate: Failed to create temp table")
+		slog.ErrorContext(ctx, "PartRepository.BulkUpdate: Failed to create temp table", logger.Err(err))
 		return 0, err
 	}
 
@@ -1342,7 +1340,7 @@ func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]in
 			update["center_hole_diameter"], update["tire_model"],
 		)
 		if err != nil {
-			logrus.WithError(err).WithField("index", i).Error("PartRepository.BulkUpdate: Failed to insert into temp table")
+			slog.ErrorContext(ctx, "PartRepository.BulkUpdate: Failed to insert into temp table", logger.Err(err), slog.Int("index", i))
 			return 0, err
 		}
 	}
@@ -1395,7 +1393,7 @@ func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]in
 		WHERE parts.id = t.id
 	`)
 	if err != nil {
-		logrus.WithError(err).Error("PartRepository.BulkUpdate: Failed to execute batch update")
+		slog.ErrorContext(ctx, "PartRepository.BulkUpdate: Failed to execute batch update", logger.Err(err))
 		return 0, err
 	}
 
@@ -1407,11 +1405,11 @@ func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]in
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		logrus.WithError(err).Error("PartRepository.BulkUpdate: Failed to commit transaction")
+		slog.ErrorContext(ctx, "PartRepository.BulkUpdate: Failed to commit transaction", logger.Err(err))
 		return 0, err
 	}
 
-	logrus.WithField("updated_count", updatedCount).Info("PartRepository.BulkUpdate: Successfully completed bulk update")
+	slog.InfoContext(ctx, "PartRepository.BulkUpdate: Successfully completed bulk update", slog.Int64("updated_count", updatedCount))
 	return int(updatedCount), nil
 }
 
@@ -1419,7 +1417,7 @@ func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]in
 
 func (r *partRepository) DeleteZeroQuantityPartsWithIDs(ctx context.Context, supplierCode string) ([]int64, error) {
 	supplierCode = strings.TrimSpace(supplierCode)
-	logrus.WithField("supplier_code", supplierCode).Info("Repository: DeleteZeroQuantityPartsWithIDs")
+	slog.InfoContext(ctx, "Repository: DeleteZeroQuantityPartsWithIDs", slog.String("supplier_code", supplierCode))
 
 	var (
 		deletedIDs []int64
@@ -1445,7 +1443,7 @@ func (r *partRepository) DeleteZeroQuantityPartsWithIDs(ctx context.Context, sup
 		return nil, err
 	}
 
-	logrus.WithField("deleted", len(deletedIDs)).Info("Repository: Successfully deleted zero-quantity parts")
+	slog.InfoContext(ctx, "Repository: Successfully deleted zero-quantity parts", slog.Int("deleted", len(deletedIDs)))
 	return deletedIDs, nil
 }
 
@@ -1460,7 +1458,7 @@ func (r *partRepository) DeleteZeroQuantityPartsBySupplier(ctx context.Context, 
 func (r *partRepository) GetSupplierBatches(ctx context.Context) ([]domain.SupplierBatchInfo, error) {
 	rows, err := r.queries.GetSupplierBatches(ctx)
 	if err != nil {
-		logrus.WithError(err).Error("Repository: GetSupplierBatches query failed")
+		slog.ErrorContext(ctx, "Repository: GetSupplierBatches query failed", logger.Err(err))
 		return nil, err
 	}
 
@@ -1500,7 +1498,7 @@ func (r *partRepository) GetSupplierBatches(ctx context.Context) ([]domain.Suppl
 		batches = append(batches, b)
 	}
 
-	logrus.WithField("count", len(batches)).Info("Repository: GetSupplierBatches loaded batches")
+	slog.InfoContext(ctx, "Repository: GetSupplierBatches loaded batches", slog.Int("count", len(batches)))
 	return batches, nil
 }
 
@@ -1511,24 +1509,24 @@ func (r *partRepository) GetSupplierCodes(ctx context.Context) ([]string, error)
 		for _, b := range batches {
 			codes = append(codes, b.Code)
 		}
-		logrus.WithField("count", len(codes)).Info("Repository: GetSupplierCodes from batches")
+		slog.InfoContext(ctx, "Repository: GetSupplierCodes from batches", slog.Int("count", len(codes)))
 		return codes, nil
 	}
 
-	logrus.WithError(err).Warn("Repository: GetSupplierBatches failed, falling back to GetSupplierCodes query")
+	slog.WarnContext(ctx, "Repository: GetSupplierBatches failed, falling back to GetSupplierCodes query", logger.Err(err))
 	codes, err := r.queries.GetSupplierCodes(ctx)
 	if err != nil {
-		logrus.WithError(err).Error("Repository: GetSupplierCodes query failed")
+		slog.ErrorContext(ctx, "Repository: GetSupplierCodes query failed", logger.Err(err))
 		return nil, err
 	}
-	logrus.WithField("count", len(codes)).Info("Repository: GetSupplierCodes")
+	slog.InfoContext(ctx, "Repository: GetSupplierCodes", slog.Int("count", len(codes)))
 	return codes, nil
 }
 
 func (r *partRepository) GetNextSupplierCode(ctx context.Context) (string, error) {
 	seqVal, err := r.queries.GetNextDefectBatchSequence(ctx)
 	if err != nil {
-		logrus.WithError(err).Warn("Repository: nextval(defect_batch_seq) failed, falling back to max supplier_code query")
+		slog.WarnContext(ctx, "Repository: nextval(defect_batch_seq) failed, falling back to max supplier_code query", logger.Err(err))
 		maxVal, fallbackErr := r.queries.GetMaxSupplierCodeFallback(ctx)
 		if fallbackErr == nil && maxVal > 0 {
 			return strconv.FormatInt(int64(maxVal), 10), nil
@@ -1558,7 +1556,7 @@ func (r *partRepository) PeekNextSupplierCode(ctx context.Context) (string, erro
 func (r *partRepository) GetNextPartNumber(ctx context.Context) (string, error) {
 	seqVal, err := r.queries.GetNextPartNumberSequence(ctx)
 	if err != nil {
-		logrus.WithError(err).Warn("Repository: nextval(part_number_seq) failed, falling back to max number query")
+		slog.WarnContext(ctx, "Repository: nextval(part_number_seq) failed, falling back to max number query", logger.Err(err))
 		maxVal, fallbackErr := r.queries.GetMaxPartNumberFallback(ctx)
 		if fallbackErr == nil && maxVal > 0 {
 			return strconv.FormatInt(int64(maxVal), 10), nil

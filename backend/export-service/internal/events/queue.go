@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 
+	"avtoplaneta/pkg/logger"
 	"export-service/internal/config"
 	"export-service/internal/domain"
 	"export-service/internal/service"
@@ -122,12 +123,10 @@ func (q *ExportQueue) Enqueue(ctx context.Context, target string, triggeredBy st
 		CreatedAt:   time.Now(),
 	}
 
-	now := time.Now()
 	q.setStatus(ctx, domain.ExportStatus{
 		TaskID:      task.TaskID,
 		Status:      "queued",
-		TriggeredBy: triggeredBy,
-		StartedAt:   &now,
+		TriggeredBy: task.TriggeredBy,
 	})
 
 	if q.redisClient != nil {
@@ -141,16 +140,16 @@ func (q *ExportQueue) Enqueue(ctx context.Context, target string, triggeredBy st
 				},
 			}).Err()
 			if err == nil {
-				logrus.WithField("task_id", task.TaskID).Info("Задача экспорта опубликована в Redis Streams")
+				slog.InfoContext(ctx, "Задача экспорта опубликована в Redis Streams", slog.String("task_id", task.TaskID))
 				return task, nil
 			}
-			logrus.WithError(err).Warn("Не удалось отправить задачу в Redis Streams, переключение на локальную очередь")
+			slog.WarnContext(ctx, "Не удалось отправить задачу в Redis Streams, переключение на локальную очередь", logger.Err(err))
 		}
 	}
 
 	select {
 	case q.localQueue <- task:
-		logrus.WithField("task_id", task.TaskID).Info("Задача экспорта поставлена в локальную очередь")
+		slog.InfoContext(ctx, "Задача экспорта поставлена в локальную очередь", slog.String("task_id", task.TaskID))
 		return task, nil
 	default:
 		q.running.Store(false)
@@ -165,7 +164,7 @@ func (q *ExportQueue) StartWorker(ctx context.Context) {
 	if q.redisClient != nil {
 		err := q.redisClient.XGroupCreateMkStream(ctx, exportStreamKey, exportGroupKey, "$").Err()
 		if err != nil && err.Error() != "BUSYGROUP Consumer Group name already exists" {
-			logrus.WithError(err).Warn("Не удалось создать Consumer Group в Redis Streams")
+			slog.WarnContext(ctx, "Не удалось создать Consumer Group в Redis Streams", logger.Err(err))
 		} else {
 			go q.redisStreamsWorker(ctx)
 		}
@@ -173,7 +172,7 @@ func (q *ExportQueue) StartWorker(ctx context.Context) {
 }
 
 func (q *ExportQueue) localWorker(ctx context.Context) {
-	logrus.Info("Запущен локальный in-process воркер экспорта")
+	slog.InfoContext(ctx, "Запущен локальный in-process воркер экспорта")
 	for {
 		select {
 		case <-ctx.Done():
@@ -191,11 +190,11 @@ func (q *ExportQueue) redisStreamsWorker(ctx context.Context) {
 	}
 	consumerName := fmt.Sprintf("%s-%d", hostname, os.Getpid())
 
-	logrus.WithFields(logrus.Fields{
-		"stream":   exportStreamKey,
-		"group":    exportGroupKey,
-		"consumer": consumerName,
-	}).Info("Запущен воркер Redis Streams для export-service")
+	slog.InfoContext(ctx, "Запущен воркер Redis Streams для export-service",
+		slog.String("stream", exportStreamKey),
+		slog.String("group", exportGroupKey),
+		slog.String("consumer", consumerName),
+	)
 
 	for {
 		select {
@@ -253,13 +252,16 @@ func (q *ExportQueue) executeTask(ctx context.Context, task domain.ExportTask) {
 		StartedAt:   &startedAt,
 	})
 
-	logrus.WithField("task_id", task.TaskID).Info("Начало выполнения задачи экспорта на Drom")
+	slog.InfoContext(ctx, "Начало выполнения задачи экспорта на Drom", slog.String("task_id", task.TaskID))
 
 	xmlData, count, err := q.svc.Generate(ctx)
 	if err != nil {
 		finishedAt := time.Now()
 		errMsg := fmt.Sprintf("ошибка сборки XML: %v", err)
-		logrus.WithError(err).WithField("task_id", task.TaskID).Error("Сборка XML завершилась неудачей")
+		slog.ErrorContext(ctx, "Сборка XML завершилась неудачей",
+			logger.Err(err),
+			slog.String("task_id", task.TaskID),
+		)
 		q.setStatus(ctx, domain.ExportStatus{
 			TaskID:      task.TaskID,
 			Status:      "failed",
@@ -274,7 +276,10 @@ func (q *ExportQueue) executeTask(ctx context.Context, task domain.ExportTask) {
 	if err := service.SendToDromAPI(ctx, q.config, xmlData); err != nil {
 		finishedAt := time.Now()
 		errMsg := fmt.Sprintf("ошибка отправки в Drom API: %v", err)
-		logrus.WithError(err).WithField("task_id", task.TaskID).Error("Отправка на Drom завершилась неудачей")
+		slog.ErrorContext(ctx, "Отправка на Drom завершилась неудачей",
+			logger.Err(err),
+			slog.String("task_id", task.TaskID),
+		)
 		q.setStatus(ctx, domain.ExportStatus{
 			TaskID:      task.TaskID,
 			Status:      "failed",
@@ -288,11 +293,11 @@ func (q *ExportQueue) executeTask(ctx context.Context, task domain.ExportTask) {
 	}
 
 	finishedAt := time.Now()
-	logrus.WithFields(logrus.Fields{
-		"task_id":     task.TaskID,
-		"parts_count": count,
-		"duration":    time.Since(startedAt).String(),
-	}).Info("Экспорт на Drom успешно завершен")
+	slog.InfoContext(ctx, "Экспорт на Drom успешно завершен",
+		slog.String("task_id", task.TaskID),
+		slog.Int("parts_count", count),
+		slog.Duration("duration", time.Since(startedAt)),
+	)
 
 	q.setStatus(ctx, domain.ExportStatus{
 		TaskID:      task.TaskID,

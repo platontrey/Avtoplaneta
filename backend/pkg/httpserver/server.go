@@ -4,11 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
-
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -69,15 +68,15 @@ func (s *Server) Run(ctx context.Context) error {
 	errChan := make(chan error, 1)
 	go func() {
 		if useTLS {
-			logrus.WithFields(logrus.Fields{
-				"addr": s.httpServer.Addr,
-				"cert": certFile,
-			}).Info("Starting HTTP server with TLS")
+			slog.Info("Starting HTTP server with TLS",
+				slog.String("addr", s.httpServer.Addr),
+				slog.String("cert", certFile),
+			)
 			if err := s.httpServer.ListenAndServeTLS(certFile, keyFile); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				errChan <- fmt.Errorf("HTTP server (TLS) error: %w", err)
 			}
 		} else {
-			logrus.WithField("addr", s.httpServer.Addr).Info("Starting HTTP server (without TLS)")
+			slog.Info("Starting HTTP server (without TLS)", slog.String("addr", s.httpServer.Addr))
 			if err := s.httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				errChan <- fmt.Errorf("HTTP server error: %w", err)
 			}
@@ -86,14 +85,14 @@ func (s *Server) Run(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
-		logrus.Info("Gracefully shutting down HTTP server...")
+		slog.Info("Gracefully shutting down HTTP server...")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), s.shutdownTimeout)
 		defer cancel()
 
 		if err := s.httpServer.Shutdown(shutdownCtx); err != nil {
 			return fmt.Errorf("HTTP server forced shutdown: %w", err)
 		}
-		logrus.Info("HTTP server stopped gracefully")
+		slog.Info("HTTP server stopped gracefully")
 		return nil
 
 	case err := <-errChan:

@@ -4,15 +4,16 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/sirupsen/logrus"
 
 	"auth-service/internal/config"
 	"auth-service/internal/domain"
 	"auth-service/internal/security"
+	"avtoplaneta/pkg/logger"
 	"avtoplaneta/pkg/postgres"
 )
 
@@ -49,7 +50,7 @@ func InitDB(cfg *config.Config) (*pgxpool.Pool, error) {
 func CreateDefaultUser(ctx context.Context, repo UserRepository) {
 	count, err := repo.CountAll()
 	if err != nil {
-		logrus.WithError(err).Warn("Не удалось проверить количество пользователей")
+		slog.WarnContext(ctx, "Не удалось проверить количество пользователей", logger.Err(err))
 		return
 	}
 	if count > 0 {
@@ -73,7 +74,7 @@ func CreateDefaultUser(ctx context.Context, repo UserRepository) {
 
 	hashedPassword, err := security.HashPassword(adminPassword)
 	if err != nil {
-		logrus.WithError(err).Error("Не удалось хэшировать пароль для default пользователя")
+		slog.ErrorContext(ctx, "Не удалось хэшировать пароль для default пользователя", logger.Err(err))
 		return
 	}
 
@@ -87,9 +88,11 @@ func CreateDefaultUser(ctx context.Context, repo UserRepository) {
 	}
 
 	if _, err := repo.Create(defaultUser); err != nil {
-		logrus.WithError(err).Error("Не удалось создать default пользователя")
+		slog.ErrorContext(ctx, "Не удалось создать default пользователя", logger.Err(err))
 		return
 	}
 
-	logrus.Infof("Default администратор успешно создан (%s / @admin). Пароль установлен из переменной окружения DEFAULT_ADMIN_PASSWORD.", adminEmail)
+	slog.InfoContext(ctx, "Default администратор успешно создан (@admin). Пароль установлен из переменной окружения DEFAULT_ADMIN_PASSWORD.",
+		slog.String("email", adminEmail),
+	)
 }

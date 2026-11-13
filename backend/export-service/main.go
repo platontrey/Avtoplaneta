@@ -2,15 +2,16 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 
 	"avtoplaneta/pkg/httpserver"
+	"avtoplaneta/pkg/logger"
 	"avtoplaneta/pkg/redisclient"
 	"export-service/internal/config"
 	"export-service/internal/events"
@@ -25,13 +26,24 @@ import (
 func main() {
 	cfg := config.LoadConfig()
 
+	logFmt := logger.FormatJSON
+	if os.Getenv("NODE_ENV") != "production" {
+		logFmt = logger.FormatText
+	}
+	logger.Init(logger.Config{
+		Level:       os.Getenv("LOG_LEVEL"),
+		Format:      logFmt,
+		ServiceName: "export-service",
+	})
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	// 1. gRPC клиенты к parts-service и auth-service
 	clients, err := grpc.NewClients(cfg.PartsServiceGRPC, cfg.AuthServiceGRPC)
 	if err != nil {
-		logrus.WithError(err).Fatal("Не удалось подключиться к зависимым сервисам")
+		slog.Error("Не удалось подключиться к зависимым сервисам", logger.Err(err))
+		os.Exit(1)
 	}
 	defer clients.Close()
 
@@ -40,7 +52,7 @@ func main() {
 	if cfg.RedisURL != "" {
 		client, err := redisclient.New(cfg.RedisURL, cfg.RedisPassword)
 		if err != nil {
-			logrus.WithError(err).Warn("Не удалось подключиться к Redis, export-service работает на резервной локальной очереди")
+			slog.Warn("Не удалось подключиться к Redis, export-service работает на резервной локальной очереди", logger.Err(err))
 		} else {
 			rdb = client
 			defer rdb.Close()
@@ -50,7 +62,8 @@ func main() {
 	// 3. Репозиторий инкрементального слепка bbolt
 	snapshotRepo, err := repository.NewBoltSnapshotRepository(cfg.CatalogDBPath)
 	if err != nil {
-		logrus.WithError(err).Fatal("Не удалось инициализировать базу слепка каталога bbolt")
+		slog.Error("Не удалось инициализировать базу слепка каталога bbolt", logger.Err(err))
+		os.Exit(1)
 	}
 	defer snapshotRepo.Close()
 
@@ -82,8 +95,9 @@ func main() {
 	handler.SetupRoutes(router, h)
 
 	// 8. Запуск сервера с поддержкой graceful shutdown и TLS через avtoplaneta/pkg/httpserver
-	logrus.WithField("port", cfg.Port).Info("Запуск export-service")
+	slog.Info("Запуск export-service", slog.String("port", cfg.Port))
 	if err := httpserver.Run(ctx, cfg.Port, router); err != nil {
-		logrus.WithError(err).Fatal("Ошибка работы HTTP-сервера")
+		slog.Error("Ошибка работы HTTP-сервера", logger.Err(err))
+		os.Exit(1)
 	}
 }

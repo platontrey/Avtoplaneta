@@ -15,6 +15,8 @@ type Config struct {
 	AuthServiceURL      string
 	AuthServiceGRPCURL  string
 	PartsServiceGRPCURL string
+	LogLevel            string
+	LogFormat           string
 }
 
 // LoadConfig загружает конфигурацию из переменных окружения
@@ -66,6 +68,19 @@ func LoadConfig() *Config {
 		partsGRPCURL = "localhost:9081"
 	}
 
+	logLevel := os.Getenv("LOG_LEVEL")
+	if logLevel == "" {
+		logLevel = "info"
+	}
+	logFormat := os.Getenv("LOG_FORMAT")
+	if logFormat == "" {
+		if os.Getenv("NODE_ENV") == "production" {
+			logFormat = "json"
+		} else {
+			logFormat = "text"
+		}
+	}
+
 	return &Config{
 		DatabaseURL:         dbURL,
 		SessionSecret:       sessionSecret,
@@ -78,5 +93,7 @@ func LoadConfig() *Config {
 		AuthServiceURL:      authURL,
 		AuthServiceGRPCURL:  authGRPCURL,
 		PartsServiceGRPCURL: partsGRPCURL,
+		LogLevel:            logLevel,
+		LogFormat:           logFormat,
 	}
 }

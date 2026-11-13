@@ -1,10 +1,10 @@
 package handler
 
 import (
+	"log/slog"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 
 	"avtoplaneta/pkg/health"
 	"parts-service/internal/catalog"
@@ -53,7 +53,7 @@ func (h *Handler) logUserActivity(c *gin.Context, action, resourceType, details 
 	userName := c.GetHeader("X-User-Name")
 
 	if userIDStr == "" {
-		logrus.Warn("Cannot log activity - no user ID in headers")
+		slog.WarnContext(c.Request.Context(), "Cannot log activity - no user ID in headers")
 		return
 	}
 

@@ -2,16 +2,18 @@ package main
 
 import (
 	"context"
+	"log/slog"
+	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 
 	"avtoplaneta/pkg/httpserver"
+	"avtoplaneta/pkg/logger"
 	"avtoplaneta/pkg/redisclient"
 	"avtoplaneta/pkg/tracing"
 	"template-service/internal/config"
@@ -26,17 +28,17 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	gin.SetMode(gin.ReleaseMode)
 
-	// 2. Загрузка конфигурации
+	// 2. Загрузка конфигурации и логгера
 	cfg := config.LoadConfig()
 
 	// 3. Инициализация распределенной трассировки OpenTelemetry
 	tp, err := tracing.InitTracer("template-service")
 	if err != nil {
-		logrus.WithError(err).Warn("Трассировщик OpenTelemetry не запущен (продолжение без трассировки)")
+		slog.Warn("Трассировщик OpenTelemetry не запущен (продолжение без трассировки)", logger.Err(err))
 	} else {
 		defer func() {
 			if err := tp.Shutdown(context.Background()); err != nil {
-				logrus.WithError(err).Error("Ошибка при остановке трассировщика")
+				slog.Error("Ошибка при остановке трассировщика", logger.Err(err))
 			}
 		}()
 	}
@@ -45,16 +47,17 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	logrus.WithFields(logrus.Fields{
-		"http_port": cfg.Port,
-		"grpc_port": cfg.GRPCPort,
-		"env":       cfg.NodeEnv,
-	}).Info("Инициализация template-service...")
+	slog.Info("Инициализация template-service...",
+		slog.String("http_port", cfg.Port),
+		slog.String("grpc_port", cfg.GRPCPort),
+		slog.String("env", cfg.NodeEnv),
+	)
 
 	// 5. Подключение к PostgreSQL и запуск встроенных миграций
 	dbPool, err := repository.InitDB(cfg)
 	if err != nil {
-		logrus.WithError(err).Fatal("Не удалось инициализировать базу данных PostgreSQL")
+		slog.Error("Не удалось инициализировать базу данных PostgreSQL", logger.Err(err))
+		os.Exit(1)
 	}
 	defer dbPool.Close()
 
@@ -63,11 +66,11 @@ func main() {
 	if cfg.RedisURL != "" {
 		client, err := redisclient.New(cfg.RedisURL, cfg.RedisPassword)
 		if err != nil {
-			logrus.WithError(err).Warn("Не удалось подключиться к Redis (кэширование и события отключены)")
+			slog.Warn("Не удалось подключиться к Redis (кэширование и события отключены)", logger.Err(err))
 		} else {
 			redisClient = client
 			defer redisClient.Close()
-			logrus.Info("Подключение к Redis успешно установлено")
+			slog.Info("Подключение к Redis успешно установлено")
 		}
 	}
 
@@ -103,8 +106,8 @@ func main() {
 	})
 
 	if err := g.Wait(); err != nil {
-		logrus.WithError(err).Error("Завершение работы сервиса с ошибкой")
+		slog.Error("Завершение работы сервиса с ошибкой", logger.Err(err))
 	} else {
-		logrus.Info("Сервис успешно остановлен (Graceful shutdown завершен)")
+		slog.Info("Сервис успешно остановлен (Graceful shutdown завершен)")
 	}
 }

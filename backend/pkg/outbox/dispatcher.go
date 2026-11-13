@@ -2,11 +2,11 @@ package outbox
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sirupsen/logrus"
 )
 
 // Event представляет единицу события Transactional Outbox
@@ -78,7 +78,7 @@ type Options struct {
 	FallbackPollInterval time.Duration   // Страховочный интервал при активном LISTEN (default: 3s)
 	CleanupInterval      time.Duration   // Период запуска очистки старых событий (default: 1h)
 	Metrics              MetricsRecorder // Опциональный сборщик метрик
-	Logger               *logrus.Entry   // Опциональный логгер с контекстом сервиса
+	Logger               *slog.Logger    // Опциональный логгер с контекстом сервиса
 }
 
 // Dispatcher управляет надежным циклом Transactional Outbox (LISTEN/NOTIFY, поллинг, обработка, retry, cleanup)
@@ -87,7 +87,7 @@ type Dispatcher struct {
 	storage Storage
 	handler Handler
 	opts    Options
-	log     *logrus.Entry
+	log     *slog.Logger
 }
 
 // NewDispatcher создает новый экземпляр диспетчера Outbox
@@ -110,7 +110,7 @@ func NewDispatcher(pool *pgxpool.Pool, storage Storage, handler Handler, opts Op
 
 	logger := opts.Logger
 	if logger == nil {
-		logger = logrus.WithField("component", opts.Name+"-outbox")
+		logger = slog.Default().With(slog.String("component", opts.Name+"-outbox"))
 	}
 
 	return &Dispatcher{
@@ -124,7 +124,7 @@ func NewDispatcher(pool *pgxpool.Pool, storage Storage, handler Handler, opts Op
 
 // Start запускает фоновый воркер очистки, слушатель LISTEN/NOTIFY и основной цикл обработки
 func (d *Dispatcher) Start(ctx context.Context) error {
-	d.log.Infof("Starting %s Transactional Outbox dispatcher", d.opts.Name)
+	d.log.InfoContext(ctx, "Starting Transactional Outbox dispatcher", slog.String("name", d.opts.Name))
 
 	go d.startCleanupLoop(ctx)
 
@@ -147,7 +147,7 @@ func (d *Dispatcher) Start(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			d.log.Infof("Stopping %s Transactional Outbox dispatcher", d.opts.Name)
+			d.log.InfoContext(ctx, "Stopping Transactional Outbox dispatcher", slog.String("name", d.opts.Name))
 			return nil
 
 		case <-notifyCh:
@@ -168,7 +168,7 @@ func (d *Dispatcher) startNotifyListener(ctx context.Context, notifyCh chan<- st
 
 		conn, err := d.pool.Acquire(ctx)
 		if err != nil {
-			d.log.WithError(err).Warn("Failed to acquire connection for LISTEN, retrying in 2s")
+			d.log.WarnContext(ctx, "Failed to acquire connection for LISTEN, retrying in 2s", slog.Any("error", err))
 			select {
 			case <-ctx.Done():
 				return
@@ -180,7 +180,7 @@ func (d *Dispatcher) startNotifyListener(ctx context.Context, notifyCh chan<- st
 		_, err = conn.Exec(ctx, "LISTEN "+d.opts.Channel)
 		if err != nil {
 			conn.Release()
-			d.log.WithError(err).Warn("Failed to execute LISTEN, retrying in 2s")
+			d.log.WarnContext(ctx, "Failed to execute LISTEN, retrying in 2s", slog.Any("error", err))
 			select {
 			case <-ctx.Done():
 				return
@@ -189,7 +189,7 @@ func (d *Dispatcher) startNotifyListener(ctx context.Context, notifyCh chan<- st
 			}
 		}
 
-		d.log.Infof("Successfully subscribed to %s via PostgreSQL LISTEN", d.opts.Channel)
+		d.log.InfoContext(ctx, "Successfully subscribed via PostgreSQL LISTEN", slog.String("channel", d.opts.Channel))
 
 		for {
 			notification, err := conn.Conn().WaitForNotification(ctx)
@@ -198,7 +198,7 @@ func (d *Dispatcher) startNotifyListener(ctx context.Context, notifyCh chan<- st
 				if ctx.Err() != nil {
 					return
 				}
-				d.log.WithError(err).Warn("Connection lost while waiting for notification, reconnecting...")
+				d.log.WarnContext(ctx, "Connection lost while waiting for notification, reconnecting...", slog.Any("error", err))
 				break
 			}
 
@@ -224,9 +224,9 @@ func (d *Dispatcher) startCleanupLoop(ctx context.Context) {
 			return
 		case <-ticker.C:
 			if err := d.storage.CleanupProcessedOutboxEvents(ctx); err != nil {
-				d.log.WithError(err).Warn("Failed to cleanup processed outbox events")
+				d.log.WarnContext(ctx, "Failed to cleanup processed outbox events", slog.Any("error", err))
 			} else {
-				d.log.Debug("Cleaned up old processed outbox events")
+				d.log.DebugContext(ctx, "Cleaned up old processed outbox events")
 			}
 		}
 	}
@@ -241,7 +241,7 @@ func (d *Dispatcher) ProcessPendingEvents(ctx context.Context) {
 
 		events, err := d.storage.FetchPendingOutboxEvents(ctx, d.opts.BatchSize)
 		if err != nil {
-			d.log.WithError(err).Error("Failed to fetch pending events")
+			d.log.ErrorContext(ctx, "Failed to fetch pending events", slog.Any("error", err))
 			return
 		}
 
@@ -262,22 +262,29 @@ func (d *Dispatcher) ProcessPendingEvents(ctx context.Context) {
 				if d.opts.Metrics != nil {
 					d.opts.Metrics.RecordEventFailed(event.EventType, duration)
 				}
-				d.log.WithError(err).WithFields(logrus.Fields{
-					"event_id":       event.ID,
-					"event_type":     event.EventType,
-					"aggregate_id":   event.AggregateID,
-					"aggregate_type": event.AggregateType,
-				}).Error("Failed to process outbox event")
+				d.log.ErrorContext(ctx, "Failed to process outbox event",
+					slog.Any("error", err),
+					slog.Int64("event_id", event.ID),
+					slog.String("event_type", event.EventType),
+					slog.Int64("aggregate_id", event.AggregateID),
+					slog.String("aggregate_type", event.AggregateType),
+				)
 
 				if markErr := d.storage.MarkOutboxEventFailed(ctx, event.ID, err.Error()); markErr != nil {
-					d.log.WithError(markErr).WithField("event_id", event.ID).Error("Failed to mark event as failed")
+					d.log.ErrorContext(ctx, "Failed to mark event as failed",
+						slog.Any("error", markErr),
+						slog.Int64("event_id", event.ID),
+					)
 				}
 			} else {
 				if d.opts.Metrics != nil {
 					d.opts.Metrics.RecordEventProcessed(event.EventType, duration)
 				}
 				if markErr := d.storage.MarkOutboxEventProcessed(ctx, event.ID); markErr != nil {
-					d.log.WithError(markErr).WithField("event_id", event.ID).Error("Failed to mark event as processed")
+					d.log.ErrorContext(ctx, "Failed to mark event as processed",
+						slog.Any("error", markErr),
+						slog.Int64("event_id", event.ID),
+					)
 				}
 			}
 		}

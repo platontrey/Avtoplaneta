@@ -8,7 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"log/slog"
+
+	"avtoplaneta/pkg/logger"
 
 	"orders-service/internal/domain"
 	"orders-service/internal/repository"
@@ -158,16 +160,16 @@ func (s *ordersService) GetOrders(ctx context.Context) ([]domain.Order, error) {
 	if s.cache != nil {
 		cachedOrders, err := s.cache.GetOrders()
 		if err != nil {
-			logrus.WithError(err).Warn("Failed to get orders from cache, falling back to database")
+			slog.WarnContext(ctx, "Failed to get orders from cache, falling back to database", logger.Err(err))
 		} else if cachedOrders != nil {
-			logrus.Info("Returning orders from cache")
+			slog.InfoContext(ctx, "Returning orders from cache")
 			return cachedOrders, nil
 		}
 	}
 
 	orders, err := s.orderRepo.FindActive(ctx)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to get orders from database")
+		slog.ErrorContext(ctx, "Failed to get orders from database", logger.Err(err))
 		return nil, fmt.Errorf("failed to get orders from database: %w", err)
 	}
 
@@ -175,7 +177,7 @@ func (s *ordersService) GetOrders(ctx context.Context) ([]domain.Order, error) {
 
 	if s.cache != nil {
 		if err := s.cache.SetOrders(orders); err != nil {
-			logrus.WithError(err).Warn("Failed to cache orders")
+			slog.WarnContext(ctx, "Failed to cache orders", logger.Err(err))
 		}
 	}
 
@@ -186,7 +188,7 @@ func (s *ordersService) GetOrders(ctx context.Context) ([]domain.Order, error) {
 func (s *ordersService) GetCompletedOrders(ctx context.Context) ([]domain.Order, error) {
 	orders, err := s.orderRepo.FindCompleted(ctx)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to get completed orders from database")
+		slog.ErrorContext(ctx, "Failed to get completed orders from database", logger.Err(err))
 		return nil, fmt.Errorf("failed to get completed orders from database: %w", err)
 	}
 
@@ -381,7 +383,7 @@ func (s *ordersService) CreateOrder(ctx context.Context, req domain.CreateOrderR
 		}
 		part, err := s.partRepo.FindByID(ctx, item.PartID)
 		if err != nil {
-			logrus.WithError(err).WithField("part_id", item.PartID).Error("Failed to get part for order item")
+			slog.ErrorContext(ctx, "Failed to get part for order item", logger.Err(err), slog.Int64("part_id", item.PartID))
 			return nil, fmt.Errorf("failed to get part information for part %d: %w", item.PartID, err)
 		}
 
@@ -490,7 +492,7 @@ func (s *ordersService) CreateOrder(ctx context.Context, req domain.CreateOrderR
 	var completeOrder *domain.Order
 	err := repository.RunInTransaction(ctx, s.orderRepo.GetPool(), func(txCtx context.Context) error {
 		if err := s.orderRepo.Create(txCtx, order); err != nil {
-			logrus.WithError(err).Error("Failed to create order in database")
+			slog.ErrorContext(ctx, "Failed to create order in database", logger.Err(err))
 			return fmt.Errorf("failed to create order: %w", err)
 		}
 
@@ -505,7 +507,7 @@ func (s *ordersService) CreateOrder(ctx context.Context, req domain.CreateOrderR
 			}
 
 			if err := s.orderRepo.CreateItem(txCtx, orderItem); err != nil {
-				logrus.WithError(err).Error("Failed to create order item in database")
+				slog.ErrorContext(ctx, "Failed to create order item in database", logger.Err(err))
 				return fmt.Errorf("failed to create order item: %w", err)
 			}
 		}
@@ -534,7 +536,7 @@ func (s *ordersService) CreateOrder(ctx context.Context, req domain.CreateOrderR
 
 	if s.cache != nil {
 		if err := s.cache.InvalidateOrders(); err != nil {
-			logrus.WithError(err).Warn("Failed to invalidate orders cache after creating order")
+			slog.WarnContext(ctx, "Failed to invalidate orders cache after creating order", logger.Err(err))
 		}
 	}
 
@@ -598,7 +600,7 @@ func (s *ordersService) UpdateOrderStatus(ctx context.Context, orderID int64, st
 
 	if s.cache != nil {
 		if err := s.cache.InvalidateOrders(); err != nil {
-			logrus.WithError(err).Warn("Failed to invalidate orders cache after updating status")
+			slog.WarnContext(ctx, "Failed to invalidate orders cache after updating status", logger.Err(err))
 		}
 	}
 
@@ -673,7 +675,7 @@ func (s *ordersService) UpdateOrderDetails(ctx context.Context, orderID int64, r
 
 	if s.cache != nil {
 		if err := s.cache.InvalidateOrders(); err != nil {
-			logrus.WithError(err).Warn("Failed to invalidate orders cache after updating order details")
+			slog.WarnContext(ctx, "Failed to invalidate orders cache after updating order details", logger.Err(err))
 		}
 	}
 
@@ -688,11 +690,11 @@ func (s *ordersService) UpdateOrderDetails(ctx context.Context, orderID int64, r
 
 // CompleteOrder завершает заказ и списывает остатки
 func (s *ordersService) CompleteOrder(ctx context.Context, orderID int64) error {
-	logrus.WithField("order_id", orderID).Info("Starting order completion")
+	slog.InfoContext(ctx, "Starting order completion", slog.Int64("order_id", orderID))
 
 	order, err := s.orderRepo.FindWithItemsByID(ctx, orderID)
 	if err != nil {
-		logrus.WithError(err).WithField("order_id", orderID).Error("Failed to find order for completion")
+		slog.ErrorContext(ctx, "Failed to find order for completion", logger.Err(err), slog.Int64("order_id", orderID))
 		return domain.NotFoundError{Resource: "order", ID: orderID}
 	}
 
@@ -712,7 +714,7 @@ func (s *ordersService) CompleteOrder(ctx context.Context, orderID int64) error 
 			CreatedAt: time.Now(),
 		}
 		if err := s.orderRepo.CreateSalesHistory(txCtx, salesHistory); err != nil {
-			logrus.WithError(err).WithField("order_id", orderID).Warn("Failed to create sales history entry")
+			slog.WarnContext(ctx, "Failed to create sales history entry", logger.Err(err), slog.Int64("order_id", orderID))
 		}
 
 		payload, _ := json.Marshal(map[string]interface{}{
@@ -734,45 +736,44 @@ func (s *ordersService) CompleteOrder(ctx context.Context, orderID int64) error 
 
 		part, errPart := s.partRepo.FindByID(ctx, item.PartID)
 		if errPart != nil {
-			logrus.WithError(errPart).WithField("part_id", item.PartID).Warn("Part not found during order completion (may already be deleted)")
+			slog.WarnContext(ctx, "Part not found during order completion (may already be deleted)", logger.Err(errPart), slog.Int64("part_id", item.PartID))
 			continue
 		}
 
 		if part.Quantity > item.Quantity {
 			opID := fmt.Sprintf("complete-order-%d-part-%d", orderID, item.PartID)
 			if err := s.partRepo.DecreaseQuantity(ctx, item.PartID, item.Quantity, opID); err != nil {
-				logrus.WithError(err).WithField("part_id", item.PartID).Warn("Fast-path decrease failed, Outbox Dispatcher will retry")
+				slog.WarnContext(ctx, "Fast-path decrease failed, Outbox Dispatcher will retry", logger.Err(err), slog.Int64("part_id", item.PartID))
 			}
 		} else {
 			if err := s.partRepo.DeletePart(ctx, item.PartID); err != nil {
-				logrus.WithError(err).WithField("part_id", item.PartID).Warn("Fast-path delete failed, Outbox Dispatcher will retry")
+				slog.WarnContext(ctx, "Fast-path delete failed, Outbox Dispatcher will retry", logger.Err(err), slog.Int64("part_id", item.PartID))
 			}
 		}
 	}
 
 	if s.publisher != nil {
 		if err := s.publisher.PublishOrderCompleted(ctx, orderID, totalAmount); err != nil {
-			logrus.WithError(err).WithField("order_id", orderID).Warn("Fast-path publish failed, Outbox Dispatcher will retry")
+			slog.WarnContext(ctx, "Fast-path publish failed, Outbox Dispatcher will retry", logger.Err(err), slog.Int64("order_id", orderID))
 		}
 	}
 
 	if s.cache != nil {
 		if err := s.cache.InvalidateOrders(); err != nil {
-			logrus.WithError(err).Warn("Failed to invalidate orders cache after completing order")
+			slog.WarnContext(ctx, "Failed to invalidate orders cache after completing order", logger.Err(err))
 		}
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"order_id": orderID,
-		"amount":   totalAmount,
-	}).Info("Order completed successfully")
+	slog.InfoContext(ctx, "Order completed successfully",
+		slog.Int64("order_id", orderID),
+		slog.Float64("amount", totalAmount))
 
 	return nil
 }
 
 // DeleteOrder удаляет заказ
 func (s *ordersService) DeleteOrder(ctx context.Context, orderID int64) error {
-	logrus.WithField("order_id", orderID).Info("Starting order deletion")
+	slog.InfoContext(ctx, "Starting order deletion", slog.Int64("order_id", orderID))
 
 	err := repository.RunInTransaction(ctx, s.orderRepo.GetPool(), func(txCtx context.Context) error {
 		if _, err := s.orderRepo.FindByID(txCtx, orderID); err != nil {
@@ -795,7 +796,7 @@ func (s *ordersService) DeleteOrder(ctx context.Context, orderID int64) error {
 
 	if s.cache != nil {
 		if err := s.cache.InvalidateOrders(); err != nil {
-			logrus.WithError(err).Warn("Failed to invalidate orders cache after deleting order")
+			slog.WarnContext(ctx, "Failed to invalidate orders cache after deleting order", logger.Err(err))
 		}
 	}
 
@@ -862,7 +863,7 @@ func (s *ordersService) AddOrderItem(ctx context.Context, orderID int64, req dom
 
 	if s.cache != nil {
 		if err := s.cache.InvalidateOrders(); err != nil {
-			logrus.WithError(err).Warn("Failed to invalidate orders cache after adding item")
+			slog.WarnContext(ctx, "Failed to invalidate orders cache after adding item", logger.Err(err))
 		}
 	}
 
@@ -900,7 +901,7 @@ func (s *ordersService) UpdateOrderItem(ctx context.Context, orderID, itemID int
 
 	if s.cache != nil {
 		if err := s.cache.InvalidateOrders(); err != nil {
-			logrus.WithError(err).Warn("Failed to invalidate orders cache after updating item")
+			slog.WarnContext(ctx, "Failed to invalidate orders cache after updating item", logger.Err(err))
 		}
 	}
 	return nil
@@ -922,7 +923,7 @@ func (s *ordersService) DeleteOrderItem(ctx context.Context, orderID, itemID int
 
 	if s.cache != nil {
 		if err := s.cache.InvalidateOrders(); err != nil {
-			logrus.WithError(err).Warn("Failed to invalidate orders cache after deleting item")
+			slog.WarnContext(ctx, "Failed to invalidate orders cache after deleting item", logger.Err(err))
 		}
 	}
 	return nil
