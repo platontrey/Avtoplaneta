@@ -12,3 +12,15 @@ datasources:
     editable: true
     apiVersion: 1
     uid: tempo
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: 'loki'
+        spanStartTimeShift: '-5m'
+        spanEndTimeShift: '5m'
+        filterByTraceID: true
+        filterBySpanID: false
+        query: '{$${__tags}} |= "$${__trace.id}"'
+      serviceMap:
+        datasourceUid: 'prometheus'
+      nodeGraph:
+        enabled: true

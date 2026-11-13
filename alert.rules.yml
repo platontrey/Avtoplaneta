@@ -1,0 +1,69 @@
+groups:
+  - name: avtoplaneta_health_and_availability
+    rules:
+      - alert: ServiceInstanceDown
+        expr: up{job=~"parts-service|orders-service|auth-service|export-service|messaging-service|template-service|gateway"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Сервис {{ $labels.job }} недоступен"
+          description: "Экземпляр процесса {{ $labels.job }} на {{ $labels.instance }} не отвечает Prometheus более 1 минуты."
+
+      - alert: HealthCheckFailed
+        expr: service_health_status{check!="overall"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Сбой компонента {{ $labels.check }} в сервисе {{ $labels.service }}"
+          description: "Readiness health check для {{ $labels.check }} в сервисе {{ $labels.service }} вернул ошибку (unhealthy)."
+
+      - alert: HealthCheckDegradedLatency
+        expr: service_health_check_duration_seconds > 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Высокая задержка health check {{ $labels.check }} в {{ $labels.service }}"
+          description: "Время проверки доступности {{ $labels.check }} в сервисе {{ $labels.service }} превышает 1 секунду ({{ $value }}s)."
+
+  - name: avtoplaneta_outbox_and_events
+    rules:
+      - alert: OutboxEventFailuresDetected
+        expr: rate(outbox_events_failed_total[2m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Ошибки обработки Outbox событий в {{ $labels.service }}"
+          description: "Обнаружены сбои обработки transactional outbox событий типа {{ $labels.event_type }} в сервисе {{ $labels.service }}."
+
+      - alert: OutboxProcessingHighLatency
+        expr: histogram_quantile(0.95, sum(rate(outbox_processing_duration_seconds_bucket[5m])) by (le, service)) > 2
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Высокая задержка обработки Outbox в {{ $labels.service }}"
+          description: "95-й перцентиль времени обработки outbox-событий в {{ $labels.service }} превышает 2 секунды ({{ $value }}s)."
+
+  - name: avtoplaneta_http_and_grpc
+    rules:
+      - alert: HighHttpErrorRate
+        expr: sum(rate(http_requests_errors_total{status=~"5.."}[5m])) by (service) / sum(rate(http_requests_total[5m])) by (service) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Высокий уровень 5xx ошибок в {{ $labels.service }}"
+          description: "Доля серверных ошибок (5xx) в сервисе {{ $labels.service }} превышает 5% за последние 5 минут."
+
+      - alert: HighHttpRequestLatency
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service)) > 1.5
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Высокий 95-й перцентиль задержки HTTP в {{ $labels.service }}"
+          description: "95% HTTP-запросов в сервисе {{ $labels.service }} выполняются дольше 1.5 секунд ({{ $value }}s)."

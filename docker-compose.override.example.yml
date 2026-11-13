@@ -40,6 +40,20 @@ services:
         limits:
           memory: 100M
 
+  loki:
+    mem_limit: 120m
+    deploy:
+      resources:
+        limits:
+          memory: 120M
+
+  promtail:
+    mem_limit: 80m
+    deploy:
+      resources:
+        limits:
+          memory: 80M
+
   cadvisor:
     command:
       - '--docker_only=true'                     # Сканировать только Docker контейнеры

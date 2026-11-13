@@ -496,7 +496,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 8,
         "x": 0,
         "y": 24
       },
@@ -517,8 +517,8 @@
       },
       "targets": [
         {
-          "expr": "sum by (job) (rate({__name__=~\"(parts|orders|auth)_outbox_processing_duration_seconds_count\"}[2m])) or sum by (event_type) (rate(parts_outbox_events_processed_total[2m])) or sum by (event_type) (rate(orders_outbox_events_processed_total[2m])) or on() vector(0)",
-          "legendFormat": "Обработано: {{job}}"
+          "expr": "sum by (service, event_type) (rate(outbox_events_processed_total[2m])) or on() vector(0)",
+          "legendFormat": "{{service}} - {{event_type}}"
         }
       ],
       "title": "Успешно обработано событий Outbox (событий/сек)",
@@ -553,8 +553,8 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
+        "w": 8,
+        "x": 8,
         "y": 24
       },
       "id": 7,
@@ -573,11 +573,66 @@
       },
       "targets": [
         {
-          "expr": "sum by (event_type) (increase(parts_outbox_events_failed_total[5m])) or sum by (event_type) (increase(orders_outbox_events_failed_total[5m])) or on() vector(0)",
-          "legendFormat": "Сбоев: {{event_type}}"
+          "expr": "sum by (service, event_type) (increase(outbox_events_failed_total[5m])) or on() vector(0)",
+          "legendFormat": "{{service}} - {{event_type}}"
         }
       ],
       "title": "Сбои синхронизации Outbox (Зависшие события за 5 мин)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false
+          },
+          "unit": "ms",
+          "noValue": "0"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 24
+      },
+      "id": 10,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, service) (rate(outbox_processing_duration_seconds_bucket[5m]))) * 1000",
+          "legendFormat": "{{service}} (p95)"
+        }
+      ],
+      "title": "Задержка обработки Outbox (P95 Latency)",
       "type": "timeseries"
     }
   ],
