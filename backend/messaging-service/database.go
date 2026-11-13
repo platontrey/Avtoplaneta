@@ -12,6 +12,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"avtoplaneta/pkg/postgres"
+	"avtoplaneta/pkg/redisclient"
 )
 
 //go:embed db/migrations/*.up.sql
@@ -70,6 +71,7 @@ func InitRedis() {
 		Addr:     redisAddr,
 		Password: redisPassword,
 	})
+	redisclient.Instrument(RedisClient)
 
 	// Test connection
 	_, err := RedisClient.Ping(context.Background()).Result()

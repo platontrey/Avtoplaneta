@@ -21,6 +21,7 @@ import (
 	partsv1 "avtoplaneta/gen/parts/v1"
 	"avtoplaneta/pkg/constants"
 	"avtoplaneta/pkg/userdirectory"
+	"avtoplaneta/pkg/redisclient"
 	"parts-service/internal/catalog"
 	"parts-service/internal/config"
 	"parts-service/internal/domain"
@@ -105,6 +106,7 @@ func NewInventoryService(repo repository.PartRepository, es search.Elasticsearch
 		ReadTimeout:  3 * time.Second,
 		WriteTimeout: 3 * time.Second,
 	})
+	redisclient.Instrument(rdb)
 
 	service := &inventoryService{
 		repo:          repo,

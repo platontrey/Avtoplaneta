@@ -33,7 +33,15 @@ func DefaultConfig(databaseURL string) Config {
 	}
 }
 
-// Connect создает и проверяет пул подключений к PostgreSQL
+// WithTracer настраивает OpenTelemetry трейсер на конфигурации пула, если трейсер еще не установлен
+func WithTracer(poolConfig *pgxpool.Config) *pgxpool.Config {
+	if poolConfig != nil && poolConfig.ConnConfig.Tracer == nil {
+		poolConfig.ConnConfig.Tracer = NewTracer()
+	}
+	return poolConfig
+}
+
+// Connect создает и проверяет пул подключений к PostgreSQL с OpenTelemetry трассировкой
 func Connect(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
 	poolConfig, err := pgxpool.ParseConfig(cfg.DatabaseURL)
 	if err != nil {
@@ -52,6 +60,8 @@ func Connect(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
 	if cfg.MaxConnIdleTime > 0 {
 		poolConfig.MaxConnIdleTime = cfg.MaxConnIdleTime
 	}
+
+	WithTracer(poolConfig)
 
 	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
