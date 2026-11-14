@@ -578,21 +578,109 @@ type Part struct {
 
 ### Переменные окружения:
 ```bash
-# База данных
+# Базы данных (Database-per-Service c fallback на DATABASE_URL)
 DATABASE_URL=postgres://user:pass@localhost:5432/autoplanet
+AUTH_DATABASE_URL=postgres://user:pass@localhost:5432/autoplanet_auth
+PARTS_DATABASE_URL=postgres://user:pass@localhost:5432/autoplanet_parts
+ORDERS_DATABASE_URL=postgres://user:pass@localhost:5432/autoplanet_orders
+MESSAGING_DATABASE_URL=postgres://user:pass@localhost:5432/autoplanet_messaging
+
+# Инфраструктура
+REDIS_ADDR=localhost:6379
+ELASTICSEARCH_URL=http://localhost:9200
+OTEL_EXPORTER_OTLP_ENDPOINT=localhost:4317
+
+# Аутентификация и сессии
+SESSION_SECRET=secure_random_key_32_chars_min
+JWT_SECRET=secure_jwt_secret_key
 
 # OAuth Google
 GOOGLE_CLIENT_ID=your_client_id
 GOOGLE_CLIENT_SECRET=your_client_secret
-GOOGLE_CALLBACK_URL=http://localhost:8082/auth/google/callback
-
-# Сессии
-SESSION_SECRET=secure_random_key_32_chars_min
+GOOGLE_CALLBACK_URL=http://localhost:8083/auth/google/callback
 
 # Окружение
 NODE_ENV=production  # или development
 ALLOWED_ORIGIN=https://yourdomain.com
 ```
+
+### Схема базы данных (ERD диаграмма)
+
+```mermaid
+erDiagram
+    users {
+        bigint id PK
+        string username
+        string email
+        string role
+        string provider
+        timestamp created_at
+    }
+    activity_logs {
+        bigint id PK
+        bigint user_id FK
+        string action
+        timestamp created_at
+    }
+    parts {
+        bigint id PK
+        bigint seller_id
+        string name
+        string brand
+        string model
+        string supplier_code
+        integer quantity
+        numeric price
+        timestamp created_at
+        timestamp updated_at
+        timestamp deleted_at
+    }
+    part_stock_operations {
+        string operation_id PK
+        bigint part_id FK
+        string operation_type
+        integer amount
+        timestamp created_at
+    }
+    customers {
+        bigint id PK
+        string phone UK
+        string name
+        numeric total_spent
+        timestamp created_at
+    }
+    orders {
+        bigint id PK
+        bigint customer_id FK
+        bigint seller_id
+        string status
+        numeric total_amount
+        timestamp created_at
+    }
+    order_items {
+        bigint id PK
+        bigint order_id FK
+        bigint part_id
+        integer quantity
+        numeric price
+    }
+    outbox_events {
+        bigint id PK
+        string aggregate_type
+        bigint aggregate_id
+        string event_type
+        jsonb payload
+        string status
+        integer retry_count
+        timestamp created_at
+    }
+
+    users ||--o{ activity_logs : "creates"
+    parts ||--o{ part_stock_operations : "tracks"
+    customers ||--o{ orders : "places"
+    orders ||--|{ order_items : "contains"
+```
+
 
 ### Запуск сервисов:
 
@@ -617,7 +705,10 @@ make start-dev
 
 Вся спецификация API описана строго через **OpenAPI (Swagger v2)** и доступна:
 1. **В веб-интерфейсе:** Интерактивный Центр документации по маршруту `/readme` (быстрый поиск, генератор cURL запросов, схемы параметров и ответов).
-2. **Файл спецификации:** `backend/gen/swagger/api.swagger.json` (а также статически на веб-сервере `/api.swagger.json`).
+2. **Интерактивный Swagger UI:**
+   - В Docker Compose доступен на: `http://localhost:8088` (или через Traefik: `/docs`, `/swagger`).
+   - Локальный запуск одной командой: `cd backend && make swagger-ui`.
+   - Файл спецификации: `backend/gen/swagger/api.swagger.json` (OpenAPI v2).
 3. **Protobuf-исходники:** `backend/proto/*`.
 
 ### Основные группы маршрутов:
@@ -665,7 +756,7 @@ make start-dev
 ### Логирование:
 - **Traefik Access Logs**: Все внешние HTTP-запросы с таймингами, кодами ответов и IP.
 - **ForwardAuth Logs**: Мониторинг задержки проверки сессий (среднее время < 0.8 мс).
-- **Service Logs**: Структурированные логи микросервисов (Zap / Logrus) с контекстом запроса.
+- **Service Logs**: Структурированные логи микросервисов на базе `log/slog` (`pkg/logger`) с контекстом запроса и автоматической инжекцией `trace_id` / `span_id` для сквозного поиска в Grafana Loki.
 
 ### Мониторинг и метрики:
 - **Prometheus**: Сбор метрик производительности со всех сервисов по эндпоинтам `/metrics`.
@@ -683,6 +774,7 @@ backend/
 │   ├── grpcclient/          # Клиентские gRPC фабрики, mTLS и интерцепторы
 │   ├── grpcserver/          # Каркас gRPC серверов, Protovalidate, health check
 │   ├── httpcache/           # Поддержка ETag / If-None-Match кэширования
+│   ├── logger/              # Структурированный log/slog с OTel trace_id корреляцией
 │   ├── httpserver/          # Стандартизированный HTTP сервер и Graceful Shutdown
 │   ├── metrics/             # Единый сбор Prometheus метрик для Gin и Outbox
 │   ├── outbox/              # Диспетчер Transactional Outbox (PostgreSQL LISTEN/NOTIFY)
@@ -726,6 +818,7 @@ backend/
 
 | Модуль | Пакет | Назначение и функциональность |
 |---|---|---|
+| `pkg/logger` | `logger` | Единый структурированный логгер на базе `log/slog` с поддержкой JSON/текстового формата, уровней логирования и автоматической связкой с OpenTelemetry (`trace_id`, `span_id`). |
 | `pkg/metrics` | `metrics` | Единая Prometheus инструментация для Gin (`metrics.GinMiddleware(serviceName)` с регистрацией маршрутов через `c.FullPath()`, предотвращающим High Cardinality утечки памяти), эндпоинт метрик `metrics.Handler()` и мониторинг очередей Outbox `metrics.NewOutboxMetrics(serviceName)`. |
 | `pkg/outbox` | `outbox` | Реализация паттерна Transactional Outbox. Поддерживает работу через мгновенные PostgreSQL `LISTEN/NOTIFY` уведомления с автоматическим фоновым поллингом (fallback) и экспоненциальными ретраями. |
 | `pkg/ginmw` | `ginmw` | Стандартизированные Gin middleware: кросс-доменный доступ (`CORS`), проверка сессий ForwardAuth (`RequireAuth`), ролевая авторизация (`RequireRole`, `RequireAdmin`) и хелперы форматирования ответов (`RespondOK`, `RespondError`). |
@@ -736,8 +829,8 @@ backend/
 | `pkg/httpcache` | `httpcache` | Поддержка условных HTTP-запросов (`If-None-Match`, ETag) с выдачей `304 Not Modified` до сборки тела ответа. |
 | `pkg/httpserver` | `httpserver` | Запуск HTTP-сервера с поддержкой безопасного Graceful Shutdown по системным сигналам SIGINT/SIGTERM. |
 | `pkg/authcontext` | `authcontext` | Парсинг и извлечение данных сессии текущего пользователя (`X-User-ID`, `X-User-Role`, `X-User-Name`, `X-User-Email`), переданных Traefik ForwardAuth. |
-| `pkg/postgres` | `postgres` | Инициализация пула соединений `pgxpool` с health probe и настройкой жизненного цикла соединений. |
-| `pkg/redisclient` | `redisclient` | Клиент Redis с поддержкой одиночного режима и Sentinel/Cluster. |
+| `pkg/postgres` | `postgres` | Инициализация пула соединений `pgxpool` со встроенной трассировкой `otelpgx`, health probe и настройкой жизненного цикла соединений. |
+| `pkg/redisclient` | `redisclient` | Клиент Redis со встроенной трассировкой `otelredis`, поддержкой одиночного режима и Sentinel/Cluster. |
 | `pkg/tracing` | `tracing` | Инициализация OpenTelemetry TracerProvider и передача спанов в Grafana Tempo. |
 | `pkg/userdirectory` | `userdirectory` | Кэширующий клиент для получения профилей сотрудников через gRPC к `auth-service`. |
 | `pkg/health` | `health` | Комплексные проверки здоровья: разделение Liveness (`/health/live`, `/live`) и Readiness (`/health/ready`, `/health`, `/ready`) с конкурентным опросом зависимостей (PostgreSQL, Redis), таймаутами и выдачей HTTP 503 при деградации. |
@@ -745,7 +838,7 @@ backend/
 ### Лучшие инженерные практики:
 - **Валидация входных данных** во всех endpoints (декларативно через `buf.validate` в gRPC и валидация Gin).
 - **Обработка ошибок** с оберткой контекста (`fmt.Errorf("...: %w", err)`).
-- **Логирование** всех ключевых бизнес-операций через Zap/Logrus с контекстом.
+- **Логирование** всех ключевых бизнес-операций через `log/slog` (`pkg/logger`) с передачей `context.Context` для сквозной корреляции с трейсами.
 - **Безопасность** на всех уровнях (ForwardAuth, Least Privilege, CORS, CSRF).
 - **Тестирование** бизнес-инвариантов через юнит-тесты доменных моделей.
 

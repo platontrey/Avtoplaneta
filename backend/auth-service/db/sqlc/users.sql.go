@@ -15,6 +15,7 @@ const CountAllUsers = `-- name: CountAllUsers :one
 SELECT COUNT(*)::BIGINT AS count FROM users
 `
 
+// Возвращает общее количество зарегистрированных пользователей.
 func (q *Queries) CountAllUsers(ctx context.Context) (int64, error) {
 	row := q.db.QueryRow(ctx, CountAllUsers)
 	var count int64
@@ -23,6 +24,7 @@ func (q *Queries) CountAllUsers(ctx context.Context) (int64, error) {
 }
 
 const CreateUser = `-- name: CreateUser :one
+
 INSERT INTO users (username, email, name, initials, inn, provider, role, password, avatar_url)
 VALUES (
     $1::text,
@@ -63,6 +65,15 @@ type CreateUserRow struct {
 	AvatarUrl string      `json:"avatar_url"`
 }
 
+// ============================================================================
+// Domain: Auth Service / Users
+// Назначение: CRUD операции учетных записей сотрудников, поиск по логину/email,
+//
+//	проверка дубликатов и обновление профиля/паролей/аватаров.
+//
+// Генерация Go-кода: cd backend/auth-service && sqlc generate
+// ============================================================================
+// Создает нового пользователя в системе с указанием роли и провайдера аутентификации.
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
 	row := q.db.QueryRow(ctx, CreateUser,
 		arg.Username,
@@ -95,6 +106,7 @@ const DeleteUser = `-- name: DeleteUser :exec
 DELETE FROM users WHERE id = $1
 `
 
+// Физически удаляет пользователя по ID (для мягкого удаления см. deleted_at).
 func (q *Queries) DeleteUser(ctx context.Context, id int64) error {
 	_, err := q.db.Exec(ctx, DeleteUser, id)
 	return err
@@ -105,6 +117,7 @@ SELECT COUNT(*) > 0 AS exists FROM users
 WHERE email != '' AND LOWER(TRIM(email)) = LOWER(TRIM($1::text))
 `
 
+// Проверяет занятость email без учета регистра.
 func (q *Queries) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	row := q.db.QueryRow(ctx, ExistsByEmail, email)
 	var exists bool
@@ -117,6 +130,7 @@ SELECT COUNT(*) > 0 AS exists FROM users
 WHERE LOWER(TRIM(name)) = LOWER(TRIM($1::text))
 `
 
+// Проверяет существование пользователя с точным именем (ФИО) без учета регистра.
 func (q *Queries) ExistsByName(ctx context.Context, name string) (bool, error) {
 	row := q.db.QueryRow(ctx, ExistsByName, name)
 	var exists bool
@@ -129,6 +143,7 @@ SELECT COUNT(*) > 0 AS exists FROM users
 WHERE username != '' AND LOWER(TRIM(username)) = LOWER(TRIM($1::text))
 `
 
+// Проверяет занятость логина (username) без учета регистра.
 func (q *Queries) ExistsByUsername(ctx context.Context, username string) (bool, error) {
 	row := q.db.QueryRow(ctx, ExistsByUsername, username)
 	var exists bool
@@ -155,6 +170,7 @@ type FindAllUsersRow struct {
 	AvatarUrl string      `json:"avatar_url"`
 }
 
+// Возвращает список всех пользователей системы, отсортированный по ID.
 func (q *Queries) FindAllUsers(ctx context.Context) ([]FindAllUsersRow, error) {
 	rows, err := q.db.Query(ctx, FindAllUsers)
 	if err != nil {
@@ -214,6 +230,7 @@ type GetUserByEmailOrNameRow struct {
 	AvatarUrl string      `json:"avatar_url"`
 }
 
+// Ищет пользователя по совпадению email, username или имени.
 func (q *Queries) GetUserByEmailOrName(ctx context.Context, arg GetUserByEmailOrNameParams) (GetUserByEmailOrNameRow, error) {
 	row := q.db.QueryRow(ctx, GetUserByEmailOrName, arg.Email, arg.Name)
 	var i GetUserByEmailOrNameRow
@@ -251,6 +268,7 @@ type GetUserByIDRow struct {
 	AvatarUrl string      `json:"avatar_url"`
 }
 
+// Возвращает пользователя по его первичному 64-битному идентификатору.
 func (q *Queries) GetUserByID(ctx context.Context, id int64) (GetUserByIDRow, error) {
 	row := q.db.QueryRow(ctx, GetUserByID, id)
 	var i GetUserByIDRow
@@ -292,6 +310,8 @@ type GetUserByLoginOrEmailRow struct {
 	AvatarUrl string      `json:"avatar_url"`
 }
 
+// Выполняет поиск пользователя для формы входа по логину, email, ФИО или инициалам
+// с нормализацией регистра и очисткой крайних пробелов (LOWER(TRIM(...))).
 func (q *Queries) GetUserByLoginOrEmail(ctx context.Context, login string) (GetUserByLoginOrEmailRow, error) {
 	row := q.db.QueryRow(ctx, GetUserByLoginOrEmail, login)
 	var i GetUserByLoginOrEmailRow
@@ -334,6 +354,8 @@ type UpdateUserParams struct {
 	ID        int64       `json:"id"`
 }
 
+// Административное обновление всех основных полей пользователя.
+// Пустые строки (”) игнорируются, сохраняя предыдущее значение.
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
 	_, err := q.db.Exec(ctx, UpdateUser,
 		arg.Username,
@@ -359,6 +381,7 @@ type UpdateUserAvatarParams struct {
 	ID        int64  `json:"id"`
 }
 
+// Обновляет URL аватара пользователя.
 func (q *Queries) UpdateUserAvatar(ctx context.Context, arg UpdateUserAvatarParams) error {
 	_, err := q.db.Exec(ctx, UpdateUserAvatar, arg.AvatarUrl, arg.ID)
 	return err
@@ -375,6 +398,7 @@ type UpdateUserPasswordParams struct {
 	ID       int64  `json:"id"`
 }
 
+// Обновляет захэшированный пароль пользователя по его ID.
 func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
 	_, err := q.db.Exec(ctx, UpdateUserPassword, arg.Password, arg.ID)
 	return err
@@ -396,6 +420,7 @@ type UpdateUserProfileParams struct {
 	ID       int64  `json:"id"`
 }
 
+// Пользовательское обновление личного профиля (ФИО, username, ИНН).
 func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) error {
 	_, err := q.db.Exec(ctx, UpdateUserProfile,
 		arg.Name,

@@ -178,7 +178,8 @@
    return tx.Commit(ctx)
    ```
 2. **Мгновенное пробуждение (Zero-latency):** Триггер в PostgreSQL при коммите выполняет `PERFORM pg_notify('outbox_events_channel', NEW.id::text)`.
-3. **Диспетчер аутбокса (`internal/outbox/dispatcher.go`):**
+3. **Диспетчер аутбокса (`backend/pkg/outbox/dispatcher.go`):**
+   - Универсальный движок вынесен в общую библиотеку `avtoplaneta/pkg/outbox`. Сервисы (`parts-service`, `orders-service`, `auth-service`) используют тонкие адаптеры к `Storage`.
    - Держит постоянное соединение через `LISTEN outbox_events_channel`.
    - При получении сигнала (или по запасному тикеру раз в 3 секунды) забирает пачку событий:
      `SELECT * FROM outbox_events WHERE status = 'pending' ORDER BY id ASC LIMIT 50 FOR UPDATE SKIP LOCKED;`
@@ -358,7 +359,7 @@ DROP TABLE IF EXISTS customer_notes;
 2. **Конкурентная обработка очередей:**
    При выборке задач или событий из БД несколькими параллельными воркерами обязательно использовать `FOR UPDATE SKIP LOCKED`.
 
-### 3.4. SQL-инструменты сеньора: Индексы, Constraints и производительность PostgreSQL
+### 3.5. SQL-инструменты сеньора: Индексы, Constraints и производительность PostgreSQL
 
 Сеньор **никогда не создает таблицы и не пишет запросы без автоматического проектирования индексов и ограничений**. Написание SQL без индексирования — признак джуниора.
 
@@ -486,7 +487,7 @@ DROP TABLE IF EXISTS customer_notes;
      - ❌ **Красный флаг:** `Seq Scan` на таблицах более 10 000 строк, большой `Buffers: shared read` (медленный диск).
      -  **Идеал:** `Index Scan` или `Index Only Scan` со 100% `Buffers: shared hit` (быстрое чтение из RAM).
 
-### 3.5. Стандарт создания новых микросервисов (Template & Scaffolding)
+### 3.6. Стандарт создания новых микросервисов (Template & Scaffolding)
 
 Чтобы избежать ошибок с зависимостями в Docker, забытых директив `replace` и ручного дублирования бойлерплейта, в проекте внедрен эталонный шаблон и автоматический генератор:
 
@@ -586,17 +587,34 @@ Transport (handler, grpc) ──► Application (service) ──► Domain (doma
 
 ### 5.5. Золотое правило переиспользования: Обязательное использование `backend/pkg/*` (DRY)
 Категорически запрещено писать велосипеды в `internal/`, если готовый и протестированный компонент уже есть в общей библиотеке `avtoplaneta/pkg/`:
-1. **`pkg/metrics`**: Единый сбор Prometheus метрик (`metrics.GinMiddleware(serviceName)` и `metrics.NewOutboxMetrics(serviceName)`). **СТРОГИЙ ЗАПРЕТ** на использование `c.Request.URL.Path` (High Cardinality) и локальные пакеты `internal/metrics`.
-2. **`pkg/outbox`**: Базовый движок Transactional Outbox диспетчера с поддержкой PostgreSQL LISTEN/NOTIFY, поллинга и ретраев.
-3. **`pkg/ginmw`**: Единые middleware CORS (`ginmw.CORS()`), аутентификации (`ginmw.RequireAuth()`) и ролевого доступа (`ginmw.RequireRole()`).
-4. **`pkg/constants`**: Единые системные константы. Запрещен хардкод magic strings (`"events:orders"`, `"outbox_events_channel"`, `PartQuantitySold = -1`, `RoleAdmin = "admin"`).
-5. **`pkg/redisstream`**: Использование `ConsumerGroupWorker` с готовым PEL recovery и DLQ вместо ручных циклов чтения Redis Streams.
+1. **`pkg/logger`**: Единый структурированный логгер на базе `log/slog` с поддержкой JSON/Text вывода, уровней и автоматической связкой с OpenTelemetry (`trace_id`, `span_id`). **СТРОГИЙ ЗАПРЕТ** на `fmt.Println`, `log.Println` и сторонние логгеры (logrus, zap) в продакшене. Обязательно использование контекстных методов `slog.InfoContext(ctx, ...)`, `slog.ErrorContext(ctx, ...)`.
+2. **`pkg/tracing`**: Инициализация OpenTelemetry TracerProvider и передача спанов в Grafana Tempo по протоколу OTLP (gRPC/HTTP).
+3. **`pkg/postgres`**: Пул соединений PostgreSQL (`*pgxpool.Pool`) со встроенной трассировкой SQL-запросов через `otelpgx` и метриками пула соединений.
+4. **`pkg/redisclient`**: Клиент Redis (`*redis.Client`) со встроенной трассировкой команд через `otelredis`.
+5. **`pkg/metrics`**: Единый сбор Prometheus метрик (`metrics.GinMiddleware(serviceName)` и `metrics.NewOutboxMetrics(serviceName)`). **СТРОГИЙ ЗАПРЕТ** на использование `c.Request.URL.Path` (High Cardinality) и локальные пакеты `internal/metrics`.
+6. **`pkg/outbox`**: Универсальный движок Transactional Outbox диспетчера с поддержкой PostgreSQL `LISTEN/NOTIFY`, страховочного поллинга, ретраев и записи метрик.
+7. **`pkg/grpcserver` и `pkg/grpcclient`**: Каркас gRPC серверов и клиентов: пул соединений, интерцепторы трейсинга OpenTelemetry, Prometheus метрик и декларативной валидации Protovalidate.
+8. **`pkg/httpserver`**: Базовый HTTP-сервер на базе Gin с graceful shutdown через `context` и `errgroup`.
+9. **`pkg/health`**: Стандартизированный HTTP health-check компонент (`/health`, `/ready`) с автоматической проверкой соединений с БД.
+10. **`pkg/ginmw`**: Единые middleware CORS (`ginmw.CORS()`), аутентификации (`ginmw.RequireAuth()`) и ролевого доступа (`ginmw.RequireRole()`).
+11. **`pkg/constants`**: Единые системные константы. Запрещен хардкод magic strings (`"events:orders"`, `"outbox_events_channel"`, `PartQuantitySold = -1`, `RoleAdmin = "admin"`).
+12. **`pkg/redisstream`**: Использование `ConsumerGroupWorker` с готовым PEL recovery и DLQ вместо ручных циклов чтения Redis Streams.
+13. **`pkg/authcontext`**: Извлечение ForwardAuth заголовков пользователя (`X-User-ID`, `X-User-Role`, `X-User-Email`).
+
+### 5.6. Стандарты наблюдаемости (Observability: slog, OpenTelemetry, Grafana Tempo & Loki)
+- **Контекстное логирование (`log/slog`):**
+  - Всегда передавать `ctx` в логгер: `log.InfoContext(ctx, "message", slog.Int64("user_id", id))`. Это гарантирует, что `trace_id` и `span_id` попадут в логи для сквозной корреляции в Loki/Grafana.
+  - Использовать хелпер форматирования ошибок `logger.Err(err)`.
+  - Запрещен неструктурированный вывод в `stdout`/`stderr` (`fmt.Printf`, `print`, `panic` без перехвата).
+- **Распределенный трейсинг (W3C Trace Context):**
+  - Межсервисные вызовы gRPC автоматически пробрасывают traceparent через интерцепторы `pkg/grpcclient` и `pkg/grpcserver`.
+  - Все внешние запросы к PostgreSQL и Redis трассируются спанами через `pkg/postgres` (`otelpgx`) и `pkg/redisclient` (`otelredis`).
 
 ---
 
 ## 6. Критические доменные инварианты (Inventory & Orders)
 
-### 5.1. Семантика поля `quantity` (ЖЕЛЕЗНЫЙ ЗАКОН СКЛАДА)
+### 6.1. Семантика поля `quantity` (ЖЕЛЕЗНЫЙ ЗАКОН СКЛАДА)
 В системе определены 3 фундаментальных состояния остатка деталей:
 1. `quantity > 0` — деталь в наличии на складе.
 2. `quantity == 0` — дефектная ведомость (акт дефектовки) или спецдеталь. **ОНИ ОБЯЗАНЫ ОСТАВАТЬСЯ ВИДИМЫМИ** в поиске, UI и XML-выгрузках.
@@ -609,7 +627,7 @@ Transport (handler, grpc) ──► Application (service) ──► Domain (doma
 > ```
 > ❌ **НИКОГДА НЕ ПИСАТЬ:** `WHERE quantity > 0` (это скроет дефектные ведомости!).
 
-### 5.2. Списание остатков и учет операций
+### 6.2. Списание остатков и учет операций
 - Списание при выполнении заказа (`green`) выполняется через gRPC `DecreasePartQuantity`.
 - Таблица `part_stock_operations` фиксирует операцию с уникальным ключом `operation_id` (идемпотентность).
 - При исчерпании остатка количество переходит в `-1`:
@@ -619,7 +637,7 @@ Transport (handler, grpc) ──► Application (service) ──► Domain (doma
   WHERE id = sqlc.arg(id);
   ```
 
-### 5.3. CRM, клиенты и дедупликация
+### 6.3. CRM, клиенты и дедупликация
 - Номер телефона покупателя нормализуется через `parseBuyerInfo(raw)` к формату `+7XXXXXXXXXX`.
 - Ограничение на уровне БД: `UNIQUE INDEX idx_customers_unique_phone`.
 - При попытке создания дубликата API возвращает `409 Conflict`.
@@ -642,13 +660,13 @@ Transport (handler, grpc) ──► Application (service) ──► Domain (doma
 
 ## 8. Frontend (React 19) и Mobile (Flutter)
 
-### 7.1. Frontend (React 19 / TypeScript / Vite / TanStack Query v5)
+### 8.1. Frontend (React 19 / TypeScript / Vite / TanStack Query v5)
 - **INP (Interaction to Next Paint):** Целевое значение **< 200ms**.
 - **Параллельная загрузка фото:** Изображения в карточках обрабатываются параллельно (`Promise.all`), а не по одному.
 - **Инвалидация кэша:** После мутаций инвалидировать соответствующие query-ключи (`queryClient.invalidateQueries({ queryKey: [...] })`).
 - **Debounced поиск:** Все поисковые поля обязаны использовать debounce во избежание спама запросами.
 
-### 7.2. Mobile App (Flutter / Riverpod / Dio / GoRouter)
+### 8.2. Mobile App (Flutter / Riverpod / Dio / GoRouter)
 - **Единый источник маршрутов:** `AvtoplanetaApp/lib/core/api/api_endpoints.dart`. При добавлении или изменении эндпоинтов на бэкенде обязательно синхронизировать их здесь.
 - **Отказоустойчивость:** Обработка оффлайн-режима через Hive кэш и перехват ошибок Dio (`DioException`).
 

@@ -1,0 +1,103 @@
+### ============================================================================
+### Avtoplaneta Backend API Client (IntelliJ / GoLand / VS Code REST Client)
+### Переменные окружения можно переопределять в http-client.env.json
+### ============================================================================
+
+@host = http://localhost
+@authHost = http://localhost:8083
+@partsHost = http://localhost:8081
+@ordersHost = http://localhost:8082
+@messagingHost = http://localhost:8084
+
+### ----------------------------------------------------------------------------
+### 1. AUTH SERVICE (Аутентификация и пользователи)
+### ----------------------------------------------------------------------------
+
+### Вход пользователя (получение сессионной cookie)
+# @name login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "login": "admin",
+  "password": "adminpassword"
+}
+
+### Проверка активной сессии (ForwardAuth эндпоинт Traefik)
+GET {{host}}/auth/verify
+
+### Получение текущего профиля пользователя
+GET {{host}}/auth/me
+
+### Список всех сотрудников (Требуется роль Admin)
+GET {{host}}/api/v1/users
+
+### Завершение сессии (Logout)
+POST {{host}}/auth/logout
+
+
+### ----------------------------------------------------------------------------
+### 2. PARTS SERVICE (Склад деталей, каталог и поиск)
+### ----------------------------------------------------------------------------
+
+### Полнотекстовый поиск деталей (Elasticsearch + fallback DB)
+GET {{host}}/api/v1/inventory?q=фара&brand=Toyota&page=1&limit=20
+
+### Получение детальной карточки запчасти по ID
+GET {{host}}/api/v1/parts/item/1
+
+### Получение аналитики и статистики склада
+GET {{host}}/api/v1/statistics
+
+### Добавление новой детали
+POST {{host}}/api/v1/parts
+Content-Type: application/json
+
+{
+  "name": "Фара правая светодиодная",
+  "brand": "Toyota",
+  "model": "Camry",
+  "category": "Оптика",
+  "price": 15000,
+  "quantity": 1,
+  "supplier_code": "TY-CAM-001"
+}
+
+
+### ----------------------------------------------------------------------------
+### 3. ORDERS SERVICE (Заказы и продажи)
+### ----------------------------------------------------------------------------
+
+### Список активных заказов
+GET {{host}}/orders
+
+### Получение списка клиентов и аналитики LTV
+GET {{host}}/orders/customers
+
+### Динамика продаж по месяцам
+GET {{host}}/orders/monthly-sales
+
+
+### ----------------------------------------------------------------------------
+### 4. MESSAGING SERVICE (Сообщения и чаты)
+### ----------------------------------------------------------------------------
+
+### Список активных тредов (диалогов)
+GET {{host}}/api/messaging/threads
+
+### Количество непрочитанных сообщений
+GET {{host}}/api/messaging/unread
+
+
+### ----------------------------------------------------------------------------
+### 5. HEALTH CHECKS & OBSERVABILITY
+### ----------------------------------------------------------------------------
+
+### Parts Service Health
+GET {{partsHost}}/health
+
+### Parts Service Readiness
+GET {{partsHost}}/ready
+
+### Parts Service Prometheus Metrics
+GET {{partsHost}}/metrics

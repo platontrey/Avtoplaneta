@@ -580,6 +580,27 @@ services:
     depends_on:
       - loki
 
+
+  swagger-ui:
+    image: swaggerapi/swagger-ui:latest
+    container_name: avtoplaneta-swagger-ui
+    restart: unless-stopped
+    ports:
+      - "8088:8080"
+    environment:
+      SWAGGER_JSON: /spec/api.swagger.json
+    volumes:
+      - ./backend/gen/swagger/api.swagger.json:/spec/api.swagger.json:ro
+    networks:
+      - avtoplaneta_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.swagger.rule=PathPrefix(`/docs`) || PathPrefix(`/swagger`)"
+      - "traefik.http.routers.swagger.entrypoints=websecure"
+      - "traefik.http.routers.swagger.tls=true"
+      - "traefik.http.routers.swagger.middlewares=compress-res@file"
+      - "traefik.http.services.swagger.loadbalancer.server.port=8080"
+
 networks:
   avtoplaneta_network:
     driver: bridge

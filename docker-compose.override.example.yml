@@ -207,3 +207,10 @@ services:
       resources:
         limits:
           memory: 128M
+
+  swagger-ui:
+    mem_limit: 60m
+    deploy:
+      resources:
+        limits:
+          memory: 60M
