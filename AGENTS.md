@@ -1,718 +1,209 @@
-# Архитектурные правила, контекст и протокол сеньор-разработчика Avtoplaneta (AGENTS.md)
+# Архитектурные правила и протокол разработки Avtoplaneta (AGENTS.md)
 
-Данный документ является **главным источником инженерной истины** и обязательных стандартов проектирования для всех ИИ-ассистентов (агентов) и разработчиков проекта **Avtoplaneta**.
-
-Документ определяет:
-1. **Как сеньор принимает архитектурные решения** под наш стек (Go, PostgreSQL, Redis Streams, Elasticsearch, gRPC, React, Flutter).
-2. **Когда и как агент ОБЯЗАН спрашивать пользователя** перед реализацией.
-3. **Стандартные технические решения (Senior Defaults)** для параллелизма, очередей, миграций БД и полнотекстового поиска.
-4. **Критические доменные инварианты**, нарушение которых ломает бизнес-логику склада и заказов.
+Главный источник инженерных стандартов проекта **Avtoplaneta** (Go, PostgreSQL, Redis Streams, Elasticsearch, gRPC, Traefik, React, Flutter). Обязателен для всех разработчиков и ИИ-ассистентов.
 
 ---
 
-## 1. Архитектурная матрица сеньор-разработчика (Senior Default Matrix)
+## 1. Архитектурная матрица выбора инструментов (Senior Default Matrix)
 
-Сеньор не выбирает инструменты наугад. В стеке Avtoplaneta под каждый класс задач закреплено строго определенное стандартное решение:
-
-```
-                  ┌─────────────────────────────────────────────────────────┐
-                  │                 ТИП ЗАДАЧИ / ОПЕРАЦИИ                   │
-                  └────────────────────────────┬────────────────────────────┘
-                                               │
-       ┌───────────────────────┬───────────────┴───────────────┬──────────────────────┐
-       ▼                       ▼                               ▼                      ▼
-┌──────────────┐       ┌───────────────┐               ┌───────────────┐      ┌───────────────┐
-│ Внутри одного│       │ Синхронный    │               │ Асинхронное   │      │ Синхронизация │
-│   сервиса    │       │ вызов между   │               │ событие между │      │ БД с ES/Redis │
-│ (CPU / I/O)  │       │  сервисами    │               │  сервисами    │      │ (No Dual-Write│
-└──────┬───────┘       └───────┬───────┘               └───────┬───────┘      └───────┬───────┘
-       │                       │                               │                      │
-       ▼                       ▼                               ▼                      ▼
-┌──────────────┐       ┌───────────────┐               ┌───────────────┐      ┌───────────────┐
-│Стандартные Go│       │  gRPC HTTP/2  │               │ Redis Streams │      │ Transactional │
-│ инструменты  │       │  (Protobuf)   │               │Consumer Groups│      │    Outbox     │
-└──────────────┘       └───────────────┘               └───────────────┘      └───────────────┘
-```
-
-### 1.1. Стандартные инструменты Go (Concurrency внутри процесса)
-
-#### Когда использовать:
-- Операция **локальна для одного сервиса** и не выходит за пределы его оперативной памяти.
-- Не требуется гарантия сохранности задачи при внезапном рестарте контейнера.
-- Параллелизация CPU или локального I/O (например, параллельное сжатие 10 загруженных фотографий деталей, валидация и парсинг строк Excel-ведомости дефектовки).
-- Фоновый сборщик мусора или периодический локальный опрос (in-memory cleanup по `time.NewTicker`).
-- Локальное ограничение частоты запросов (rate limiting) или потокобезопасный кэш справочников (`sync.RWMutex`).
-
-#### Технический стандарт реализации:
-1. Для параллельных пачек задач **всегда использовать `errgroup.WithContext`** с семафором для ограничения количества одновременных горутин:
-   ```go
-   g, ctx := errgroup.WithContext(ctx)
-   sem := make(chan struct{}, 4) // ограничение до 4 параллельных воркеров
-   for _, photo := range photos {
-       photo := photo
-       g.Go(func() error {
-           select {
-           case sem <- struct{}{}:
-               defer func() { <-sem }()
-           case <-ctx.Done():
-               return ctx.Err()
-           }
-           return processAndSavePhoto(ctx, photo)
-       })
-   }
-   if err := g.Wait(); err != nil {
-       return fmt.Errorf("обработка фото завершилась с ошибкой: %w", err)
-   }
-   ```
-2. Для фоновых воркеров внутри процесса **всегда использовать `select` с `<-ctx.Done()`**:
-   ```go
-   ticker := time.NewTicker(10 * time.Minute)
-   defer ticker.Stop()
-   for {
-       select {
-       case <-ctx.Done():
-           return ctx.Err()
-       case <-ticker.C:
-           cleanupTempUploads(ctx)
-       }
-   }
-   ```
-3. **Строгий запрет:** Запрещено запускать неконтролируемые горутины `go func() { ... }()` без контекста, обработки паники и механизма отмены при graceful shutdown.
+| Класс задачи | Стандартное решение (Default) | Ограничения и контракт |
+| :--- | :--- | :--- |
+| **Параллелизм внутри процесса** | `errgroup.WithContext` + семафор на `chan struct{}` | Локально для памяти процесса; передача `ctx` обязательна; запрещены горутины без контекста и graceful shutdown. |
+| **Синхронный вызов `service ↔ service`** | **gRPC HTTP/2 (Protobuf)** | Необходима сильная согласованность (Strong Consistency). Идентификаторы строго `int64` (Bigint Standard), конвертеры `ToProto()` / `FromProto()`, безопасные геттеры `.Get...()`, явный таймаут `context.WithTimeout`, идемпотентный `operation_id`. |
+| **Асинхронные события между сервисами** | **Redis Streams** (Consumer Groups) | Слабая связанность (Eventual Consistency). Гарантия At-Least-Once (`XREADGROUP`, `XACK`), фоновое авто-восстановление зависших сообщений из PEL (`XAutoClaim`) через `pkg/redisstream`. |
+| **Синхронизация БД с ES/Redis (No Dual-Write)** | **Transactional Outbox Pattern** | Запись сущности и события в `outbox_events` строго в одной `pgx.Tx`. Мгновенное пробуждение через PostgreSQL `LISTEN/NOTIFY` (`backend/pkg/outbox/dispatcher.go`). Выборка воркером: `FOR UPDATE SKIP LOCKED`. |
+| **Полнотекстовый поиск, опечатки, морфология** | **Elasticsearch** (CQRS Read Model) | Русский стеммер, синонимы `synonyms.txt`. PostgreSQL — единственный Source of Truth. Обязателен Graceful Fallback на PostgreSQL (`ILIKE`) при отказе ES. |
+| **Хранение состояния и транзакции** | **PostgreSQL 16** (`Database-per-Service`) | Пул `*pgxpool.Pool` (`pkg/postgres`), компилируемый SQL (`sqlc` — 90% операций), динамический SQL (`squirrel` — только фильтры каталога 30+ полей и PATCH). Запрещены ORM. |
+| **Кэш витрины** | **Redis + ETag / `If-None-Match`** | Сброс ключей `parts:inventory` и `parts:statistics` через Outbox. Моментальный ответ `304 Not Modified` через `pkg/httpcache`. |
 
 ---
 
-### 1.2. Синхронный gRPC (Protobuf) через HTTP/2
+## 2. Протокол согласования: Агент обязан спрашивать пользователя
 
-#### Когда использовать:
-- Синхронное взаимодействие между микросервисами (`service ↔ service`), когда вызывающему сервису **необходим немедленный результат (Strong Consistency)** для завершения текущей бизнес-операции.
-- Примеры в Avtoplaneta:
-  - `orders-service` завершает заказ и вызывает `parts-service.DecreasePartQuantity` для списания остатка на складе.
-  - `export-service` потоком вычитывает склад из `parts-service` (`ListPartsForExport`) и продавцов из `auth-service` (`GetUsers`).
-  - Проверка прав и сессий через `auth-service`.
+Агент **не принимает архитектурных решений молча**. 
 
-#### Технический стандарт реализации:
-1. Контракт объявляется в `backend/proto/<service>/v1/<service>.proto`.
-2. **Buf тулчейн и линтинг (категория `STANDARD`):**
-   - Управление Protobuf осуществляется строго через утилиту **Buf CLI** (BSR зависимости `buf.build/googleapis/googleapis` и `buf.build/bufbuild/protovalidate`). Локальный вендоринг google/proto запрещен.
-   - Строгое соблюдение категории линтинга `STANDARD` Google API Style Guide. Категорически запрещено отключать правила `RPC_REQUEST_RESPONSE_UNIQUE`, `RPC_REQUEST_STANDARD_NAME`, `RPC_RESPONSE_STANDARD_NAME`: каждый RPC обязан иметь строго индивидуальные сообщения `<Method>Request` и `<Method>Response`.
-   - Проверка контрактов: `make proto-lint` (`buf lint`), форматирование: `make proto-format` (`buf format -w`).
-   - Для сохранения REST-совместимости gRPC-Gateway с фронтендом используется аннотация `response_body: "<поле>"` в `google.api.http`.
-3. **Декларативная валидация Protovalidate (CEL):**
-   - Все ограничения полей (непустые строки, форматы email/телефон, диапазоны `id > 0`, `quantity >= -1`, `price >= 0`) задаются декларативно в `.proto` через правила `buf.validate`.
-   - Ручной бойлерплейт валидации в хэндлерах запрещен. Валидация выполняется автоматически в рантайме gRPC-интерцептором `pkg/grpcserver.ValidationUnaryInterceptor()`.
-4. После любых правок запускается компиляция: `cd backend && make proto`.
-5. **Единый 64-битный стандарт первичных ключей (Bigint Standard):**
-   - Все идентификаторы сущностей (`id`, `user_id`, `part_id`, `order_id`, `seller_id`, `resource_id` и срезы `ids`, `user_ids`) в Protobuf контрактах объявляются строго как `int64`.
-   - **Запрет на неоднородность типов:** В PostgreSQL первичные ключи `BIGSERIAL`/`BIGINT` соответствуют типу `int64` в Go. Использование `uint32` или `int32` для идентификаторов строго запрещено, так как это приводит к нагромождению небезопасных приведений типов `uint32(...)`/`int64(...)` и риску переполнения.
-   - Числовые счетчики и пагинация (`quantity`, `page`, `limit`, `offset`, `total`) остаются `int32`.
-6. **Конвертеры доменных моделей (`ToProto()` / `FromProto()`):**
-   - Каждая доменная сущность обязана иметь метод `(m *Model) ToProto() *protov1.Model` (и при необходимости фабрики `ModelFromProto`).
-   - Запрещено перекладывать десятки полей вручную внутри gRPC-хэндлеров и создавать громоздкие локальные переменные под каждое поле.
-7. **Безопасные геттеры Protobuf (`.Get...()`):**
-   - Чтение полей входящих gRPC-запросов обязательно выполнять через безопасные сгенерированные геттеры Protobuf (`req.GetId()`, `req.GetEmail()`, `req.GetItems()`). Это гарантирует отсутствие `nil`-паник при чтении опциональных структур и дефолтных значений.
-8. Все вызовы gRPC-клиентов обязаны иметь явный таймаут:
-   ```go
-   callCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
-   defer cancel()
-   resp, err := partsClient.DecreasePartQuantity(callCtx, req)
-   ```
-9. Идемпотентность: любые изменяющие команды обязаны передавать `operation_id` (например, `order-<id>-part-<part_id>`), а получатель обязан фиксировать его в таблице `part_stock_operations`.
-10. Ошибки маппятся в стандартные gRPC-статусы (`codes.NotFound`, `codes.AlreadyExists`, `codes.InvalidArgument`, `codes.Internal`).
+### 2.1. Триггеры обязательной остановки (Stop & Ask):
+1. **Выбор транспорта/исполнения:** gRPC vs Redis Streams vs фоновый воркер Outbox vs горутины в процессе.
+2. **Изменения схемы БД (DDL):** новые таблицы, внешние ключи, составные индексы, добавление колонок с дефолтами, смена типов/статусов.
+3. **Моделирование данных и поиск:** добавление полей в поисковый индекс Elasticsearch, изменение анализаторов текста.
+4. **Контракты API:** изменение сигнатур Protobuf RPC, удаление полей в `.proto`, ломающие изменения REST эндпоинтов.
+5. **Стратегия отказоустойчивости:** поведение при отказе внешнего сервиса (падать с ошибкой, возвращать деградированные данные, fallback в БД).
+
+### 2.2. Обязательный формат вопроса:
+> ### 🛑 Архитектурная развилка: [Название задачи]
+> **Контекст:** [Краткая суть развилки]  
+> **Вариант 1 (Рекомендуемый):** [Суть решения, транзакционность, надежность]  
+> **Вариант 2 (Альтернативный):** [Компромиссы, почему уступает первому]  
+> **Вопрос к разработчику:** [Конкретный вопрос на подтверждение]
 
 ---
 
-### 1.3. Брокер сообщений: Redis Streams
+## 3. Стандарты базы данных (PostgreSQL, sqlc, pgx/v5)
 
-#### Когда использовать:
-- Асинхронные события между сервисами (Event-Driven Architecture), когда отправитель **не должен ждать завершения обработки** получателями (Eventual Consistency).
-- Событие должно гарантированно доставиться нескольким сервисам (Fan-out) даже в случае временного падения получателей.
-- Примеры в Avtoplaneta:
-  - `seller_renamed` — продавец сменил имя/организацию в `auth-service`, события доставляются в `parts-service` и `orders-service` для фонового обновления денормализованных полей.
-  - Уведомления клиентам (push / SMS / Telegram) при смене статуса заказа (`events:orders`).
+Изоляция: **Database-per-Service** (`AUTH_DATABASE_URL`, `PARTS_DATABASE_URL`, `ORDERS_DATABASE_URL`, `MESSAGING_DATABASE_URL` с fallback на `DATABASE_URL`). Прямой доступ к чужим БД запрещен.
 
-#### Технический стандарт реализации:
-1. Создание Consumer Group с автоматическим созданием стрима:
-   `err := redisClient.XGroupCreateMkStream(ctx, stream, group, "$").Err()` (игнорировать `BUSYGROUP`).
-2. Чтение пачками по 10–50 сообщений:
-   ```go
-   streams, err := client.XReadGroup(ctx, &redis.XReadGroupArgs{
-       Group:    group,
-       Consumer: consumerName,
-       Streams:  []string{stream, ">"},
-       Count:    10,
-       Block:    2 * time.Second,
-   }).Result()
-   ```
-3. При успешной обработке сообщения обязателен вызов `XACK`:
-   `client.XAck(ctx, stream, group, message.ID)`
-4. Воркер обязан иметь фоновый цикл восстановления зависших сообщений (Pending Entries List — PEL) через `XPending` + `XClaim` или `XAutoClaim` для гарантированной обработки At-Least-Once после падений.
+### 3.1. Миграции и правило двойного размещения (Go embed trap)
+- Именование: `0000XX_name.up.sql` и `0000XX_name.down.sql` (6 цифр, идемпотентность `IF NOT EXISTS`).
+- **Правило размещения:** Директива `//go:embed` в Go не поднимается в родительские каталоги (`../`). Новая миграция создается **ОДНОВРЕМЕННО** в двух директориях:
+  1. `backend/<service>/db/migrations/` (для `sqlc.yaml`).
+  2. `backend/<service>/internal/repository/migrations/` (для рантайм-раннера `schema_migrations`).
 
----
+### 3.2. Архитектура SQL слоя и sqlc
+- Запрещен монолитный `queries.sql`. Файлы декомпозируются по субдоменам в `db/queries/`: `<entity>_crud.sql`, `<entity>_stock.sql`, `<entity>_batches.sql`, `<entity>_stats.sql`, `outbox.sql`.
+- **Запрещены вложенные подзапросы** `FROM (SELECT ...)`. Использовать Common Table Expressions (**CTE**, `WITH ... AS`).
+- Использовать именованные аргументы: `sqlc.arg(name)` или `sqlc.narg(name)`. Позиционные `$1, $2` запрещены.
+- После правок в `.sql`: выполнить `cd backend/<service> && sqlc generate`.
 
-### 1.4. Гарантированная синхронизация: Transactional Outbox Pattern
+### 3.3. Разделение sqlc vs squirrel vs pgx/v5
+- **`pgx/v5` (`*pgxpool.Pool`):** Фундамент. Сетевой wire protocol, пул соединений, транзакции `pgx.Tx`, пакетные вставки `pgx.Batch`, `LISTEN/NOTIFY`.
+- **`sqlc` (90% всех операций — Default):** Статический типизированный SQL. Нулевой рантайм-оверхед, автогенерация Go-структур.
+- **`squirrel` (10% операций — Динамический SQL):** Применяется **строго для динамических фильтров** каталога с 30+ параметрами (`GetPartsWithFilters`) и PATCH-апдейтов. Защищает оптимизатор PostgreSQL от деградации в Seq Scan при 40 условиях `($1 IS NULL OR col = $1)`.
 
-#### Когда использовать:
-- **ЛЮБАЯ операция вставки, обновления или удаления бизнес-сущности в PostgreSQL, которая должна отразиться в Elasticsearch или броере Redis.**
-- **КАТЕГОРИЧЕСКИЙ ЗАПРЕТ НА ДВОЙНУЮ ЗАПИСЬ (Dual-Write):** HTTP-обработчик никогда не должен писать напрямую сначала в PostgreSQL, а затем отдельным вызовом в Elasticsearch или Redis. Если сеть упадет между ними, база данных и поисковый индекс разойдутся навсегда.
+### 3.4. Индексирование, Constraints и производительность
+1. **Каждый Foreign Key ОБЯЗАН иметь B-Tree индекс:** PostgreSQL не индексирует FK автоматически; отсутствие индекса блокирует дочернюю таблицу при DELETE/UPDATE родителя.
+2. **Частичные индексы (`WHERE ...`):**
+   - Для очередей Outbox: `CREATE INDEX idx_outbox_pending ON outbox_events(status, created_at) WHERE status = 'pending';`
+   - Для мягкого удаления: `WHERE deleted_at IS NULL;`
+   - Для ETag: `ON parts(updated_at DESC) WHERE deleted_at IS NULL;`
+   - Для нулевых остатков: `WHERE quantity = 0 AND to_delete_at IS NULL AND deleted_at IS NULL;`
+3. **Составные индексы:** Правило левого префикса: сначала равенство (`=`), затем диапазоны (`>`, `<`) и сортировка (`ORDER BY`).
+4. **Покрывающие индексы (`INCLUDE`):** Для выполнения Index-Only Scan без чтения Heap с диска.
+5. **Функциональные индексы:** `LOWER(TRIM(email))`, `TRIM(phone)`, `BTRIM(supplier_code)` исключают Seq Scan при сравнении нормализованных строк.
+6. **GIN-индексы:** Для массивов (`photos TEXT[]`) и JSONB.
+7. **Constraints:** Бизнес-инварианты фиксируются в БД: `CHECK (quantity >= -1)`, `CHECK (price >= 0)`.
+8. **Пагинация:** Keyset pagination `WHERE (created_at, id) < (arg, arg) ORDER BY created_at DESC, id DESC LIMIT n;` вместо антипаттерна `OFFSET`.
+9. **Пакетная запись:** Массовые вставки выполнять строго через `pgx.Batch`, одиночные `INSERT` в цикле запрещены.
 
-#### Технический стандарт реализации (как это устроено в `parts-service`):
-1. **Единая транзакция:** В одной транзакции `pgx.Tx` выполняется сохранение бизнес-сущности и запись события в таблицу `outbox_events`:
-   ```go
-   tx, err := r.pool.Begin(ctx)
-   if err != nil { return err }
-   defer tx.Rollback(ctx)
-
-   qtx := r.queries.WithTx(tx)
-   created, err := qtx.CreatePart(ctx, ...)
-   if err != nil { return err }
-
-   payload, _ := json.Marshal(map[string]interface{}{"id": created.ID, "name": created.Name})
-   _, err = qtx.CreateOutboxEvent(ctx, sqlc.CreateOutboxEventParams{
-       AggregateType: "part",
-       AggregateID:   created.ID,
-       EventType:     "part_created",
-       Payload:       payload,
-   })
-   if err != nil { return err }
-
-   return tx.Commit(ctx)
-   ```
-2. **Мгновенное пробуждение (Zero-latency):** Триггер в PostgreSQL при коммите выполняет `PERFORM pg_notify('outbox_events_channel', NEW.id::text)`.
-3. **Диспетчер аутбокса (`backend/pkg/outbox/dispatcher.go`):**
-   - Универсальный движок вынесен в общую библиотеку `avtoplaneta/pkg/outbox`. Сервисы (`parts-service`, `orders-service`, `auth-service`) используют тонкие адаптеры к `Storage`.
-   - Держит постоянное соединение через `LISTEN outbox_events_channel`.
-   - При получении сигнала (или по запасному тикеру раз в 3 секунды) забирает пачку событий:
-     `SELECT * FROM outbox_events WHERE status = 'pending' ORDER BY id ASC LIMIT 50 FOR UPDATE SKIP LOCKED;`
-   - Индексирует деталь в Elasticsearch (`esClient.IndexPart`), сбрасывает кэш в Redis (`parts:inventory`, `parts:statistics`) и при необходимости публикует событие в Redis Streams.
-   - Помечает событие как `processed` (`MarkOutboxEventProcessed`) либо инкрементирует `retry_count` при ошибках.
+### 3.5. Шаблон и генерация новых сервисов (`make new-service`)
+- Эталонный сервис находится в `backend/template-service` (многоэтапный `Dockerfile` с кэш-моунтами, `sqlc.yaml`, раннер миграций, graceful shutdown, health/metrics).
+- Команда создания: `cd backend && make new-service NAME=<name> PORT=<port> GRPC_PORT=<grpc_port>`.
 
 ---
 
-## 2. Золотой протокол сеньор-инженера: Агент обязан спрашивать пользователя
+## 4. Elasticsearch и CQRS
 
-Агент никогда не принимает архитектурных решений молча.
-
-### 2.1. Точный список ситуаций (триггеров), когда агент ОБЯЗАН СТОПИТЬСЯ и задать вопрос:
-1. **Выбор механизма транспорта или исполнения:**
-   - Делать синхронный вызов gRPC или ставить задачу в Redis Streams?
-   - Выполнять обработку внутри одного сервиса через горутины или выносить в фоновый воркер через Outbox?
-2. **Изменения в структуре базы данных (DDL):**
-   - Создание новых таблиц, внешних ключей или составных индексов.
-   - Выбор типа хранения: отдельные реляционные колонки против `JSONB`.
-   - Добавление полей с дефолтными значениями или изменение существующих статусов заказов/запчастей.
-3. **Моделирование данных и поиск в Elasticsearch:**
-   - Нужно ли индексировать новое поле в Elasticsearch?
-   - Требуется ли добавление синонимов в `synonyms.txt` или специфический анализатор текста?
-4. **Контракты API и обратная совместимость:**
-   - Изменение сигнатур Protobuf RPC, удаление или реорганизация полей в `.proto`.
-   - Модификация REST-эндпоинтов, затрагивающая мобильное приложение (Flutter) или фронтенд (React).
-5. **Стратегия отказоустойчивости:**
-   - Поведение при отказе внешнего сервиса (Elasticsearch / Redis / gRPC): падать с ошибкой, отвечать частичными данными из кэша, или выполнять fallback-запрос в PostgreSQL?
-
-### 2.2. Обязательный шаблон вопроса агента к пользователю:
-Перед тем как писать код, агент обязан вывести структурированный блок:
-
-> ### 🛑 Архитектурная развилка: [Название задачи / фичи]
-> **Контекст и суть задачи:** [Краткий анализ того, что требуется сделать]
-> 
-> **Вариант 1 (Рекомендуемый сеньором):**  
-> *Решение:* [Техническая суть решения под наш стек]  
-> *Обоснование:* [Почему это оптимально: транзакционность, производительность, надежность]  
-> *Плюсы и минусы:* [+ Плюсы / - Минусы или накладные расходы]
-> 
-> **Вариант 2 (Альтернативный):**  
-> *Решение:* [Альтернативный вариант]  
-> *Компромиссы:* [В чем уступает рекомендуемому]
-> 
-> **Вопрос к разработчику:** [Конкретный вопрос, требующий вашего утверждения или выбора]
+1. **PostgreSQL — единственный Source of Truth.** Elasticsearch — денормализованная поисковая проекция (CQRS Read Model).
+2. **Синхронизация:** Исключительно через Transactional Outbox. Прямой Dual-Write из HTTP/gRPC хэндлеров категорически запрещен.
+3. **Отказоустойчивость (Graceful Fallback):** При недоступности Elasticsearch сервис логирует `Warn` и автоматически переключается на fallback-поиск через PostgreSQL (`ILIKE`), не завершая работу аварийно.
+4. **Поисковые фильтры:** В любых поисковых запросах деталей обязателен фильтр `quantity >= 0`.
 
 ---
 
-## 3. Стандарты работы с Базой Данных (PostgreSQL, sqlc, pgx/v5)
+## 5. Архитектура сервисов (Pragmatic Clean Architecture & DDD в Go)
 
-Каждый сервис изолирован по модели **Database-per-Service** (`AUTH_DATABASE_URL`, `PARTS_DATABASE_URL`, `ORDERS_DATABASE_URL`, `MESSAGING_DATABASE_URL` с fallback на `DATABASE_URL`). Использование чужих БД напрямую строго запрещено.
+### 5.1. Слоистая структура (`internal/`)
+Однонаправленный поток зависимостей:
+`Transport (handler, grpc) ──► Application (service) ──► Domain (domain) ◄── Infrastructure (repository, outbox)`
+- **`internal/domain` (Ядро бизнеса):** Чистые бизнес-сущности, методы инвариантов, ошибки. Не импортирует другие внутренние пакеты.
+- **`internal/repository` (Инфраструктура БД):** Работа с базой через `sqlc` + `squirrel` + `pgx/v5`.
+- **`internal/service` (Прикладной слой):** Оркестрация сценариев, транзакции, вызовы gRPC-клиентов, запись Outbox-событий.
+- **`internal/handler` и `internal/grpc` (Первичные адаптеры):** Прием внешних запросов, парсинг DTO, валидация.
 
-### 3.1. Как правильно писать и организовывать миграции
+### 5.2. Богатая доменная модель (Rich Domain Model) vs DTO
+- Бизнес-правила и валидации инкапсулируются в методах самих сущностей в `domain` (чистые юнит-тесты без моков БД).
+- Запрещено засорять `domain` форматированными строками представления (`CreatedAtFormatted`, `TimeAgo`) или запросами фронтенда (`CreateOrderRequest`). DTO принадлежат слою `handler`.
+- Запрещен «маппинг ради маппинга»: в Go модели `sqlc` маппятся напрямую в `domain`, без промежуточных пустых слоев.
 
-#### 1. Структура и наименование файлов:
-- Миграции именуются строго последовательно: `0000XX_name.up.sql` и `0000XX_name.down.sql`.
-- Номер версии состоит из 6 цифр (например, `000010_create_outbox_events_table.up.sql`).
+### 5.3. Реестр общей библиотеки `backend/pkg/*` (Обязательное переиспользование)
+Категорически запрещено дублировать в `internal/` то, что реализовано в общей библиотеке `avtoplaneta/pkg/`:
+- **`pkg/logger`**: Структурированный `log/slog` с поддержкой JSON/текста и привязкой к OTel `trace_id`.
+- **`pkg/tracing`**: Инициализация OpenTelemetry TracerProvider и экспорт спанов в Grafana Tempo.
+- **`pkg/postgres`**: Пул соединений PostgreSQL (`*pgxpool.Pool`) с автоматическим трейсингом `otelpgx`.
+- **`pkg/redisclient`**: Клиент Redis (`*redis.Client`) со встроенным трейсингом `otelredis`.
+- **`pkg/metrics`**: Единый сбор Prometheus метрик (`metrics.GinMiddleware(service)` и метрики Outbox).
+- **`pkg/outbox`**: Диспетчер Transactional Outbox (PostgreSQL LISTEN/NOTIFY, поллинг, ретраи).
+- **`pkg/grpcserver` / `pkg/grpcclient`**: Серверные и клиентские фабрики gRPC с интерцепторами трейсинга, метрик и `protovalidate`.
+- **`pkg/httpserver`**: Базовый Gin сервер с graceful shutdown через `context` и `errgroup`.
+- **`pkg/health`**: Liveness (`/health/live`) и Readiness (`/health/ready`) проверки с опросом БД и Redis.
+- **`pkg/ginmw`**: Middleware CORS, аутентификации Traefik ForwardAuth (`RequireAuth`), ролей (`RequireRole`).
+- **`pkg/constants`**: Общесистемные константы (статусы, роли, стримы, каналы).
+- **`pkg/redisstream`**: `ConsumerGroupWorker` с надежным PEL-восстановлением (`XAutoClaim`) и DLQ.
+- **`pkg/authcontext`**: Извлечение данных пользователя из заголовков ForwardAuth (`X-User-ID`, `X-User-Role`).
+- **`pkg/httpcache`**: Хелперы валидации ETag и ответа `304 Not Modified`.
+- **`pkg/userdirectory`**: Кэширующий gRPC-клиент каталога пользователей.
 
-#### 2. КРИТИЧЕСКОЕ ПРАВИЛО ДВОЙНОГО РАЗМЕЩЕНИЯ (Go embed trap):
-- В сервисах `parts-service`, `orders-service`, `auth-service` файл `database.go` находится в папке `internal/repository/`.
-- Директива Go `//go:embed` **не имеет права подниматься в родительские каталоги (`../`)**.
-- Поэтому генератор `sqlc.yaml` читает схему из `db/migrations/`, а бинарник в рантайме вшивает миграции из `internal/repository/migrations/`.
-- **ЖЕЛЕЗНОЕ ПРАВИЛО:** Любая новая миграция ОБЯЗАНА создаваться ОДНОВРЕМЕННО в двух директориях:
-  1. `backend/<service>/db/migrations/0000XX_<name>.up.sql` (и `.down.sql`)
-  2. `backend/<service>/internal/repository/migrations/0000XX_<name>.up.sql` (и `.down.sql`)
-  *(В `messaging-service` `database.go` лежит в корне сервиса и читает напрямую из `db/migrations/`).*
-
-#### 3. Безопасность DDL и идемпотентность:
-```sql
--- Таблицы:
-CREATE TABLE IF NOT EXISTS customer_notes (
-    id BIGSERIAL PRIMARY KEY,
-    customer_id BIGINT NOT NULL,
-    note TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- Колонки:
-ALTER TABLE parts ADD COLUMN IF NOT EXISTS supplier_code VARCHAR(100) DEFAULT '';
-
--- Индексы (всегда именовать idx_<table>_<column>):
-CREATE INDEX IF NOT EXISTS idx_customer_notes_customer_id ON customer_notes(customer_id);
-
--- Down-миграция ОБЯЗАНА полностью и чисто откатывать up-миграцию:
-DROP TABLE IF EXISTS customer_notes;
-```
-
-#### 4. Версионирование в рантайме (`schema_migrations`):
-- При старте сервиса встроенный раннер в `database.go` проверяет таблицу `schema_migrations`.
-- Если миграция уже выполнена, она пропускается. Новые `.up.sql` файлы выполняются в алфавитном порядке версий.
-
-### 3.2. Архитектура слоя SQL и стандарты работы с `sqlc`
-
-1. **Запрет на «God SQL File» (монолитный `queries.sql`):**
-   SQL-запросы организуются строго по субдоменам и сущностям в `backend/<service>/db/queries/`:
-   - `<entity>_crud.sql` — базовые атомарные операции (Create, GetByID, Delete, GetAll).
-   - `<entity>_stock.sql` / `<entity>_lifecycle.sql` — доменные складские движения, списания, идемпотентные операции.
-   - `<entity>_batches.sql` — партии дефектовок, атомарные последовательности `nextval`, удаление нулевых остатков.
-   - `<entity>_stats.sql` — аналитические отчеты, агрегации и группировки.
-   - `<entity>_bulk.sql` — массовые обновления по списку ID.
-   - `outbox.sql` — события Transactional Outbox.
-2. **Стандарт CTE (`WITH ... AS`) вместо вложенных подзапросов:**
-   - **Запрещены вложенные конструкции «изнутри наружу»:** `FROM (SELECT ...) sub` или `LEFT JOIN (SELECT ...)`.
-   - Любая предварительная подготовка данных, вычисление составных идентификаторов или предварительная агрегация оформляется через **Common Table Expressions (CTE)** с понятными именами (`WITH batch_identifiers AS (...)`, `WITH order_totals AS (...)`). CTE читаются сверху вниз как декларативный пайплайн.
-3. **Обязательные аннотации типизации sqlc:**
-   - `-- name: GetPartByID :one` — ожидает ровно 1 строку (возвращает `(Model, error)`).
-   - `-- name: ListParts :many` — возвращает срез `([]Model, error)`.
-   - `-- name: UpdatePart :exec` — не возвращает данные `(error)`.
-   - `-- name: DeletePart :execrows` — возвращает количество затронутых строк `(int64, error)`.
-4. **Использование именованных аргументов:**
-   Всегда использовать `sqlc.arg(name)` или `sqlc.narg(name)` (nullable), избегая слепых позиционных `$1, $2, $3`:
-   ```sql
-   -- name: UpdateStock :exec
-   UPDATE parts
-   SET quantity = sqlc.arg(quantity)::integer, updated_at = NOW()
-   WHERE id = sqlc.arg(id);
-   ```
-5. **ОБЯЗАТЕЛЬНАЯ КОМАНДА:** После любых правок в `.sql` файлах выполнять генерацию:
-   ```bash
-   cd backend/<service> && sqlc generate
-   ```
-
-### 3.3. Разделение ответственности доступа к данным: sqlc vs squirrel vs pgx/v5
-
-В архитектуре Avtoplaneta используется четкая трехуровневая модель работы с PostgreSQL. Инструменты **не конкурируют и не заменяют друг друга**:
-
-```
- ┌────────────────────────────────────────────────────────┐
- │                      GO РЕПОЗИТОРИЙ                    │
- └──────────────┬──────────────────────────┬──────────────┘
-                │                          │
-      Статический SQL (90%)         Динамический SQL (10%)
-                │                          │
-                ▼                          ▼
- ┌──────────────────────────────┐ ┌──────────────────────────────┐
- │             sqlc             │ │           squirrel           │
- │  Типобезопасный компилятор   │ │  Query Builder в рантайме    │
- │ (Create, GetByID, Outbox)    │ │ (30+ фильтров, PATCH апдейт) │
- └──────────────┬───────────────┘ └──────────────┬───────────────┘
-                │                                │
-                │  ToSql() -> string + args      │
-                ▼                                ▼
- ┌───────────────────────────────────────────────────────────────┐
- │                            pgx/v5                             │
- │   Низкоуровневый драйвер, пул коннектов (*pgxpool.Pool),     │
- │       транзакции (pgx.Tx), pgx.Batch, LISTEN/NOTIFY           │
- └──────────────────────────────┬────────────────────────────────┘
-                                │ wire protocol
-                                ▼
-                       PostgreSQL 16 Engine
-```
-
-#### Матрица выбора инструмента (Senior Data Access Matrix):
-
-| Инструмент | Слой / Роль | Когда использовать в Avtoplaneta | Обоснование и границы применения |
-| :--- | :--- | :--- | :--- |
-| **`pgx/v5`** (`*pgxpool.Pool`) | **Низкоуровневый драйвер, транспорт и пул** | **Всегда** (фундамент для исполнения всех запросов `sqlc` и `squirrel`, а также `pgx.Batch` и `LISTEN/NOTIFY`). | Реализует бинарный протокол PostgreSQL, пул сокетов, ACID-транзакции `pgx.Tx`. Ни `sqlc`, ни `squirrel` не умеют подключаться к базе без драйвера. Заменять `pgx` на `squirrel` бессмысленно — `squirrel` сам отдаёт сгенерированный SQL в `r.pool.Query(...)`. |
-| **`sqlc`** | **Типобезопасный компилируемый SQL (Default)** | **90% всех операций БД**: детерминированные CRUD-запросы (`CreatePart`, `GetOrderByID`, `DeletePart`, `GetMonthlySales`, `CreateOutboxEvent`). | Статический анализ синтаксиса на этапе компиляции, автогенерация Go-структур, нулевой оверхед в рантайме, отсутствие аллокаций памяти на парсинг SQL-строк. |
-| **`squirrel`** | **Динамический Query Builder (генератор строк)** | **Строго для динамических фильтров**: поиск деталей по 30+ произвольным параметрам (`GetPartsWithFilters`), динамический PATCH-апдейт (`UpdateOrder`), фильтры аудита. | Избавляет от антипаттерна с 40 условиями `($1::text IS NULL OR col = $1)`, которые сбивают оптимизатор Postgres (Query Planner) и приводят к Seq Scan. Собирает чистый SQL под переданный набор фильтров и передает его в `pgx`. |
-
-### 3.4. Стандарты работы с `pgx/v5` в Go-коде
-1. **Пакетные операции (`pgx.Batch`):**
-   Массовые вставки (дефектовки, импорт каталогов, парсинг) **ЗАПРЕЩЕНО** выполнять в цикле одиночными `INSERT`. Использовать `pgx.Batch`:
-   ```go
-   batch := &pgx.Batch{}
-   for _, item := range items {
-       batch.Queue(insertQuery, item.Name, item.Price, item.Quantity)
-   }
-   br := pool.SendBatch(ctx, batch)
-   defer br.Close()
-   for range items {
-       if _, err := br.Exec(); err != nil {
-           return fmt.Errorf("ошибка пакетной вставки: %w", err)
-       }
-   }
-   ```
-2. **Конкурентная обработка очередей:**
-   При выборке задач или событий из БД несколькими параллельными воркерами обязательно использовать `FOR UPDATE SKIP LOCKED`.
-
-### 3.5. SQL-инструменты сеньора: Индексы, Constraints и производительность PostgreSQL
-
-Сеньор **никогда не создает таблицы и не пишет запросы без автоматического проектирования индексов и ограничений**. Написание SQL без индексирования — признак джуниора.
-
-#### 1. Золотые правила индексирования (Index Automation Rules):
-
-1. **Каждый Foreign Key (FK) ОБЯЗАН иметь B-Tree индекс:**
-   - **Почему:** PostgreSQL **НЕ создает** индексы для внешних ключей автоматически.
-   - **Катастрофа без индекса:** При удалении или изменении строки в родительской таблице PostgreSQL блокирует дочернюю таблицу (`SHARE ROW EXCLUSIVE`) и сканирует её целиком (`Seq Scan`). При `JOIN` таблицы соединяются через медленный `Hash Join` или `Nested Loop` со сканированием всех страниц.
-   - **Автомат сеньора:** Объявил колонку `customer_id` или `order_id` $\rightarrow$ немедленно создал индекс:
-     ```sql
-     CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON orders(customer_id);
-     CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
-     CREATE INDEX IF NOT EXISTS idx_order_items_part_id ON order_items(part_id);
-     ```
-
-2. **Частичные индексы (Partial Indexes `WHERE ...`) — стандарт для очередей и Soft-Delete:**
-   - **Почему:** Индексировать миллионы неактивных или архивных строк — пустая трата RAM (Buffer Pool) и замедление записи (`write amplification`).
-   - **Применение в Avtoplaneta:**
-     - **Очереди Outbox:** в таблице `outbox_events` 99% записей уже обработаны (`status = 'processed'`). Полноразмерный индекс раздулся бы на гигабайты. Сеньор индексирует только то, что выбирает воркер:
-       ```sql
-       CREATE INDEX IF NOT EXISTS idx_outbox_events_pending 
-           ON outbox_events(status, created_at) 
-           WHERE status = 'pending';
-       ```
-     - **Мягкое удаление (Soft Delete):**
-       ```sql
-       CREATE INDEX IF NOT EXISTS idx_parts_seller_id_alive 
-           ON parts(seller_id) 
-           WHERE deleted_at IS NULL;
-       ```
-     - **ETag / InventoryVersion (вычисление MAX(updated_at)):**
-       ```sql
-       CREATE INDEX IF NOT EXISTS idx_parts_updated_at_alive 
-           ON parts(updated_at DESC) 
-           WHERE deleted_at IS NULL;
-       ```
-     - **Дефектные партии (quantity = 0):**
-       ```sql
-       CREATE INDEX IF NOT EXISTS idx_parts_zero_batches 
-           ON parts (created_at DESC, supplier_code, brand, model, car_release_date, vin) 
-           WHERE quantity = 0 AND to_delete_at IS NULL AND deleted_at IS NULL;
-       ```
-
-3. **Составные индексы (Composite Indexes) и Правило левого префикса (Leftmost Prefix Rule):**
-   - **Формула порядка колонок:** Сначала равенства (`=`, высокая селективность), затем диапазоны (`>`, `<`, `BETWEEN`) и сортировка (`ORDER BY`).
-   - **Пример:** Запрос фильтрует по продавцу и сортирует по дате создания:
-     `SELECT * FROM parts WHERE seller_id = $1 AND quantity >= 0 ORDER BY created_at DESC;`
-     $\rightarrow$ правильный составной индекс:
-     ```sql
-     CREATE INDEX IF NOT EXISTS idx_parts_seller_created 
-         ON parts (seller_id, created_at DESC) 
-         WHERE quantity >= 0;
-     ```
-   - Запрос `WHERE seller_id = $1` может использовать этот индекс. Запрос `WHERE created_at > ...` без `seller_id` — **НЕ может** (правило левого префикса).
-
-4. **Покрывающие индексы (`INCLUDE`) для Index-Only Scan:**
-   - Если частый запрос берет всего пару колонок в дополнение к условию:
-     `SELECT id, quantity, price FROM parts WHERE category = $1;`
-     Индекс с `INCLUDE` позволяет Postgres не обращаться к таблице на диске (Heap), а отдать всё прямо из памяти индекса:
-     ```sql
-     CREATE INDEX IF NOT EXISTS idx_parts_category_covering 
-         ON parts (category) 
-         INCLUDE (quantity, price) 
-         WHERE deleted_at IS NULL;
-     ```
-
-5. **Функциональные / Выраженческие индексы (Expression Indexes):**
-   - Для уникальности или поиска без учета регистра и пробелов (предотвращает `Seq Scan` при вызове функций в `WHERE`):
-     ```sql
-     -- Уникальность email без учета регистра:
-     CREATE UNIQUE INDEX IF NOT EXISTS idx_users_lower_email ON users (LOWER(TRIM(email)));
-
-     -- Уникальный номер клиента с очисткой пробелов и фильтрацией пустых:
-     CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_unique_phone 
-         ON customers (TRIM(phone)) 
-         WHERE phone IS NOT NULL AND TRIM(phone) != '';
-
-     -- Индекс для BTRIM(supplier_code) исключает Seq Scan при сравнении очищенных кодов:
-     CREATE INDEX IF NOT EXISTS idx_parts_supplier_code_btrim ON parts (BTRIM(supplier_code))
-         WHERE supplier_code IS NOT NULL AND BTRIM(supplier_code) != '';
-     ```
-
-6. **GIN-индексы для JSONB, массивов и полнотекстового поиска:**
-   - Для массивов строк (например, фото деталей `photos TEXT[]` или JSONB участников чата):
-     ```sql
-     CREATE INDEX IF NOT EXISTS idx_parts_photos ON parts USING GIN (photos);
-     CREATE INDEX IF NOT EXISTS idx_conversations_participants ON conversations USING GIN (participants);
-     ```
-
-#### 2. Ограничения целостности (Constraints — защита данных на уровне СУБД):
-Сеньор не надеется только на валидацию в Go-коде. Бизнес-инварианты фиксируются в схеме БД:
-1. **CHECK Constraints:**
-   ```sql
-   -- Защита доменного инварианта склада (quantity >= -1):
-   ALTER TABLE parts ADD CONSTRAINT chk_parts_quantity CHECK (quantity >= -1);
-   -- Защита от отрицательной цены:
-   ALTER TABLE parts ADD CONSTRAINT chk_parts_price CHECK (price >= 0);
-   ```
-2. **Осознанный выбор `ON DELETE` для внешних ключей:**
-   - `ON DELETE RESTRICT` (по умолчанию) — запретить удаление клиента или детали, если по ним есть заказы.
-   - `ON DELETE CASCADE` — использовать **только** для жестко связанных сущностей (позиции заказа `order_items` удаляются при удалении заказа `orders`).
-   - `ON DELETE SET NULL` — для опциональных связей при архивации.
-
-#### 3. Антипаттерны и золотые правила SQL-запросов:
-1. **Антипаттерн `OFFSET` $\rightarrow$ Keyset Pagination (Cursor Pagination):**
-   - **В чем проблема:** `OFFSET 100000 LIMIT 50` заставляет PostgreSQL просканировать 100 050 строк диска/памяти и выбросить первые 100 000. На глубоких страницах API начнет зависать.
-   - **Решение сеньора:** Пагинация по курсору с составным индексом:
-     ```sql
-     -- name: ListPartsCursor :many
-     SELECT * FROM parts 
-     WHERE (created_at, id) < (sqlc.arg(created_at), sqlc.arg(id))
-       AND quantity >= 0
-     ORDER BY created_at DESC, id DESC 
-     LIMIT sqlc.arg(page_size);
-     ```
-     Поддерживается составным индексом `CREATE INDEX IF NOT EXISTS idx_parts_cursor ON parts (created_at DESC, id DESC) WHERE quantity >= 0;`. Запрос выполняется за доли миллисекунды независимо от глубины страницы.
-2. **Идемпотентный UPSERT (`ON CONFLICT`):**
-   ```sql
-   INSERT INTO part_stock_operations (operation_id, part_id, operation_type, amount)
-   VALUES ($1, $2, $3, $4)
-   ON CONFLICT (operation_id) DO NOTHING;
-   ```
-3. **Профилирование через `EXPLAIN (ANALYZE, BUFFERS)`:**
-   - Перед отправкой тяжелого запроса в прод сеньор тестирует план:
-     - ❌ **Красный флаг:** `Seq Scan` на таблицах более 10 000 строк, большой `Buffers: shared read` (медленный диск).
-     -  **Идеал:** `Index Scan` или `Index Only Scan` со 100% `Buffers: shared hit` (быстрое чтение из RAM).
-
-### 3.6. Стандарт создания новых микросервисов (Template & Scaffolding)
-
-Чтобы избежать ошибок с зависимостями в Docker, забытых директив `replace` и ручного дублирования бойлерплейта, в проекте внедрен эталонный шаблон и автоматический генератор:
-
-1. **Эталонный сервис (`backend/template-service`):**
-   - Компилируемый микросервис с чистой архитектурой (`domain`, `repository`, `service`, `handler`, `grpc`).
-   - Настроенный многоэтапный `Dockerfile` с кеш-моунтами `--mount=type=cache`, пользователем `appuser`, встроенным `HEALTHCHECK`.
-   - Полная интеграция с `sqlc`, PostgreSQL (`pgx/v5`), встроенным раннером миграций `schema_migrations`.
-   - Подключение `pkg/httpserver`, `pkg/authcontext`, `/health`, `/metrics` (Prometheus) и Graceful Shutdown через `errgroup`.
-   - Регулярно тестируется в `make test` и `make build-services` монорепозитория, что гарантирует 100% актуальность шаблона со временем.
-
-2. **Команда генерации (`make new-service`):**
-   ```bash
-   cd backend && make new-service NAME=<name> PORT=<http_port> GRPC_PORT=<grpc_port>
-   # Пример:
-   make new-service NAME=billing PORT=8086 GRPC_PORT=9086
-   ```
-   Скрипт автоматически:
-   - Клонирует эталонный шаблон в `backend/<name>-service`.
-   - Заменяет имена пакетов, модулей, портов и сущностей.
-   - Регистрирует сервис в корневом `go.work` и `backend/Makefile`.
-   - Запускает `go mod tidy`, `sqlc generate` и валидирует юнит-тесты `go test ./...`.
-   - Генерирует готовый блок конфигурации для вставки в `docker-compose.yml`.
-
----
-
-## 4. Elasticsearch: Полнотекстовый поиск, CQRS и отказоустойчивость
-
-### 4.1. CQRS и источник правды
-- **PostgreSQL — единственный Source of Truth (первичный источник истины).**
-- **Elasticsearch — читающая поисковая проекция (CQRS Read Model)** для быстрого полнотекстового поиска с морфологией, автодополнением и опечатками.
-- Синхронизация БД $\rightarrow$ Elasticsearch выполняется **ИСКЛЮЧИТЕЛЬНО через Transactional Outbox**.
-
-### 4.2. Морфология и построение запросов
-- Поиск автозапчастей использует русский стеммер (`russian_stemmer`), фильтры lowercase и справочник синонимов `backend/parts-service/catalog/synonyms.txt`.
-- Поисковые запросы строятся через `internal/search/query_builder.go`:
-  - Multi-match запросы с бустом названия запчасти.
-  - Fuzzy-поиск для автоматического исправления опечаток («каролла» $\rightarrow$ «corolla»).
-  - Фасетная фильтрация (бренд, модель, категория, сторона: лев/прав, перед/зад).
-
-### 4.3. Отказоустойчивость (Graceful Fallback)
-- Если Elasticsearch недоступен при старте или упал в рантайме, `parts-service` **НЕ ДОЛЖЕН падать в фатал**.
-- Сервис логирует `Warn("Elasticsearch is unavailable, running with database fallback")`.
-- Поиск автоматически переключается на PostgreSQL fallback: SQL-запрос с `ILIKE` по колонкам `name`, `description`, `brand`, `model`.
-
----
-
-## 5. Внутренняя архитектура сервисов (Pragmatic Clean Architecture & DDD в Go)
-
-Сеньор-разработчик не переносит бездумно многослойный академический DDD из Java/C# в Go. Мы используем **прагматичную слоистую архитектуру с элементами Domain-Driven Design**, оптимизированную под читаемость, простоту и скорость Go.
-
-### 5.1. Слоистая структура сервиса (`internal/`)
-Каждый микросервис изолирует свои слои по строгому правилу однонаправленного потока зависимостей:
-```
-Transport (handler, grpc) ──► Application (service) ──► Domain (domain)
-                                      │
-                                      ▼
-                           Infrastructure (repository, events, outbox)
-```
-1. **`internal/domain` (Ядро бизнеса)**: Чистые бизнес-модели, инварианты, доменные ошибки, типы сущностей. **НЕ ИМПОРТИРУЕТ** другие внутренние пакеты сервиса.
-2. **`internal/repository` (Вторичный адаптер БД)**: Реализация сохранения данных в PostgreSQL (`sqlc` + `squirrel`) и Redis кэш (`CacheService`).
-3. **`internal/service` (Прикладной слой / Use Cases)**: Оркестрация бизнес-логики, транзакции, вызовы gRPC-клиентов к соседним сервисам, публикация Outbox-событий.
-4. **`internal/handler` и `internal/grpc` (Первичные адаптеры)**: Прием внешних запросов (HTTP Gin / gRPC), сериализация JSON/Proto, вызов методов `service`.
-
-### 5.2. Богатая доменная модель (Rich Domain Model) против анемичной модели
-- ❌ **Антипаттерн (Анемичная модель):** Создание плоских структур данных (`struct` с одними полями) и размазывание логики по процедурным сервисным функциям на 1000 строк.
--  **Стандарт:** Критические бизнес-правила и инварианты сущностей инкапсулируются в методах самой структуры в `internal/domain`:
-  ```go
-  // Пример в domain.Order:
-  func (o *Order) CanBeCompleted() error {
-      if o.Status == OrderStatusCompleted {
-          return ErrOrderAlreadyCompleted
-      }
-      if len(o.Items) == 0 {
-          return ErrOrderEmpty
-      }
-      return nil
-  }
-
-  func (o *Order) RecalculateTotal() {
-      var subtotal float64
-      for _, item := range o.Items {
-          subtotal += item.Price * float64(item.Quantity)
-      }
-      o.TotalAmount = math.Max(subtotal-o.Discount, 0)
-  }
-  ```
-- **Профит:** Бизнес-логика защищена от несогласованности и тестируется мгновенными чистыми юнит-тестами без необходимости мокать БД, Postgres или Redis.
-
-### 5.3. Защита чистоты домена (Domain vs DTO & Presentation)
-- Структуры в `internal/domain` отражают реальные бизнес-сущности склада и заказов, а не прихоти фронтенда.
-- ❌ **Запрещено:** Засорять сущности домена форматированными строками для фронтенда (`CreatedAtFormatted`, `TimeAgo`). Форматирование дат и относительное время — задача слоя представления (`handler` или клиентского UI).
-- ❌ **Запрещено:** Помещать структуры веб-запросов (`CreateOrderRequest`, `UpdateOrderDetailsRequest`) в `domain`. DTO запросов принадлежат слою `handler` или входным параметрам слоя `service`.
-
-### 5.4. Запрет на академический оверинжиниринг в Go
-- ❌ **Запрещен «маппинг ради маппинга»:** Создание 4–5 одинаковых структур (`DB Model -> Domain Model -> UseCase DTO -> API View`) ради формального следования Clean Architecture. В Go модели `sqlc` маппятся напрямую в `domain`, а домен отдается в JSON без промежуточных пустых прослоек.
-- ❌ **Запрещен «Use Case на каждый чих»:** Запрещено дробить сервис на десятки микро-файлов с однометодовыми интерфейсами (`CreateOrderUseCase`, `GetOrderByIDUseCase`). Бизнес-сервис (например, `OrdersService`) объединяет связную доменную область.
-
-### 5.5. Золотое правило переиспользования: Обязательное использование `backend/pkg/*` (DRY)
-Категорически запрещено писать велосипеды в `internal/`, если готовый и протестированный компонент уже есть в общей библиотеке `avtoplaneta/pkg/`:
-1. **`pkg/logger`**: Единый структурированный логгер на базе `log/slog` с поддержкой JSON/Text вывода, уровней и автоматической связкой с OpenTelemetry (`trace_id`, `span_id`). **СТРОГИЙ ЗАПРЕТ** на `fmt.Println`, `log.Println` и сторонние логгеры (logrus, zap) в продакшене. Обязательно использование контекстных методов `slog.InfoContext(ctx, ...)`, `slog.ErrorContext(ctx, ...)`.
-2. **`pkg/tracing`**: Инициализация OpenTelemetry TracerProvider и передача спанов в Grafana Tempo по протоколу OTLP (gRPC/HTTP).
-3. **`pkg/postgres`**: Пул соединений PostgreSQL (`*pgxpool.Pool`) со встроенной трассировкой SQL-запросов через `otelpgx` и метриками пула соединений.
-4. **`pkg/redisclient`**: Клиент Redis (`*redis.Client`) со встроенной трассировкой команд через `otelredis`.
-5. **`pkg/metrics`**: Единый сбор Prometheus метрик (`metrics.GinMiddleware(serviceName)` и `metrics.NewOutboxMetrics(serviceName)`). **СТРОГИЙ ЗАПРЕТ** на использование `c.Request.URL.Path` (High Cardinality) и локальные пакеты `internal/metrics`.
-6. **`pkg/outbox`**: Универсальный движок Transactional Outbox диспетчера с поддержкой PostgreSQL `LISTEN/NOTIFY`, страховочного поллинга, ретраев и записи метрик.
-7. **`pkg/grpcserver` и `pkg/grpcclient`**: Каркас gRPC серверов и клиентов: пул соединений, интерцепторы трейсинга OpenTelemetry, Prometheus метрик и декларативной валидации Protovalidate.
-8. **`pkg/httpserver`**: Базовый HTTP-сервер на базе Gin с graceful shutdown через `context` и `errgroup`.
-9. **`pkg/health`**: Стандартизированный HTTP health-check компонент (`/health`, `/ready`) с автоматической проверкой соединений с БД.
-10. **`pkg/ginmw`**: Единые middleware CORS (`ginmw.CORS()`), аутентификации (`ginmw.RequireAuth()`) и ролевого доступа (`ginmw.RequireRole()`).
-11. **`pkg/constants`**: Единые системные константы. Запрещен хардкод magic strings (`"events:orders"`, `"outbox_events_channel"`, `PartQuantitySold = -1`, `RoleAdmin = "admin"`).
-12. **`pkg/redisstream`**: Использование `ConsumerGroupWorker` с готовым PEL recovery и DLQ вместо ручных циклов чтения Redis Streams.
-13. **`pkg/authcontext`**: Извлечение ForwardAuth заголовков пользователя (`X-User-ID`, `X-User-Role`, `X-User-Email`).
-
-### 5.6. Стандарты наблюдаемости (Observability: slog, OpenTelemetry, Grafana Tempo & Loki)
-- **Контекстное логирование (`log/slog`):**
-  - Всегда передавать `ctx` в логгер: `log.InfoContext(ctx, "message", slog.Int64("user_id", id))`. Это гарантирует, что `trace_id` и `span_id` попадут в логи для сквозной корреляции в Loki/Grafana.
-  - Использовать хелпер форматирования ошибок `logger.Err(err)`.
-  - Запрещен неструктурированный вывод в `stdout`/`stderr` (`fmt.Printf`, `print`, `panic` без перехвата).
-- **Распределенный трейсинг (W3C Trace Context):**
-  - Межсервисные вызовы gRPC автоматически пробрасывают traceparent через интерцепторы `pkg/grpcclient` и `pkg/grpcserver`.
-  - Все внешние запросы к PostgreSQL и Redis трассируются спанами через `pkg/postgres` (`otelpgx`) и `pkg/redisclient` (`otelredis`).
+### 5.4. Стандарты наблюдаемости (Observability: slog & OpenTelemetry)
+- **Логирование:** Использовать только `log/slog` через `pkg/logger`. **СТРОГИЙ ЗАПРЕТ** на `fmt.Println`, `log.Println` и сторонние логгеры (logrus, zap) в продакшене.
+- **Контекст:** Обязательно передавать `ctx` в логгер: `log.InfoContext(ctx, "сообщение", slog.Int64("id", id))`. Это связывает логи с трейсами по `trace_id` в Loki. Форматирование ошибок — через `logger.Err(err)`.
+- **Трейсинг:** Все вызовы gRPC, внешние запросы к PostgreSQL и Redis трассируются спанами автоматически через интерцепторы и обертки `pkg/postgres`, `pkg/redisclient`.
 
 ---
 
 ## 6. Критические доменные инварианты (Inventory & Orders)
 
 ### 6.1. Семантика поля `quantity` (ЖЕЛЕЗНЫЙ ЗАКОН СКЛАДА)
-В системе определены 3 фундаментальных состояния остатка деталей:
 1. `quantity > 0` — деталь в наличии на складе.
-2. `quantity == 0` — дефектная ведомость (акт дефектовки) или спецдеталь. **ОНИ ОБЯЗАНЫ ОСТАВАТЬСЯ ВИДИМЫМИ** в поиске, UI и XML-выгрузках.
-3. `quantity == -1` — деталь полностью продана через `orders-service`. Служит маркером сокрытия из выдачи, сохраняя целостность завершенных заказов.
+2. `quantity == 0` — дефектная ведомость / спецпозиция. **ОБЯЗАНЫ ОСТАВАТЬСЯ ВИДИМЫМИ** в каталоге, поиске, UI и XML-выгрузках.
+3. `quantity == -1` — деталь списана/продана по заказу. Маркер сокрытия из выдачи.
+> **ПРАВИЛО ЗАПРОСОВ SQL И ELASTICSEARCH:**  
+> При выборке деталей для каталога, поиска и выгрузок **ВСЕГДА** использовать условие:  
+> `WHERE quantity >= 0` (включает нули и отсекает проданные `-1`).  
+> ❌ **ЗАПРЕЩЕНО:** `WHERE quantity > 0`.
 
-> ⚠️ **ПРАВИЛО ЗАПРОСОВ SQL И ELASTICSEARCH:**
-> При выборке деталей для отображения в каталоге, поиске и генерации выгрузок ВСЕГДА использовать условие:
-> ```sql
-> WHERE quantity >= 0 -- ПРАВИЛЬНО! Включает нулевые дефектовки и отсекает проданные (-1)
-> ```
-> ❌ **НИКОГДА НЕ ПИСАТЬ:** `WHERE quantity > 0` (это скроет дефектные ведомости!).
+### 6.2. Идемпотентность списаний
+Списание остатков (`DecreasePartQuantity`) фиксируется в таблице `part_stock_operations` с уникальным ключом `operation_id` (защита от повторных списаний при сетевых сбоях). При исчерпании остаток переходит в `-1`.
 
-### 6.2. Списание остатков и учет операций
-- Списание при выполнении заказа (`green`) выполняется через gRPC `DecreasePartQuantity`.
-- Таблица `part_stock_operations` фиксирует операцию с уникальным ключом `operation_id` (идемпотентность).
-- При исчерпании остатка количество переходит в `-1`:
-  ```sql
-  UPDATE parts
-  SET quantity = CASE WHEN quantity - sqlc.arg(amount)::integer <= 0 THEN -1 ELSE quantity - sqlc.arg(amount)::integer END
-  WHERE id = sqlc.arg(id);
-  ```
-
-### 6.3. CRM, клиенты и дедупликация
-- Номер телефона покупателя нормализуется через `parseBuyerInfo(raw)` к формату `+7XXXXXXXXXX`.
-- Ограничение на уровне БД: `UNIQUE INDEX idx_customers_unique_phone`.
-- При попытке создания дубликата API возвращает `409 Conflict`.
+### 6.3. Клиенты и дедупликация (CRM)
+Телефон покупателя нормализуется через `parseBuyerInfo(raw)` к формату `+7XXXXXXXXXX`. На уровне БД действует `UNIQUE INDEX idx_customers_unique_phone`. При дубликатах API возвращает `409 Conflict`.
 
 ---
 
 ## 7. Межсервисные контракты и маршрутизация Traefik
 
-- **100% межсервисных вызовов — строго через gRPC (Protobuf):**
-  - Никаких внутренних HTTP-вызовов между сервисами.
-  - Прямой доступ в БД соседнего сервиса запрещен.
-  - Контракты описаны в `backend/proto/`. После правок запускать `make proto` (из каталога `backend/`).
-  - Команда `make proto` автоматически компилирует код и копирует `swagger.json` во фронтенд (`frontend/src/data/swagger.json`).
-- **Разделение маршрутов:**
-  - `/api/v1/*` — строго типизированные gRPC-Gateway эндпоинты (JSON представление protobuf).
-  - `/api/*` — нативные REST эндпоинты Gin для multipart-загрузок фото, файлов Excel, статических каталогов и WebSocket (`/api/messaging/ws`).
-- **Безопасность:** Проверка сессий через Traefik ForwardAuth (`auth-service /auth/verify`). Заголовки `X-User-ID`, `X-User-Role`, `X-User-Name`, `X-User-Email` извлекаются через `pkg/authcontext`.
+- **100% межсервисных вызовов — строго через gRPC (Protobuf):** Внутренний межсервисный HTTP и прямой доступ к чужим БД запрещены. Контракты в `backend/proto/`. После правок запускать `make proto`.
+- **Стандарты Protobuf:**
+  - Buf CLI, категория `STANDARD` Google API Style Guide (парные `<Method>Request` и `<Method>Response`).
+  - Валидация входных данных строго декларативная через правила `buf.validate` (CEL), без ручных проверок в хэндлерах.
+  - **Bigint Standard:** Все идентификаторы сущностей (`id`, `user_id`, `part_id`, `order_id` и срезы `ids`) объявляются strictly `int64` (соответствует `BIGSERIAL` в PostgreSQL). Запрещены `int32`/`uint32` для PK/FK.
+  - Методы конвертеров: доменные модели обязаны иметь метод `(m *Model) ToProto() *protov1.Model`.
+  - Безопасные геттеры: чтение полей входящих gRPC-запросов выполняется строго через `req.Get...()`.
+- **Маршрутизация Traefik:**
+  - `/api/v1/*` — типизированный gRPC-Gateway.
+  - `/api/*` — фасадный REST Gin для multipart-загрузок фото, файлов Excel, XML-фидов и WebSocket (`/api/messaging/ws`).
+  - Проверка прав: централизованно через Traefik ForwardAuth (`auth-service /auth/verify`), заголовки извлекаются через `pkg/authcontext`.
 
 ---
 
-## 8. Frontend (React 19) и Mobile (Flutter)
+## 8. Стандарты клиентских приложений
 
-### 8.1. Frontend (React 19 / TypeScript / Vite / TanStack Query v5)
-- **INP (Interaction to Next Paint):** Целевое значение **< 200ms**.
-- **Параллельная загрузка фото:** Изображения в карточках обрабатываются параллельно (`Promise.all`), а не по одному.
-- **Инвалидация кэша:** После мутаций инвалидировать соответствующие query-ключи (`queryClient.invalidateQueries({ queryKey: [...] })`).
-- **Debounced поиск:** Все поисковые поля обязаны использовать debounce во избежание спама запросами.
-
-### 8.2. Mobile App (Flutter / Riverpod / Dio / GoRouter)
-- **Единый источник маршрутов:** `AvtoplanetaApp/lib/core/api/api_endpoints.dart`. При добавлении или изменении эндпоинтов на бэкенде обязательно синхронизировать их здесь.
-- **Отказоустойчивость:** Обработка оффлайн-режима через Hive кэш и перехват ошибок Dio (`DioException`).
+Подробные стандарты разработки фронтенда и мобильного приложения вынесены в специализированные файлы:
+- **Web SPA (React 19 / TypeScript / Vite / TanStack Query v5):** [frontend/AGENTS.md](frontend/AGENTS.md) (INP < 200ms, параллельная загрузка изображений, инвалидация кэшей, debounced поиск).
+- **Mobile (Flutter / Riverpod / Dio / GoRouter):** [AvtoplanetaApp/AGENTS.md](AvtoplanetaApp/AGENTS.md) (реестр эндпоинтов `api_endpoints.dart`, оффлайн кэш Hive, отказоустойчивость Dio).
 
 ---
 
 ## 9. Пошаговый чеклист реализации фичи (Senior Engineering Playbook)
 
-Перед тем как считать задачу выполненной, сеньор проходит по шагам:
-
+Перед сдачей задачи инженер/агент выполняет шаги:
 ```
-[ ] 1. АРХИТЕКТУРНЫЙ АНАЛИЗ И ВОПРОС ПОЛЬЗОВАТЕЛЮ:
-       - Сформулированы ли развилки (gRPC vs Streams vs Go; DDL; ES)?
-       - Задан ли структурированный вопрос пользователю? Получено ли подтверждение?
+[ ] 1. АРХИТЕКТУРНЫЙ АНАЛИЗ:
+       - Сформулированы развилки (gRPC vs Streams; DDL; ES)? Задан ли вопрос пользователю?
 [ ] 2. БАЗА ДАННЫХ И МИГРАЦИИ:
-       - Созданы 0000XX_name.up.sql и 0000XX_name.down.sql?
-       - Продублированы ли миграции в db/migrations/ И internal/repository/migrations/?
-       - Написаны ли запросы в db/queries/*.sql с именованными аргументами sqlc.arg?
-       - Выполнен ли sqlc generate в каталоге сервиса?
-[ ] 3. МЕЖСЕРВИСНЫЕ КОНТРАКТЫ (если меняется API):
-       - Обновлены proto-файлы в backend/proto/?
-       - Выполнен make proto из каталога backend/?
-       - Синхронизирован ли swagger.json с фронтендом?
+       - Миграции созданы одновременно в db/migrations/ И internal/repository/migrations/?
+       - Запросы в db/queries/*.sql используют CTE, именованные sqlc.arg и индексы на все FK?
+       - Выполнен sqlc generate?
+[ ] 3. МЕЖСЕРВИСНЫЕ КОНТРАКТЫ (при изменении API):
+       - Обновлены proto-файлы? Выполнен make proto?
+       - Соблюден ли Bigint Standard (int64) и CEL валидация?
 [ ] 4. ВНУТРЕННЯЯ АРХИТЕКТУРА И РЕЗИЛЬЕНТНОСТЬ:
-       - Соблюдены ли инварианты в методах domain сущностей (Rich Domain Model)?
-       - Использованы ли общие пакеты из backend/pkg/* (metrics, outbox, ginmw, constants) вместо дублирования?
-       - Очищен ли domain от presentation-полей (TimeAgo, CreatedAtFormatted)?
-       - Соблюден ли доменный инвариант quantity >= 0?
-       - Ошибки обернуты через fmt.Errorf("...: %w", err)?
-       - Контекст ctx context.Context проброшен первым аргументом во все вызовы?
-       - Обработана ли отмена контекста и Graceful Shutdown?
-       - Использован ли Transactional Outbox при синхронизации с ES или Redis?
-[ ] 5. КЛИЕНТСКИЕ ПРИЛОЖЕНИЯ:
-       - Проверена совместимость с Frontend и Flutter Mobile (api_endpoints.dart)?
-[ ] 6. ВЕРИФИКАЦИЯ И СБОРКА:
-       - make build-all проходит без ошибок?
+       - Переиспользованы пакеты из backend/pkg/* (logger, postgres, outbox, metrics)?
+       - Логирование через slog.*Context(ctx) с пробросом OTel trace_id?
+       - Соблюден доменный инвариант quantity >= 0?
+       - Использован Transactional Outbox при синхронизации с ES/Redis?
+       - Обработана отмена контекста и Graceful Shutdown?
+[ ] 5. СБОРКА И ТЕСТИРОВАНИЕ:
+       - make build-services проходит без ошибок?
        - make test проходит успешно?
-[ ] 7. ЛОКАЛЬНЫЙ КОММИТ:
-       - git add и git commit с осмысленным сообщением.
+[ ] 6. ЛОКАЛЬНЫЙ КОММИТ:
+       - git add и git commit с осмысленным Conventional Commit сообщением.
        - СТРОГИЙ ЗАПРЕТ НА git push!
 ```
 
 ---
 
-## 10. Коммуникация и Git / CI/CD Workflow
+## 10. Коммуникация, Git и Workflow
 
-- **Язык общения:** **ИСКЛЮЧИТЕЛЬНО РУССКИЙ ЯЗЫК**. Все ответы, комментарии к коду, вопросы к пользователю и отчеты формулируются на русском языке.
-- **Локальные коммиты:** Обязательно фиксировать изменения через `git add` и `git commit` с четким описанием в формате Conventional Commits (например, `feat(parts): add outbox dispatcher for search index`).
-- **СТРОГИЙ ЗАПРЕТ НА `git push`:** **НИКОГДА не выполнять `git push` от имени пользователя.** Пользователь вручную пушит ветку для контроля деплоя.
-- **Docker Compose:** Всегда использовать синтаксис `docker compose` (с пробелом). Команда `docker-compose` запрещена.
+- **Язык общения:** **ИСКЛЮЧИТЕЛЬНО РУССКИЙ ЯЗЫК**. Все ответы, комментарии к коду и отчеты формулируются на русском языке.
+- **Локальные коммиты:** Обязательна фиксация изменений через `git add` и `git commit` в формате Conventional Commits (`feat(...)`, `fix(...)`, `docs(...)`).
+- **СТРОГИЙ ЗАПРЕТ НА `git push`:** **НИКОГДА не выполнять `git push` от имени пользователя.** Пуш веток выполняет исключительно человек.
+- **Docker Compose:** Всегда использовать синтаксис `docker compose` (с пробелом). Команда `docker-compose` запрещена.\n
