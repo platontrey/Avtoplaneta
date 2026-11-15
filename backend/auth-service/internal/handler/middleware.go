@@ -199,22 +199,7 @@ func (h *Handler) CSRFMiddleware(c *gin.Context) {
 		return
 	}
 
-	var userID *int64
-	var sessionToken string
-
-	if h.sessionStore != nil {
-		session, _ := h.sessionStore.Get(c.Request, "auth-session")
-		if session != nil {
-			if val, ok := session.Values["user_id"]; ok && val != nil {
-				if uid, ok := security.GetUserIDFromSessionValue(val); ok {
-					userID = &uid
-				}
-			}
-			if st, ok := session.Values["csrf_token"].(string); ok {
-				sessionToken = st
-			}
-		}
-	}
+	userID, sessionToken := h.getSessionAuthInfo(c.Request)
 
 	if h.csrfManager != nil && !h.csrfManager.ValidateToken(userID, sessionToken, token) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Неверный токен CSRF"})

@@ -19,17 +19,26 @@ import (
 	authv1 "avtoplaneta/gen/auth/v1"
 	"avtoplaneta/pkg/grpcclient"
 )
-// Conversations
-func getConversations(c *gin.Context) {
+
+func parseUserID(c *gin.Context) (int64, bool) {
 	userID := c.GetHeader("X-User-ID")
 	if userID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
-		return
+		return 0, false
 	}
 
 	userIDInt, err := strconv.ParseInt(userID, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return 0, false
+	}
+	return userIDInt, true
+}
+
+// Conversations
+func getConversations(c *gin.Context) {
+	userIDInt, ok := parseUserID(c)
+	if !ok {
 		return
 	}
 
@@ -45,15 +54,8 @@ func getConversations(c *gin.Context) {
 
 func createConversation(c *gin.Context) {
 	ctx := c.Request.Context()
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
-		return
-	}
-
-	userIDInt, err := strconv.ParseInt(userID, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+	userIDInt, ok := parseUserID(c)
+	if !ok {
 		return
 	}
 
@@ -95,15 +97,8 @@ func createConversation(c *gin.Context) {
 }
 
 func getConversation(c *gin.Context) {
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
-		return
-	}
-
-	userIDInt, err := strconv.ParseInt(userID, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+	userIDInt, ok := parseUserID(c)
+	if !ok {
 		return
 	}
 
@@ -128,15 +123,8 @@ func getConversation(c *gin.Context) {
 }
 
 func updateConversation(c *gin.Context) {
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
-		return
-	}
-
-	userIDInt, err := strconv.ParseInt(userID, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+	userIDInt, ok := parseUserID(c)
+	if !ok {
 		return
 	}
 
@@ -179,15 +167,8 @@ func updateConversation(c *gin.Context) {
 }
 
 func deleteConversation(c *gin.Context) {
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
-		return
-	}
-
-	userIDInt, err := strconv.ParseInt(userID, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+	userIDInt, ok := parseUserID(c)
+	if !ok {
 		return
 	}
 
@@ -215,15 +196,8 @@ func deleteConversation(c *gin.Context) {
 }
 
 func removeParticipant(c *gin.Context) {
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
-		return
-	}
-
-	userIDInt, err := strconv.ParseInt(userID, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+	userIDInt, ok := parseUserID(c)
+	if !ok {
 		return
 	}
 
@@ -280,15 +254,8 @@ func removeParticipant(c *gin.Context) {
 
 // Messages
 func getMessages(c *gin.Context) {
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
-		return
-	}
-
-	userIDInt, err := strconv.ParseInt(userID, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+	userIDInt, ok := parseUserID(c)
+	if !ok {
 		return
 	}
 
@@ -316,15 +283,8 @@ func getMessages(c *gin.Context) {
 }
 
 func sendMessage(c *gin.Context) {
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
-		return
-	}
-
-	userIDInt, err := strconv.ParseInt(userID, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+	userIDInt, ok := parseUserID(c)
+	if !ok {
 		return
 	}
 
@@ -376,15 +336,8 @@ func sendMessage(c *gin.Context) {
 }
 
 func sendVoiceMessage(c *gin.Context) {
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
-		return
-	}
-
-	userIDInt, err := strconv.ParseInt(userID, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+	userIDInt, ok := parseUserID(c)
+	if !ok {
 		return
 	}
 
@@ -439,15 +392,8 @@ func sendVoiceMessage(c *gin.Context) {
 }
 
 func deleteMessage(c *gin.Context) {
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
-		return
-	}
-
-	userIDInt, err := strconv.ParseInt(userID, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+	userIDInt, ok := parseUserID(c)
+	if !ok {
 		return
 	}
 
@@ -467,15 +413,8 @@ func deleteMessage(c *gin.Context) {
 }
 
 func markMessageRead(c *gin.Context) {
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
-		return
-	}
-
-	userIDInt, err := strconv.ParseInt(userID, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+	userIDInt, ok := parseUserID(c)
+	if !ok {
 		return
 	}
 
@@ -496,15 +435,8 @@ func markMessageRead(c *gin.Context) {
 
 // Reactions
 func addReaction(c *gin.Context) {
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
-		return
-	}
-
-	userIDInt, err := strconv.ParseInt(userID, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+	userIDInt, ok := parseUserID(c)
+	if !ok {
 		return
 	}
 
@@ -534,15 +466,8 @@ func addReaction(c *gin.Context) {
 }
 
 func removeReaction(c *gin.Context) {
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
-		return
-	}
-
-	userIDInt, err := strconv.ParseInt(userID, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+	userIDInt, ok := parseUserID(c)
+	if !ok {
 		return
 	}
 
@@ -563,15 +488,8 @@ func removeReaction(c *gin.Context) {
 
 // Notifications
 func getNotifications(c *gin.Context) {
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
-		return
-	}
-
-	userIDInt, err := strconv.ParseInt(userID, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+	userIDInt, ok := parseUserID(c)
+	if !ok {
 		return
 	}
 
@@ -601,15 +519,8 @@ func markNotificationRead(c *gin.Context) {
 }
 
 func markAllNotificationsRead(c *gin.Context) {
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
-		return
-	}
-
-	userIDInt, err := strconv.ParseInt(userID, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+	userIDInt, ok := parseUserID(c)
+	if !ok {
 		return
 	}
 
@@ -632,15 +543,8 @@ func getUserStatuses(c *gin.Context) {
 }
 
 func updateUserStatus(c *gin.Context) {
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
-		return
-	}
-
-	userIDInt, err := strconv.ParseInt(userID, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+	userIDInt, ok := parseUserID(c)
+	if !ok {
 		return
 	}
 
@@ -663,15 +567,8 @@ func updateUserStatus(c *gin.Context) {
 
 // Search
 func searchMessages(c *gin.Context) {
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
-		return
-	}
-
-	userIDInt, err := strconv.ParseInt(userID, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+	userIDInt, ok := parseUserID(c)
+	if !ok {
 		return
 	}
 

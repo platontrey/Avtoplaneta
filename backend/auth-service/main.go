@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -151,12 +152,11 @@ func main() {
 	if grpcPort == "" {
 		grpcPort = "9083"
 	}
-	grpcSrv, err := grpcserver.StartGRPCServer(authService, sessionStore, cfg, grpcPort)
-	if err != nil {
-		slog.Error("Failed to start gRPC server", logger.Err(err), slog.String("port", grpcPort))
-		os.Exit(1)
-	}
-	defer grpcSrv.GracefulStop()
+	go func() {
+		if err := grpcserver.StartGRPCServer(ctx, authService, sessionStore, cfg, grpcPort); err != nil && !errors.Is(err, context.Canceled) {
+			slog.Error("Failed to run gRPC server", logger.Err(err), slog.String("port", grpcPort))
+		}
+	}()
 
 	// Настройка HTTP сервера
 	r := gin.Default()

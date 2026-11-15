@@ -514,6 +514,42 @@ func buildSingleFragmentQuery(frag string, searchableFields []string) map[string
 	}
 }
 
+func buildMultiSearchQuery(fragments []string) map[string]interface{} {
+	multiShould := make([]map[string]interface{}, 0, len(fragments))
+	for _, frag := range fragments {
+		if fragQuery := buildSingleFragmentQuery(frag, defaultSearchableFields); fragQuery != nil {
+			multiShould = append(multiShould, fragQuery)
+		}
+	}
+	if len(multiShould) == 0 {
+		return nil
+	}
+	return map[string]interface{}{
+		"bool": map[string]interface{}{
+			"should":               multiShould,
+			"minimum_should_match": 1,
+		},
+	}
+}
+
+func buildSingleSearchQuery(frag string) ([]map[string]interface{}, []map[string]interface{}) {
+	var must []map[string]interface{}
+	for _, term := range strings.Fields(frag) {
+		if strings.TrimSpace(term) == "" {
+			continue
+		}
+		termQueries := buildTermQueries(term, defaultSearchableFields)
+		must = append(must, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should":               termQueries,
+				"minimum_should_match": 1,
+			},
+		})
+	}
+	should := buildSearchRelevanceBoosts(frag, defaultSearchableFields)
+	return must, should
+}
+
 // buildElasticsearchQuery строит запрос для Elasticsearch
 func BuildElasticsearchQuery(params domain.InventoryQueryParams) map[string]interface{} {
 	must := make([]map[string]interface{}, 0, 8)
@@ -532,38 +568,13 @@ func BuildElasticsearchQuery(params domain.InventoryQueryParams) map[string]inte
 	if params.Search != "" {
 		fragments := SplitMultiSearchQuery(params.Search)
 		if len(fragments) > 1 {
-			// Мультипоиск: объединяем подзапросы фрагментов через should (OR) с minimum_should_match: 1
-			multiShould := []map[string]interface{}{}
-			for _, frag := range fragments {
-				if fragQuery := buildSingleFragmentQuery(frag, defaultSearchableFields); fragQuery != nil {
-					multiShould = append(multiShould, fragQuery)
-				}
-			}
-			if len(multiShould) > 0 {
-				must = append(must, map[string]interface{}{
-					"bool": map[string]interface{}{
-						"should":               multiShould,
-						"minimum_should_match": 1,
-					},
-				})
+			if q := buildMultiSearchQuery(fragments); q != nil {
+				must = append(must, q)
 			}
 		} else if len(fragments) == 1 {
-			// Одиночный поиск (стандартный путь)
-			frag := fragments[0]
-			terms := strings.Fields(frag)
-			for _, term := range terms {
-				if strings.TrimSpace(term) == "" {
-					continue
-				}
-				termQueries := buildTermQueries(term, defaultSearchableFields)
-				must = append(must, map[string]interface{}{
-					"bool": map[string]interface{}{
-						"should":               termQueries,
-						"minimum_should_match": 1,
-					},
-				})
-			}
-			should = append(should, buildSearchRelevanceBoosts(frag, defaultSearchableFields)...)
+			searchMust, searchShould := buildSingleSearchQuery(fragments[0])
+			must = append(must, searchMust...)
+			should = append(should, searchShould...)
 		}
 	}
 

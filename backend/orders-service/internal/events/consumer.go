@@ -2,10 +2,7 @@ package events
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"log/slog"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -14,93 +11,38 @@ import (
 
 	"avtoplaneta/pkg/constants"
 	"avtoplaneta/pkg/logger"
+	"avtoplaneta/pkg/redisstream"
 	"orders-service/internal/repository"
 )
 
 // RedisEventConsumer слушает события из Redis Streams
 type RedisEventConsumer struct {
-	client    *redis.Client
+	worker    *redisstream.ConsumerGroupWorker
 	orderRepo repository.OrderRepository
 	cache     repository.CacheService
-	group     string
-	consumer  string
-	stream    string
 }
 
 // NewRedisEventConsumer создает новый потребитель событий
 func NewRedisEventConsumer(client *redis.Client, orderRepo repository.OrderRepository, cache repository.CacheService) *RedisEventConsumer {
-	hostname, _ := os.Hostname()
-	if hostname == "" {
-		hostname = "orders-worker"
-	}
-
-	return &RedisEventConsumer{
-		client:    client,
+	consumer := &RedisEventConsumer{
 		orderRepo: orderRepo,
 		cache:     cache,
-		group:     "orders-service-group",
-		consumer:  fmt.Sprintf("%s-%d", hostname, os.Getpid()),
-		stream:    constants.StreamOrdersEvents,
 	}
+
+	cfg := redisstream.ConsumerConfig{
+		Stream:        constants.StreamOrdersEvents,
+		Group:         "orders-service-group",
+		BatchSize:     10,
+		BlockDuration: 5 * time.Second,
+	}
+
+	consumer.worker = redisstream.NewConsumerGroupWorker(client, consumer.processMessage, cfg)
+	return consumer
 }
 
-// Start запускает цикл прослушивания сообщений из Redis Streams
+// Start запускает цикл прослушивания сообщений через универсальный pkg/redisstream
 func (c *RedisEventConsumer) Start(ctx context.Context) error {
-	if c.client == nil {
-		slog.WarnContext(ctx, "Redis client is nil, skipping event consumer")
-		return nil
-	}
-
-	err := c.client.XGroupCreateMkStream(ctx, c.stream, c.group, "$").Err()
-	if err != nil && err.Error() != "BUSYGROUP Consumer Group name already exists" {
-		slog.ErrorContext(ctx, "Failed to create consumer group for orders-service", logger.Err(err))
-		return err
-	}
-
-	slog.InfoContext(ctx, "Starting Redis Streams consumer for orders-service")
-
-	for {
-		select {
-		case <-ctx.Done():
-			slog.InfoContext(ctx, "Stopping orders-service Redis Streams consumer")
-			return nil
-		default:
-			streams, err := c.client.XReadGroup(ctx, &redis.XReadGroupArgs{
-				Group:    c.group,
-				Consumer: c.consumer,
-				Streams:  []string{c.stream, ">"},
-				Count:    10,
-				Block:    time.Second * 5,
-			}).Result()
-
-			if err != nil && !errors.Is(err, redis.Nil) {
-				slog.ErrorContext(ctx, "Failed to read from Redis Streams in orders-service", logger.Err(err))
-				time.Sleep(time.Second)
-				continue
-			}
-
-			for _, stream := range streams {
-				c.processStreamMessages(ctx, stream.Messages)
-			}
-		}
-	}
-}
-
-func (c *RedisEventConsumer) processStreamMessages(ctx context.Context, messages []redis.XMessage) {
-	for _, msg := range messages {
-		c.processSingleStreamMessage(ctx, msg)
-	}
-}
-
-func (c *RedisEventConsumer) processSingleStreamMessage(ctx context.Context, msg redis.XMessage) {
-	if err := c.processMessage(ctx, msg); err != nil {
-		slog.ErrorContext(ctx, "Failed to process message in orders-service", logger.Err(err), slog.String("message_id", msg.ID))
-		return
-	}
-
-	if err := c.client.XAck(ctx, c.stream, c.group, msg.ID).Err(); err != nil {
-		slog.ErrorContext(ctx, "Failed to ACK message in orders-service", logger.Err(err), slog.String("message_id", msg.ID))
-	}
+	return c.worker.Start(ctx)
 }
 
 func (c *RedisEventConsumer) processMessage(ctx context.Context, msg redis.XMessage) error {

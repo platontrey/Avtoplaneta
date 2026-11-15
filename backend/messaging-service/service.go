@@ -869,45 +869,12 @@ func (s *messagingService) GetDromAuthStatus(ctx context.Context) (map[string]in
 }
 
 func (s *messagingService) SaveDromSession(ctx context.Context, rawSession []byte) error {
-	var session SessionData
-
-	// Attempt JSON parsing (SessionData format or array of cookies)
-	if err := json.Unmarshal(rawSession, &session); err != nil || len(session.Cookies) == 0 {
-		var cookies []SessionCookie
-		if errArray := json.Unmarshal(rawSession, &cookies); errArray == nil && len(cookies) > 0 {
-			session.Cookies = cookies
-		} else {
-			// Attempt parsing raw cookie header: "ring=abc; ring_session=xyz" or "Cookie: ring=abc; ..."
-			cookieStr := strings.TrimSpace(string(rawSession))
-			cookieStr = strings.Trim(cookieStr, "\"'")
-			if strings.HasPrefix(strings.ToLower(cookieStr), "cookie:") {
-				cookieStr = strings.TrimSpace(cookieStr[7:])
-			}
-			parts := strings.Split(cookieStr, ";")
-			for _, p := range parts {
-				p = strings.TrimSpace(p)
-				if strings.HasPrefix(strings.ToLower(p), "cookie:") {
-					p = strings.TrimSpace(p[7:])
-				}
-				if idx := strings.Index(p, "="); idx > 0 {
-					name := strings.TrimSpace(p[:idx])
-					val := strings.TrimSpace(p[idx+1:])
-					val = strings.Trim(val, "\"'")
-					if name != "" && val != "" {
-						session.Cookies = append(session.Cookies, SessionCookie{
-							Name:  name,
-							Value: val,
-						})
-					}
-				}
-			}
-		}
-	}
-
-	if len(session.Cookies) == 0 {
+	cookies := parseDromCookies(rawSession)
+	if len(cookies) == 0 {
 		return errors.New("не удалось распознать cookies в переданных данных (скопируйте строку с ring=... или json)")
 	}
 
+	session := SessionData{Cookies: cookies}
 	data, err := json.MarshalIndent(session, "", "  ")
 	if err != nil {
 		return err
@@ -1132,4 +1099,59 @@ func (s *messagingService) LoginDrom(ctx context.Context, login, password, code 
 		"success": false,
 		"error":   "Не удалось войти на Drom. Проверьте правильность введенных данных или воспользуйтесь авторизацией по Cookie.",
 	}, nil
+}
+
+
+func parseDromCookies(raw []byte) []SessionCookie {
+	// 1. Попытка распарсить как SessionData {"cookies": [...]}
+	var session SessionData
+	if err := json.Unmarshal(raw, &session); err == nil && len(session.Cookies) > 0 {
+		return session.Cookies
+	}
+
+	// 2. Попытка распарсить как массив cookies [...]
+	var cookies []SessionCookie
+	if err := json.Unmarshal(raw, &cookies); err == nil && len(cookies) > 0 {
+		return cookies
+	}
+
+	// 3. Попытка распарсить как строку заголовка "ring=...; ring_session=..."
+	return parseRawCookieHeader(string(raw))
+}
+
+func parseRawCookieHeader(cookieStr string) []SessionCookie {
+	cookieStr = strings.TrimSpace(cookieStr)
+	cookieStr = strings.Trim(cookieStr, "\"'")
+	if strings.HasPrefix(strings.ToLower(cookieStr), "cookie:") {
+		cookieStr = strings.TrimSpace(cookieStr[7:])
+	}
+
+	var cookies []SessionCookie
+	for _, part := range strings.Split(cookieStr, ";") {
+		cookie, ok := parseCookiePair(part)
+		if ok {
+			cookies = append(cookies, cookie)
+		}
+	}
+	return cookies
+}
+
+func parseCookiePair(part string) (SessionCookie, bool) {
+	part = strings.TrimSpace(part)
+	if strings.HasPrefix(strings.ToLower(part), "cookie:") {
+		part = strings.TrimSpace(part[7:])
+	}
+
+	idx := strings.Index(part, "=")
+	if idx <= 0 {
+		return SessionCookie{}, false
+	}
+
+	name := strings.TrimSpace(part[:idx])
+	val := strings.Trim(strings.TrimSpace(part[idx+1:]), "\"'")
+	if name == "" || val == "" {
+		return SessionCookie{}, false
+	}
+
+	return SessionCookie{Name: name, Value: val}, true
 }

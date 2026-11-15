@@ -4,13 +4,10 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log/slog"
-	"net"
 	"os"
 	"path/filepath"
 	"time"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -389,44 +386,9 @@ func messageToProto(m *Message) *msgv1.Message {
 
 // ─── gRPC Server Startup ────────────────────────────────────────────────────
 
-// StartGRPCServer запускает gRPC-сервер на указанном порту
-func StartGRPCServer(port string) error {
-	srv := grpcserver.New(
-		"messaging.v1.MessagingService",
-		port,
-		grpc.ChainUnaryInterceptor(loggingUnaryInterceptor),
-	)
-
+// StartGRPCServer запускает gRPC-сервер на указанном порту с поддержкой graceful shutdown
+func StartGRPCServer(ctx context.Context, port string) error {
+	srv := grpcserver.New("messaging.v1.MessagingService", port)
 	msgv1.RegisterMessagingServiceServer(srv.RawServer(), NewMessagingGRPCServer())
-
-	lis, err := net.Listen("tcp", ":"+port)
-	if err != nil {
-		return fmt.Errorf("failed to listen on port %s: %w", port, err)
-	}
-
-	slog.Info("gRPC server listening", slog.String("port", port))
-	return srv.RawServer().Serve(lis)
-}
-
-// ─── Interceptors ───────────────────────────────────────────────────────────
-
-func loggingUnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	start := time.Now()
-	resp, err := handler(ctx, req)
-	duration := time.Since(start)
-
-	if err != nil {
-		slog.WarnContext(ctx, "gRPC call failed",
-			slog.String("method", info.FullMethod),
-			slog.Duration("duration", duration),
-			slog.Any("error", err),
-		)
-	} else if duration > 100*time.Millisecond {
-		slog.InfoContext(ctx, "gRPC call slow",
-			slog.String("method", info.FullMethod),
-			slog.Duration("duration", duration),
-		)
-	}
-
-	return resp, err
+	return srv.Run(ctx)
 }

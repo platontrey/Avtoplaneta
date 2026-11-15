@@ -26,6 +26,7 @@ func New(serviceName, port string, opts ...grpc.ServerOption) *Server {
 	defaultOpts := []grpc.ServerOption{
 		grpc.ChainUnaryInterceptor(
 			RecoveryUnaryInterceptor(),
+			LoggingUnaryInterceptor(),
 			ValidationUnaryInterceptor(),
 		),
 	}

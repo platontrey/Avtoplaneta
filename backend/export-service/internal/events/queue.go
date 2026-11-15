@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"avtoplaneta/pkg/logger"
+	"avtoplaneta/pkg/redisstream"
 	"export-service/internal/config"
 	"export-service/internal/domain"
 	"export-service/internal/service"
@@ -162,12 +162,17 @@ func (q *ExportQueue) StartWorker(ctx context.Context) {
 	go q.localWorker(ctx)
 
 	if q.redisClient != nil {
-		err := q.redisClient.XGroupCreateMkStream(ctx, exportStreamKey, exportGroupKey, "$").Err()
-		if err != nil && err.Error() != "BUSYGROUP Consumer Group name already exists" {
-			slog.WarnContext(ctx, "Не удалось создать Consumer Group в Redis Streams", logger.Err(err))
-		} else {
-			go q.redisStreamsWorker(ctx)
-		}
+		worker := redisstream.NewConsumerGroupWorker(q.redisClient, q.handleStreamMessage, redisstream.ConsumerConfig{
+			Stream:        exportStreamKey,
+			Group:         exportGroupKey,
+			BatchSize:     1,
+			BlockDuration: 5 * time.Second,
+		})
+		go func() {
+			if err := worker.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
+				slog.ErrorContext(ctx, "Redis streams worker failed in export-service", logger.Err(err))
+			}
+		}()
 	}
 }
 
@@ -183,61 +188,19 @@ func (q *ExportQueue) localWorker(ctx context.Context) {
 	}
 }
 
-func (q *ExportQueue) redisStreamsWorker(ctx context.Context) {
-	hostname, _ := os.Hostname()
-	if hostname == "" {
-		hostname = "export-worker"
+func (q *ExportQueue) handleStreamMessage(ctx context.Context, msg redis.XMessage) error {
+	payload, ok := msg.Values["payload"].(string)
+	if !ok {
+		return nil
 	}
-	consumerName := fmt.Sprintf("%s-%d", hostname, os.Getpid())
 
-	slog.InfoContext(ctx, "Запущен воркер Redis Streams для export-service",
-		slog.String("stream", exportStreamKey),
-		slog.String("group", exportGroupKey),
-		slog.String("consumer", consumerName),
-	)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			streams, err := q.redisClient.XReadGroup(ctx, &redis.XReadGroupArgs{
-				Group:    exportGroupKey,
-				Consumer: consumerName,
-				Streams:  []string{exportStreamKey, ">"},
-				Count:    1,
-				Block:    5 * time.Second,
-			}).Result()
-
-			if err != nil && !errors.Is(err, redis.Nil) {
-				time.Sleep(time.Second)
-				continue
-			}
-
-			if len(streams) == 0 {
-				continue
-			}
-
-			for _, stream := range streams {
-				for _, msg := range stream.Messages {
-					payload, ok := msg.Values["payload"].(string)
-					if !ok {
-						_ = q.redisClient.XAck(ctx, exportStreamKey, exportGroupKey, msg.ID).Err()
-						continue
-					}
-
-					var task domain.ExportTask
-					if err := json.Unmarshal([]byte(payload), &task); err != nil {
-						_ = q.redisClient.XAck(ctx, exportStreamKey, exportGroupKey, msg.ID).Err()
-						continue
-					}
-
-					q.executeTask(ctx, task)
-					_ = q.redisClient.XAck(ctx, exportStreamKey, exportGroupKey, msg.ID).Err()
-				}
-			}
-		}
+	var task domain.ExportTask
+	if err := json.Unmarshal([]byte(payload), &task); err != nil {
+		return nil
 	}
+
+	q.executeTask(ctx, task)
+	return nil
 }
 
 func (q *ExportQueue) executeTask(ctx context.Context, task domain.ExportTask) {

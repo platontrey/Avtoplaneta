@@ -2,10 +2,7 @@ package grpc
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"log/slog"
-	"net"
 	"runtime"
 	"strings"
 	"time"
@@ -229,64 +226,19 @@ func (s *AuthGRPCServer) GetServerLogs(ctx context.Context, req *authv1.GetServe
 	return &authv1.GetServerLogsResponse{Logs: logs}, nil
 }
 
-// NewGRPCServer создает настроенный gRPC сервер
-func NewGRPCServer(
-	authService service.AuthService,
-	sessionStore security.SessionStore,
-	cfg *config.Config,
-) *grpc.Server {
-	srv := grpcserver.New(
-		"auth.v1.AuthService",
-		"",
-		grpc.StatsHandler(otelgrpc.NewServerHandler()),
-		grpc.ChainUnaryInterceptor(loggingUnaryInterceptor),
-	)
-
-	authv1.RegisterAuthServiceServer(srv.RawServer(), NewAuthGRPCServer(authService, sessionStore, cfg))
-	return srv.RawServer()
-}
-
-// StartGRPCServer запускает gRPC сервер на указанном порту
+// StartGRPCServer запускает gRPC сервер на указанном порту с поддержкой graceful shutdown
 func StartGRPCServer(
+	ctx context.Context,
 	authService service.AuthService,
 	sessionStore security.SessionStore,
 	cfg *config.Config,
 	port string,
-) (*grpc.Server, error) {
-	lis, err := net.Listen("tcp", ":"+port)
-	if err != nil {
-		return nil, fmt.Errorf("failed to listen on port %s: %w", port, err)
-	}
-
-	srv := NewGRPCServer(authService, sessionStore, cfg)
-
-	slog.Info("gRPC server listening", slog.String("port", port))
-	go func() {
-		if err := srv.Serve(lis); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-			slog.Error("gRPC server error", logger.Err(err))
-		}
-	}()
-
-	return srv, nil
-}
-
-func loggingUnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	start := time.Now()
-	resp, err := handler(ctx, req)
-	duration := time.Since(start)
-
-	if err != nil {
-		slog.WarnContext(ctx, "gRPC call failed",
-			slog.String("method", info.FullMethod),
-			slog.Duration("duration", duration),
-			logger.Err(err),
-		)
-	} else if duration > 100*time.Millisecond {
-		slog.InfoContext(ctx, "gRPC call slow",
-			slog.String("method", info.FullMethod),
-			slog.Duration("duration", duration),
-		)
-	}
-
-	return resp, err
+) error {
+	srv := grpcserver.New(
+		"auth.v1.AuthService",
+		port,
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+	)
+	authv1.RegisterAuthServiceServer(srv.RawServer(), NewAuthGRPCServer(authService, sessionStore, cfg))
+	return srv.Run(ctx)
 }

@@ -2,18 +2,12 @@ package grpc
 
 import (
 	"context"
-	"fmt"
-	"log/slog"
-	"net"
-	"time"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	ordersv1 "avtoplaneta/gen/orders/v1"
 	"avtoplaneta/pkg/grpcserver"
-	"avtoplaneta/pkg/logger"
 	"orders-service/internal/domain"
 	"orders-service/internal/service"
 )
@@ -163,44 +157,9 @@ func orderToProto(o *domain.Order) *ordersv1.Order {
 
 // ─── gRPC Server Startup ────────────────────────────────────────────────────
 
-// StartGRPCServer запускает gRPC-сервер на указанном порту
-func StartGRPCServer(service service.OrdersService, publisher domain.EventPublisher, port string) error {
-	srv := grpcserver.New(
-		"orders.v1.OrdersService",
-		port,
-		grpc.ChainUnaryInterceptor(loggingUnaryInterceptor),
-	)
-
+// StartGRPCServer запускает gRPC-сервер на указанном порту с поддержкой graceful shutdown
+func StartGRPCServer(ctx context.Context, service service.OrdersService, publisher domain.EventPublisher, port string) error {
+	srv := grpcserver.New("orders.v1.OrdersService", port)
 	ordersv1.RegisterOrdersServiceServer(srv.RawServer(), NewOrdersGRPCServer(service, publisher))
-
-	lis, err := net.Listen("tcp", ":"+port)
-	if err != nil {
-		return fmt.Errorf("failed to listen on port %s: %w", port, err)
-	}
-
-	slog.Info("orders-service gRPC server listening", slog.String("port", port))
-	return srv.RawServer().Serve(lis)
-}
-
-// ─── Interceptors ───────────────────────────────────────────────────────────
-
-func loggingUnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	start := time.Now()
-	resp, err := handler(ctx, req)
-	duration := time.Since(start)
-
-	if err != nil {
-		slog.WarnContext(ctx, "gRPC call failed",
-			slog.String("method", info.FullMethod),
-			slog.Duration("duration", duration),
-			logger.Err(err),
-		)
-	} else if duration > 100*time.Millisecond {
-		slog.InfoContext(ctx, "gRPC call slow",
-			slog.String("method", info.FullMethod),
-			slog.Duration("duration", duration),
-		)
-	}
-
-	return resp, err
+	return srv.Run(ctx)
 }

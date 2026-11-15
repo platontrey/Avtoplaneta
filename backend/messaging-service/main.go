@@ -4,16 +4,16 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
+	"avtoplaneta/pkg/ginmw"
+	"avtoplaneta/pkg/httpserver"
 	"avtoplaneta/pkg/logger"
 	"avtoplaneta/pkg/tracing"
 )
@@ -48,6 +48,10 @@ func main() {
 		}()
 	}
 
+	// Контекст для graceful shutdown всего сервиса
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
 	// Initialize database
 	InitDatabase()
 
@@ -60,40 +64,13 @@ func main() {
 		grpcPort = "9084"
 	}
 	go func() {
-		if err := StartGRPCServer(grpcPort); err != nil {
+		if err := StartGRPCServer(ctx, grpcPort); err != nil && !errors.Is(err, context.Canceled) {
 			slog.Error("gRPC server failed", logger.Err(err))
-			os.Exit(1)
 		}
-	}()
-
-	// Создание контекста с отменой для graceful shutdown
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Обработка сигналов для graceful shutdown
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		<-sigChan
-		slog.Info("Получен сигнал завершения, начинаем graceful shutdown...")
-		cancel()
 	}()
 
 	r := gin.Default()
-
-	// CORS middleware
-	r.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-
-		c.Next()
-	})
+	r.Use(ginmw.CORS())
 
 	// Static file serving for uploads
 	r.Static("/uploads", "./uploads")
@@ -110,38 +87,17 @@ func main() {
 	// Start WebSocket Hub
 	go globalHub.Run()
 
-	// Routes will be added here
+	// Routes
 	setupRoutes(r)
 
-	// Создание HTTP сервера для graceful shutdown
-	srv := &http.Server{
-		Addr:    ":8084",
-		Handler: r,
+	// Запуск HTTP-сервера через общий пакет httpserver (graceful shutdown + TLS)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8084"
 	}
 
-	// Канал для ошибок сервера
-	errChan := make(chan error, 1)
-
-	// Запуск сервера в goroutine
-	go func() {
-		slog.Info("Messaging service starting on port 8084")
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(http.ErrServerClosed, err) {
-			errChan <- err
-		}
-	}()
-
-	// Ожидание сигнала отмены или ошибки
-	select {
-	case <-ctx.Done():
-		slog.Info("Завершение работы messaging service...")
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		if err := srv.Shutdown(shutdownCtx); err != nil {
-			slog.Error("Сервер принудительно остановлен", logger.Err(err))
-		}
-		slog.Info("Messaging service остановлен")
-	case err := <-errChan:
-		slog.Error("Ошибка сервера", logger.Err(err))
+	if err := httpserver.Run(ctx, port, r); err != nil {
+		slog.Error("Messaging service HTTP server failed", logger.Err(err))
 		os.Exit(1)
 	}
 }

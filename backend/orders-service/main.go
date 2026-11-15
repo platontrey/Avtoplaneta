@@ -37,7 +37,7 @@ func main() {
 
 	// Инициализация структурированного логирования
 	logger.Init(logger.Config{
-		Level:  cfg.LogLevel,
+		Level:       cfg.LogLevel,
 		Format:      logger.Format(cfg.LogFormat),
 		ServiceName: "orders-service",
 	})
@@ -116,9 +116,8 @@ func main() {
 
 	// Запуск gRPC-сервера в фоне
 	go func() {
-		if err := grpc.StartGRPCServer(ordersService, eventPublisher, cfg.GRPCPort); err != nil {
+		if err := grpc.StartGRPCServer(ctx, ordersService, eventPublisher, cfg.GRPCPort); err != nil && !errors.Is(err, context.Canceled) {
 			slog.Error("orders-service gRPC server failed", logger.Err(err))
-			os.Exit(1)
 		}
 	}()
 

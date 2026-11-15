@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -123,9 +124,8 @@ func main() {
 		grpcPort = "9081"
 	}
 	go func() {
-		if err := grpc.StartGRPCServer(svc, defectReports, grpcPort); err != nil {
+		if err := grpc.StartGRPCServer(ctx, svc, defectReports, grpcPort); err != nil && !errors.Is(err, context.Canceled) {
 			slog.Error("gRPC server failed", logger.Err(err))
-			os.Exit(1)
 		}
 	}()
 

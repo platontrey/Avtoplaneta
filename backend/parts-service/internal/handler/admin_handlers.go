@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,6 +20,50 @@ import (
 	"parts-service/internal/domain"
 )
 
+func parseBulkDeleteLegacyJSON(bodyBytes []byte) (*partsv1.BulkDeletePartsRequest, error) {
+	var requestData struct {
+		IDs                  []int64 `json:"ids"`
+		ConfirmEntireCatalog bool    `json:"confirm_entire_catalog"`
+	}
+	if err := json.Unmarshal(bodyBytes, &requestData); err != nil {
+		return nil, err
+	}
+	if len(requestData.IDs) == 0 {
+		return nil, errors.New("empty id list")
+	}
+	return &partsv1.BulkDeletePartsRequest{
+		Ids:                  requestData.IDs,
+		ConfirmEntireCatalog: requestData.ConfirmEntireCatalog,
+	}, nil
+}
+
+func parseBulkUpdateLegacyJSON(bodyBytes []byte) ([]*partsv1.BulkUpdatePartData, error) {
+	var legacyUpdates []map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &legacyUpdates); err != nil {
+		return nil, err
+	}
+	if len(legacyUpdates) == 0 {
+		return nil, errors.New("empty legacy update list")
+	}
+	parts := make([]*partsv1.BulkUpdatePartData, 0, len(legacyUpdates))
+	for _, item := range legacyUpdates {
+		partData := &partsv1.BulkUpdatePartData{
+			Fields: make(map[string]string),
+		}
+		for k, v := range item {
+			if k == "id" {
+				if idFloat, ok := v.(float64); ok {
+					partData.Id = int64(idFloat)
+				}
+				continue
+			}
+			partData.Fields[k] = fmt.Sprintf("%v", v)
+		}
+		parts = append(parts, partData)
+	}
+	return parts, nil
+}
+
 // BulkDeletePartsHandler удаляет несколько запчастей
 func (h *Handler) BulkDeletePartsHandler(c *gin.Context) {
 	bodyBytes, err := io.ReadAll(c.Request.Body)
@@ -31,18 +76,13 @@ func (h *Handler) BulkDeletePartsHandler(c *gin.Context) {
 	var protoReq partsv1.BulkDeletePartsRequest
 	unmarshaler := protojson.UnmarshalOptions{DiscardUnknown: true}
 	if err := unmarshaler.Unmarshal(bodyBytes, &protoReq); err != nil {
-		var requestData struct {
-			IDs                  []int64 `json:"ids"`
-			ConfirmEntireCatalog bool    `json:"confirm_entire_catalog"`
-		}
-		if errLegacy := json.Unmarshal(bodyBytes, &requestData); errLegacy == nil && len(requestData.IDs) > 0 {
-			protoReq.ConfirmEntireCatalog = requestData.ConfirmEntireCatalog
-			protoReq.Ids = requestData.IDs
-		} else {
+		legacyReq, errLegacy := parseBulkDeleteLegacyJSON(bodyBytes)
+		if errLegacy != nil {
 			slog.ErrorContext(c.Request.Context(), "BulkDeletePartsHandler: Failed to unmarshal request", logger.Err(err))
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный формат данных"})
 			return
 		}
+		protoReq = *legacyReq
 	}
 
 	ctx := c.Request.Context()
@@ -75,28 +115,13 @@ func (h *Handler) BulkUpdatePartsHandler(c *gin.Context) {
 	var protoReq partsv1.BulkUpdatePartsRequest
 	unmarshaler := protojson.UnmarshalOptions{DiscardUnknown: true}
 	if err := unmarshaler.Unmarshal(bodyBytes, &protoReq); err != nil {
-		var legacyUpdates []map[string]interface{}
-		if errLegacy := json.Unmarshal(bodyBytes, &legacyUpdates); errLegacy == nil && len(legacyUpdates) > 0 {
-			for _, item := range legacyUpdates {
-				partData := &partsv1.BulkUpdatePartData{
-					Fields: make(map[string]string),
-				}
-				for k, v := range item {
-					if k == "id" {
-						if idFloat, ok := v.(float64); ok {
-							partData.Id = int64(idFloat)
-						}
-					} else {
-						partData.Fields[k] = fmt.Sprintf("%v", v)
-					}
-				}
-				protoReq.Parts = append(protoReq.Parts, partData)
-			}
-		} else {
+		legacyParts, errLegacy := parseBulkUpdateLegacyJSON(bodyBytes)
+		if errLegacy != nil {
 			slog.WarnContext(c.Request.Context(), "BulkUpdatePartsHandler: Invalid Protobuf request payload", logger.Err(err))
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Неверный формат данных"})
 			return
 		}
+		protoReq.Parts = legacyParts
 	}
 
 	if protoReq.Scope == nil && len(protoReq.Parts) == 0 {

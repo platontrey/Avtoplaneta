@@ -53,52 +53,75 @@ func (h *Hub) Run() {
 	for {
 		select {
 		case client := <-h.register:
-			h.mu.Lock()
-			if _, ok := h.clients[client.UserID]; !ok {
-				h.clients[client.UserID] = make(map[*Client]bool)
-			}
-			h.clients[client.UserID][client] = true
-			h.mu.Unlock()
-			slog.Info("User connected via WebSocket", slog.Int64("user_id", client.UserID))
-
+			h.registerClient(client)
 		case client := <-h.unregister:
-			h.mu.Lock()
-			if conns, ok := h.clients[client.UserID]; ok {
-				if _, ok := conns[client]; ok {
-					delete(conns, client)
-					close(client.Send)
-					if len(conns) == 0 {
-						delete(h.clients, client.UserID)
-					}
-				}
-			}
-			h.mu.Unlock()
-			slog.Info("User disconnected from WebSocket", slog.Int64("user_id", client.UserID))
-
+			h.unregisterClient(client)
 		case msg := <-h.broadcast:
-			payloadBytes, err := json.Marshal(msg.Payload)
-			if err != nil {
-				slog.Error("Failed to marshal broadcast message payload", logger.Err(err))
-				continue
-			}
-
-			h.mu.Lock()
-			for _, userID := range msg.Participants {
-				if conns, ok := h.clients[userID]; ok {
-					for client := range conns {
-						select {
-						case client.Send <- payloadBytes:
-						default:
-							// Вместо ручного изменения мапы и закрытия канала в RLock
-							// просто закрываем соединение. Это приведет к завершению ReadPump/WritePump
-							// и автоматическому безопасному удалению клиента через канал unregister.
-							client.Conn.Close()
-						}
-					}
-				}
-			}
-			h.mu.Unlock()
+			h.broadcastMessage(msg)
 		}
+	}
+}
+
+func (h *Hub) registerClient(client *Client) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if _, ok := h.clients[client.UserID]; !ok {
+		h.clients[client.UserID] = make(map[*Client]bool)
+	}
+	h.clients[client.UserID][client] = true
+	slog.Info("User connected via WebSocket", slog.Int64("user_id", client.UserID))
+}
+
+func (h *Hub) unregisterClient(client *Client) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	conns, ok := h.clients[client.UserID]
+	if !ok {
+		return
+	}
+	if _, ok := conns[client]; !ok {
+		return
+	}
+
+	delete(conns, client)
+	close(client.Send)
+	if len(conns) == 0 {
+		delete(h.clients, client.UserID)
+	}
+	slog.Info("User disconnected from WebSocket", slog.Int64("user_id", client.UserID))
+}
+
+func (h *Hub) broadcastMessage(msg BroadcastMessage) {
+	payloadBytes, err := json.Marshal(msg.Payload)
+	if err != nil {
+		slog.Error("Failed to marshal broadcast message payload", logger.Err(err))
+		return
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	for _, userID := range msg.Participants {
+		conns, ok := h.clients[userID]
+		if !ok {
+			continue
+		}
+		for client := range conns {
+			sendClientPayload(client, payloadBytes)
+		}
+	}
+}
+
+func sendClientPayload(client *Client, payload []byte) {
+	select {
+	case client.Send <- payload:
+	default:
+		// Вместо ручного изменения мапы и закрытия канала в RLock
+		// просто закрываем соединение. Это приведет к завершению ReadPump/WritePump
+		// и автоматическому безопасному удалению клиента через канал unregister.
+		client.Conn.Close()
 	}
 }
 

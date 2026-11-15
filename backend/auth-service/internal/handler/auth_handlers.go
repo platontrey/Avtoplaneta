@@ -342,18 +342,7 @@ func (h *Handler) GetCurrentUserHandler(c *gin.Context) {
 
 // GetCSRFTokenHandler выдает или обновляет CSRF токен для клиента
 func (h *Handler) GetCSRFTokenHandler(c *gin.Context) {
-	var userID *int64
-
-	if h.sessionStore != nil {
-		session, _ := h.sessionStore.Get(c.Request, "auth-session")
-		if session != nil {
-			if val, ok := session.Values["user_id"]; ok && val != nil {
-				if uid, ok := security.GetUserIDFromSessionValue(val); ok {
-					userID = &uid
-				}
-			}
-		}
-	}
+	userID, _ := h.getSessionAuthInfo(c.Request)
 
 	token, err := h.authService.GenerateCSRFToken(userID)
 	if err != nil {

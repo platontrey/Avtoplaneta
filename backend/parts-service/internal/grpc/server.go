@@ -2,17 +2,10 @@ package grpc
 
 import (
 	"context"
-	"fmt"
 	"io"
-	"net"
 	"strconv"
 	"strings"
-	"time"
 
-	"log/slog"
-
-	"avtoplaneta/pkg/logger"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -731,45 +724,11 @@ func partToProto(p *domain.Part) *partsv1.Part {
 
 // ─── gRPC Server Startup ────────────────────────────────────────────────────
 
-// StartGRPCServer запускает gRPC-сервер на указанном порту
-func StartGRPCServer(service service.InventoryService, defectReports *service.DefectReportWorkflow, port string) error {
-	srv := grpcserver.New(
-		"parts.v1.PartsService",
-		port,
-		grpc.ChainUnaryInterceptor(loggingUnaryInterceptor),
-	)
-
-	// Регистрируем parts-сервис
+// StartGRPCServer запускает gRPC-сервер на указанном порту с поддержкой graceful shutdown
+func StartGRPCServer(ctx context.Context, service service.InventoryService, defectReports *service.DefectReportWorkflow, port string) error {
+	srv := grpcserver.New("parts.v1.PartsService", port)
 	partsv1.RegisterPartsServiceServer(srv.RawServer(), NewPartsGRPCServer(service, defectReports))
-
-	lis, err := net.Listen("tcp", ":"+port)
-	if err != nil {
-		return fmt.Errorf("failed to listen on port %s: %w", port, err)
-	}
-
-	slog.Info("gRPC server listening", slog.String("port", port))
-	return srv.RawServer().Serve(lis)
-}
-
-// ─── Interceptors ───────────────────────────────────────────────────────────
-
-func loggingUnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	start := time.Now()
-	resp, err := handler(ctx, req)
-	duration := time.Since(start)
-
-	if err != nil {
-		slog.WarnContext(ctx, "gRPC call failed",
-			slog.String("method", info.FullMethod),
-			slog.Duration("duration", duration),
-			logger.Err(err))
-	} else if duration > 100*time.Millisecond {
-		slog.InfoContext(ctx, "gRPC call slow",
-			slog.String("method", info.FullMethod),
-			slog.Duration("duration", duration))
-	}
-
-	return resp, err
+	return srv.Run(ctx)
 }
 
 // ListPartsForExport отдаёт запчасти потоком: их больше ста тысяч, и в один
