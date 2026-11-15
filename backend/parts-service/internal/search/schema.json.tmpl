@@ -1,0 +1,567 @@
+{
+		"settings": {
+			"analysis": {
+				"char_filter": {
+					"code_cleaner": {
+						"type": "pattern_replace",
+						"pattern": "[^a-zA-Z0-9а-яА-ЯёЁ]",
+						"replacement": ""
+					}
+				},
+				"filter": {
+					"russian_stop": {
+						"type": "stop",
+						"stopwords": "_russian_"
+					},
+					"russian_stemmer": {
+						"type": "stemmer",
+						"language": "russian"
+					},
+					"auto_synonyms": {
+						"type": "synonym_graph",
+						"synonyms": %s
+					},
+					"code_ngram": {
+						"type": "edge_ngram",
+						"min_gram": 1,
+						"max_gram": 15
+					},
+					"oem_delimiter": {
+						"type": "word_delimiter_graph",
+						"generate_word_parts": false,
+						"generate_number_parts": false,
+						"catenate_words": true,
+						"catenate_numbers": true,
+						"catenate_all": true,
+						"split_on_case_change": true,
+						"preserve_original": true
+					}
+				},
+				"normalizer": {
+					"code_normalizer": {
+						"type": "custom",
+						"char_filter": ["code_cleaner"],
+						"filter": ["lowercase"]
+					}
+				},
+				"analyzer": {
+					"custom_russian_index": {
+						"tokenizer": "standard",
+						"filter": [
+							"lowercase",
+							"russian_stop",
+							"russian_stemmer"
+						]
+					},
+					"custom_russian_search": {
+						"tokenizer": "standard",
+						"filter": [
+							"lowercase",
+							"russian_stop",
+							"auto_synonyms",
+							"russian_stemmer"
+						]
+					},
+					"part_number_analyzer": {
+						"tokenizer": "standard",
+						"filter": [
+							"lowercase",
+							"oem_delimiter",
+							"code_ngram"
+						]
+					},
+					"part_number_search_analyzer": {
+						"tokenizer": "standard",
+						"filter": [
+							"lowercase",
+							"oem_delimiter"
+						]
+					}
+				}
+			}
+		},
+		"mappings": {
+			"properties": {
+				"id": {
+					"type": "integer"
+				},
+				"name": {
+					"type": "text",
+					"analyzer": "custom_russian_index",
+					"search_analyzer": "custom_russian_search",
+					"fields": {
+						"keyword": {
+							"type": "keyword"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"quantity": {
+					"type": "integer"
+				},
+				"description": {
+					"type": "text",
+					"analyzer": "custom_russian_index",
+					"search_analyzer": "custom_russian_search"
+				},
+				"category": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"price": {
+					"type": "float"
+				},
+				"salesman": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
+						}
+					}
+				},
+				"location": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
+						}
+					}
+				},
+				"address": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
+						}
+					}
+				},
+				"status": {
+					"type": "boolean"
+				},
+				"brand": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "standard"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"model": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "standard"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"photos": {
+					"type": "keyword"
+				},
+				"inn": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "standard"
+						}
+					}
+				},
+				"number": {
+					"type": "keyword",
+					"fields": {
+						"normalized": {
+							"type": "keyword",
+							"normalizer": "code_normalizer"
+						},
+						"text": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"oem_code": {
+					"type": "keyword",
+					"fields": {
+						"normalized": {
+							"type": "keyword",
+							"normalizer": "code_normalizer"
+						},
+						"text": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"manufacturer_code": {
+					"type": "keyword",
+					"fields": {
+						"normalized": {
+							"type": "keyword",
+							"normalizer": "code_normalizer"
+						},
+						"text": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"supplier_code": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"vin": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"body_brand": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "standard"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"engine_brand": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "standard"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"manufacturer": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "standard"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"transmission": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"transmission_model": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "standard"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"defect": {
+					"type": "text",
+					"analyzer": "custom_russian_index",
+					"search_analyzer": "custom_russian_search"
+				},
+				"drive": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"condition": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"car_release_date": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "standard"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"car_release_period": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "standard"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"color": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"front_rear": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"left_right": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"top_bottom": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"season": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "custom_russian_index",
+							"search_analyzer": "custom_russian_search"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"diameter": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"width": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"profile": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"drilling": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"offset": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"center_hole_diameter": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"tire_model": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "standard"
+						},
+						"ngram": {
+							"type": "text",
+							"analyzer": "part_number_analyzer",
+							"search_analyzer": "part_number_search_analyzer"
+						}
+					}
+				},
+				"tire_quantity": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "standard"
+						}
+					}
+				},
+				"wear_percentage": {
+					"type": "keyword",
+					"fields": {
+						"text": {
+							"type": "text",
+							"analyzer": "standard"
+						}
+					}
+				}
+			}
+		}
+	}
