@@ -122,6 +122,122 @@ func (w *DefectReportWorkflow) Preview(ctx context.Context, report catalog.Defec
 	return report, nil
 }
 
+func resolveReportPartColor(partColor, category, interiorColor, bodyColor string) string {
+	color := strings.TrimSpace(partColor)
+	if color != "" {
+		return color
+	}
+	switch category {
+	case "Электрооснащение", "Система кондиционирования", "Сопутствующие товары":
+		color = strings.TrimSpace(interiorColor)
+		if color == "" {
+			return "Черный"
+		}
+		return color
+	default:
+		color = strings.TrimSpace(bodyColor)
+		if color == "" {
+			return "Белый"
+		}
+		return color
+	}
+}
+
+func convertSelectedPart(selectedPart catalog.DefectReportPart, report *catalog.DefectReportRequest, defaultUserID int64, defaultUserName string) domain.Part {
+	vin := strings.TrimSpace(selectedPart.VIN)
+	if vin == "" {
+		vin = strings.TrimSpace(report.VIN)
+	}
+
+	carReleaseDate := strings.TrimSpace(selectedPart.CarReleaseDate)
+	if carReleaseDate == "" && report.Year > 0 {
+		carReleaseDate = strconv.Itoa(report.Year)
+	}
+
+	carReleasePeriod := strings.TrimSpace(selectedPart.CarReleasePeriod)
+	if carReleasePeriod == "" {
+		carReleasePeriod = strings.TrimSpace(report.CarReleasePeriod)
+	}
+
+	bodyBrand := strings.TrimSpace(selectedPart.BodyBrand)
+	if bodyBrand == "" {
+		bodyBrand = strings.TrimSpace(report.BodyBrand)
+	}
+
+	engineBrand := strings.TrimSpace(selectedPart.EngineBrand)
+	if engineBrand == "" {
+		engineBrand = strings.TrimSpace(report.EngineBrand)
+	}
+
+	transmission := strings.TrimSpace(selectedPart.Transmission)
+	if transmission == "" {
+		transmission = strings.TrimSpace(report.Transmission)
+	}
+
+	transmissionModel := strings.TrimSpace(selectedPart.TransmissionModel)
+	if transmissionModel == "" {
+		transmissionModel = strings.TrimSpace(report.TransmissionModel)
+	}
+
+	drive := strings.TrimSpace(selectedPart.Drive)
+	if drive == "" {
+		drive = strings.TrimSpace(report.Drive)
+	}
+
+	color := resolveReportPartColor(selectedPart.Color, selectedPart.Category, report.InteriorColor, report.BodyColor)
+
+	return domain.Part{
+		PartCore: domain.PartCore{
+			Name:        strings.TrimSpace(selectedPart.Name),
+			Quantity:    selectedPart.Quantity,
+			Description: strings.TrimSpace(selectedPart.Description),
+			Category:    strings.TrimSpace(selectedPart.Category),
+			Price:       selectedPart.Price,
+			Salesman:    strings.TrimSpace(defaultUserName),
+			Location:    strings.TrimSpace(selectedPart.Location),
+			Address:     selectedPart.Address,
+			Status:      true,
+			Brand:       strings.TrimSpace(report.Brand),
+			Model:       strings.TrimSpace(report.Model),
+			Photo:       "",
+			SellerID:    defaultUserID,
+			VIN:         vin,
+		},
+		PartSpecifications: domain.PartSpecifications{
+			BodyBrand:         bodyBrand,
+			EngineBrand:       engineBrand,
+			CarReleaseDate:    carReleaseDate,
+			CarReleasePeriod:  carReleasePeriod,
+			FrontRear:         selectedPart.FrontRear,
+			LeftRight:         selectedPart.LeftRight,
+			TopBottom:         selectedPart.TopBottom,
+			Number:            selectedPart.Number,
+			Manufacturer:      selectedPart.Manufacturer,
+			ManufacturerCode:  selectedPart.ManufacturerCode,
+			OEMCode:           selectedPart.OEMCode,
+			Color:             color,
+			Condition:         selectedPart.Condition,
+			SupplierCode:      selectedPart.SupplierCode,
+			Defect:            selectedPart.Defect,
+			Transmission:      transmission,
+			TransmissionModel: transmissionModel,
+			Drive:             drive,
+			WearPercentage:    selectedPart.WearPercentage,
+		},
+		PartTireSpecifications: domain.PartTireSpecifications{
+			Season:             selectedPart.Season,
+			Diameter:           selectedPart.Diameter,
+			Width:              selectedPart.Width,
+			Profile:            selectedPart.Profile,
+			TireQuantity:       selectedPart.TireQuantity,
+			Drilling:           selectedPart.Drilling,
+			Offset:             selectedPart.Offset,
+			CenterHoleDiameter: selectedPart.CenterHoleDiameter,
+			TireModel:          selectedPart.TireModel,
+		},
+	}
+}
+
 // ConvertDefectReportToParts преобразует подготовленную ведомость в срез запчастей
 func ConvertDefectReportToParts(report *catalog.DefectReportRequest) []domain.Part {
 	var defaultUserID int64 = 1
@@ -134,111 +250,10 @@ func ConvertDefectReportToParts(report *catalog.DefectReportRequest) []domain.Pa
 		defaultUserName = report.SellerName
 	}
 
-	parts := make([]domain.Part, 0, len(report.SelectedParts))
-	for _, selectedPart := range report.SelectedParts {
-		vin := strings.TrimSpace(selectedPart.VIN)
-		carReleaseDate := strings.TrimSpace(selectedPart.CarReleaseDate)
-		carReleasePeriod := strings.TrimSpace(selectedPart.CarReleasePeriod)
-		bodyBrand := strings.TrimSpace(selectedPart.BodyBrand)
-		engineBrand := strings.TrimSpace(selectedPart.EngineBrand)
-		transmission := strings.TrimSpace(selectedPart.Transmission)
-		transmissionModel := strings.TrimSpace(selectedPart.TransmissionModel)
-		drive := strings.TrimSpace(selectedPart.Drive)
-		color := strings.TrimSpace(selectedPart.Color)
-
-		if vin == "" {
-			vin = strings.TrimSpace(report.VIN)
-		}
-		if carReleaseDate == "" && report.Year > 0 {
-			carReleaseDate = strconv.Itoa(report.Year)
-		}
-		if carReleasePeriod == "" {
-			carReleasePeriod = strings.TrimSpace(report.CarReleasePeriod)
-		}
-		if bodyBrand == "" {
-			bodyBrand = strings.TrimSpace(report.BodyBrand)
-		}
-		if engineBrand == "" {
-			engineBrand = strings.TrimSpace(report.EngineBrand)
-		}
-		if transmission == "" {
-			transmission = strings.TrimSpace(report.Transmission)
-		}
-		if transmissionModel == "" {
-			transmissionModel = strings.TrimSpace(report.TransmissionModel)
-		}
-		if drive == "" {
-			drive = strings.TrimSpace(report.Drive)
-		}
-		if color == "" {
-			switch selectedPart.Category {
-			case "Электрооснащение", "Система кондиционирования", "Сопутствующие товары":
-				color = strings.TrimSpace(report.InteriorColor)
-				if color == "" {
-					color = "Черный"
-				}
-			default:
-				color = strings.TrimSpace(report.BodyColor)
-				if color == "" {
-					color = "Белый"
-				}
-			}
-		}
-
-		part := domain.Part{
-			PartCore: domain.PartCore{
-				Name:        strings.TrimSpace(selectedPart.Name),
-				Quantity:    selectedPart.Quantity,
-				Description: strings.TrimSpace(selectedPart.Description),
-				Category:    strings.TrimSpace(selectedPart.Category),
-				Price:       selectedPart.Price,
-				Salesman:    strings.TrimSpace(defaultUserName),
-				Location:    strings.TrimSpace(selectedPart.Location),
-				Address:     selectedPart.Address,
-				Status:      true,
-				Brand:       strings.TrimSpace(report.Brand),
-				Model:       strings.TrimSpace(report.Model),
-				Photo:       "",
-				SellerID:    defaultUserID,
-				VIN:         vin,
-			},
-			PartSpecifications: domain.PartSpecifications{
-				BodyBrand:         bodyBrand,
-				EngineBrand:       engineBrand,
-				CarReleaseDate:    carReleaseDate,
-				CarReleasePeriod:  carReleasePeriod,
-				FrontRear:         selectedPart.FrontRear,
-				LeftRight:         selectedPart.LeftRight,
-				TopBottom:         selectedPart.TopBottom,
-				Number:            selectedPart.Number,
-				Manufacturer:      selectedPart.Manufacturer,
-				ManufacturerCode:  selectedPart.ManufacturerCode,
-				OEMCode:           selectedPart.OEMCode,
-				Color:             color,
-				Condition:         selectedPart.Condition,
-				SupplierCode:      selectedPart.SupplierCode,
-				Defect:            selectedPart.Defect,
-				Transmission:      transmission,
-				TransmissionModel: transmissionModel,
-				Drive:             drive,
-				WearPercentage:    selectedPart.WearPercentage,
-			},
-			PartTireSpecifications: domain.PartTireSpecifications{
-				Season:             selectedPart.Season,
-				Diameter:           selectedPart.Diameter,
-				Width:              selectedPart.Width,
-				Profile:            selectedPart.Profile,
-				TireQuantity:       selectedPart.TireQuantity,
-				Drilling:           selectedPart.Drilling,
-				Offset:             selectedPart.Offset,
-				CenterHoleDiameter: selectedPart.CenterHoleDiameter,
-				TireModel:          selectedPart.TireModel,
-			},
-		}
-
-		parts = append(parts, part)
+	parts := make([]domain.Part, len(report.SelectedParts))
+	for i, selectedPart := range report.SelectedParts {
+		parts[i] = convertSelectedPart(selectedPart, report, defaultUserID, defaultUserName)
 	}
-
 	return parts
 }
 

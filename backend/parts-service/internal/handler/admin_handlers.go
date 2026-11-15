@@ -37,6 +37,22 @@ func parseBulkDeleteLegacyJSON(bodyBytes []byte) (*partsv1.BulkDeletePartsReques
 	}, nil
 }
 
+func parseLegacyUpdateItem(item map[string]interface{}) *partsv1.BulkUpdatePartData {
+	partData := &partsv1.BulkUpdatePartData{
+		Fields: make(map[string]string),
+	}
+	for k, v := range item {
+		if k == "id" {
+			if idFloat, ok := v.(float64); ok {
+				partData.Id = int64(idFloat)
+			}
+			continue
+		}
+		partData.Fields[k] = fmt.Sprintf("%v", v)
+	}
+	return partData
+}
+
 func parseBulkUpdateLegacyJSON(bodyBytes []byte) ([]*partsv1.BulkUpdatePartData, error) {
 	var legacyUpdates []map[string]interface{}
 	if err := json.Unmarshal(bodyBytes, &legacyUpdates); err != nil {
@@ -45,21 +61,9 @@ func parseBulkUpdateLegacyJSON(bodyBytes []byte) ([]*partsv1.BulkUpdatePartData,
 	if len(legacyUpdates) == 0 {
 		return nil, errors.New("empty legacy update list")
 	}
-	parts := make([]*partsv1.BulkUpdatePartData, 0, len(legacyUpdates))
-	for _, item := range legacyUpdates {
-		partData := &partsv1.BulkUpdatePartData{
-			Fields: make(map[string]string),
-		}
-		for k, v := range item {
-			if k == "id" {
-				if idFloat, ok := v.(float64); ok {
-					partData.Id = int64(idFloat)
-				}
-				continue
-			}
-			partData.Fields[k] = fmt.Sprintf("%v", v)
-		}
-		parts = append(parts, partData)
+	parts := make([]*partsv1.BulkUpdatePartData, len(legacyUpdates))
+	for i, item := range legacyUpdates {
+		parts[i] = parseLegacyUpdateItem(item)
 	}
 	return parts, nil
 }

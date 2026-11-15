@@ -5,12 +5,12 @@ import (
 	"embed"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
+	"avtoplaneta/pkg/env"
 	"avtoplaneta/pkg/postgres"
 	"avtoplaneta/pkg/redisclient"
 )
@@ -24,13 +24,7 @@ var repo MessagingRepository
 var svc MessagingService
 
 func InitDatabase() {
-	dsn := os.Getenv("MESSAGING_DATABASE_URL")
-	if dsn == "" {
-		dsn = os.Getenv("DATABASE_URL")
-	}
-	if dsn == "" {
-		dsn = "host=localhost user=postgres dbname=autoplanet port=5432 sslmode=disable"
-	}
+	dsn := env.FirstNonEmpty([]string{"MESSAGING_DATABASE_URL", "DATABASE_URL"}, "host=localhost user=postgres dbname=autoplanet port=5432 sslmode=disable")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -61,11 +55,8 @@ func InitDatabase() {
 }
 
 func InitRedis() {
-	redisAddr := os.Getenv("REDIS_URL")
-	if redisAddr == "" {
-		redisAddr = "localhost:6379"
-	}
-	redisPassword := os.Getenv("REDIS_PASSWORD")
+	redisAddr := env.String("REDIS_URL", "localhost:6379")
+	redisPassword := env.String("REDIS_PASSWORD", "")
 
 	RedisClient = redis.NewClient(&redis.Options{
 		Addr:     redisAddr,

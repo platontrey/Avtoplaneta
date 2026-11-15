@@ -1,6 +1,8 @@
 package config
 
-import "os"
+import (
+	"avtoplaneta/pkg/env"
+)
 
 // Config содержит конфигурационные параметры приложения orders-service
 type Config struct {
@@ -21,79 +23,24 @@ type Config struct {
 
 // LoadConfig загружает конфигурацию из переменных окружения
 func LoadConfig() *Config {
-	dbURL := os.Getenv("ORDERS_DATABASE_URL")
-	if dbURL == "" {
-		dbURL = os.Getenv("DATABASE_URL")
-	}
-	if dbURL == "" {
-		dbURL = "host=localhost user=postgres dbname=autoplanet port=5432 sslmode=disable"
-	}
-
-	grpcPort := os.Getenv("GRPC_PORT")
-	if grpcPort == "" {
-		grpcPort = "9082"
-	}
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8082"
-	}
-
-	sessionSecret := os.Getenv("SESSION_SECRET")
-	if sessionSecret == "" {
-		sessionSecret = "CHANGE_THIS_IN_PRODUCTION_TO_A_SECURE_RANDOM_KEY_32_CHARS_MIN"
-	}
-
-	redisURL := os.Getenv("REDIS_URL")
-	if redisURL == "" {
-		redisURL = "localhost:6379"
-	}
-
-	authURL := os.Getenv("AUTH_SERVICE_URL")
-	if authURL == "" {
-		authURL = "http://localhost:8083"
-	}
-
-	authGRPCURL := os.Getenv("AUTH_SERVICE_GRPC_URL")
-	if authGRPCURL == "" {
-		if addr := os.Getenv("AUTH_GRPC_ADDR"); addr != "" {
-			authGRPCURL = addr
-		} else {
-			authGRPCURL = "localhost:9083"
-		}
-	}
-
-	partsGRPCURL := os.Getenv("PARTS_SERVICE_GRPC_URL")
-	if partsGRPCURL == "" {
-		partsGRPCURL = "localhost:9081"
-	}
-
-	logLevel := os.Getenv("LOG_LEVEL")
-	if logLevel == "" {
-		logLevel = "info"
-	}
-	logFormat := os.Getenv("LOG_FORMAT")
-	if logFormat == "" {
-		if os.Getenv("NODE_ENV") == "production" {
-			logFormat = "json"
-		} else {
-			logFormat = "text"
-		}
+	defaultLogFormat := "text"
+	if env.String("NODE_ENV", "") == "production" {
+		defaultLogFormat = "json"
 	}
 
 	return &Config{
-		DatabaseURL:         dbURL,
-		SessionSecret:       sessionSecret,
-		NodeEnv:             os.Getenv("NODE_ENV"),
-		Port:                port,
-		GRPCPort:            grpcPort,
-		RedisURL:            redisURL,
-		RedisPassword:       os.Getenv("REDIS_PASSWORD"),
-		RedisDB:             0,
-		AuthServiceURL:      authURL,
-		AuthServiceGRPCURL:  authGRPCURL,
-		PartsServiceGRPCURL: partsGRPCURL,
-		LogLevel:            logLevel,
-		LogFormat:           logFormat,
+		DatabaseURL:         env.FirstNonEmpty([]string{"ORDERS_DATABASE_URL", "DATABASE_URL"}, "host=localhost user=postgres dbname=autoplanet port=5432 sslmode=disable"),
+		SessionSecret:       env.String("SESSION_SECRET", "CHANGE_THIS_IN_PRODUCTION_TO_A_SECURE_RANDOM_KEY_32_CHARS_MIN"),
+		NodeEnv:             env.String("NODE_ENV", "development"),
+		Port:                env.String("PORT", "8082"),
+		GRPCPort:            env.String("GRPC_PORT", "9082"),
+		RedisURL:            env.String("REDIS_URL", "localhost:6379"),
+		RedisPassword:       env.String("REDIS_PASSWORD", ""),
+		RedisDB:             env.Int("REDIS_DB", 0),
+		AuthServiceURL:      env.String("AUTH_SERVICE_URL", "http://localhost:8083"),
+		AuthServiceGRPCURL:  env.FirstNonEmpty([]string{"AUTH_SERVICE_GRPC_URL", "AUTH_GRPC_ADDR"}, "localhost:9083"),
+		PartsServiceGRPCURL: env.String("PARTS_SERVICE_GRPC_URL", "localhost:9081"),
+		LogLevel:            env.String("LOG_LEVEL", "info"),
+		LogFormat:           env.String("LOG_FORMAT", defaultLogFormat),
 	}
 }

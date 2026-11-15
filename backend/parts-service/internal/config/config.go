@@ -1,6 +1,8 @@
 package config
 
-import "os"
+import (
+	"avtoplaneta/pkg/env"
+)
 
 // Config содержит конфигурационные параметры приложения
 type Config struct {
@@ -15,42 +17,18 @@ type Config struct {
 
 // LoadConfig загружает конфигурацию из переменных окружения
 func LoadConfig() *Config {
-	config := &Config{
-		DatabaseURL:      os.Getenv("DATABASE_URL"),
-		Port:             os.Getenv("PORT"),
-		RedisURL:         os.Getenv("REDIS_URL"),
-		RedisPassword:    os.Getenv("REDIS_PASSWORD"),
-		ElasticsearchURL: os.Getenv("ELASTICSEARCH_URL"),
-		LogLevel:         os.Getenv("LOG_LEVEL"),
-		LogFormat:        os.Getenv("LOG_FORMAT"),
+	defaultLogFormat := "text"
+	if env.String("NODE_ENV", "") == "production" {
+		defaultLogFormat = "json"
 	}
 
-	// Значения по умолчанию
-	if config.DatabaseURL == "" {
-		config.DatabaseURL = "host=localhost user=postgres dbname=autoplanet port=5432 sslmode=disable"
+	return &Config{
+		DatabaseURL:      env.String("DATABASE_URL", "host=localhost user=postgres dbname=autoplanet port=5432 sslmode=disable"),
+		Port:             env.String("PORT", "8081"),
+		RedisURL:         env.String("REDIS_URL", "127.0.0.1:6379"),
+		RedisPassword:    env.String("REDIS_PASSWORD", ""),
+		ElasticsearchURL: env.String("ELASTICSEARCH_URL", "http://localhost:9200"),
+		LogLevel:         env.String("LOG_LEVEL", "info"),
+		LogFormat:        env.String("LOG_FORMAT", defaultLogFormat),
 	}
-	if config.Port == "" {
-		config.Port = "8081"
-	}
-	if config.RedisURL == "" {
-		config.RedisURL = "127.0.0.1:6379"
-	}
-	if config.RedisPassword == "" {
-		config.RedisPassword = ""
-	}
-	if config.ElasticsearchURL == "" {
-		config.ElasticsearchURL = "http://localhost:9200"
-	}
-	if config.LogLevel == "" {
-		config.LogLevel = "info"
-	}
-	if config.LogFormat == "" {
-		if os.Getenv("NODE_ENV") == "production" {
-			config.LogFormat = "json"
-		} else {
-			config.LogFormat = "text"
-		}
-	}
-
-	return config
 }

@@ -521,6 +521,35 @@ func parseBriefHTML(htmlSnippet string, dialog *DromDialog) {
 	}
 }
 
+func parseDromPartPrice(fullText, partTitle string) string {
+	if idx := strings.Index(fullText, "•"); idx != -1 {
+		return strings.TrimSpace(fullText[:idx])
+	}
+	if idx := strings.Index(fullText, "р."); idx != -1 {
+		return strings.TrimSpace(fullText[:idx+len("р.")])
+	}
+	if partTitle != "" {
+		pricePart := strings.TrimSpace(strings.ReplaceAll(fullText, partTitle, ""))
+		return strings.Trim(pricePart, " •\t\r\n")
+	}
+	return ""
+}
+
+func parseDromSubtitle(subTitle *goquery.Selection, dialog *DromDialog) {
+	if subTitle.Length() == 0 {
+		return
+	}
+	if partLink := subTitle.Find("a"); partLink.Length() > 0 {
+		dialog.PartTitle = strings.TrimSpace(partLink.Text())
+		dialog.PartURL = strings.TrimSpace(partLink.AttrOr("href", ""))
+	}
+
+	fullText := strings.ReplaceAll(subTitle.Text(), "\u00a0", " ")
+	if price := parseDromPartPrice(fullText, dialog.PartTitle); price != "" {
+		dialog.PartPrice = price
+	}
+}
+
 func parseDromHeaderHTML(headerHTML string, dialog *DromDialog) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(headerHTML))
 	if err != nil {
@@ -539,24 +568,7 @@ func parseDromHeaderHTML(headerHTML string, dialog *DromDialog) {
 		dialog.UserStatus = status
 	}
 
-	subTitle := doc.Find(".bzr-dialog-header__sub-title")
-	if subTitle.Length() > 0 {
-		partLink := subTitle.Find("a")
-		if partLink.Length() > 0 {
-			dialog.PartTitle = strings.TrimSpace(partLink.Text())
-			dialog.PartURL = strings.TrimSpace(partLink.AttrOr("href", ""))
-		}
-
-		fullText := strings.ReplaceAll(subTitle.Text(), "\u00a0", " ")
-		if idx := strings.Index(fullText, "•"); idx != -1 {
-			dialog.PartPrice = strings.TrimSpace(fullText[:idx])
-		} else if idx := strings.Index(fullText, "р."); idx != -1 {
-			dialog.PartPrice = strings.TrimSpace(fullText[:idx+len("р.")])
-		} else if dialog.PartTitle != "" {
-			pricePart := strings.TrimSpace(strings.ReplaceAll(fullText, dialog.PartTitle, ""))
-			dialog.PartPrice = strings.Trim(pricePart, " •\t\r\n")
-		}
-	}
+	parseDromSubtitle(doc.Find(".bzr-dialog-header__sub-title"), dialog)
 
 	if dialog.PartURL != "" {
 		if m := regexp.MustCompile(`-(\d+)\.html`).FindStringSubmatch(dialog.PartURL); len(m) > 1 {
@@ -900,6 +912,55 @@ func (s *messagingService) SaveDromSession(ctx context.Context, rawSession []byt
 	return nil
 }
 
+func extractCSRFTokenFromBody(body []byte, doc *goquery.Document) string {
+	if doc != nil {
+		if val, exists := doc.Find("input[name='csrfToken']").Attr("value"); exists && val != "" {
+			return strings.TrimSpace(val)
+		}
+		if val, exists := doc.Find("#csrfToken").Attr("value"); exists && val != "" {
+			return strings.TrimSpace(val)
+		}
+	}
+	patterns := []string{
+		`<input[^>]*name=["']csrfToken["'][^>]*value=["']([^"']+)["']`,
+		`<input[^>]*value=["']([^"']+)["'][^>]*name=["']csrfToken["']`,
+		`name=["']csrfToken["']\s+type=["']hidden["']\s+value=["']([^"']+)["']`,
+	}
+	for _, p := range patterns {
+		if m := regexp.MustCompile(p).FindSubmatch(body); len(m) > 1 {
+			return string(m[1])
+		}
+	}
+	return ""
+}
+
+func inspectSessionCookies(jar http.CookieJar) ([]SessionCookie, bool, bool) {
+	seenCookies := make(map[string]bool)
+	var sessionCookies []SessionCookie
+	hasRing := false
+	hasAuthCookie := false
+
+	for _, hostURL := range []string{"https://my.drom.ru", "https://baza.drom.ru", "https://drom.ru"} {
+		u, _ := url.Parse(hostURL)
+		for _, c := range jar.Cookies(u) {
+			if !seenCookies[c.Name] {
+				seenCookies[c.Name] = true
+				sessionCookies = append(sessionCookies, SessionCookie{
+					Name:  c.Name,
+					Value: c.Value,
+				})
+			}
+			if c.Name == "ring" || c.Name == "ring_session" {
+				hasRing = true
+			}
+			if c.Name == "uid" || c.Name == "login" || c.Name == "boobs" {
+				hasAuthCookie = true
+			}
+		}
+	}
+	return sessionCookies, hasAuthCookie, hasRing
+}
+
 func (s *messagingService) LoginDrom(ctx context.Context, login, password, code string) (map[string]interface{}, error) {
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{
@@ -934,26 +995,8 @@ func (s *messagingService) LoginDrom(ctx context.Context, login, password, code 
 		}, nil
 	}
 
-	// Extract CSRF token reliably using goquery or fallback regex
-	csrfToken := ""
-	var doc1 *goquery.Document
-	if doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body1)); err == nil {
-		doc1 = doc
-		if val, exists := doc1.Find("input[name='csrfToken']").Attr("value"); exists && val != "" {
-			csrfToken = strings.TrimSpace(val)
-		} else if val, exists := doc1.Find("#csrfToken").Attr("value"); exists && val != "" {
-			csrfToken = strings.TrimSpace(val)
-		}
-	}
-	if csrfToken == "" {
-		if m := regexp.MustCompile(`<input[^>]*name=["']csrfToken["'][^>]*value=["']([^"']+)["']`).FindSubmatch(body1); len(m) > 1 {
-			csrfToken = string(m[1])
-		} else if m := regexp.MustCompile(`<input[^>]*value=["']([^"']+)["'][^>]*name=["']csrfToken["']`).FindSubmatch(body1); len(m) > 1 {
-			csrfToken = string(m[1])
-		} else if m := regexp.MustCompile(`name=["']csrfToken["']\s+type=["']hidden["']\s+value=["']([^"']+)["']`).FindSubmatch(body1); len(m) > 1 {
-			csrfToken = string(m[1])
-		}
-	}
+	doc1, _ := goquery.NewDocumentFromReader(bytes.NewReader(body1))
+	csrfToken := extractCSRFTokenFromBody(body1, doc1)
 
 	if csrfToken == "" {
 		if doc1 != nil && doc1.Find("input[name='g-recaptcha-response'], #send-button, .captcha").Length() > 0 {
@@ -1008,29 +1051,7 @@ func (s *messagingService) LoginDrom(ctx context.Context, login, password, code 
 	resp2.Body.Close()
 
 	// 4. Inspect cookies across all relevant Drom domains
-	seenCookies := make(map[string]bool)
-	var sessionCookies []SessionCookie
-	hasRing := false
-	hasAuthCookie := false
-
-	for _, hostURL := range []string{"https://my.drom.ru", "https://baza.drom.ru", "https://drom.ru"} {
-		u, _ := url.Parse(hostURL)
-		for _, c := range jar.Cookies(u) {
-			if !seenCookies[c.Name] {
-				seenCookies[c.Name] = true
-				sessionCookies = append(sessionCookies, SessionCookie{
-					Name:  c.Name,
-					Value: c.Value,
-				})
-			}
-			if c.Name == "ring" || c.Name == "ring_session" {
-				hasRing = true
-			}
-			if c.Name == "uid" || c.Name == "login" || c.Name == "boobs" {
-				hasAuthCookie = true
-			}
-		}
-	}
+	sessionCookies, hasAuthCookie, hasRing := inspectSessionCookies(jar)
 
 	finalURL := resp2.Request.URL.String()
 	isLoggedIn := (hasAuthCookie || hasRing) && !strings.Contains(finalURL, "/sign")

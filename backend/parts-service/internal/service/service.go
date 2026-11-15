@@ -827,24 +827,33 @@ func inventoryQueryParamsFromProtoFilter(f *partsv1.GetInventoryRequest) domain.
 	}
 }
 
+func (s *inventoryService) searchPartIDsViaES(ctx context.Context, params domain.InventoryQueryParams) ([]int64, bool) {
+	if strings.TrimSpace(params.Search) == "" || s.es == nil {
+		return nil, false
+	}
+	esQuery := s.buildElasticsearchQuery(params)
+	esParts, total, err := s.es.SearchParts(esQuery, 0, 10000)
+	if err != nil {
+		slog.WarnContext(ctx, "resolvePartIDsFromFilter: Failed to search via Elasticsearch, falling back to database", logger.Err(err))
+		return nil, false
+	}
+	if total > 10000 {
+		slog.InfoContext(ctx, "resolvePartIDsFromFilter: Search matched >10000 items in Elasticsearch, resolving all IDs via database", slog.Int64("total", total))
+		return nil, false
+	}
+	ids := make([]int64, len(esParts))
+	for i, p := range esParts {
+		ids[i] = p.ID
+	}
+	return ids, true
+}
+
 func (s *inventoryService) resolvePartIDsFromFilter(ctx context.Context, f *partsv1.GetInventoryRequest) ([]int64, error) {
 	params := inventoryQueryParamsFromProtoFilter(f)
 
 	// Полнотекстовый поиск через Elasticsearch используем только при наличии поисковой строки Search
-	if strings.TrimSpace(params.Search) != "" && s.es != nil {
-		esQuery := s.buildElasticsearchQuery(params)
-		esParts, total, err := s.es.SearchParts(esQuery, 0, 10000)
-		if err != nil {
-			slog.WarnContext(ctx, "resolvePartIDsFromFilter: Failed to search via Elasticsearch, falling back to database", logger.Err(err))
-		} else if total <= 10000 {
-			ids := make([]int64, len(esParts))
-			for i, p := range esParts {
-				ids[i] = p.ID
-			}
-			return ids, nil
-		} else {
-			slog.InfoContext(ctx, "resolvePartIDsFromFilter: Search matched >10000 items in Elasticsearch, resolving all IDs via database", slog.Int64("total", total))
-		}
+	if ids, ok := s.searchPartIDsViaES(ctx, params); ok {
+		return ids, nil
 	}
 
 	filterMap := s.buildDatabaseFilters(params)
@@ -871,29 +880,45 @@ func (s *inventoryService) BulkDeleteParts(ctx context.Context, ids []int64) err
 	return err
 }
 
+func collectPhotosToDelete(parts []domain.Part) []string {
+	var photos []string
+	for _, p := range parts {
+		for _, photo := range p.Photos {
+			if strings.TrimSpace(photo) != "" {
+				photos = append(photos, photo)
+			}
+		}
+	}
+	return photos
+}
+
+func (s *inventoryService) resolveDeleteIDs(ctx context.Context, req *partsv1.BulkDeletePartsRequest) ([]int64, error) {
+	if req.Scope != nil && req.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_FILTER {
+		if isFilterEmpty(req.Scope.Filter) && !req.ConfirmEntireCatalog {
+			return nil, fmt.Errorf("массовое удаление всего каталога требует явного подтверждения (confirm_entire_catalog)")
+		}
+		resolved, err := s.resolvePartIDsFromFilter(ctx, req.Scope.Filter)
+		if err != nil {
+			return nil, fmt.Errorf("ошибка выборки запчастей для удаления: %w", err)
+		}
+		return resolved, nil
+	}
+	if req.Scope != nil && (req.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_IDS || len(req.Scope.Ids) > 0) {
+		return req.Scope.Ids, nil
+	}
+	return req.Ids, nil
+}
+
 // BulkDeletePartsWithProto выполняет массовое удаление запчастей по Protobuf спецификации
 func (s *inventoryService) BulkDeletePartsWithProto(ctx context.Context, req *partsv1.BulkDeletePartsRequest) (int, error) {
 	if req == nil {
 		return 0, nil
 	}
 
-	var ids []int64
-
-	if req.Scope != nil && req.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_FILTER {
-		if isFilterEmpty(req.Scope.Filter) && !req.ConfirmEntireCatalog {
-			return 0, fmt.Errorf("массовое удаление всего каталога требует явного подтверждения (confirm_entire_catalog)")
-		}
-		resolved, err := s.resolvePartIDsFromFilter(ctx, req.Scope.Filter)
-		if err != nil {
-			return 0, fmt.Errorf("ошибка выборки запчастей для удаления: %w", err)
-		}
-		ids = resolved
-	} else if req.Scope != nil && (req.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_IDS || len(req.Scope.Ids) > 0) {
-		ids = req.Scope.Ids
-	} else if len(req.Ids) > 0 {
-		ids = req.Ids
+	ids, err := s.resolveDeleteIDs(ctx, req)
+	if err != nil {
+		return 0, err
 	}
-
 	if len(ids) == 0 {
 		return 0, nil
 	}
@@ -904,13 +929,7 @@ func (s *inventoryService) BulkDeletePartsWithProto(ctx context.Context, req *pa
 	partsToDelete, err := s.repo.FindWithFilters(ctx, map[string]interface{}{"ids_in": ids}, 0, len(ids))
 	var photosToDelete []string
 	if err == nil {
-		for _, p := range partsToDelete {
-			for _, photo := range p.Photos {
-				if strings.TrimSpace(photo) != "" {
-					photosToDelete = append(photosToDelete, photo)
-				}
-			}
-		}
+		photosToDelete = collectPhotosToDelete(partsToDelete)
 	}
 
 	// 2. Мгновенное удаление записей в PostgreSQL (транзакция 50-150 мс)
@@ -961,6 +980,70 @@ func (s *inventoryService) BulkDeletePartsWithProto(ctx context.Context, req *pa
 	return len(ids), nil
 }
 
+func convertLegacyPartsUpdates(parts []*partsv1.BulkUpdatePartData) ([]map[string]interface{}, []int64) {
+	updates := make([]map[string]interface{}, len(parts))
+	ids := make([]int64, len(parts))
+	for i, p := range parts {
+		m := make(map[string]interface{}, len(p.Fields)+1)
+		m["id"] = p.Id
+		ids[i] = p.Id
+		for k, v := range p.Fields {
+			m[k] = v
+		}
+		updates[i] = m
+	}
+	return updates, ids
+}
+
+func (s *inventoryService) prepareBulkUpdateFilter(ctx context.Context, req *partsv1.BulkUpdatePartsRequest) (map[string]interface{}, bool, error) {
+	if req.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_FILTER {
+		if isFilterEmpty(req.Scope.Filter) && !req.ConfirmEntireCatalog {
+			return nil, false, fmt.Errorf("массовая операция над всем каталогом требует явного подтверждения (confirm_entire_catalog)")
+		}
+
+		params := inventoryQueryParamsFromProtoFilter(req.Scope.Filter)
+		// Резолвим IDs через Elasticsearch ТОЛЬКО если задан свободный текстовый поиск (Search != "").
+		// Для структурных фильтров склада (наличие фото, статус, категория, бренд, склад и т.д.)
+		// запрос выполняется напрямую в PostgreSQL без искусственного лимита Elasticsearch в 10 000.
+		if strings.TrimSpace(params.Search) != "" {
+			resolvedIDs, err := s.resolvePartIDsFromFilter(ctx, req.Scope.Filter)
+			if err != nil {
+				return nil, false, fmt.Errorf("ошибка разрешения списка запчастей: %w", err)
+			}
+			if len(resolvedIDs) == 0 {
+				return nil, true, nil
+			}
+			req.Scope.Type = partsv1.BulkScopeType_BULK_SCOPE_TYPE_IDS
+			req.Scope.Ids = resolvedIDs
+		}
+	}
+
+	var filterMap map[string]interface{}
+	if req.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_FILTER && req.Scope.Filter != nil {
+		params := inventoryQueryParamsFromProtoFilter(req.Scope.Filter)
+		filterMap = s.buildDatabaseFilters(params)
+		filterMap["to_delete_at_is_null"] = true
+		filterMap["quantity_gte"] = 0
+	}
+	return filterMap, false, nil
+}
+
+func (s *inventoryService) executeLegacyBulkUpdate(ctx context.Context, parts []*partsv1.BulkUpdatePartData) ([]domain.Part, int, error) {
+	updates, ids := convertLegacyPartsUpdates(parts)
+	count, err := s.repo.BulkUpdate(ctx, updates)
+	if err != nil {
+		slog.ErrorContext(ctx, "InventoryService.BulkUpdateParts: Failed legacy bulk update", logger.Err(err))
+		return nil, 0, err
+	}
+	var updatedParts []domain.Part
+	if len(ids) > 0 {
+		if p, err := s.repo.FindWithFilters(ctx, map[string]interface{}{"ids_in": ids}, 0, 0); err == nil {
+			updatedParts = p
+		}
+	}
+	return updatedParts, count, nil
+}
+
 // BulkUpdateParts обновляет запчасти по Protobuf спецификации
 func (s *inventoryService) BulkUpdateParts(ctx context.Context, req *partsv1.BulkUpdatePartsRequest) (int, error) {
 	if req == nil {
@@ -976,34 +1059,12 @@ func (s *inventoryService) BulkUpdateParts(ctx context.Context, req *partsv1.Bul
 
 	// Сценарий 1: Умный Scope (по IDs или по Filter)
 	if req.Scope != nil {
-		if req.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_FILTER {
-			if isFilterEmpty(req.Scope.Filter) && !req.ConfirmEntireCatalog {
-				return 0, fmt.Errorf("массовая операция над всем каталогом требует явного подтверждения (confirm_entire_catalog)")
-			}
-
-			params := inventoryQueryParamsFromProtoFilter(req.Scope.Filter)
-			// Резолвим IDs через Elasticsearch ТОЛЬКО если задан свободный текстовый поиск (Search != "").
-			// Для структурных фильтров склада (наличие фото, статус, категория, бренд, склад и т.д.)
-			// запрос выполняется напрямую в PostgreSQL без искусственного лимита Elasticsearch в 10 000.
-			if strings.TrimSpace(params.Search) != "" {
-				resolvedIDs, err := s.resolvePartIDsFromFilter(ctx, req.Scope.Filter)
-				if err != nil {
-					return 0, fmt.Errorf("ошибка разрешения списка запчастей: %w", err)
-				}
-				if len(resolvedIDs) == 0 {
-					return 0, nil
-				}
-				req.Scope.Type = partsv1.BulkScopeType_BULK_SCOPE_TYPE_IDS
-				req.Scope.Ids = resolvedIDs
-			}
+		filterMap, earlyExit, err := s.prepareBulkUpdateFilter(ctx, req)
+		if err != nil {
+			return 0, err
 		}
-
-		var filterMap map[string]interface{}
-		if req.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_FILTER && req.Scope.Filter != nil {
-			params := inventoryQueryParamsFromProtoFilter(req.Scope.Filter)
-			filterMap = s.buildDatabaseFilters(params)
-			filterMap["to_delete_at_is_null"] = true
-			filterMap["quantity_gte"] = 0
+		if earlyExit {
+			return 0, nil
 		}
 
 		parts, err := s.repo.BulkUpdateWithProto(ctx, req, filterMap)
@@ -1015,29 +1076,12 @@ func (s *inventoryService) BulkUpdateParts(ctx context.Context, req *partsv1.Bul
 		updatedCount = len(parts)
 	} else if len(req.Parts) > 0 {
 		// Сценарий 2: Обратная совместимость с массивом parts: [{id, fields}]
-		updates := make([]map[string]interface{}, len(req.Parts))
-		ids := make([]int64, len(req.Parts))
-		for i, p := range req.Parts {
-			m := make(map[string]interface{})
-			m["id"] = p.Id
-			ids[i] = p.Id
-			for k, v := range p.Fields {
-				m[k] = v
-			}
-			updates[i] = m
-		}
-		count, err := s.repo.BulkUpdate(ctx, updates)
+		parts, count, err := s.executeLegacyBulkUpdate(ctx, req.Parts)
 		if err != nil {
-			slog.ErrorContext(ctx, "InventoryService.BulkUpdateParts: Failed legacy bulk update", logger.Err(err))
 			return 0, err
 		}
+		updatedParts = parts
 		updatedCount = count
-		// Получаем обновленные запчасти для синхронизации с ES
-		if len(ids) > 0 {
-			if parts, err := s.repo.FindWithFilters(ctx, map[string]interface{}{"ids_in": ids}, 0, 0); err == nil {
-				updatedParts = parts
-			}
-		}
 	}
 
 	// 1. Elasticsearch Bulk Indexing (синхронизация полнотекстового индекса)

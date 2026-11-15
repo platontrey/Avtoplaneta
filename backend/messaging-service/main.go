@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
+	"avtoplaneta/pkg/env"
 	"avtoplaneta/pkg/ginmw"
 	"avtoplaneta/pkg/httpserver"
 	"avtoplaneta/pkg/logger"
@@ -59,10 +60,7 @@ func main() {
 	InitRedis()
 
 	// Запуск gRPC-сервера в отдельной горутине
-	grpcPort := os.Getenv("GRPC_PORT")
-	if grpcPort == "" {
-		grpcPort = "9084"
-	}
+	grpcPort := env.String("GRPC_PORT", "9084")
 	go func() {
 		if err := StartGRPCServer(ctx, grpcPort); err != nil && !errors.Is(err, context.Canceled) {
 			slog.Error("gRPC server failed", logger.Err(err))
@@ -78,11 +76,7 @@ func main() {
 	r.Static("/api/v1/messaging/uploads", "./uploads")
 
 	// Set API_BASE_URL
-	if os.Getenv("MESSAGING_SERVICE_URL") != "" {
-		os.Setenv("API_BASE_URL", os.Getenv("MESSAGING_SERVICE_URL"))
-	} else {
-		os.Setenv("API_BASE_URL", "http://localhost:8084")
-	}
+	os.Setenv("API_BASE_URL", env.String("MESSAGING_SERVICE_URL", "http://localhost:8084"))
 
 	// Start WebSocket Hub
 	go globalHub.Run()
@@ -91,10 +85,7 @@ func main() {
 	setupRoutes(r)
 
 	// Запуск HTTP-сервера через общий пакет httpserver (graceful shutdown + TLS)
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8084"
-	}
+	port := env.String("PORT", "8084")
 
 	if err := httpserver.Run(ctx, port, r); err != nil {
 		slog.Error("Messaging service HTTP server failed", logger.Err(err))

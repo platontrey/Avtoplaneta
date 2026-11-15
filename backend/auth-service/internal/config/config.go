@@ -1,6 +1,6 @@
 package config
 
-import "os"
+import "avtoplaneta/pkg/env"
 
 // Config содержит конфигурационные параметры приложения
 type Config struct {
@@ -17,36 +17,16 @@ type Config struct {
 
 // LoadConfig загружает конфигурацию из переменных окружения
 func LoadConfig() *Config {
-	cfg := &Config{
-		DatabaseURL:     os.Getenv("DATABASE_URL"),
-		SessionSecret:   os.Getenv("SESSION_SECRET"),
-		NodeEnv:         os.Getenv("NODE_ENV"),
-		Port:            os.Getenv("PORT"),
-		AllowedOrigins:  os.Getenv("ALLOWED_ORIGINS"),
-		PartsServiceURL: os.Getenv("PARTS_SERVICE_URL"),
-		PartsGRPCAddr:   os.Getenv("PARTS_GRPC_ADDR"),
-		JWTSecret:       os.Getenv("JWT_SECRET"),
-		RedisURL:        os.Getenv("REDIS_URL"),
+	sessionSecret := env.String("SESSION_SECRET", "CHANGE_THIS_IN_PRODUCTION_TO_A_SECURE_RANDOM_KEY_32_CHARS_MIN")
+	return &Config{
+		DatabaseURL:     env.String("DATABASE_URL", "host=localhost user=postgres password=postgres dbname=avtoplaneta port=5432 sslmode=disable"),
+		SessionSecret:   sessionSecret,
+		NodeEnv:         env.String("NODE_ENV", "development"),
+		Port:            env.String("PORT", "8083"),
+		AllowedOrigins:  env.String("ALLOWED_ORIGINS", ""),
+		PartsServiceURL: env.String("PARTS_SERVICE_URL", "http://localhost:8081"),
+		PartsGRPCAddr:   env.String("PARTS_GRPC_ADDR", "localhost:9081"),
+		JWTSecret:       env.String("JWT_SECRET", sessionSecret),
+		RedisURL:        env.String("REDIS_URL", ""),
 	}
-
-	if cfg.PartsGRPCAddr == "" {
-		cfg.PartsGRPCAddr = "localhost:9081"
-	}
-	if cfg.PartsServiceURL == "" {
-		cfg.PartsServiceURL = "http://localhost:8081"
-	}
-	if cfg.DatabaseURL == "" {
-		cfg.DatabaseURL = "host=localhost user=postgres password=postgres dbname=avtoplaneta port=5432 sslmode=disable"
-	}
-	if cfg.SessionSecret == "" {
-		cfg.SessionSecret = "CHANGE_THIS_IN_PRODUCTION_TO_A_SECURE_RANDOM_KEY_32_CHARS_MIN"
-	}
-	if cfg.Port == "" {
-		cfg.Port = "8083"
-	}
-	if cfg.JWTSecret == "" {
-		cfg.JWTSecret = cfg.SessionSecret
-	}
-
-	return cfg
 }

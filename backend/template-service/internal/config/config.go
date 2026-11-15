@@ -1,8 +1,7 @@
 package config
 
 import (
-	"os"
-
+	"avtoplaneta/pkg/env"
 	"avtoplaneta/pkg/logger"
 )
 
@@ -18,24 +17,17 @@ type Config struct {
 
 func LoadConfig() *Config {
 	cfg := &Config{
-		Port:          getEnv("PORT", "8090"),
-		GRPCPort:      getEnv("GRPC_PORT", "9095"),
-		DatabaseURL:   getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/template_db?sslmode=disable"),
-		RedisURL:      getEnv("REDIS_URL", "localhost:6379"),
-		RedisPassword: getEnv("REDIS_PASSWORD", ""),
-		LogLevel:      getEnv("LOG_LEVEL", "INFO"),
-		NodeEnv:       getEnv("NODE_ENV", "development"),
+		Port:          env.String("PORT", "8090"),
+		GRPCPort:      env.String("GRPC_PORT", "9095"),
+		DatabaseURL:   env.String("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/template_db?sslmode=disable"),
+		RedisURL:      env.String("REDIS_URL", "localhost:6379"),
+		RedisPassword: env.String("REDIS_PASSWORD", ""),
+		LogLevel:      env.String("LOG_LEVEL", "INFO"),
+		NodeEnv:       env.String("NODE_ENV", "development"),
 	}
 
 	setupLogger(cfg.LogLevel, cfg.NodeEnv)
 	return cfg
-}
-
-func getEnv(key, defaultVal string) string {
-	if val, ok := os.LookupEnv(key); ok && val != "" {
-		return val
-	}
-	return defaultVal
 }
 
 func setupLogger(levelStr, env string) {
