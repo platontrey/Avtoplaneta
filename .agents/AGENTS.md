@@ -73,6 +73,13 @@
 7. **Constraints:** Бизнес-инварианты фиксируются в БД: `CHECK (quantity >= -1)`, `CHECK (price >= 0)`.
 8. **Пагинация:** Keyset pagination `WHERE (created_at, id) < (arg, arg) ORDER BY created_at DESC, id DESC LIMIT n;` вместо антипаттерна `OFFSET`.
 9. **Пакетная запись:** Массовые вставки выполнять строго через `pgx.Batch`, одиночные `INSERT` в цикле запрещены.
+10. **Выравнивание данных в таблицах (Tuple Alignment & Zero-Padding):** Порядок колонок в `CREATE TABLE` обязан строго следовать правилу «От больших фиксированных типов к переменным»:
+    - 8 байт: `BIGINT`, `BIGSERIAL`, `TIMESTAMPTZ`, `DOUBLE PRECISION`
+    - 4 байта: `INTEGER`, `DATE`
+    - 2 байта: `SMALLINT`
+    - 1 байт: `BOOLEAN`, `CHAR(1)`
+    - Переменная длина (Varlena) строго в конце: `VARCHAR`, `TEXT`, `JSONB`, массивы `BIGINT[]`, `TSVECTOR`.
+    - **Категорически запрещено** ставить 1-байтовые (`BOOLEAN`) или 4-байтовые (`INT`) колонки перед 8-байтовыми (`BIGINT`, `TIMESTAMPTZ`), а также размещать фиксированные поля после полей переменной длины (`TEXT`/`JSONB`). Это исключает пустые байты паддинга (до 7 байт на строку) и обеспечивает быстрый O(1) доступ к фиксированным полям без парсинга TOAST-заголовков.
 
 ### 3.5. Шаблон и генерация новых сервисов (`make new-service`)
 - Эталонный сервис находится в `backend/template-service` (многоэтапный `Dockerfile` с кэш-моунтами, `sqlc.yaml`, раннер миграций, graceful shutdown, health/metrics).
@@ -180,6 +187,7 @@
        - Сформулированы развилки (gRPC vs Streams; DDL; ES)? Задан ли вопрос пользователю?
 [ ] 2. БАЗА ДАННЫХ И МИГРАЦИИ:
        - Миграции созданы одновременно в db/migrations/ И internal/repository/migrations/?
+       - Выравнивание полей в DDL таблиц по правилу «8 -> 4 -> 2 -> 1 -> Varlena» (ликвидация пустого паддинга)?
        - Запросы в db/queries/*.sql используют CTE, именованные sqlc.arg и индексы на все FK?
        - Выполнен sqlc generate?
 [ ] 3. МЕЖСЕРВИСНЫЕ КОНТРАКТЫ (при изменении API):
