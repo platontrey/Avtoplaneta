@@ -498,7 +498,7 @@ services:
     volumes:
       - ./alertmanager:/etc/alertmanager:ro
       - alertmanager-data:/alertmanager
-    entrypoint: ["/etc/alertmanager/entrypoint.sh"]
+    entrypoint: ["/bin/sh", "/etc/alertmanager/entrypoint.sh"]
 
   node-exporter:
     image: prom/node-exporter:latest
