@@ -12,7 +12,7 @@ import (
 const CreateOrderItem = `-- name: CreateOrderItem :one
 INSERT INTO order_items (order_id, part_id, quantity, price, part_name_snapshot)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, order_id, part_id, quantity, price, part_name_snapshot
+RETURNING id, order_id, part_id, price, quantity, part_name_snapshot
 `
 
 type CreateOrderItemParams struct {
@@ -36,8 +36,8 @@ func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams
 		&i.ID,
 		&i.OrderID,
 		&i.PartID,
-		&i.Quantity,
 		&i.Price,
+		&i.Quantity,
 		&i.PartNameSnapshot,
 	)
 	return i, err
@@ -69,7 +69,7 @@ func (q *Queries) DeleteOrderItemsByOrderID(ctx context.Context, orderID int64) 
 }
 
 const FindOrderItem = `-- name: FindOrderItem :one
-SELECT id, order_id, part_id, quantity, price, part_name_snapshot FROM order_items
+SELECT id, order_id, part_id, price, quantity, part_name_snapshot FROM order_items
 WHERE order_id = $1 AND part_id = $2
 `
 
@@ -85,15 +85,15 @@ func (q *Queries) FindOrderItem(ctx context.Context, arg FindOrderItemParams) (O
 		&i.ID,
 		&i.OrderID,
 		&i.PartID,
-		&i.Quantity,
 		&i.Price,
+		&i.Quantity,
 		&i.PartNameSnapshot,
 	)
 	return i, err
 }
 
 const GetOrderItemsByOrderID = `-- name: GetOrderItemsByOrderID :many
-SELECT id, order_id, part_id, quantity, price, part_name_snapshot FROM order_items
+SELECT id, order_id, part_id, price, quantity, part_name_snapshot FROM order_items
 WHERE order_id = $1
 ORDER BY id ASC
 `
@@ -111,8 +111,8 @@ func (q *Queries) GetOrderItemsByOrderID(ctx context.Context, orderID int64) ([]
 			&i.ID,
 			&i.OrderID,
 			&i.PartID,
-			&i.Quantity,
 			&i.Price,
+			&i.Quantity,
 			&i.PartNameSnapshot,
 		); err != nil {
 			return nil, err
@@ -126,7 +126,7 @@ func (q *Queries) GetOrderItemsByOrderID(ctx context.Context, orderID int64) ([]
 }
 
 const GetOrderItemsByOrderIDs = `-- name: GetOrderItemsByOrderIDs :many
-SELECT id, order_id, part_id, quantity, price, part_name_snapshot FROM order_items
+SELECT id, order_id, part_id, price, quantity, part_name_snapshot FROM order_items
 WHERE order_id = ANY($1::bigint[])
 ORDER BY id ASC
 `
@@ -144,8 +144,8 @@ func (q *Queries) GetOrderItemsByOrderIDs(ctx context.Context, dollar_1 []int64)
 			&i.ID,
 			&i.OrderID,
 			&i.PartID,
-			&i.Quantity,
 			&i.Price,
+			&i.Quantity,
 			&i.PartNameSnapshot,
 		); err != nil {
 			return nil, err

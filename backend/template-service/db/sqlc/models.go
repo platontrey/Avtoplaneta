@@ -10,11 +10,11 @@ import (
 
 type Item struct {
 	ID          int64              `json:"id"`
-	Name        string             `json:"name"`
-	Description string             `json:"description"`
-	Status      string             `json:"status"`
-	Metadata    []byte             `json:"metadata"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt   pgtype.Timestamptz `json:"deleted_at"`
+	Status      string             `json:"status"`
+	Name        string             `json:"name"`
+	Description string             `json:"description"`
+	Metadata    []byte             `json:"metadata"`
 }

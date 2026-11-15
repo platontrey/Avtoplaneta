@@ -1,10 +1,10 @@
 -- name: GetItemByID :one
-SELECT id, name, description, status, metadata, created_at, updated_at, deleted_at
+SELECT id, created_at, updated_at, deleted_at, status, name, description, metadata
 FROM items
 WHERE id = sqlc.arg(id) AND deleted_at IS NULL;
 
 -- name: ListItems :many
-SELECT id, name, description, status, metadata, created_at, updated_at, deleted_at
+SELECT id, created_at, updated_at, deleted_at, status, name, description, metadata
 FROM items
 WHERE deleted_at IS NULL
 ORDER BY created_at DESC
@@ -22,7 +22,7 @@ INSERT INTO items (
     NOW(),
     NOW()
 )
-RETURNING id, name, description, status, metadata, created_at, updated_at, deleted_at;
+RETURNING id, created_at, updated_at, deleted_at, status, name, description, metadata;
 
 -- name: UpdateItem :one
 UPDATE items
@@ -33,7 +33,7 @@ SET
     metadata = sqlc.arg(metadata)::jsonb,
     updated_at = NOW()
 WHERE id = sqlc.arg(id) AND deleted_at IS NULL
-RETURNING id, name, description, status, metadata, created_at, updated_at, deleted_at;
+RETURNING id, created_at, updated_at, deleted_at, status, name, description, metadata;
 
 -- name: SoftDeleteItem :execrows
 UPDATE items

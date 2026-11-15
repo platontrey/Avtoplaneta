@@ -30,7 +30,7 @@ func (q *Queries) AddUserToReadBy(ctx context.Context, arg AddUserToReadByParams
 const CreateMessage = `-- name: CreateMessage :one
 INSERT INTO messages (conversation_id, sender_id, content, message_type, voice_url, created_at, read_by, attachments)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, conversation_id, sender_id, content, message_type, voice_url, created_at, read_by, attachments, search_vector
+RETURNING id, conversation_id, sender_id, created_at, message_type, voice_url, content, read_by, attachments, search_vector
 `
 
 type CreateMessageParams struct {
@@ -60,10 +60,10 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		&i.ID,
 		&i.ConversationID,
 		&i.SenderID,
-		&i.Content,
+		&i.CreatedAt,
 		&i.MessageType,
 		&i.VoiceUrl,
-		&i.CreatedAt,
+		&i.Content,
 		&i.ReadBy,
 		&i.Attachments,
 		&i.SearchVector,
@@ -92,7 +92,7 @@ func (q *Queries) DeleteMessagesByConversationID(ctx context.Context, conversati
 }
 
 const GetMessageByID = `-- name: GetMessageByID :one
-SELECT id, conversation_id, sender_id, content, message_type, voice_url, created_at, read_by, attachments, search_vector FROM messages
+SELECT id, conversation_id, sender_id, created_at, message_type, voice_url, content, read_by, attachments, search_vector FROM messages
 WHERE id = $1
 `
 
@@ -103,10 +103,10 @@ func (q *Queries) GetMessageByID(ctx context.Context, id int64) (Message, error)
 		&i.ID,
 		&i.ConversationID,
 		&i.SenderID,
-		&i.Content,
+		&i.CreatedAt,
 		&i.MessageType,
 		&i.VoiceUrl,
-		&i.CreatedAt,
+		&i.Content,
 		&i.ReadBy,
 		&i.Attachments,
 		&i.SearchVector,
@@ -115,7 +115,7 @@ func (q *Queries) GetMessageByID(ctx context.Context, id int64) (Message, error)
 }
 
 const GetMessagesByConversationID = `-- name: GetMessagesByConversationID :many
-SELECT id, conversation_id, sender_id, content, message_type, voice_url, created_at, read_by, attachments, search_vector FROM messages
+SELECT id, conversation_id, sender_id, created_at, message_type, voice_url, content, read_by, attachments, search_vector FROM messages
 WHERE conversation_id = $1
 ORDER BY created_at ASC
 `
@@ -133,10 +133,10 @@ func (q *Queries) GetMessagesByConversationID(ctx context.Context, conversationI
 			&i.ID,
 			&i.ConversationID,
 			&i.SenderID,
-			&i.Content,
+			&i.CreatedAt,
 			&i.MessageType,
 			&i.VoiceUrl,
-			&i.CreatedAt,
+			&i.Content,
 			&i.ReadBy,
 			&i.Attachments,
 			&i.SearchVector,
@@ -152,7 +152,7 @@ func (q *Queries) GetMessagesByConversationID(ctx context.Context, conversationI
 }
 
 const SearchMessagesAll = `-- name: SearchMessagesAll :many
-SELECT m.id, m.conversation_id, m.sender_id, m.content, m.message_type, m.voice_url, m.created_at, m.read_by, m.attachments, m.search_vector FROM messages m
+SELECT m.id, m.conversation_id, m.sender_id, m.created_at, m.message_type, m.voice_url, m.content, m.read_by, m.attachments, m.search_vector FROM messages m
 WHERE (m.search_vector @@ plainto_tsquery('russian', $3::text) OR m.content ILIKE '%' || $3::text || '%')
 ORDER BY m.created_at DESC
 LIMIT $1 OFFSET $2
@@ -177,10 +177,10 @@ func (q *Queries) SearchMessagesAll(ctx context.Context, arg SearchMessagesAllPa
 			&i.ID,
 			&i.ConversationID,
 			&i.SenderID,
-			&i.Content,
+			&i.CreatedAt,
 			&i.MessageType,
 			&i.VoiceUrl,
-			&i.CreatedAt,
+			&i.Content,
 			&i.ReadBy,
 			&i.Attachments,
 			&i.SearchVector,
@@ -196,7 +196,7 @@ func (q *Queries) SearchMessagesAll(ctx context.Context, arg SearchMessagesAllPa
 }
 
 const SearchMessagesWithUser = `-- name: SearchMessagesWithUser :many
-SELECT m.id, m.conversation_id, m.sender_id, m.content, m.message_type, m.voice_url, m.created_at, m.read_by, m.attachments, m.search_vector FROM messages m
+SELECT m.id, m.conversation_id, m.sender_id, m.created_at, m.message_type, m.voice_url, m.content, m.read_by, m.attachments, m.search_vector FROM messages m
 JOIN conversations c ON m.conversation_id = c.id
 WHERE c.participants @> ARRAY[$3::bigint]
   AND (m.search_vector @@ plainto_tsquery('russian', $4::text) OR m.content ILIKE '%' || $4::text || '%')
@@ -229,10 +229,10 @@ func (q *Queries) SearchMessagesWithUser(ctx context.Context, arg SearchMessages
 			&i.ID,
 			&i.ConversationID,
 			&i.SenderID,
-			&i.Content,
+			&i.CreatedAt,
 			&i.MessageType,
 			&i.VoiceUrl,
-			&i.CreatedAt,
+			&i.Content,
 			&i.ReadBy,
 			&i.Attachments,
 			&i.SearchVector,

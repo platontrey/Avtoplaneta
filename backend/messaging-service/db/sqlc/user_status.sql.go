@@ -12,7 +12,7 @@ import (
 )
 
 const GetUserStatusByUserID = `-- name: GetUserStatusByUserID :one
-SELECT id, user_id, is_online, last_seen FROM user_status
+SELECT id, user_id, last_seen, is_online FROM user_status
 WHERE user_id = $1
 `
 
@@ -22,14 +22,14 @@ func (q *Queries) GetUserStatusByUserID(ctx context.Context, userID int64) (User
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
-		&i.IsOnline,
 		&i.LastSeen,
+		&i.IsOnline,
 	)
 	return i, err
 }
 
 const GetUserStatuses = `-- name: GetUserStatuses :many
-SELECT id, user_id, is_online, last_seen FROM user_status
+SELECT id, user_id, last_seen, is_online FROM user_status
 `
 
 func (q *Queries) GetUserStatuses(ctx context.Context) ([]UserStatus, error) {
@@ -44,8 +44,8 @@ func (q *Queries) GetUserStatuses(ctx context.Context) ([]UserStatus, error) {
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
-			&i.IsOnline,
 			&i.LastSeen,
+			&i.IsOnline,
 		); err != nil {
 			return nil, err
 		}
@@ -58,7 +58,7 @@ func (q *Queries) GetUserStatuses(ctx context.Context) ([]UserStatus, error) {
 }
 
 const GetUserStatusesByUserIDs = `-- name: GetUserStatusesByUserIDs :many
-SELECT id, user_id, is_online, last_seen FROM user_status
+SELECT id, user_id, last_seen, is_online FROM user_status
 WHERE user_id = ANY($1::bigint[])
 `
 
@@ -74,8 +74,8 @@ func (q *Queries) GetUserStatusesByUserIDs(ctx context.Context, dollar_1 []int64
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
-			&i.IsOnline,
 			&i.LastSeen,
+			&i.IsOnline,
 		); err != nil {
 			return nil, err
 		}
@@ -93,7 +93,7 @@ VALUES ($1, $2, $3)
 ON CONFLICT (user_id)
 DO UPDATE SET is_online = EXCLUDED.is_online,
               last_seen = EXCLUDED.last_seen
-RETURNING id, user_id, is_online, last_seen
+RETURNING id, user_id, last_seen, is_online
 `
 
 type UpsertUserStatusParams struct {
@@ -108,8 +108,8 @@ func (q *Queries) UpsertUserStatus(ctx context.Context, arg UpsertUserStatusPara
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
-		&i.IsOnline,
 		&i.LastSeen,
+		&i.IsOnline,
 	)
 	return i, err
 }

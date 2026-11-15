@@ -28,7 +28,7 @@ INSERT INTO parts (
     $29, $30, $31, $32, $33, $34,
     $35, $36, $37, $38, $39, $40, $41,
     $42, $43, NOW(), NOW()
-) RETURNING id, name, quantity, description, category, price, salesman, location, address, status, brand, model, photos, seller_id, to_delete_at, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, created_at, updated_at, deleted_at, car_release_period
+) RETURNING id, seller_id, price, created_at, updated_at, deleted_at, to_delete_at, quantity, status, name, description, category, salesman, location, address, brand, model, photos, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, car_release_period
 `
 
 type CreatePartParams struct {
@@ -126,20 +126,23 @@ func (q *Queries) CreatePart(ctx context.Context, arg CreatePartParams) (Part, e
 	var i Part
 	err := row.Scan(
 		&i.ID,
-		&i.Name,
+		&i.SellerID,
+		&i.Price,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.ToDeleteAt,
 		&i.Quantity,
+		&i.Status,
+		&i.Name,
 		&i.Description,
 		&i.Category,
-		&i.Price,
 		&i.Salesman,
 		&i.Location,
 		&i.Address,
-		&i.Status,
 		&i.Brand,
 		&i.Model,
 		&i.Photos,
-		&i.SellerID,
-		&i.ToDeleteAt,
 		&i.Vin,
 		&i.BodyBrand,
 		&i.EngineBrand,
@@ -168,9 +171,6 @@ func (q *Queries) CreatePart(ctx context.Context, arg CreatePartParams) (Part, e
 		&i.Offset,
 		&i.CenterHoleDiameter,
 		&i.TireModel,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.DeletedAt,
 		&i.CarReleasePeriod,
 	)
 	return i, err
@@ -198,7 +198,7 @@ func (q *Queries) DeletePart(ctx context.Context, id int64) error {
 }
 
 const GetAllParts = `-- name: GetAllParts :many
-SELECT id, name, quantity, description, category, price, salesman, location, address, status, brand, model, photos, seller_id, to_delete_at, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, created_at, updated_at, deleted_at, car_release_period FROM parts WHERE deleted_at IS NULL ORDER BY id
+SELECT id, seller_id, price, created_at, updated_at, deleted_at, to_delete_at, quantity, status, name, description, category, salesman, location, address, brand, model, photos, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, car_release_period FROM parts WHERE deleted_at IS NULL ORDER BY id
 `
 
 func (q *Queries) GetAllParts(ctx context.Context) ([]Part, error) {
@@ -212,20 +212,23 @@ func (q *Queries) GetAllParts(ctx context.Context) ([]Part, error) {
 		var i Part
 		if err := rows.Scan(
 			&i.ID,
-			&i.Name,
+			&i.SellerID,
+			&i.Price,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.ToDeleteAt,
 			&i.Quantity,
+			&i.Status,
+			&i.Name,
 			&i.Description,
 			&i.Category,
-			&i.Price,
 			&i.Salesman,
 			&i.Location,
 			&i.Address,
-			&i.Status,
 			&i.Brand,
 			&i.Model,
 			&i.Photos,
-			&i.SellerID,
-			&i.ToDeleteAt,
 			&i.Vin,
 			&i.BodyBrand,
 			&i.EngineBrand,
@@ -254,9 +257,6 @@ func (q *Queries) GetAllParts(ctx context.Context) ([]Part, error) {
 			&i.Offset,
 			&i.CenterHoleDiameter,
 			&i.TireModel,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.DeletedAt,
 			&i.CarReleasePeriod,
 		); err != nil {
 			return nil, err
@@ -270,7 +270,7 @@ func (q *Queries) GetAllParts(ctx context.Context) ([]Part, error) {
 }
 
 const GetLastCreatedPart = `-- name: GetLastCreatedPart :one
-SELECT id, name, quantity, description, category, price, salesman, location, address, status, brand, model, photos, seller_id, to_delete_at, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, created_at, updated_at, deleted_at, car_release_period FROM parts WHERE deleted_at IS NULL ORDER BY id DESC LIMIT 1
+SELECT id, seller_id, price, created_at, updated_at, deleted_at, to_delete_at, quantity, status, name, description, category, salesman, location, address, brand, model, photos, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, car_release_period FROM parts WHERE deleted_at IS NULL ORDER BY id DESC LIMIT 1
 `
 
 func (q *Queries) GetLastCreatedPart(ctx context.Context) (Part, error) {
@@ -278,20 +278,23 @@ func (q *Queries) GetLastCreatedPart(ctx context.Context) (Part, error) {
 	var i Part
 	err := row.Scan(
 		&i.ID,
-		&i.Name,
+		&i.SellerID,
+		&i.Price,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.ToDeleteAt,
 		&i.Quantity,
+		&i.Status,
+		&i.Name,
 		&i.Description,
 		&i.Category,
-		&i.Price,
 		&i.Salesman,
 		&i.Location,
 		&i.Address,
-		&i.Status,
 		&i.Brand,
 		&i.Model,
 		&i.Photos,
-		&i.SellerID,
-		&i.ToDeleteAt,
 		&i.Vin,
 		&i.BodyBrand,
 		&i.EngineBrand,
@@ -320,16 +323,13 @@ func (q *Queries) GetLastCreatedPart(ctx context.Context) (Part, error) {
 		&i.Offset,
 		&i.CenterHoleDiameter,
 		&i.TireModel,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.DeletedAt,
 		&i.CarReleasePeriod,
 	)
 	return i, err
 }
 
 const GetPartByID = `-- name: GetPartByID :one
-SELECT id, name, quantity, description, category, price, salesman, location, address, status, brand, model, photos, seller_id, to_delete_at, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, created_at, updated_at, deleted_at, car_release_period FROM parts WHERE id = $1 AND deleted_at IS NULL
+SELECT id, seller_id, price, created_at, updated_at, deleted_at, to_delete_at, quantity, status, name, description, category, salesman, location, address, brand, model, photos, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, car_release_period FROM parts WHERE id = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetPartByID(ctx context.Context, id int64) (Part, error) {
@@ -337,20 +337,23 @@ func (q *Queries) GetPartByID(ctx context.Context, id int64) (Part, error) {
 	var i Part
 	err := row.Scan(
 		&i.ID,
-		&i.Name,
+		&i.SellerID,
+		&i.Price,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.ToDeleteAt,
 		&i.Quantity,
+		&i.Status,
+		&i.Name,
 		&i.Description,
 		&i.Category,
-		&i.Price,
 		&i.Salesman,
 		&i.Location,
 		&i.Address,
-		&i.Status,
 		&i.Brand,
 		&i.Model,
 		&i.Photos,
-		&i.SellerID,
-		&i.ToDeleteAt,
 		&i.Vin,
 		&i.BodyBrand,
 		&i.EngineBrand,
@@ -379,16 +382,13 @@ func (q *Queries) GetPartByID(ctx context.Context, id int64) (Part, error) {
 		&i.Offset,
 		&i.CenterHoleDiameter,
 		&i.TireModel,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.DeletedAt,
 		&i.CarReleasePeriod,
 	)
 	return i, err
 }
 
 const GetPartsForXML = `-- name: GetPartsForXML :many
-SELECT id, name, quantity, description, category, price, salesman, location, address, status, brand, model, photos, seller_id, to_delete_at, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, created_at, updated_at, deleted_at, car_release_period FROM parts WHERE to_delete_at IS NULL AND quantity >= 0 AND deleted_at IS NULL ORDER BY id
+SELECT id, seller_id, price, created_at, updated_at, deleted_at, to_delete_at, quantity, status, name, description, category, salesman, location, address, brand, model, photos, vin, body_brand, engine_brand, car_release_date, front_rear, left_right, top_bottom, number, manufacturer, manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage, season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model, car_release_period FROM parts WHERE to_delete_at IS NULL AND quantity >= 0 AND deleted_at IS NULL ORDER BY id
 `
 
 func (q *Queries) GetPartsForXML(ctx context.Context) ([]Part, error) {
@@ -402,20 +402,23 @@ func (q *Queries) GetPartsForXML(ctx context.Context) ([]Part, error) {
 		var i Part
 		if err := rows.Scan(
 			&i.ID,
-			&i.Name,
+			&i.SellerID,
+			&i.Price,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.ToDeleteAt,
 			&i.Quantity,
+			&i.Status,
+			&i.Name,
 			&i.Description,
 			&i.Category,
-			&i.Price,
 			&i.Salesman,
 			&i.Location,
 			&i.Address,
-			&i.Status,
 			&i.Brand,
 			&i.Model,
 			&i.Photos,
-			&i.SellerID,
-			&i.ToDeleteAt,
 			&i.Vin,
 			&i.BodyBrand,
 			&i.EngineBrand,
@@ -444,9 +447,6 @@ func (q *Queries) GetPartsForXML(ctx context.Context) ([]Part, error) {
 			&i.Offset,
 			&i.CenterHoleDiameter,
 			&i.TireModel,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.DeletedAt,
 			&i.CarReleasePeriod,
 		); err != nil {
 			return nil, err

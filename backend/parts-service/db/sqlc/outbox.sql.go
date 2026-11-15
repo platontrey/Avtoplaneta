@@ -24,7 +24,7 @@ func (q *Queries) CleanupProcessedOutboxEvents(ctx context.Context) error {
 const CreateOutboxEvent = `-- name: CreateOutboxEvent :one
 INSERT INTO outbox_events (aggregate_type, aggregate_id, event_type, payload, status)
 VALUES ($1, $2, $3, $4, 'pending')
-RETURNING id, aggregate_type, aggregate_id, event_type, payload, status, retry_count, last_error, created_at, processed_at
+RETURNING id, aggregate_id, created_at, processed_at, retry_count, status, aggregate_type, event_type, payload, last_error
 `
 
 type CreateOutboxEventParams struct {
@@ -44,21 +44,21 @@ func (q *Queries) CreateOutboxEvent(ctx context.Context, arg CreateOutboxEventPa
 	var i OutboxEvent
 	err := row.Scan(
 		&i.ID,
-		&i.AggregateType,
 		&i.AggregateID,
-		&i.EventType,
-		&i.Payload,
-		&i.Status,
-		&i.RetryCount,
-		&i.LastError,
 		&i.CreatedAt,
 		&i.ProcessedAt,
+		&i.RetryCount,
+		&i.Status,
+		&i.AggregateType,
+		&i.EventType,
+		&i.Payload,
+		&i.LastError,
 	)
 	return i, err
 }
 
 const FetchPendingOutboxEvents = `-- name: FetchPendingOutboxEvents :many
-SELECT id, aggregate_type, aggregate_id, event_type, payload, status, retry_count, last_error, created_at, processed_at FROM outbox_events
+SELECT id, aggregate_id, created_at, processed_at, retry_count, status, aggregate_type, event_type, payload, last_error FROM outbox_events
 WHERE status = 'pending'
 ORDER BY id ASC
 LIMIT $1
@@ -76,15 +76,15 @@ func (q *Queries) FetchPendingOutboxEvents(ctx context.Context, limit int32) ([]
 		var i OutboxEvent
 		if err := rows.Scan(
 			&i.ID,
-			&i.AggregateType,
 			&i.AggregateID,
-			&i.EventType,
-			&i.Payload,
-			&i.Status,
-			&i.RetryCount,
-			&i.LastError,
 			&i.CreatedAt,
 			&i.ProcessedAt,
+			&i.RetryCount,
+			&i.Status,
+			&i.AggregateType,
+			&i.EventType,
+			&i.Payload,
+			&i.LastError,
 		); err != nil {
 			return nil, err
 		}

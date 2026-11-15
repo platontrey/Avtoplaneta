@@ -29,7 +29,21 @@ type CreateActivityLogParams struct {
 	UserAgent    pgtype.Text `json:"user_agent"`
 }
 
-func (q *Queries) CreateActivityLog(ctx context.Context, arg CreateActivityLogParams) (UserActivityLog, error) {
+type CreateActivityLogRow struct {
+	ID           int64              `json:"id"`
+	UserID       int64              `json:"user_id"`
+	UserName     string             `json:"user_name"`
+	UserEmail    string             `json:"user_email"`
+	Action       string             `json:"action"`
+	ResourceType string             `json:"resource_type"`
+	ResourceID   pgtype.Int8        `json:"resource_id"`
+	Details      pgtype.Text        `json:"details"`
+	IpAddress    pgtype.Text        `json:"ip_address"`
+	UserAgent    pgtype.Text        `json:"user_agent"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) CreateActivityLog(ctx context.Context, arg CreateActivityLogParams) (CreateActivityLogRow, error) {
 	row := q.db.QueryRow(ctx, CreateActivityLog,
 		arg.UserID,
 		arg.UserName,
@@ -41,7 +55,7 @@ func (q *Queries) CreateActivityLog(ctx context.Context, arg CreateActivityLogPa
 		arg.IpAddress,
 		arg.UserAgent,
 	)
-	var i UserActivityLog
+	var i CreateActivityLogRow
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,

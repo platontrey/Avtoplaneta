@@ -14,7 +14,7 @@ import (
 const CreateConversation = `-- name: CreateConversation :one
 INSERT INTO conversations (participants, title, created_at, last_message_at, last_message)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, participants, title, created_at, last_message_at, last_message
+RETURNING id, created_at, last_message_at, title, last_message, participants
 `
 
 type CreateConversationParams struct {
@@ -36,11 +36,11 @@ func (q *Queries) CreateConversation(ctx context.Context, arg CreateConversation
 	var i Conversation
 	err := row.Scan(
 		&i.ID,
-		&i.Participants,
-		&i.Title,
 		&i.CreatedAt,
 		&i.LastMessageAt,
+		&i.Title,
 		&i.LastMessage,
+		&i.Participants,
 	)
 	return i, err
 }
@@ -56,7 +56,7 @@ func (q *Queries) DeleteConversation(ctx context.Context, id int64) error {
 }
 
 const GetConversation = `-- name: GetConversation :one
-SELECT id, participants, title, created_at, last_message_at, last_message FROM conversations
+SELECT id, created_at, last_message_at, title, last_message, participants FROM conversations
 WHERE id = $1
 `
 
@@ -65,17 +65,17 @@ func (q *Queries) GetConversation(ctx context.Context, id int64) (Conversation, 
 	var i Conversation
 	err := row.Scan(
 		&i.ID,
-		&i.Participants,
-		&i.Title,
 		&i.CreatedAt,
 		&i.LastMessageAt,
+		&i.Title,
 		&i.LastMessage,
+		&i.Participants,
 	)
 	return i, err
 }
 
 const GetConversations = `-- name: GetConversations :many
-SELECT c.id, c.participants, c.title, c.created_at, c.last_message_at, c.last_message, COALESCE(u.unread_count, 0)::bigint as unread_count
+SELECT c.id, c.created_at, c.last_message_at, c.title, c.last_message, c.participants, COALESCE(u.unread_count, 0)::bigint as unread_count
 FROM conversations c
 LEFT JOIN LATERAL (
     SELECT COUNT(*) as unread_count
@@ -90,11 +90,11 @@ ORDER BY c.last_message_at DESC
 
 type GetConversationsRow struct {
 	ID            int64              `json:"id"`
-	Participants  []int64            `json:"participants"`
-	Title         string             `json:"title"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 	LastMessageAt pgtype.Timestamptz `json:"last_message_at"`
+	Title         string             `json:"title"`
 	LastMessage   string             `json:"last_message"`
+	Participants  []int64            `json:"participants"`
 	UnreadCount   int64              `json:"unread_count"`
 }
 
@@ -109,11 +109,11 @@ func (q *Queries) GetConversations(ctx context.Context, userID int64) ([]GetConv
 		var i GetConversationsRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.Participants,
-			&i.Title,
 			&i.CreatedAt,
 			&i.LastMessageAt,
+			&i.Title,
 			&i.LastMessage,
+			&i.Participants,
 			&i.UnreadCount,
 		); err != nil {
 			return nil, err
@@ -133,7 +133,7 @@ SET title = $2,
     last_message = $4,
     participants = $5
 WHERE id = $1
-RETURNING id, participants, title, created_at, last_message_at, last_message
+RETURNING id, created_at, last_message_at, title, last_message, participants
 `
 
 type UpdateConversationParams struct {
@@ -155,11 +155,11 @@ func (q *Queries) UpdateConversation(ctx context.Context, arg UpdateConversation
 	var i Conversation
 	err := row.Scan(
 		&i.ID,
-		&i.Participants,
-		&i.Title,
 		&i.CreatedAt,
 		&i.LastMessageAt,
+		&i.Title,
 		&i.LastMessage,
+		&i.Participants,
 	)
 	return i, err
 }

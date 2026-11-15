@@ -16,33 +16,36 @@ type Earning struct {
 
 type OutboxEvent struct {
 	ID            int64              `json:"id"`
-	AggregateType string             `json:"aggregate_type"`
 	AggregateID   int64              `json:"aggregate_id"`
-	EventType     string             `json:"event_type"`
-	Payload       []byte             `json:"payload"`
-	Status        string             `json:"status"`
-	RetryCount    int32              `json:"retry_count"`
-	LastError     pgtype.Text        `json:"last_error"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 	ProcessedAt   pgtype.Timestamptz `json:"processed_at"`
+	RetryCount    int32              `json:"retry_count"`
+	Status        string             `json:"status"`
+	AggregateType string             `json:"aggregate_type"`
+	EventType     string             `json:"event_type"`
+	Payload       []byte             `json:"payload"`
+	LastError     pgtype.Text        `json:"last_error"`
 }
 
 type Part struct {
 	ID                 int64              `json:"id"`
-	Name               string             `json:"name"`
+	SellerID           int64              `json:"seller_id"`
+	Price              float64            `json:"price"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt          pgtype.Timestamptz `json:"deleted_at"`
+	ToDeleteAt         pgtype.Timestamptz `json:"to_delete_at"`
 	Quantity           int32              `json:"quantity"`
+	Status             bool               `json:"status"`
+	Name               string             `json:"name"`
 	Description        string             `json:"description"`
 	Category           string             `json:"category"`
-	Price              float64            `json:"price"`
 	Salesman           string             `json:"salesman"`
 	Location           string             `json:"location"`
 	Address            string             `json:"address"`
-	Status             bool               `json:"status"`
 	Brand              string             `json:"brand"`
 	Model              string             `json:"model"`
 	Photos             []byte             `json:"photos"`
-	SellerID           int64              `json:"seller_id"`
-	ToDeleteAt         pgtype.Timestamptz `json:"to_delete_at"`
 	Vin                string             `json:"vin"`
 	BodyBrand          string             `json:"body_brand"`
 	EngineBrand        string             `json:"engine_brand"`
@@ -71,19 +74,16 @@ type Part struct {
 	Offset             string             `json:"offset"`
 	CenterHoleDiameter string             `json:"center_hole_diameter"`
 	TireModel          string             `json:"tire_model"`
-	CreatedAt          pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt          pgtype.Timestamptz `json:"deleted_at"`
 	CarReleasePeriod   string             `json:"car_release_period"`
 }
 
 type PartStockOperation struct {
 	ID            int64              `json:"id"`
-	OperationID   string             `json:"operation_id"`
 	PartID        int64              `json:"part_id"`
-	OperationType string             `json:"operation_type"`
-	Amount        int32              `json:"amount"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	Amount        int32              `json:"amount"`
+	OperationID   string             `json:"operation_id"`
+	OperationType string             `json:"operation_type"`
 }
 
 type WarehouseShelf struct {

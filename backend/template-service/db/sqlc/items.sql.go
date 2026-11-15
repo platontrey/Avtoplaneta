@@ -20,7 +20,7 @@ INSERT INTO items (
     NOW(),
     NOW()
 )
-RETURNING id, name, description, status, metadata, created_at, updated_at, deleted_at
+RETURNING id, created_at, updated_at, deleted_at, status, name, description, metadata
 `
 
 type CreateItemParams struct {
@@ -40,19 +40,19 @@ func (q *Queries) CreateItem(ctx context.Context, arg CreateItemParams) (Item, e
 	var i Item
 	err := row.Scan(
 		&i.ID,
-		&i.Name,
-		&i.Description,
-		&i.Status,
-		&i.Metadata,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.Status,
+		&i.Name,
+		&i.Description,
+		&i.Metadata,
 	)
 	return i, err
 }
 
 const GetItemByID = `-- name: GetItemByID :one
-SELECT id, name, description, status, metadata, created_at, updated_at, deleted_at
+SELECT id, created_at, updated_at, deleted_at, status, name, description, metadata
 FROM items
 WHERE id = $1 AND deleted_at IS NULL
 `
@@ -62,19 +62,19 @@ func (q *Queries) GetItemByID(ctx context.Context, id int64) (Item, error) {
 	var i Item
 	err := row.Scan(
 		&i.ID,
-		&i.Name,
-		&i.Description,
-		&i.Status,
-		&i.Metadata,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.Status,
+		&i.Name,
+		&i.Description,
+		&i.Metadata,
 	)
 	return i, err
 }
 
 const ListItems = `-- name: ListItems :many
-SELECT id, name, description, status, metadata, created_at, updated_at, deleted_at
+SELECT id, created_at, updated_at, deleted_at, status, name, description, metadata
 FROM items
 WHERE deleted_at IS NULL
 ORDER BY created_at DESC
@@ -98,13 +98,13 @@ func (q *Queries) ListItems(ctx context.Context, arg ListItemsParams) ([]Item, e
 		var i Item
 		if err := rows.Scan(
 			&i.ID,
-			&i.Name,
-			&i.Description,
-			&i.Status,
-			&i.Metadata,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.Status,
+			&i.Name,
+			&i.Description,
+			&i.Metadata,
 		); err != nil {
 			return nil, err
 		}
@@ -139,7 +139,7 @@ SET
     metadata = $4::jsonb,
     updated_at = NOW()
 WHERE id = $5 AND deleted_at IS NULL
-RETURNING id, name, description, status, metadata, created_at, updated_at, deleted_at
+RETURNING id, created_at, updated_at, deleted_at, status, name, description, metadata
 `
 
 type UpdateItemParams struct {
@@ -161,13 +161,13 @@ func (q *Queries) UpdateItem(ctx context.Context, arg UpdateItemParams) (Item, e
 	var i Item
 	err := row.Scan(
 		&i.ID,
-		&i.Name,
-		&i.Description,
-		&i.Status,
-		&i.Metadata,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.Status,
+		&i.Name,
+		&i.Description,
+		&i.Metadata,
 	)
 	return i, err
 }

@@ -1,14 +1,14 @@
--- Создание таблицы items с соблюдением стандартов PostgreSQL и индексов Avtoplaneta
+-- Создание таблицы items с соблюдением стандартов PostgreSQL, выравнивания и индексов Avtoplaneta
 CREATE TABLE IF NOT EXISTS items (
-    id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
+    id          BIGSERIAL PRIMARY KEY,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at  TIMESTAMPTZ NULL,
+    status      VARCHAR(50) NOT NULL DEFAULT 'active',
+    name        VARCHAR(255) NOT NULL,
     description TEXT NOT NULL DEFAULT '',
-    status VARCHAR(50) NOT NULL DEFAULT 'active',
-    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    deleted_at TIMESTAMPTZ NULL
-);
+    metadata    JSONB NOT NULL DEFAULT '{}'::jsonb
+) WITH (fillfactor = 90);
 
 -- Индексы (всегда именовать idx_<table>_<column>):
 CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);

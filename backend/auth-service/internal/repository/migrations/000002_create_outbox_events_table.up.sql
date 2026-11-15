@@ -1,14 +1,14 @@
 CREATE TABLE IF NOT EXISTS outbox_events (
     id BIGSERIAL PRIMARY KEY,
-    aggregate_type VARCHAR(64) NOT NULL DEFAULT 'user',
     aggregate_id BIGINT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    processed_at TIMESTAMPTZ,
+    retry_count INT NOT NULL DEFAULT 0,
+    status VARCHAR(32) NOT NULL DEFAULT 'pending',
+    aggregate_type VARCHAR(64) NOT NULL DEFAULT 'user',
     event_type VARCHAR(64) NOT NULL,
     payload JSONB NOT NULL DEFAULT '{}'::jsonb,
-    status VARCHAR(32) NOT NULL DEFAULT 'pending',
-    retry_count INT NOT NULL DEFAULT 0,
-    last_error TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    processed_at TIMESTAMPTZ
+    last_error TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_auth_outbox_pending ON outbox_events(status, created_at) WHERE status = 'pending';

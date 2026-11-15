@@ -10,31 +10,31 @@ import (
 
 type Customer struct {
 	ID              int64              `json:"id"`
+	DiscountPercent float64            `json:"discount_percent"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	Category        string             `json:"category"`
 	Name            string             `json:"name"`
 	Phone           string             `json:"phone"`
 	City            string             `json:"city"`
 	PreferredTk     string             `json:"preferred_tk"`
 	PassportOrInn   string             `json:"passport_or_inn"`
-	Category        string             `json:"category"`
-	DiscountPercent float64            `json:"discount_percent"`
 	Notes           string             `json:"notes"`
-	CreatedAt       pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
 }
 
 type Order struct {
 	ID               int64              `json:"id"`
 	CustomerID       int64              `json:"customer_id"`
 	SellerID         int64              `json:"seller_id"`
+	PartID           int64              `json:"part_id"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	AutoDeleted      bool               `json:"auto_deleted"`
+	Status           string             `json:"status"`
 	Seller           string             `json:"seller"`
 	Part             string             `json:"part"`
-	PartID           int64              `json:"part_id"`
 	Location         string             `json:"location"`
 	BuyerNumber      string             `json:"buyer_number"`
-	Status           string             `json:"status"`
 	StatusText       string             `json:"status_text"`
-	AutoDeleted      bool               `json:"auto_deleted"`
-	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	OrderNumber      string             `json:"order_number"`
 	Source           string             `json:"source"`
 	PaymentStatus    string             `json:"payment_status"`
@@ -52,27 +52,27 @@ type OrderItem struct {
 	ID               int64   `json:"id"`
 	OrderID          int64   `json:"order_id"`
 	PartID           int64   `json:"part_id"`
-	Quantity         int32   `json:"quantity"`
 	Price            float64 `json:"price"`
+	Quantity         int32   `json:"quantity"`
 	PartNameSnapshot string  `json:"part_name_snapshot"`
 }
 
 type OutboxEvent struct {
 	ID            int64              `json:"id"`
-	AggregateType string             `json:"aggregate_type"`
 	AggregateID   int64              `json:"aggregate_id"`
-	EventType     string             `json:"event_type"`
-	Payload       []byte             `json:"payload"`
-	Status        string             `json:"status"`
-	RetryCount    int32              `json:"retry_count"`
-	LastError     pgtype.Text        `json:"last_error"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 	ProcessedAt   pgtype.Timestamptz `json:"processed_at"`
+	RetryCount    int32              `json:"retry_count"`
+	Status        string             `json:"status"`
+	AggregateType string             `json:"aggregate_type"`
+	EventType     string             `json:"event_type"`
+	Payload       []byte             `json:"payload"`
+	LastError     pgtype.Text        `json:"last_error"`
 }
 
 type SalesHistory struct {
 	ID        int64              `json:"id"`
-	Month     string             `json:"month"`
 	Sales     float64            `json:"sales"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	Month     string             `json:"month"`
 }

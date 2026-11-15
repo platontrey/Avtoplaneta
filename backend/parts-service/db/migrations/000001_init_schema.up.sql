@@ -2,22 +2,25 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 CREATE TABLE IF NOT EXISTS parts (
     id BIGSERIAL PRIMARY KEY,
-
-    -- PartCore
-    name TEXT NOT NULL DEFAULT '',
+    seller_id BIGINT NOT NULL DEFAULT 0,
+    price DOUBLE PRECISION NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ DEFAULT NULL,
+    to_delete_at TIMESTAMPTZ DEFAULT NULL,
     quantity INTEGER NOT NULL DEFAULT 0,
+    status BOOLEAN NOT NULL DEFAULT false,
+
+    -- PartCore (Varlena в конце для O(1) смещений)
+    name TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
     category TEXT NOT NULL DEFAULT '',
-    price DOUBLE PRECISION NOT NULL DEFAULT 0,
     salesman TEXT NOT NULL DEFAULT '',
     location TEXT NOT NULL DEFAULT '',
     address TEXT NOT NULL DEFAULT '',
-    status BOOLEAN NOT NULL DEFAULT false,
     brand TEXT NOT NULL DEFAULT '',
     model TEXT NOT NULL DEFAULT '',
     photos JSONB DEFAULT '[]'::jsonb,
-    seller_id BIGINT NOT NULL DEFAULT 0,
-    to_delete_at TIMESTAMPTZ DEFAULT NULL,
     vin TEXT NOT NULL DEFAULT '',
 
     -- PartSpecifications
@@ -49,13 +52,8 @@ CREATE TABLE IF NOT EXISTS parts (
     drilling TEXT NOT NULL DEFAULT '',
     "offset" TEXT NOT NULL DEFAULT '',
     center_hole_diameter TEXT NOT NULL DEFAULT '',
-    tire_model TEXT NOT NULL DEFAULT '',
-
-    -- Timestamps (GORM adds these by default)
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    deleted_at TIMESTAMPTZ DEFAULT NULL
-);
+    tire_model TEXT NOT NULL DEFAULT ''
+) WITH (fillfactor = 90);
 
 CREATE TABLE IF NOT EXISTS earnings (
     id BIGSERIAL PRIMARY KEY,

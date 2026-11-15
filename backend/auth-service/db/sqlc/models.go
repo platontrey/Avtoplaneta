@@ -10,15 +10,15 @@ import (
 
 type OutboxEvent struct {
 	ID            int64              `json:"id"`
-	AggregateType string             `json:"aggregate_type"`
 	AggregateID   int64              `json:"aggregate_id"`
-	EventType     string             `json:"event_type"`
-	Payload       []byte             `json:"payload"`
-	Status        string             `json:"status"`
-	RetryCount    int32              `json:"retry_count"`
-	LastError     pgtype.Text        `json:"last_error"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 	ProcessedAt   pgtype.Timestamptz `json:"processed_at"`
+	RetryCount    int32              `json:"retry_count"`
+	Status        string             `json:"status"`
+	AggregateType string             `json:"aggregate_type"`
+	EventType     string             `json:"event_type"`
+	Payload       []byte             `json:"payload"`
+	LastError     pgtype.Text        `json:"last_error"`
 }
 
 type User struct {
@@ -37,13 +37,13 @@ type User struct {
 type UserActivityLog struct {
 	ID           int64              `json:"id"`
 	UserID       int64              `json:"user_id"`
-	UserName     string             `json:"user_name"`
-	UserEmail    string             `json:"user_email"`
+	ResourceID   pgtype.Int8        `json:"resource_id"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	Action       string             `json:"action"`
 	ResourceType string             `json:"resource_type"`
-	ResourceID   pgtype.Int8        `json:"resource_id"`
+	UserName     string             `json:"user_name"`
+	UserEmail    string             `json:"user_email"`
 	Details      pgtype.Text        `json:"details"`
 	IpAddress    pgtype.Text        `json:"ip_address"`
 	UserAgent    pgtype.Text        `json:"user_agent"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }

@@ -14,7 +14,7 @@ import (
 const CreateSalesHistory = `-- name: CreateSalesHistory :one
 INSERT INTO sales_history (month, sales, created_at)
 VALUES ($1, $2, $3)
-RETURNING id, month, sales, created_at
+RETURNING id, sales, created_at, month
 `
 
 type CreateSalesHistoryParams struct {
@@ -28,9 +28,9 @@ func (q *Queries) CreateSalesHistory(ctx context.Context, arg CreateSalesHistory
 	var i SalesHistory
 	err := row.Scan(
 		&i.ID,
-		&i.Month,
 		&i.Sales,
 		&i.CreatedAt,
+		&i.Month,
 	)
 	return i, err
 }

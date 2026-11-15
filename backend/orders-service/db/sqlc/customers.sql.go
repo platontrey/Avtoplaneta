@@ -17,7 +17,7 @@ INSERT INTO customers (
     category, discount_percent, notes, created_at, updated_at
 )
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-RETURNING id, name, phone, city, preferred_tk, passport_or_inn, category, discount_percent, notes, created_at, updated_at
+RETURNING id, discount_percent, created_at, updated_at, category, name, phone, city, preferred_tk, passport_or_inn, notes
 `
 
 type CreateCustomerParams struct {
@@ -49,16 +49,16 @@ func (q *Queries) CreateCustomer(ctx context.Context, arg CreateCustomerParams) 
 	var i Customer
 	err := row.Scan(
 		&i.ID,
+		&i.DiscountPercent,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Category,
 		&i.Name,
 		&i.Phone,
 		&i.City,
 		&i.PreferredTk,
 		&i.PassportOrInn,
-		&i.Category,
-		&i.DiscountPercent,
 		&i.Notes,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -74,7 +74,7 @@ func (q *Queries) DeleteCustomer(ctx context.Context, id int64) error {
 }
 
 const GetCustomerByID = `-- name: GetCustomerByID :one
-SELECT id, name, phone, city, preferred_tk, passport_or_inn, category, discount_percent, notes, created_at, updated_at FROM customers
+SELECT id, discount_percent, created_at, updated_at, category, name, phone, city, preferred_tk, passport_or_inn, notes FROM customers
 WHERE id = $1
 `
 
@@ -83,22 +83,22 @@ func (q *Queries) GetCustomerByID(ctx context.Context, id int64) (Customer, erro
 	var i Customer
 	err := row.Scan(
 		&i.ID,
+		&i.DiscountPercent,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Category,
 		&i.Name,
 		&i.Phone,
 		&i.City,
 		&i.PreferredTk,
 		&i.PassportOrInn,
-		&i.Category,
-		&i.DiscountPercent,
 		&i.Notes,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const GetCustomerByPhone = `-- name: GetCustomerByPhone :one
-SELECT id, name, phone, city, preferred_tk, passport_or_inn, category, discount_percent, notes, created_at, updated_at FROM customers
+SELECT id, discount_percent, created_at, updated_at, category, name, phone, city, preferred_tk, passport_or_inn, notes FROM customers
 WHERE phone = $1
 LIMIT 1
 `
@@ -108,16 +108,16 @@ func (q *Queries) GetCustomerByPhone(ctx context.Context, phone string) (Custome
 	var i Customer
 	err := row.Scan(
 		&i.ID,
+		&i.DiscountPercent,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Category,
 		&i.Name,
 		&i.Phone,
 		&i.City,
 		&i.PreferredTk,
 		&i.PassportOrInn,
-		&i.Category,
-		&i.DiscountPercent,
 		&i.Notes,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -223,7 +223,7 @@ SET name = $2,
     notes = $9,
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, name, phone, city, preferred_tk, passport_or_inn, category, discount_percent, notes, created_at, updated_at
+RETURNING id, discount_percent, created_at, updated_at, category, name, phone, city, preferred_tk, passport_or_inn, notes
 `
 
 type UpdateCustomerParams struct {
@@ -253,16 +253,16 @@ func (q *Queries) UpdateCustomer(ctx context.Context, arg UpdateCustomerParams) 
 	var i Customer
 	err := row.Scan(
 		&i.ID,
+		&i.DiscountPercent,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Category,
 		&i.Name,
 		&i.Phone,
 		&i.City,
 		&i.PreferredTk,
 		&i.PassportOrInn,
-		&i.Category,
-		&i.DiscountPercent,
 		&i.Notes,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 	)
 	return i, err
 }

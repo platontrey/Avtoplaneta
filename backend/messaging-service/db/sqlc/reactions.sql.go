@@ -12,7 +12,7 @@ import (
 const CreateMention = `-- name: CreateMention :one
 INSERT INTO mentions (message_id, type, resource_id, text)
 VALUES ($1, $2, $3, $4)
-RETURNING id, message_id, type, resource_id, text
+RETURNING id, message_id, resource_id, type, text
 `
 
 type CreateMentionParams struct {
@@ -33,8 +33,8 @@ func (q *Queries) CreateMention(ctx context.Context, arg CreateMentionParams) (M
 	err := row.Scan(
 		&i.ID,
 		&i.MessageID,
-		&i.Type,
 		&i.ResourceID,
+		&i.Type,
 		&i.Text,
 	)
 	return i, err
@@ -91,7 +91,7 @@ func (q *Queries) DeleteReactionByFields(ctx context.Context, arg DeleteReaction
 }
 
 const GetMentionsByMessageIDs = `-- name: GetMentionsByMessageIDs :many
-SELECT id, message_id, type, resource_id, text FROM mentions
+SELECT id, message_id, resource_id, type, text FROM mentions
 WHERE message_id = ANY($1::bigint[])
 `
 
@@ -107,8 +107,8 @@ func (q *Queries) GetMentionsByMessageIDs(ctx context.Context, dollar_1 []int64)
 		if err := rows.Scan(
 			&i.ID,
 			&i.MessageID,
-			&i.Type,
 			&i.ResourceID,
+			&i.Type,
 			&i.Text,
 		); err != nil {
 			return nil, err

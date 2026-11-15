@@ -14,7 +14,7 @@ import (
 const CreateNotification = `-- name: CreateNotification :one
 INSERT INTO notifications (user_id, type, message, read, created_at, related_id)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, user_id, type, message, read, created_at, related_id
+RETURNING id, user_id, related_id, created_at, read, type, message
 `
 
 type CreateNotificationParams struct {
@@ -39,17 +39,17 @@ func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotification
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
+		&i.RelatedID,
+		&i.CreatedAt,
+		&i.Read,
 		&i.Type,
 		&i.Message,
-		&i.Read,
-		&i.CreatedAt,
-		&i.RelatedID,
 	)
 	return i, err
 }
 
 const GetNotificationsByUserID = `-- name: GetNotificationsByUserID :many
-SELECT id, user_id, type, message, read, created_at, related_id FROM notifications
+SELECT id, user_id, related_id, created_at, read, type, message FROM notifications
 WHERE user_id = $1
 ORDER BY created_at DESC
 `
@@ -66,11 +66,11 @@ func (q *Queries) GetNotificationsByUserID(ctx context.Context, userID int64) ([
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
+			&i.RelatedID,
+			&i.CreatedAt,
+			&i.Read,
 			&i.Type,
 			&i.Message,
-			&i.Read,
-			&i.CreatedAt,
-			&i.RelatedID,
 		); err != nil {
 			return nil, err
 		}

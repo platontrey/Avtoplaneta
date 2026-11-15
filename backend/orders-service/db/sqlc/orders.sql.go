@@ -41,7 +41,7 @@ VALUES (
     $12, $13, $14, $15, $16,
     $17, $18, $19, $20, $21, $22
 )
-RETURNING id, customer_id, seller_id, seller, part, part_id, location, buyer_number, status, status_text, auto_deleted, created_at, order_number, source, payment_status, warehouse_status, delivery_method, transport_company, tracking_number, notes, discount, completed_at, updated_at
+RETURNING id, customer_id, seller_id, part_id, created_at, auto_deleted, status, seller, part, location, buyer_number, status_text, order_number, source, payment_status, warehouse_status, delivery_method, transport_company, tracking_number, notes, discount, completed_at, updated_at
 `
 
 type CreateOrderParams struct {
@@ -99,15 +99,15 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		&i.ID,
 		&i.CustomerID,
 		&i.SellerID,
+		&i.PartID,
+		&i.CreatedAt,
+		&i.AutoDeleted,
+		&i.Status,
 		&i.Seller,
 		&i.Part,
-		&i.PartID,
 		&i.Location,
 		&i.BuyerNumber,
-		&i.Status,
 		&i.StatusText,
-		&i.AutoDeleted,
-		&i.CreatedAt,
 		&i.OrderNumber,
 		&i.Source,
 		&i.PaymentStatus,
@@ -134,7 +134,7 @@ func (q *Queries) DeleteOrder(ctx context.Context, id int64) error {
 }
 
 const FindAllOrders = `-- name: FindAllOrders :many
-SELECT id, customer_id, seller_id, seller, part, part_id, location, buyer_number, status, status_text, auto_deleted, created_at, order_number, source, payment_status, warehouse_status, delivery_method, transport_company, tracking_number, notes, discount, completed_at, updated_at FROM orders
+SELECT id, customer_id, seller_id, part_id, created_at, auto_deleted, status, seller, part, location, buyer_number, status_text, order_number, source, payment_status, warehouse_status, delivery_method, transport_company, tracking_number, notes, discount, completed_at, updated_at FROM orders
 WHERE auto_deleted = FALSE
 ORDER BY created_at DESC
 `
@@ -152,15 +152,15 @@ func (q *Queries) FindAllOrders(ctx context.Context) ([]Order, error) {
 			&i.ID,
 			&i.CustomerID,
 			&i.SellerID,
+			&i.PartID,
+			&i.CreatedAt,
+			&i.AutoDeleted,
+			&i.Status,
 			&i.Seller,
 			&i.Part,
-			&i.PartID,
 			&i.Location,
 			&i.BuyerNumber,
-			&i.Status,
 			&i.StatusText,
-			&i.AutoDeleted,
-			&i.CreatedAt,
 			&i.OrderNumber,
 			&i.Source,
 			&i.PaymentStatus,
@@ -184,7 +184,7 @@ func (q *Queries) FindAllOrders(ctx context.Context) ([]Order, error) {
 }
 
 const FindCompletedOrders = `-- name: FindCompletedOrders :many
-SELECT id, customer_id, seller_id, seller, part, part_id, location, buyer_number, status, status_text, auto_deleted, created_at, order_number, source, payment_status, warehouse_status, delivery_method, transport_company, tracking_number, notes, discount, completed_at, updated_at FROM orders
+SELECT id, customer_id, seller_id, part_id, created_at, auto_deleted, status, seller, part, location, buyer_number, status_text, order_number, source, payment_status, warehouse_status, delivery_method, transport_company, tracking_number, notes, discount, completed_at, updated_at FROM orders
 WHERE auto_deleted = TRUE
 ORDER BY COALESCE(completed_at, created_at) DESC
 LIMIT 200
@@ -203,15 +203,15 @@ func (q *Queries) FindCompletedOrders(ctx context.Context) ([]Order, error) {
 			&i.ID,
 			&i.CustomerID,
 			&i.SellerID,
+			&i.PartID,
+			&i.CreatedAt,
+			&i.AutoDeleted,
+			&i.Status,
 			&i.Seller,
 			&i.Part,
-			&i.PartID,
 			&i.Location,
 			&i.BuyerNumber,
-			&i.Status,
 			&i.StatusText,
-			&i.AutoDeleted,
-			&i.CreatedAt,
 			&i.OrderNumber,
 			&i.Source,
 			&i.PaymentStatus,
@@ -235,7 +235,7 @@ func (q *Queries) FindCompletedOrders(ctx context.Context) ([]Order, error) {
 }
 
 const GetOrderByID = `-- name: GetOrderByID :one
-SELECT id, customer_id, seller_id, seller, part, part_id, location, buyer_number, status, status_text, auto_deleted, created_at, order_number, source, payment_status, warehouse_status, delivery_method, transport_company, tracking_number, notes, discount, completed_at, updated_at FROM orders
+SELECT id, customer_id, seller_id, part_id, created_at, auto_deleted, status, seller, part, location, buyer_number, status_text, order_number, source, payment_status, warehouse_status, delivery_method, transport_company, tracking_number, notes, discount, completed_at, updated_at FROM orders
 WHERE id = $1
 `
 
@@ -246,15 +246,15 @@ func (q *Queries) GetOrderByID(ctx context.Context, id int64) (Order, error) {
 		&i.ID,
 		&i.CustomerID,
 		&i.SellerID,
+		&i.PartID,
+		&i.CreatedAt,
+		&i.AutoDeleted,
+		&i.Status,
 		&i.Seller,
 		&i.Part,
-		&i.PartID,
 		&i.Location,
 		&i.BuyerNumber,
-		&i.Status,
 		&i.StatusText,
-		&i.AutoDeleted,
-		&i.CreatedAt,
 		&i.OrderNumber,
 		&i.Source,
 		&i.PaymentStatus,
@@ -271,7 +271,7 @@ func (q *Queries) GetOrderByID(ctx context.Context, id int64) (Order, error) {
 }
 
 const GetOrdersByCustomerID = `-- name: GetOrdersByCustomerID :many
-SELECT id, customer_id, seller_id, seller, part, part_id, location, buyer_number, status, status_text, auto_deleted, created_at, order_number, source, payment_status, warehouse_status, delivery_method, transport_company, tracking_number, notes, discount, completed_at, updated_at FROM orders
+SELECT id, customer_id, seller_id, part_id, created_at, auto_deleted, status, seller, part, location, buyer_number, status_text, order_number, source, payment_status, warehouse_status, delivery_method, transport_company, tracking_number, notes, discount, completed_at, updated_at FROM orders
 WHERE customer_id = $1
 ORDER BY created_at DESC
 `
@@ -289,15 +289,15 @@ func (q *Queries) GetOrdersByCustomerID(ctx context.Context, customerID int64) (
 			&i.ID,
 			&i.CustomerID,
 			&i.SellerID,
+			&i.PartID,
+			&i.CreatedAt,
+			&i.AutoDeleted,
+			&i.Status,
 			&i.Seller,
 			&i.Part,
-			&i.PartID,
 			&i.Location,
 			&i.BuyerNumber,
-			&i.Status,
 			&i.StatusText,
-			&i.AutoDeleted,
-			&i.CreatedAt,
 			&i.OrderNumber,
 			&i.Source,
 			&i.PaymentStatus,

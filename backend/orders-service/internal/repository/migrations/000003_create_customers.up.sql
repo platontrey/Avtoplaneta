@@ -2,16 +2,16 @@
 
 CREATE TABLE IF NOT EXISTS customers (
     id BIGSERIAL PRIMARY KEY,
+    discount_percent DOUBLE PRECISION NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    category VARCHAR(32) NOT NULL DEFAULT 'regular',
     name VARCHAR(255) NOT NULL DEFAULT '',
     phone VARCHAR(64) NOT NULL DEFAULT '',
     city VARCHAR(128) NOT NULL DEFAULT '',
     preferred_tk VARCHAR(128) NOT NULL DEFAULT '',
     passport_or_inn VARCHAR(128) NOT NULL DEFAULT '',
-    category VARCHAR(32) NOT NULL DEFAULT 'regular',
-    discount_percent DOUBLE PRECISION NOT NULL DEFAULT 0,
-    notes TEXT NOT NULL DEFAULT '',
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    notes TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers (phone);
@@ -41,4 +41,4 @@ UPDATE orders o
 SET customer_id = c.id
 FROM customers c
 WHERE TRIM(o.buyer_number) = c.phone
-  AND (o.customer_id = 0 OR o.customer_id IS NULL);
+  AND o.customer_id = 0;

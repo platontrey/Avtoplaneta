@@ -10,18 +10,18 @@ import (
 
 type Conversation struct {
 	ID            int64              `json:"id"`
-	Participants  []int64            `json:"participants"`
-	Title         string             `json:"title"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 	LastMessageAt pgtype.Timestamptz `json:"last_message_at"`
+	Title         string             `json:"title"`
 	LastMessage   string             `json:"last_message"`
+	Participants  []int64            `json:"participants"`
 }
 
 type Mention struct {
 	ID         int64  `json:"id"`
 	MessageID  int64  `json:"message_id"`
-	Type       string `json:"type"`
 	ResourceID int64  `json:"resource_id"`
+	Type       string `json:"type"`
 	Text       string `json:"text"`
 }
 
@@ -29,10 +29,10 @@ type Message struct {
 	ID             int64              `json:"id"`
 	ConversationID int64              `json:"conversation_id"`
 	SenderID       int64              `json:"sender_id"`
-	Content        string             `json:"content"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	MessageType    string             `json:"message_type"`
 	VoiceUrl       string             `json:"voice_url"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	Content        string             `json:"content"`
 	ReadBy         []int64            `json:"read_by"`
 	Attachments    []string           `json:"attachments"`
 	SearchVector   interface{}        `json:"search_vector"`
@@ -41,11 +41,11 @@ type Message struct {
 type Notification struct {
 	ID        int64              `json:"id"`
 	UserID    int64              `json:"user_id"`
+	RelatedID int64              `json:"related_id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	Read      bool               `json:"read"`
 	Type      string             `json:"type"`
 	Message   string             `json:"message"`
-	Read      bool               `json:"read"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	RelatedID int64              `json:"related_id"`
 }
 
 type Reaction struct {
@@ -58,6 +58,6 @@ type Reaction struct {
 type UserStatus struct {
 	ID       int64              `json:"id"`
 	UserID   int64              `json:"user_id"`
-	IsOnline bool               `json:"is_online"`
 	LastSeen pgtype.Timestamptz `json:"last_seen"`
+	IsOnline bool               `json:"is_online"`
 }
