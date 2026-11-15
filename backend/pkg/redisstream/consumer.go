@@ -131,29 +131,33 @@ func (w *ConsumerGroupWorker) Start(ctx context.Context) error {
 				continue
 			}
 
-			if len(streams) == 0 {
-				continue
-			}
-
 			for _, stream := range streams {
-				for _, msg := range stream.Messages {
-					if err := w.handler(ctx, msg); err != nil {
-						w.log.ErrorContext(ctx, "Failed to process stream message, leaving in PEL",
-							slog.Any("error", err),
-							slog.String("message_id", msg.ID),
-						)
-						continue
-					}
-
-					if err := w.client.XAck(ctx, w.cfg.Stream, w.cfg.Group, msg.ID).Err(); err != nil {
-						w.log.ErrorContext(ctx, "Failed to ACK stream message",
-							slog.Any("error", err),
-							slog.String("message_id", msg.ID),
-						)
-					}
-				}
+				w.processStreamMessages(ctx, stream.Messages)
 			}
 		}
+	}
+}
+
+func (w *ConsumerGroupWorker) processStreamMessages(ctx context.Context, messages []redis.XMessage) {
+	for _, msg := range messages {
+		w.processSingleStreamMessage(ctx, msg)
+	}
+}
+
+func (w *ConsumerGroupWorker) processSingleStreamMessage(ctx context.Context, msg redis.XMessage) {
+	if err := w.handler(ctx, msg); err != nil {
+		w.log.ErrorContext(ctx, "Failed to process stream message, leaving in PEL",
+			slog.Any("error", err),
+			slog.String("message_id", msg.ID),
+		)
+		return
+	}
+
+	if err := w.client.XAck(ctx, w.cfg.Stream, w.cfg.Group, msg.ID).Err(); err != nil {
+		w.log.ErrorContext(ctx, "Failed to ACK stream message",
+			slog.Any("error", err),
+			slog.String("message_id", msg.ID),
+		)
 	}
 }
 
@@ -191,40 +195,44 @@ func (w *ConsumerGroupWorker) recoverPendingMessages(ctx context.Context) {
 
 	for _, stream := range streams {
 		for _, msg := range stream.Messages {
-			w.log.InfoContext(ctx, "Recovering pending message from PEL", slog.String("message_id", msg.ID))
-
-			deliveryCount := w.getDeliveryCount(ctx, msg.ID)
-			if deliveryCount > w.cfg.MaxDeliveryAttempts {
-				w.log.WarnContext(ctx, "Message exceeded max delivery attempts",
-					slog.String("message_id", msg.ID),
-					slog.Int64("delivery_count", deliveryCount),
-					slog.Int64("max_attempts", w.cfg.MaxDeliveryAttempts),
-				)
-
-				if w.cfg.EnableDLQ {
-					w.sendToDLQ(ctx, msg, fmt.Errorf("exceeded max delivery attempts (%d)", deliveryCount))
-				}
-
-				// Подтверждаем в основном стриме, чтобы убрать из очереди зависших
-				_ = w.client.XAck(ctx, w.cfg.Stream, w.cfg.Group, msg.ID).Err()
-				continue
-			}
-
-			if err := w.handler(ctx, msg); err != nil {
-				w.log.ErrorContext(ctx, "Failed to process recovered message",
-					slog.Any("error", err),
-					slog.String("message_id", msg.ID),
-				)
-				continue
-			}
-
-			if err := w.client.XAck(ctx, w.cfg.Stream, w.cfg.Group, msg.ID).Err(); err != nil {
-				w.log.ErrorContext(ctx, "Failed to acknowledge recovered message",
-					slog.Any("error", err),
-					slog.String("message_id", msg.ID),
-				)
-			}
+			w.recoverSingleMessage(ctx, msg)
 		}
+	}
+}
+
+func (w *ConsumerGroupWorker) recoverSingleMessage(ctx context.Context, msg redis.XMessage) {
+	w.log.InfoContext(ctx, "Recovering pending message from PEL", slog.String("message_id", msg.ID))
+
+	deliveryCount := w.getDeliveryCount(ctx, msg.ID)
+	if deliveryCount > w.cfg.MaxDeliveryAttempts {
+		w.log.WarnContext(ctx, "Message exceeded max delivery attempts",
+			slog.String("message_id", msg.ID),
+			slog.Int64("delivery_count", deliveryCount),
+			slog.Int64("max_attempts", w.cfg.MaxDeliveryAttempts),
+		)
+
+		if w.cfg.EnableDLQ {
+			w.sendToDLQ(ctx, msg, fmt.Errorf("exceeded max delivery attempts (%d)", deliveryCount))
+		}
+
+		// Подтверждаем в основном стриме, чтобы убрать из очереди зависших
+		_ = w.client.XAck(ctx, w.cfg.Stream, w.cfg.Group, msg.ID).Err()
+		return
+	}
+
+	if err := w.handler(ctx, msg); err != nil {
+		w.log.ErrorContext(ctx, "Failed to process recovered message",
+			slog.Any("error", err),
+			slog.String("message_id", msg.ID),
+		)
+		return
+	}
+
+	if err := w.client.XAck(ctx, w.cfg.Stream, w.cfg.Group, msg.ID).Err(); err != nil {
+		w.log.ErrorContext(ctx, "Failed to acknowledge recovered message",
+			slog.Any("error", err),
+			slog.String("message_id", msg.ID),
+		)
 	}
 }
 

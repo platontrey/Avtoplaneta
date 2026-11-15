@@ -15,6 +15,7 @@ import (
 	"avtoplaneta/pkg/logger"
 	"avtoplaneta/pkg/metrics"
 	"avtoplaneta/pkg/outbox"
+	"orders-service/internal/domain"
 	"orders-service/internal/repository"
 )
 
@@ -127,62 +128,13 @@ func (d *Dispatcher) handleOrderCompleted(ctx context.Context, event outbox.Even
 	}
 
 	// 1. Гарантированное списание запчастей через gRPC с идемпотентным operationID
-	if d.partRepo != nil {
-		for _, item := range order.Items {
-			if item.PartID <= 0 {
-				continue
-			}
-
-			part, errPart := d.partRepo.FindByID(ctx, item.PartID)
-			if errPart != nil {
-				slog.WarnContext(ctx, "Part not found in parts-service during outbox processing",
-					logger.Err(errPart),
-					slog.Int64("part_id", item.PartID))
-				continue
-			}
-
-			if part.Quantity > item.Quantity {
-				opID := fmt.Sprintf("complete-order-%d-part-%d", orderID, item.PartID)
-				if err := d.partRepo.DecreaseQuantity(ctx, item.PartID, item.Quantity, opID); err != nil {
-					return fmt.Errorf("failed to decrease part %d quantity: %w", item.PartID, err)
-				}
-			} else {
-				if err := d.partRepo.DeletePart(ctx, item.PartID); err != nil {
-					return fmt.Errorf("failed to delete depleted part %d: %w", item.PartID, err)
-				}
-			}
-		}
+	if err := d.deductOrderItems(ctx, orderID, order.Items); err != nil {
+		return err
 	}
 
 	// 2. Публикация события order_completed в Redis Stream events:orders
-	var totalAmount float64
-	var payloadMap map[string]interface{}
-	if err := json.Unmarshal(event.Payload, &payloadMap); err == nil {
-		if amt, ok := payloadMap["amount"].(float64); ok {
-			totalAmount = amt
-		}
-	}
-	if totalAmount == 0 {
-		var subtotal float64
-		for _, item := range order.Items {
-			subtotal += item.Price * float64(item.Quantity)
-		}
-		totalAmount = math.Max(subtotal-order.Discount, 0)
-	}
-
-	if d.redisClient != nil {
-		err := d.redisClient.XAdd(ctx, &redis.XAddArgs{
-			Stream: constants.StreamOrdersEvents,
-			Values: map[string]interface{}{
-				"type":     "order_completed",
-				"order_id": fmt.Sprintf("%d", orderID),
-				"amount":   fmt.Sprintf("%.2f", totalAmount),
-				"ts":       time.Now().Unix(),
-			},
-		}).Err()
-		if err != nil {
-			return fmt.Errorf("failed to publish order_completed to Redis Streams: %w", err)
-		}
+	if err := d.publishOrderCompleted(ctx, orderID, order, event.Payload); err != nil {
+		return err
 	}
 
 	// 3. Инвалидация кэша заказов
@@ -193,6 +145,82 @@ func (d *Dispatcher) handleOrderCompleted(ctx context.Context, event outbox.Even
 	}
 
 	return nil
+}
+
+func (d *Dispatcher) deductOrderItems(ctx context.Context, orderID int64, items []domain.OrderItem) error {
+	if d.partRepo == nil {
+		return nil
+	}
+
+	for _, item := range items {
+		if err := d.deductSingleItem(ctx, orderID, item); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (d *Dispatcher) deductSingleItem(ctx context.Context, orderID int64, item domain.OrderItem) error {
+	if item.PartID <= 0 {
+		return nil
+	}
+
+	part, errPart := d.partRepo.FindByID(ctx, item.PartID)
+	if errPart != nil {
+		slog.WarnContext(ctx, "Part not found in parts-service during outbox processing",
+			logger.Err(errPart),
+			slog.Int64("part_id", item.PartID))
+		return nil
+	}
+
+	if part.Quantity > item.Quantity {
+		opID := fmt.Sprintf("complete-order-%d-part-%d", orderID, item.PartID)
+		if err := d.partRepo.DecreaseQuantity(ctx, item.PartID, item.Quantity, opID); err != nil {
+			return fmt.Errorf("failed to decrease part %d quantity: %w", item.PartID, err)
+		}
+		return nil
+	}
+
+	if err := d.partRepo.DeletePart(ctx, item.PartID); err != nil {
+		return fmt.Errorf("failed to delete depleted part %d: %w", item.PartID, err)
+	}
+	return nil
+}
+
+func (d *Dispatcher) publishOrderCompleted(ctx context.Context, orderID int64, order *domain.Order, payload []byte) error {
+	if d.redisClient == nil {
+		return nil
+	}
+
+	totalAmount := resolveTotalAmount(order, payload)
+	err := d.redisClient.XAdd(ctx, &redis.XAddArgs{
+		Stream: constants.StreamOrdersEvents,
+		Values: map[string]interface{}{
+			"type":     "order_completed",
+			"order_id": fmt.Sprintf("%d", orderID),
+			"amount":   fmt.Sprintf("%.2f", totalAmount),
+			"ts":       time.Now().Unix(),
+		},
+	}).Err()
+	if err != nil {
+		return fmt.Errorf("failed to publish order_completed to Redis Streams: %w", err)
+	}
+	return nil
+}
+
+func resolveTotalAmount(order *domain.Order, payload []byte) float64 {
+	var payloadMap map[string]interface{}
+	if err := json.Unmarshal(payload, &payloadMap); err == nil {
+		if amt, ok := payloadMap["amount"].(float64); ok {
+			return amt
+		}
+	}
+
+	var subtotal float64
+	for _, item := range order.Items {
+		subtotal += item.Price * float64(item.Quantity)
+	}
+	return math.Max(subtotal-order.Discount, 0)
 }
 
 // handleUserAction публикует аудит-действие в Redis Streams

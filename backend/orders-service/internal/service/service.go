@@ -64,10 +64,9 @@ func computeOrderTotal(order *domain.Order) {
 	order.TotalAmount = math.Max(subtotal-order.Discount, 0)
 }
 
-func (s *ordersService) enrichOrders(ctx context.Context, orders []domain.Order, fetchLiveParts bool) {
-	now := time.Now()
+func (s *ordersService) newPartCacheLookup(ctx context.Context) func(int64) (*domain.Part, error) {
 	partCache := make(map[int64]*domain.Part)
-	lookupPart := func(partID int64) (*domain.Part, error) {
+	return func(partID int64) (*domain.Part, error) {
 		if cached, ok := partCache[partID]; ok {
 			if cached == nil {
 				return nil, fmt.Errorf("part %d not found", partID)
@@ -82,76 +81,108 @@ func (s *ordersService) enrichOrders(ctx context.Context, orders []domain.Order,
 		partCache[partID] = part
 		return part, nil
 	}
+}
+
+func enrichOrderDates(order *domain.Order, now time.Time) {
+	order.CreatedAtFormatted = order.CreatedAt.Format("2006-01-02 15:04:05")
+	order.TimeAgo = formatTimeAgo(now.Sub(order.CreatedAt))
+	if order.CompletedAt != nil {
+		order.CompletedAtFormatted = order.CompletedAt.Format("2006-01-02 15:04:05")
+	}
+}
+
+func (s *ordersService) enrichOrderItem(item *domain.OrderItem, lookupPart func(int64) (*domain.Part, error), fetchLiveParts bool, fallbackPart string) string {
+	if fetchLiveParts && item.PartID > 0 {
+		if part, err := lookupPart(item.PartID); err == nil && part != nil {
+			item.Location = part.Location
+			if part.Name != "" {
+				item.PartName = part.Name
+			}
+		}
+	}
+
+	if item.PartName == "" {
+		if item.PartNameSnapshot != "" {
+			item.PartName = item.PartNameSnapshot
+		} else if fallbackPart != "" {
+			item.PartName = fallbackPart
+		}
+	}
+
+	return item.Location
+}
+
+func (s *ordersService) enrichOrderFromItems(order *domain.Order, lookupPart func(int64) (*domain.Part, error), fetchLiveParts bool) {
+	if order.PartID == 0 {
+		order.PartID = order.Items[0].PartID
+	}
+
+	var locations []string
+	seenLocations := make(map[string]bool)
+	var names []string
+
+	fallbackPart := ""
+	if len(order.Items) == 1 {
+		fallbackPart = order.Part
+	}
+
+	for j := range order.Items {
+		loc := s.enrichOrderItem(&order.Items[j], lookupPart, fetchLiveParts, fallbackPart)
+		if loc != "" && !seenLocations[loc] {
+			seenLocations[loc] = true
+			locations = append(locations, loc)
+		}
+		if order.Items[j].PartName != "" {
+			names = append(names, order.Items[j].PartName)
+		}
+	}
+
+	if len(locations) > 0 {
+		order.Location = strings.Join(locations, ", ")
+	} else if order.Location == "" {
+		order.Location = "Неизвестно"
+	}
+
+	if order.Part == "" && len(names) > 0 {
+		order.Part = strings.Join(names, ", ")
+	}
+}
+
+func (s *ordersService) enrichOrderFromSinglePart(order *domain.Order, lookupPart func(int64) (*domain.Part, error), fetchLiveParts bool) {
+	if order.PartID > 0 && fetchLiveParts {
+		if part, err := lookupPart(order.PartID); err == nil && part != nil {
+			order.Location = part.Location
+			if order.Part == "" {
+				order.Part = part.Name
+			}
+			return
+		}
+		if order.Location == "" {
+			order.Location = "Неизвестно"
+		}
+		return
+	}
+
+	if order.Location == "" {
+		order.Location = "Нет деталей"
+	}
+}
+
+func (s *ordersService) enrichOrders(ctx context.Context, orders []domain.Order, fetchLiveParts bool) {
+	now := time.Now()
+	lookupPart := s.newPartCacheLookup(ctx)
 
 	for i := range orders {
-		orders[i].CreatedAtFormatted = orders[i].CreatedAt.Format("2006-01-02 15:04:05")
-		orders[i].TimeAgo = formatTimeAgo(now.Sub(orders[i].CreatedAt))
-		if orders[i].CompletedAt != nil {
-			orders[i].CompletedAtFormatted = orders[i].CompletedAt.Format("2006-01-02 15:04:05")
+		order := &orders[i]
+		enrichOrderDates(order, now)
+
+		if len(order.Items) > 0 {
+			s.enrichOrderFromItems(order, lookupPart, fetchLiveParts)
+		} else {
+			s.enrichOrderFromSinglePart(order, lookupPart, fetchLiveParts)
 		}
 
-		if orders[i].PartID == 0 && len(orders[i].Items) > 0 {
-			orders[i].PartID = orders[i].Items[0].PartID
-		}
-
-		if len(orders[i].Items) > 0 {
-			var locations []string
-			seenLocations := make(map[string]bool)
-
-			for j := range orders[i].Items {
-				itemPartID := orders[i].Items[j].PartID
-				if fetchLiveParts && itemPartID > 0 {
-					part, err := lookupPart(itemPartID)
-					if err == nil && part != nil {
-						orders[i].Items[j].Location = part.Location
-						if part.Location != "" && !seenLocations[part.Location] {
-							seenLocations[part.Location] = true
-							locations = append(locations, part.Location)
-						}
-						if part.Name != "" {
-							orders[i].Items[j].PartName = part.Name
-						}
-					}
-				}
-
-				if orders[i].Items[j].PartName == "" {
-					if orders[i].Items[j].PartNameSnapshot != "" {
-						orders[i].Items[j].PartName = orders[i].Items[j].PartNameSnapshot
-					} else if len(orders[i].Items) == 1 && orders[i].Part != "" {
-						orders[i].Items[j].PartName = orders[i].Part
-					}
-				}
-			}
-
-			if len(locations) > 0 {
-				orders[i].Location = strings.Join(locations, ", ")
-			} else if orders[i].Location == "" {
-				orders[i].Location = "Неизвестно"
-			}
-
-			if orders[i].Part == "" {
-				var names []string
-				for _, it := range orders[i].Items {
-					if it.PartName != "" {
-						names = append(names, it.PartName)
-					}
-				}
-				orders[i].Part = strings.Join(names, ", ")
-			}
-		} else if orders[i].PartID > 0 && fetchLiveParts {
-			if part, err := lookupPart(orders[i].PartID); err == nil && part != nil {
-				orders[i].Location = part.Location
-				if orders[i].Part == "" {
-					orders[i].Part = part.Name
-				}
-			} else if orders[i].Location == "" {
-				orders[i].Location = "Неизвестно"
-			}
-		} else if orders[i].Location == "" {
-			orders[i].Location = "Нет деталей"
-		}
-
-		computeOrderTotal(&orders[i])
+		computeOrderTotal(order)
 	}
 }
 

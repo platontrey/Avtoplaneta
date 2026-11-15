@@ -844,77 +844,93 @@ func BulkIndexParts(ctx context.Context, parts []domain.Part) error {
 		}
 
 		batch := parts[i:end]
-		var buf bytes.Buffer
-
-		for j := range batch {
-			part := &batch[j]
-			meta := fmt.Sprintf(`{"index":{"_index":"parts","_id":"%d"}}`+"\n", part.ID)
-			buf.WriteString(meta)
-
-			esPart := partToESPart(part)
-			docBytes, err := json.Marshal(esPart)
-			if err != nil {
-				log.Printf("Предупреждение: ошибка сериализации запчасти %d: %v", part.ID, err)
-				continue
-			}
-			buf.Write(docBytes)
-			buf.WriteByte('\n')
-		}
-
-		req := esapi.BulkRequest{
-			Index: "parts",
-			Body:  &buf,
-		}
-
-		res, err := req.Do(ctx, esClient)
-		if err != nil {
-			return fmt.Errorf("ошибка отправки bulk-запроса (%d-%d): %w", i+1, end, err)
-		}
-
-		if res.IsError() {
-			errStr := res.String()
-			res.Body.Close()
-			return fmt.Errorf("ошибка Elasticsearch при bulk-индексации (%d-%d): %s", i+1, end, errStr)
-		}
-
-		var bulkRes struct {
-			Errors bool `json:"errors"`
-			Items  []map[string]struct {
-				Status int `json:"status"`
-				Error  struct {
-					Type   string `json:"type"`
-					Reason string `json:"reason"`
-				} `json:"error"`
-			} `json:"items"`
-		}
-
-		if err := json.NewDecoder(res.Body).Decode(&bulkRes); err != nil {
-			res.Body.Close()
-			log.Printf("Предупреждение: не удалось декодировать ответ bulk: %v", err)
-		} else {
-			res.Body.Close()
-			if bulkRes.Errors {
-				errCount := 0
-				for _, item := range bulkRes.Items {
-					for _, op := range item {
-						if op.Error.Reason != "" {
-							errCount++
-							if errCount <= 5 {
-								log.Printf("Предупреждение: ошибка индексации документа (%d): %s: %s", op.Status, op.Error.Type, op.Error.Reason)
-							}
-						}
-					}
-				}
-				if errCount > 5 {
-					log.Printf("Предупреждение: всего ошибок в пакете: %d", errCount)
-				}
-			}
+		if err := indexPartsBatch(ctx, batch, i+1, end); err != nil {
+			return err
 		}
 
 		log.Printf("Bulk-индексация: успешно обработано %d из %d запчастей", end, total)
 	}
 
 	return RefreshPartsIndex(ctx)
+}
+
+func buildBulkPayload(parts []domain.Part) bytes.Buffer {
+	var buf bytes.Buffer
+	for i := range parts {
+		part := &parts[i]
+		meta := fmt.Sprintf(`{"index":{"_index":"parts","_id":"%d"}}`+"\n", part.ID)
+		buf.WriteString(meta)
+
+		esPart := partToESPart(part)
+		docBytes, err := json.Marshal(esPart)
+		if err != nil {
+			log.Printf("Предупреждение: ошибка сериализации запчасти %d: %v", part.ID, err)
+			continue
+		}
+		buf.Write(docBytes)
+		buf.WriteByte('\n')
+	}
+	return buf
+}
+
+type bulkItemOp struct {
+	Status int `json:"status"`
+	Error  struct {
+		Type   string `json:"type"`
+		Reason string `json:"reason"`
+	} `json:"error"`
+}
+
+type bulkResponseBody struct {
+	Errors bool                    `json:"errors"`
+	Items  []map[string]bulkItemOp `json:"items"`
+}
+
+func indexPartsBatch(ctx context.Context, batch []domain.Part, startIdx, endIdx int) error {
+	buf := buildBulkPayload(batch)
+	req := esapi.BulkRequest{
+		Index: "parts",
+		Body:  &buf,
+	}
+
+	res, err := req.Do(ctx, esClient)
+	if err != nil {
+		return fmt.Errorf("ошибка отправки bulk-запроса (%d-%d): %w", startIdx, endIdx, err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		return fmt.Errorf("ошибка Elasticsearch при bulk-индексации (%d-%d): %s", startIdx, endIdx, res.String())
+	}
+
+	var bulkRes bulkResponseBody
+	if err := json.NewDecoder(res.Body).Decode(&bulkRes); err != nil {
+		log.Printf("Предупреждение: не удалось декодировать ответ bulk: %v", err)
+		return nil
+	}
+
+	if bulkRes.Errors {
+		logBulkErrors(bulkRes.Items)
+	}
+	return nil
+}
+
+func logBulkErrors(items []map[string]bulkItemOp) {
+	errCount := 0
+	for _, item := range items {
+		for _, op := range item {
+			if op.Error.Reason == "" {
+				continue
+			}
+			errCount++
+			if errCount <= 5 {
+				log.Printf("Предупреждение: ошибка индексации документа (%d): %s: %s", op.Status, op.Error.Type, op.Error.Reason)
+			}
+		}
+	}
+	if errCount > 5 {
+		log.Printf("Предупреждение: всего ошибок в пакете: %d", errCount)
+	}
 }
 
 // RefreshPartsIndex выполняет refresh индекса parts для обновления видимости документов в поиске

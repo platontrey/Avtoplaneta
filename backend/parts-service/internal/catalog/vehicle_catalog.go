@@ -107,69 +107,70 @@ func vehicleSortKey(name string) string {
 	return strings.ToLower(strings.TrimSpace(name))
 }
 
-// ModelsOf возвращает модели марки. Марка ищется без учёта регистра, потому что
-// в уже заведённых запчастях марка лежит как свободный текст.
-func (c *VehicleCatalog) ModelsOf(brand string) []VehicleModel {
+// FindBrand ищет марку в каталоге без учёта регистра
+func (c *VehicleCatalog) FindBrand(brand string) *VehicleBrand {
 	if c == nil {
 		return nil
 	}
 	needle := vehicleSortKey(brand)
-	for _, item := range c.Brands {
-		if vehicleSortKey(item.Name) == needle {
-			return item.Models
+	for i := range c.Brands {
+		if vehicleSortKey(c.Brands[i].Name) == needle {
+			return &c.Brands[i]
 		}
 	}
 	return nil
+}
+
+// FindModel ищет модель в марке без учёта регистра
+func (b *VehicleBrand) FindModel(model string) *VehicleModel {
+	if b == nil {
+		return nil
+	}
+	needle := vehicleSortKey(model)
+	for i := range b.Models {
+		if vehicleSortKey(b.Models[i].Name) == needle {
+			return &b.Models[i]
+		}
+	}
+	return nil
+}
+
+// ModelsOf возвращает модели марки. Марка ищется без учёта регистра, потому что
+// в уже заведённых запчастях марка лежит как свободный текст.
+func (c *VehicleCatalog) ModelsOf(brand string) []VehicleModel {
+	b := c.FindBrand(brand)
+	if b == nil {
+		return nil
+	}
+	return b.Models
 }
 
 // BodiesOf возвращает марки кузова для марки и модели.
 // Если указана модель, сначала проверяются кузова модели, затем с откатом на марку.
 func (c *VehicleCatalog) BodiesOf(brand, model string) []string {
-	if c == nil {
+	b := c.FindBrand(brand)
+	if b == nil {
 		return nil
 	}
-	brandNeedle := vehicleSortKey(brand)
-	modelNeedle := vehicleSortKey(model)
-	for _, b := range c.Brands {
-		if vehicleSortKey(b.Name) == brandNeedle {
-			if modelNeedle != "" {
-				for _, m := range b.Models {
-					if vehicleSortKey(m.Name) == modelNeedle {
-						if len(m.Bodies) > 0 {
-							return m.Bodies
-						}
-						break
-					}
-				}
-			}
-			return b.Bodies
+	if model != "" {
+		if m := b.FindModel(model); m != nil && len(m.Bodies) > 0 {
+			return m.Bodies
 		}
 	}
-	return nil
+	return b.Bodies
 }
 
 // EnginesOf возвращает марки двигателя для марки и модели.
 // Если указана модель, сначала проверяются двигатели модели, затем с откатом на марку.
 func (c *VehicleCatalog) EnginesOf(brand, model string) []string {
-	if c == nil {
+	b := c.FindBrand(brand)
+	if b == nil {
 		return nil
 	}
-	brandNeedle := vehicleSortKey(brand)
-	modelNeedle := vehicleSortKey(model)
-	for _, b := range c.Brands {
-		if vehicleSortKey(b.Name) == brandNeedle {
-			if modelNeedle != "" {
-				for _, m := range b.Models {
-					if vehicleSortKey(m.Name) == modelNeedle {
-						if len(m.Engines) > 0 {
-							return m.Engines
-						}
-						break
-					}
-				}
-			}
-			return b.Engines
+	if model != "" {
+		if m := b.FindModel(model); m != nil && len(m.Engines) > 0 {
+			return m.Engines
 		}
 	}
-	return nil
+	return b.Engines
 }

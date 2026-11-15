@@ -79,23 +79,27 @@ func (c *RedisEventConsumer) Start(ctx context.Context) error {
 				continue
 			}
 
-			if len(streams) == 0 {
-				continue
-			}
-
 			for _, stream := range streams {
-				for _, msg := range stream.Messages {
-					if err := c.processMessage(ctx, msg); err != nil {
-						slog.ErrorContext(ctx, "Failed to process message in orders-service", logger.Err(err), slog.String("message_id", msg.ID))
-						continue
-					}
-
-					if err := c.client.XAck(ctx, c.stream, c.group, msg.ID).Err(); err != nil {
-						slog.ErrorContext(ctx, "Failed to ACK message in orders-service", logger.Err(err), slog.String("message_id", msg.ID))
-					}
-				}
+				c.processStreamMessages(ctx, stream.Messages)
 			}
 		}
+	}
+}
+
+func (c *RedisEventConsumer) processStreamMessages(ctx context.Context, messages []redis.XMessage) {
+	for _, msg := range messages {
+		c.processSingleStreamMessage(ctx, msg)
+	}
+}
+
+func (c *RedisEventConsumer) processSingleStreamMessage(ctx context.Context, msg redis.XMessage) {
+	if err := c.processMessage(ctx, msg); err != nil {
+		slog.ErrorContext(ctx, "Failed to process message in orders-service", logger.Err(err), slog.String("message_id", msg.ID))
+		return
+	}
+
+	if err := c.client.XAck(ctx, c.stream, c.group, msg.ID).Err(); err != nil {
+		slog.ErrorContext(ctx, "Failed to ACK message in orders-service", logger.Err(err), slog.String("message_id", msg.ID))
 	}
 }
 
