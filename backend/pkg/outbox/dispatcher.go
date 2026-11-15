@@ -169,45 +169,55 @@ func (d *Dispatcher) startNotifyListener(ctx context.Context, notifyCh chan<- st
 		conn, err := d.pool.Acquire(ctx)
 		if err != nil {
 			d.log.WarnContext(ctx, "Failed to acquire connection for LISTEN, retrying in 2s", slog.Any("error", err))
-			select {
-			case <-ctx.Done():
+			if d.waitReconnect(ctx) {
 				return
-			case <-time.After(2 * time.Second):
-				continue
 			}
+			continue
 		}
 
 		_, err = conn.Exec(ctx, "LISTEN "+d.opts.Channel)
 		if err != nil {
 			conn.Release()
 			d.log.WarnContext(ctx, "Failed to execute LISTEN, retrying in 2s", slog.Any("error", err))
-			select {
-			case <-ctx.Done():
+			if d.waitReconnect(ctx) {
 				return
-			case <-time.After(2 * time.Second):
-				continue
 			}
+			continue
 		}
 
 		d.log.InfoContext(ctx, "Successfully subscribed via PostgreSQL LISTEN", slog.String("channel", d.opts.Channel))
+		d.listenConnection(ctx, conn, notifyCh)
+	}
+}
 
-		for {
-			notification, err := conn.Conn().WaitForNotification(ctx)
-			if err != nil {
-				conn.Release()
-				if ctx.Err() != nil {
-					return
-				}
+// waitReconnect ожидает 2 секунды перед повторной попыткой подключения или завершает работу при отмене контекста
+func (d *Dispatcher) waitReconnect(ctx context.Context) bool {
+	select {
+	case <-ctx.Done():
+		return true
+	case <-time.After(2 * time.Second):
+		return false
+	}
+}
+
+// listenConnection ожидает уведомления по активному соединению до ошибки или отмены контекста
+func (d *Dispatcher) listenConnection(ctx context.Context, conn *pgxpool.Conn, notifyCh chan<- struct{}) {
+	defer conn.Release()
+
+	for {
+		notification, err := conn.Conn().WaitForNotification(ctx)
+		if err != nil {
+			if ctx.Err() == nil {
 				d.log.WarnContext(ctx, "Connection lost while waiting for notification, reconnecting...", slog.Any("error", err))
-				break
 			}
+			return
+		}
 
-			if notification != nil {
-				select {
-				case notifyCh <- struct{}{}:
-				default:
-					// Сигнал уже в очереди
-				}
+		if notification != nil {
+			select {
+			case notifyCh <- struct{}{}:
+			default:
+				// Сигнал уже в очереди
 			}
 		}
 	}
@@ -253,45 +263,50 @@ func (d *Dispatcher) ProcessPendingEvents(ctx context.Context) {
 			if ctx.Err() != nil {
 				return
 			}
-
-			start := time.Now()
-			err := d.handler(ctx, event)
-			duration := time.Since(start).Seconds()
-
-			if err != nil {
-				if d.opts.Metrics != nil {
-					d.opts.Metrics.RecordEventFailed(event.EventType, duration)
-				}
-				d.log.ErrorContext(ctx, "Failed to process outbox event",
-					slog.Any("error", err),
-					slog.Int64("event_id", event.ID),
-					slog.String("event_type", event.EventType),
-					slog.Int64("aggregate_id", event.AggregateID),
-					slog.String("aggregate_type", event.AggregateType),
-				)
-
-				if markErr := d.storage.MarkOutboxEventFailed(ctx, event.ID, err.Error()); markErr != nil {
-					d.log.ErrorContext(ctx, "Failed to mark event as failed",
-						slog.Any("error", markErr),
-						slog.Int64("event_id", event.ID),
-					)
-				}
-			} else {
-				if d.opts.Metrics != nil {
-					d.opts.Metrics.RecordEventProcessed(event.EventType, duration)
-				}
-				if markErr := d.storage.MarkOutboxEventProcessed(ctx, event.ID); markErr != nil {
-					d.log.ErrorContext(ctx, "Failed to mark event as processed",
-						slog.Any("error", markErr),
-						slog.Int64("event_id", event.ID),
-					)
-				}
-			}
+			d.processSingleEvent(ctx, event)
 		}
 
 		// Если пачка меньше лимита, значит очередь исчерпана
 		if len(events) < int(d.opts.BatchSize) {
 			return
 		}
+	}
+}
+
+// processSingleEvent обрабатывает отдельное событие, фиксирует метрики и обновляет статус в БД
+func (d *Dispatcher) processSingleEvent(ctx context.Context, event Event) {
+	start := time.Now()
+	err := d.handler(ctx, event)
+	duration := time.Since(start).Seconds()
+
+	if err != nil {
+		if d.opts.Metrics != nil {
+			d.opts.Metrics.RecordEventFailed(event.EventType, duration)
+		}
+		d.log.ErrorContext(ctx, "Failed to process outbox event",
+			slog.Any("error", err),
+			slog.Int64("event_id", event.ID),
+			slog.String("event_type", event.EventType),
+			slog.Int64("aggregate_id", event.AggregateID),
+			slog.String("aggregate_type", event.AggregateType),
+		)
+
+		if markErr := d.storage.MarkOutboxEventFailed(ctx, event.ID, err.Error()); markErr != nil {
+			d.log.ErrorContext(ctx, "Failed to mark event as failed",
+				slog.Any("error", markErr),
+				slog.Int64("event_id", event.ID),
+			)
+		}
+		return
+	}
+
+	if d.opts.Metrics != nil {
+		d.opts.Metrics.RecordEventProcessed(event.EventType, duration)
+	}
+	if markErr := d.storage.MarkOutboxEventProcessed(ctx, event.ID); markErr != nil {
+		d.log.ErrorContext(ctx, "Failed to mark event as processed",
+			slog.Any("error", markErr),
+			slog.Int64("event_id", event.ID),
+		)
 	}
 }

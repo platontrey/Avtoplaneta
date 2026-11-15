@@ -15,6 +15,7 @@ import (
 	"avtoplaneta/pkg/logger"
 	"avtoplaneta/pkg/metrics"
 	"avtoplaneta/pkg/outbox"
+	"parts-service/internal/domain"
 	"parts-service/internal/repository"
 	"parts-service/internal/search"
 )
@@ -126,9 +127,7 @@ func (d *Dispatcher) handlePartUpsert(ctx context.Context, partID int64) error {
 		if errors.Is(err, pgx.ErrNoRows) {
 			slog.InfoContext(ctx, "Part not found in DB during outbox upsert, removing from ES",
 				slog.Int64("part_id", partID))
-			if d.esClient != nil {
-				_ = d.esClient.DeletePartFromIndex(partID)
-			}
+			d.deleteFromES(partID)
 			d.invalidateCachesAndPublish(ctx, "part_delete_requested", partID)
 			return nil
 		}
@@ -136,17 +135,8 @@ func (d *Dispatcher) handlePartUpsert(ctx context.Context, partID int64) error {
 	}
 
 	// 1. Синхронизируем поисковый индекс в Elasticsearch
-	if d.esClient != nil {
-		if constants.IsVisiblePart(int32(part.Quantity)) {
-			if err := d.esClient.IndexPart(part); err != nil {
-				return fmt.Errorf("failed to index part %d in Elasticsearch: %w", partID, err)
-			}
-		} else {
-			// Запчасть списана/продана (quantity == constants.PartQuantitySold), удаляем из активного индекса
-			if err := d.esClient.DeletePartFromIndex(partID); err != nil {
-				return fmt.Errorf("failed to delete sold part %d from Elasticsearch: %w", partID, err)
-			}
-		}
+	if err := d.syncElasticsearch(part); err != nil {
+		return err
 	}
 
 	// 2. Сбрасываем кэши инвентаря и статистики и отправляем уведомление в Redis Stream
@@ -154,14 +144,34 @@ func (d *Dispatcher) handlePartUpsert(ctx context.Context, partID int64) error {
 	return nil
 }
 
-// handlePartDelete удаляет деталь из Elasticsearch и сбрасывает кэши
-func (d *Dispatcher) handlePartDelete(ctx context.Context, partID int64) error {
-	if d.esClient != nil {
-		if err := d.esClient.DeletePartFromIndex(partID); err != nil {
-			return fmt.Errorf("failed to delete part %d from Elasticsearch: %w", partID, err)
+// syncElasticsearch обновляет или удаляет деталь в поисковом индексе в зависимости от остатка
+func (d *Dispatcher) syncElasticsearch(part *domain.Part) error {
+	if d.esClient == nil {
+		return nil
+	}
+	if constants.IsVisiblePart(int32(part.Quantity)) {
+		if err := d.esClient.IndexPart(part); err != nil {
+			return fmt.Errorf("failed to index part %d in Elasticsearch: %w", part.ID, err)
 		}
+		return nil
 	}
 
+	// Запчасть списана/продана (quantity == constants.PartQuantitySold), удаляем из активного индекса
+	if err := d.esClient.DeletePartFromIndex(part.ID); err != nil {
+		return fmt.Errorf("failed to delete sold part %d from Elasticsearch: %w", part.ID, err)
+	}
+	return nil
+}
+
+func (d *Dispatcher) deleteFromES(partID int64) {
+	if d.esClient != nil {
+		_ = d.esClient.DeletePartFromIndex(partID)
+	}
+}
+
+// handlePartDelete удаляет деталь из Elasticsearch и сбрасывает кэши
+func (d *Dispatcher) handlePartDelete(ctx context.Context, partID int64) error {
+	d.deleteFromES(partID)
 	d.invalidateCachesAndPublish(ctx, "part_delete_requested", partID)
 	return nil
 }
