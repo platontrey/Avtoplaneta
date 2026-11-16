@@ -43,7 +43,7 @@ func (s *inventoryService) GetStatistics(ctx context.Context) (domain.Statistics
 		stats.MonthlySales = monthlySales
 	}
 
-	// Рассчитываем динамику продаж по месяцам
+	// Рассчитываем динамику продаж по месяцам (реальная разница последнего и предпоследнего месяца)
 	if len(stats.MonthlySales) >= 2 {
 		sorted := make([]domain.MonthlySales, len(stats.MonthlySales))
 		copy(sorted, stats.MonthlySales)
@@ -56,19 +56,6 @@ func (s *inventoryService) GetStatistics(ctx context.Context) (domain.Statistics
 			stats.EarningsGrowth = math.Round(((last-prev)/prev)*1000) / 10
 		} else if last > 0 {
 			stats.EarningsGrowth = 100.0
-		}
-	}
-
-	// Если индивидуальные динамики по складу не определены (равны 0), используем общую динамику продаж
-	if stats.EarningsGrowth != 0 {
-		if stats.PartsGrowth == 0 {
-			stats.PartsGrowth = stats.EarningsGrowth
-		}
-		if stats.QuantityGrowth == 0 {
-			stats.QuantityGrowth = stats.EarningsGrowth
-		}
-		if stats.ValueGrowth == 0 {
-			stats.ValueGrowth = stats.EarningsGrowth
 		}
 	}
 

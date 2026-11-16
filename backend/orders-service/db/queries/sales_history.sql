@@ -10,7 +10,7 @@ WITH completed_orders AS (
         GREATEST(COALESCE(SUM(order_items.price * order_items.quantity), 0) - orders.discount, 0)::double precision AS order_total
     FROM orders
     JOIN order_items ON order_items.order_id = orders.id
-    WHERE orders.status = 'green' AND orders.auto_deleted = TRUE
+    WHERE orders.status = 'green' OR orders.payment_status = 'paid' OR orders.auto_deleted = TRUE
     GROUP BY orders.id, orders.completed_at, orders.created_at, orders.discount
 )
 SELECT month, COALESCE(SUM(order_total), 0)::double precision AS sales

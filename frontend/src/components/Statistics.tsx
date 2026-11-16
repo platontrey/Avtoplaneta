@@ -2,13 +2,15 @@
 * Copyright (c) 2025 Avtoplaneta. All rights reserved.
 */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart } from 'recharts';
-import { Package, Boxes, DollarSign, TrendingUp, TrendingDown, ChartNoAxesCombined } from 'lucide-react';
+import { Package, Boxes, DollarSign, TrendingUp, TrendingDown, ChartNoAxesCombined, RefreshCw, Calendar, Warehouse } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTheme } from '@/contexts/ThemeContext';
-import { API_BASE_URL } from '@/lib/api';
+import { useStatistics } from '@/hooks/useStatistics';
 import type { StatisticsResponse } from '@/lib/types';
 
 type StatisticsPayload = Partial<StatisticsResponse> & {
@@ -72,167 +74,58 @@ const normalizeStatistics = (value: unknown): StatisticsResponse => {
 };
 
 function Statistics() {
-  const [data, setData] = useState<StatisticsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: rawData, isLoading, isFetching, refetch } = useStatistics();
+  const [activeTab, setActiveTab] = useState<'sales' | 'inventory'>('sales');
   const { resolvedTheme } = useTheme();
 
-  const GrowthIndicator = ({ growth }: { growth: number }) => {
+  const data = rawData ? normalizeStatistics(rawData) : null;
+
+  const GrowthIndicator = ({ growth }: { growth?: number }) => {
+    if (growth === undefined) return null;
     const isZero = Math.abs(growth) < 0.05;
     const Icon = growth >= 0 ? TrendingUp : TrendingDown;
     const color = isZero
       ? 'text-muted-foreground'
       : growth > 0
-        ? 'text-green-600 dark:text-green-400'
-        : 'text-red-600 dark:text-red-400';
+        ? 'text-emerald-600 dark:text-emerald-400'
+        : 'text-rose-600 dark:text-rose-400';
     const sign = growth > 0 ? '+' : '';
     return (
-      <div className="absolute top-2 right-2 bg-muted rounded-lg p-2 flex items-center gap-1">
-        {!isZero && <Icon className={`h-4 w-4 ${color}`} />}
-        <span className={`text-sm font-bold ${color}`}>{sign}{growth.toFixed(1)}%</span>
+      <div className="absolute top-3 right-3 bg-muted/80 backdrop-blur-sm rounded-md px-2 py-1 flex items-center gap-1">
+        {!isZero && <Icon className={`h-3.5 w-3.5 ${color}`} />}
+        <span className={`text-xs font-semibold ${color}`}>{sign}{growth.toFixed(1)}%</span>
       </div>
     );
   };
 
-  // Функция форматирования цены для корректного отображения
   const formatPrice = (price: number) => {
-    return toFiniteNumber(price).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return toFiniteNumber(price).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   };
 
-  const fetchData = useCallback(async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/statistics`, {
-        credentials: 'include', // Include cookies in the request
-      });
-      if (!response.ok) {
-        console.error(`HTTP error! status: ${response.status}`);
-        return;
-      }
-      const result: unknown = await response.json();
-      setData(normalizeStatistics(result));
-    } catch (error) {
-      console.error('Error fetching statistics:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Expose refresh function to window for external calls
-  useEffect(() => {
-    (window as unknown as { refreshStatistics: () => void }).refreshStatistics = fetchData;
-    return () => {
-      delete (window as unknown as { refreshStatistics?: () => void }).refreshStatistics;
-    };
-  }, [fetchData]);
-
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-        <div className="space-y-8">
-          {/* Header skeleton */}
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-4 w-96" />
-          </div>
-
-          {/* Summary cards skeleton */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card>
-              <CardHeader className="pb-2 flex flex-col items-start">
-                <Skeleton className="h-8 w-8 mb-2" />
-                <Skeleton className="h-6 w-32" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-8 w-16" />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2 flex flex-col items-start">
-                <Skeleton className="h-8 w-8 mb-2" />
-                <Skeleton className="h-6 w-40" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-8 w-24" />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2 flex flex-col items-start">
-                <Skeleton className="h-8 w-8 mb-2" />
-                <Skeleton className="h-6 w-36" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-8 w-20" />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2 flex flex-col items-start">
-                <Skeleton className="h-8 w-8 mb-2" />
-                <Skeleton className="h-6 w-36" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-8 w-20" />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Charts skeleton */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-6 w-48" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-64 w-full" />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-6 w-56" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-64 w-full" />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Area chart skeleton */}
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-40" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-48 w-full" />
-            </CardContent>
-          </Card>
-
-          {/* Categories list skeleton */}
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-64" />
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Array.from({ length: 6 }).map((_, index) => (
-                  <Card key={index}>
-                    <CardContent className="p-4">
-                      <Skeleton className="h-5 w-20 mb-2" />
-                      <Skeleton className="h-7 w-12 mb-1" />
-                      <Skeleton className="h-4 w-16" />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-8">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-96" />
         </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="p-4 space-y-3">
+              <Skeleton className="h-8 w-8 rounded-lg" />
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-8 w-32" />
+            </Card>
+          ))}
+        </div>
+        <Card className="p-6">
+          <Skeleton className="h-6 w-48 mb-4" />
+          <Skeleton className="h-72 w-full" />
+        </Card>
       </div>
     );
   }
 
-  // Tooltip & chart styles for theme adaptation
   const tooltipContentStyle = {
     backgroundColor: 'var(--card)',
     borderColor: 'var(--border)',
@@ -251,237 +144,312 @@ function Statistics() {
     ? ['#38bdf8', '#818cf8', '#c084fc', '#34d399', '#fbbf24', '#f472b6', '#a78bfa']
     : ['#2563eb', '#4f46e5', '#7c3aed', '#059669', '#d97706', '#db2777', '#6366f1'];
 
-  // Prepare data for charts
   const categoryData = data?.categories?.filter(cat => cat && cat.name).map((cat, index) => ({
     name: cat.name,
     count: cat.count,
     fill: chartPalette[index % chartPalette.length]
   })) || [];
 
-  const monthlySalesData = data?.monthlySales?.map((item, index) => ({
-     name: item.month,
-     sales: item.sales,
-     fill: ['#059669', '#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#34d399', '#10b981', '#059669', '#047857', '#065f46', '#064e3b', '#022c22'][index % 12]
+  const monthlySalesData = data?.monthlySales?.map((item) => ({
+    name: item.month,
+    sales: item.sales,
   })) || [];
 
-  // Individual growth metrics for each card with fallback to overall sales dynamics when 0 or missing
-  const earningsGrowth = data?.earningsGrowth ?? (() => {
-    if (!data?.monthlySales || data.monthlySales.length < 2) return 0;
-    const sorted = [...data.monthlySales].sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
-    const last = sorted[sorted.length - 1].sales;
-    const prev = sorted[sorted.length - 2].sales;
-    if (prev === 0) return 0;
-    return ((last - prev) / prev) * 100;
-  })();
-
-  const partsGrowth = (data?.partsGrowth !== undefined && Math.abs(data.partsGrowth) >= 0.05)
-    ? data.partsGrowth
-    : earningsGrowth;
-  const quantityGrowth = (data?.quantityGrowth !== undefined && Math.abs(data.quantityGrowth) >= 0.05)
-    ? data.quantityGrowth
-    : earningsGrowth;
-  const valueGrowth = (data?.valueGrowth !== undefined && Math.abs(data.valueGrowth) >= 0.05)
-    ? data.valueGrowth
-    : earningsGrowth;
-
-  const summaryData = [
-    { name: 'Всего запчастей', value: data?.totalParts || 0, color: '#6b7280' },
-    { name: 'Общее количество', value: data?.totalQuantity || 0, color: '#7c3aed' },
-    { name: 'Общая стоимость', value: data?.totalValue || 0, color: '#374151' },
-    { name: 'Общий заработок', value: data?.totalEarnings || 0, color: '#059669' }
-  ];
+  // Анализ продаж
+  const totalPeriodSales = data?.monthlySales?.reduce((acc, curr) => acc + curr.sales, 0) || 0;
+  const recentMonthSales = data?.monthlySales && data.monthlySales.length > 0
+    ? data.monthlySales[0].sales
+    : 0;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-      <h2 className="text-2xl sm:text-3xl font-bold mb-2">Статистика продаж</h2>
-      <p className="text-muted-foreground mb-6 sm:mb-8 text-sm sm:text-base">Просматривайте аналитику продаж по автоматически удалённым и завершённым заказам</p>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      {/* Шапка страницы */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Аналитика и статистика</h1>
+          <p className="text-muted-foreground text-sm">
+            Объективные финансовые показатели продаж и текущее состояние складских запасов
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className="self-start sm:self-auto gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+          {isFetching ? 'Обновление...' : 'Обновить'}
+        </Button>
+      </div>
 
       {data ? (
-        <div className="space-y-8">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card className="shadow-none gap-0 relative">
-              <CardHeader className="pb-0 flex flex-col items-start">
-                <GrowthIndicator growth={partsGrowth} />
-                <div className="bg-muted rounded-lg p-2 mb-0">
-                  <Package className="h-8 w-8" />
-                </div>
-                <CardTitle className="text-lg">Всего запчастей</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">{data.totalParts}</p>
-              </CardContent>
-            </Card>
-            <Card className="shadow-none gap-0 relative">
-              <CardHeader className="pb-0 flex flex-col items-start">
-                <GrowthIndicator growth={quantityGrowth} />
-                <div className="bg-muted rounded-lg p-2 mb-0">
-                  <Boxes className="h-8 w-8" />
-                </div>
-                <CardTitle className="text-lg">Общее количество</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">{data.totalQuantity}</p>
-              </CardContent>
-            </Card>
-            <Card className="shadow-none gap-0 relative">
-              <CardHeader className="pb-0 flex flex-col items-start">
-                <GrowthIndicator growth={valueGrowth} />
-                <div className="bg-muted rounded-lg p-2 mb-0">
-                  <DollarSign className="h-8 w-8" />
-                </div>
-                <CardTitle className="text-lg">Общая стоимость</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">₽{formatPrice(data.totalValue)}</p>
-              </CardContent>
-            </Card>
-            <Card className="shadow-none gap-0 relative">
-              <CardHeader className="pb-0 flex flex-col items-start">
-                <GrowthIndicator growth={earningsGrowth} />
-                <div className="bg-muted rounded-lg p-2 mb-0">
-                  <ChartNoAxesCombined className="h-8 w-8" />
-                </div>
-                <CardTitle className="text-lg">Общий заработок</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">₽{formatPrice(data.totalEarnings)}</p>
-              </CardContent>
-            </Card>
-          </div>
+        <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'sales' | 'inventory')} className="space-y-6">
+          <TabsList className="grid w-full sm:w-auto grid-cols-2">
+            <TabsTrigger value="sales" className="gap-2">
+              <ChartNoAxesCombined className="h-4 w-4" />
+              Продажи и выручка
+            </TabsTrigger>
+            <TabsTrigger value="inventory" className="gap-2">
+              <Warehouse className="h-4 w-4" />
+              Склад и запасы
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Bar Chart for Categories */}
+          {/* ВКЛАДКА 1: ПРОДАЖИ И ВЫРУЧКА */}
+          <TabsContent value="sales" className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="relative overflow-hidden">
+                <CardHeader className="pb-2">
+                  <GrowthIndicator growth={data.earningsGrowth} />
+                  <div className="p-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg w-fit">
+                    <DollarSign className="h-5 w-5" />
+                  </div>
+                  <CardTitle className="text-sm font-medium text-muted-foreground mt-2">Общая выручка</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl sm:text-3xl font-bold">₽{formatPrice(data.totalEarnings)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Все завершённые заказы</p>
+                </CardContent>
+              </Card>
+
+              <Card className="relative overflow-hidden">
+                <CardHeader className="pb-2">
+                  <div className="p-2 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg w-fit">
+                    <Calendar className="h-5 w-5" />
+                  </div>
+                  <CardTitle className="text-sm font-medium text-muted-foreground mt-2">Продажи за последний месяц</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl sm:text-3xl font-bold">₽{formatPrice(recentMonthSales)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {data.monthlySales.length > 0 ? data.monthlySales[0].month : 'Текущий период'}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="relative overflow-hidden">
+                <CardHeader className="pb-2">
+                  <div className="p-2 bg-violet-500/10 text-violet-600 dark:text-violet-400 rounded-lg w-fit">
+                    <ChartNoAxesCombined className="h-5 w-5" />
+                  </div>
+                  <CardTitle className="text-sm font-medium text-muted-foreground mt-2">Продажи за год</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl sm:text-3xl font-bold">₽{formatPrice(totalPeriodSales)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Агрегировано по месяцам</p>
+                </CardContent>
+              </Card>
+
+              <Card className="relative overflow-hidden">
+                <CardHeader className="pb-2">
+                  <div className="p-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-lg w-fit">
+                    <Boxes className="h-5 w-5" />
+                  </div>
+                  <CardTitle className="text-sm font-medium text-muted-foreground mt-2">Активных периодов</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl sm:text-3xl font-bold">{data.monthlySales.length} мес.</div>
+                  <p className="text-xs text-muted-foreground mt-1">Глубина истории продаж</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* График динамики продаж */}
             <Card>
               <CardHeader>
-                <CardTitle>Распределение по категориям</CardTitle>
+                <CardTitle>Динамика реализации по месяцам</CardTitle>
+                <CardDescription>
+                  Суммарная стоимость закрытых и оплаченных заказов по данным Orders Service
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={categoryData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis dataKey="name" stroke="var(--border)" tick={axisTickStyle} />
-                    <YAxis stroke="var(--border)" tick={axisTickStyle} />
-                    <Tooltip contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
-                    <Bar dataKey="count" fill="var(--primary)" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {monthlySalesData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={320}>
+                    <AreaChart data={[...monthlySalesData].reverse()}>
+                      <defs>
+                        <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                      <XAxis dataKey="name" stroke="var(--border)" tick={axisTickStyle} />
+                      <YAxis stroke="var(--border)" tick={axisTickStyle} />
+                      <Tooltip
+                        contentStyle={tooltipContentStyle}
+                        itemStyle={tooltipItemStyle}
+                        formatter={(value) => [`₽${formatPrice(Number(value))}`, 'Выручка']}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="sales"
+                        stroke="#10b981"
+                        strokeWidth={2}
+                        fillOpacity={1}
+                        fill="url(#salesGradient)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="py-12 text-center text-muted-foreground text-sm">
+                    Нет данных о завершённых продажах за выбранный период
+                  </div>
+                )}
               </CardContent>
             </Card>
 
-            {/* Pie Chart for Categories */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Категории (Круговая диаграмма)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={categoryData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={{ stroke: 'var(--muted-foreground)' }}
-                      label={({ name, percent }) => `${name} ${((percent as number) * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      dataKey="count"
-                    >
-                      {categoryData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Monthly Sales Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Продажи за год (статистика по месяцам)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={monthlySalesData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="name" stroke="var(--border)" tick={axisTickStyle} />
-                  <YAxis stroke="var(--border)" tick={axisTickStyle} />
-                  <Tooltip
-                    contentStyle={tooltipContentStyle}
-                    itemStyle={tooltipItemStyle}
-                    formatter={(value) => [`₽${formatPrice(Number(value))}`, 'Продажи']}
-                  />
-                  <Area type="monotone" dataKey="sales" stroke="#10b981" fill="#10b981" fillOpacity={0.4} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Area Chart for Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Обзор показателей</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={summaryData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="name" stroke="var(--border)" tick={axisTickStyle} />
-                  <YAxis stroke="var(--border)" tick={axisTickStyle} />
-                  <Tooltip contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
-                  <Area type="monotone" dataKey="value" stroke="var(--primary)" fill="var(--primary)" fillOpacity={0.2} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Detailed Category List */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Детальная информация по категориям</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {data.categories && Array.isArray(data.categories) && data.categories.filter(cat => cat && cat.name).map((cat, index) => (
-                  <Card key={index}>
-                    <CardContent className="p-4">
-                      <h4 className="font-semibold">{cat.name}</h4>
-                      <p className="text-2xl font-bold">{cat.count}</p>
-                      <p className="text-sm text-muted-foreground">запчастей</p>
-                    </CardContent>
-                  </Card>
-                ))}
+            {/* Сетка помесячной детализации */}
+            {data.monthlySales.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold tracking-tight">Помесячная детализация выручки</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                  {data.monthlySales.map((item, index) => (
+                    <Card key={index} className="p-3">
+                      <div className="text-xs font-medium text-muted-foreground">{item.month}</div>
+                      <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                        ₽{formatPrice(item.sales)}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            )}
+          </TabsContent>
 
-          {/* Monthly Sales Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Детальная информация по продажам за год</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {data.monthlySales.map((item, index) => (
-                  <Card key={index}>
-                    <CardContent className="p-4">
-                      <h4 className="font-semibold">{item.month}</h4>
-                      <p className="text-2xl font-bold text-green-600">₽{formatPrice(item.sales)}</p>
-                      <p className="text-sm text-muted-foreground">продаж</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+          {/* ВКЛАДКА 2: СКЛАД И ЗАПАСЫ */}
+          <TabsContent value="inventory" className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Card className="relative overflow-hidden">
+                <CardHeader className="pb-2">
+                  <GrowthIndicator growth={data.partsGrowth} />
+                  <div className="p-2 bg-slate-500/10 text-slate-700 dark:text-slate-300 rounded-lg w-fit">
+                    <Package className="h-5 w-5" />
+                  </div>
+                  <CardTitle className="text-sm font-medium text-muted-foreground mt-2">Уникальных наименований</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl sm:text-3xl font-bold">{data.totalParts.toLocaleString('ru-RU')}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Позиций в наличии на складе</p>
+                </CardContent>
+              </Card>
+
+              <Card className="relative overflow-hidden">
+                <CardHeader className="pb-2">
+                  <GrowthIndicator growth={data.quantityGrowth} />
+                  <div className="p-2 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-lg w-fit">
+                    <Boxes className="h-5 w-5" />
+                  </div>
+                  <CardTitle className="text-sm font-medium text-muted-foreground mt-2">Общее количество штук</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl sm:text-3xl font-bold">{data.totalQuantity.toLocaleString('ru-RU')} шт.</div>
+                  <p className="text-xs text-muted-foreground mt-1">Физический объем складских единиц</p>
+                </CardContent>
+              </Card>
+
+              <Card className="relative overflow-hidden">
+                <CardHeader className="pb-2">
+                  <GrowthIndicator growth={data.valueGrowth} />
+                  <div className="p-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-lg w-fit">
+                    <DollarSign className="h-5 w-5" />
+                  </div>
+                  <CardTitle className="text-sm font-medium text-muted-foreground mt-2">Оценочная стоимость склада</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl sm:text-3xl font-bold">₽{formatPrice(data.totalValue)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Оборотный капитал в наличии</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Распределение по категориям: Гистограмма и Круговая диаграмма */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Топ категорий по количеству</CardTitle>
+                  <CardDescription>Количество запчастей в основных товарных категориях</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {categoryData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={categoryData.slice(0, 8)}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                        <XAxis dataKey="name" stroke="var(--border)" tick={axisTickStyle} />
+                        <YAxis stroke="var(--border)" tick={axisTickStyle} />
+                        <Tooltip contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
+                        <Bar dataKey="count" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="py-12 text-center text-muted-foreground text-sm">Нет данных по категориям</div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Доли категорий в инвентаре</CardTitle>
+                  <CardDescription>Процентное соотношение категорий на складе</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {categoryData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie
+                          data={categoryData.slice(0, 6)}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={{ stroke: 'var(--muted-foreground)' }}
+                          label={({ name, percent }) => `${name} ${((percent as number) * 100).toFixed(0)}%`}
+                          outerRadius={90}
+                          dataKey="count"
+                        >
+                          {categoryData.slice(0, 6).map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="py-12 text-center text-muted-foreground text-sm">Нет данных по категориям</div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Список всех категорий */}
+            {data.categories.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Все категории на складе</CardTitle>
+                  <CardDescription>Полный перечень учтенных групп деталей</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    {data.categories.map((cat, index) => (
+                      <div key={index} className="p-3 rounded-lg border bg-card">
+                        <div className="text-xs text-muted-foreground truncate" title={cat.name}>{cat.name}</div>
+                        <div className="text-lg font-bold mt-1">{cat.count.toLocaleString('ru-RU')}</div>
+                        <div className="text-[10px] text-muted-foreground">запчастей</div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
       ) : (
-        <div className="text-center py-12">
-          <p className="text-gray-500 text-lg">Данные недоступны. Убедитесь, что бэкенд запущен и подключен к базе данных.</p>
-        </div>
+        <Card className="text-center py-12">
+          <CardContent>
+            <p className="text-muted-foreground text-base">Данные статистики временно недоступны.</p>
+            <Button variant="outline" size="sm" onClick={() => refetch()} className="mt-4">
+              Попробовать снова
+            </Button>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
