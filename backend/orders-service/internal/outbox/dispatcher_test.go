@@ -189,7 +189,7 @@ func (m *MockCache) InvalidateOrders() error {
 	return m.Called().Error(0)
 }
 
-func TestDispatcher_ProcessOrderCompleted_Success(t *testing.T) {
+func TestDispatcher_ProcessOrderCreated_Success(t *testing.T) {
 	mockOrderRepo := new(MockOrderRepo)
 	mockPartRepo := new(MockPartRepoForOrders)
 	mockCache := new(MockCache)
@@ -208,26 +208,19 @@ func TestDispatcher_ProcessOrderCompleted_Success(t *testing.T) {
 		},
 	}
 
-	testPart := &domain.Part{
-		ID:       201,
-		Quantity: 3,
-	}
-
-	payload, _ := json.Marshal(map[string]interface{}{"order_id": 55, "amount": 1000.0})
+	payload, _ := json.Marshal(map[string]interface{}{"order_id": 55})
 	event := sqlc.OutboxEvent{
 		ID:            1,
 		AggregateType: "order",
 		AggregateID:   55,
-		EventType:     "order_completed",
+		EventType:     "order_created",
 		Payload:       payload,
 		Status:        "pending",
 	}
 
 	mockOrderRepo.On("FetchPendingOutboxEvents", mock.Anything, int32(50)).Return([]sqlc.OutboxEvent{event}, nil).Once()
 	mockOrderRepo.On("FindWithItemsByID", mock.Anything, int64(55)).Return(testOrder, nil)
-	mockPartRepo.On("FindByID", mock.Anything, int64(201)).Return(testPart, nil)
-	mockPartRepo.On("DecreaseQuantity", mock.Anything, int64(201), 1, "complete-order-55-part-201").Return(nil)
-	mockCache.On("InvalidateOrders").Return(nil)
+	mockPartRepo.On("DecreaseQuantity", mock.Anything, int64(201), 1, "create-order-55-part-201").Return(nil)
 	mockOrderRepo.On("MarkOutboxEventProcessed", mock.Anything, int64(1)).Return(nil)
 	mockOrderRepo.On("FetchPendingOutboxEvents", mock.Anything, int32(50)).Return([]sqlc.OutboxEvent{}, nil)
 
@@ -241,10 +234,9 @@ func TestDispatcher_ProcessOrderCompleted_Success(t *testing.T) {
 
 	mockOrderRepo.AssertExpectations(t)
 	mockPartRepo.AssertExpectations(t)
-	mockCache.AssertExpectations(t)
 }
 
-func TestDispatcher_ProcessOrderCompleted_DepletedPart(t *testing.T) {
+func TestDispatcher_ProcessOrderDeleted_Success(t *testing.T) {
 	mockOrderRepo := new(MockOrderRepo)
 	mockPartRepo := new(MockPartRepoForOrders)
 	mockCache := new(MockCache)
@@ -255,34 +247,23 @@ func TestDispatcher_ProcessOrderCompleted_DepletedPart(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	testOrder := &domain.Order{
-		ID:       56,
-		Discount: 0,
-		Items: []domain.OrderItem{
-			{PartID: 202, Quantity: 1, Price: 500},
+	payload, _ := json.Marshal(map[string]interface{}{
+		"order_id": 56,
+		"items": []map[string]interface{}{
+			{"part_id": 202, "quantity": 1},
 		},
-	}
-
-	testPart := &domain.Part{
-		ID:       202,
-		Quantity: 1, // Will be depleted
-	}
-
-	payload, _ := json.Marshal(map[string]interface{}{"order_id": 56, "amount": 500.0})
+	})
 	event := sqlc.OutboxEvent{
 		ID:            2,
 		AggregateType: "order",
 		AggregateID:   56,
-		EventType:     "order_completed",
+		EventType:     "order_deleted",
 		Payload:       payload,
 		Status:        "pending",
 	}
 
 	mockOrderRepo.On("FetchPendingOutboxEvents", mock.Anything, int32(50)).Return([]sqlc.OutboxEvent{event}, nil).Once()
-	mockOrderRepo.On("FindWithItemsByID", mock.Anything, int64(56)).Return(testOrder, nil)
-	mockPartRepo.On("FindByID", mock.Anything, int64(202)).Return(testPart, nil)
-	mockPartRepo.On("DeletePart", mock.Anything, int64(202)).Return(nil)
-	mockCache.On("InvalidateOrders").Return(nil)
+	mockPartRepo.On("IncreaseQuantity", mock.Anything, int64(202), 1, "delete-order-56-part-202").Return(nil)
 	mockOrderRepo.On("MarkOutboxEventProcessed", mock.Anything, int64(2)).Return(nil)
 	mockOrderRepo.On("FetchPendingOutboxEvents", mock.Anything, int32(50)).Return([]sqlc.OutboxEvent{}, nil)
 
@@ -298,7 +279,7 @@ func TestDispatcher_ProcessOrderCompleted_DepletedPart(t *testing.T) {
 	mockPartRepo.AssertExpectations(t)
 }
 
-func TestDispatcher_ProcessOrderCompleted_PartsServiceFailure(t *testing.T) {
+func TestDispatcher_ProcessOrderCreated_PartsServiceFailure(t *testing.T) {
 	mockOrderRepo := new(MockOrderRepo)
 	mockPartRepo := new(MockPartRepoForOrders)
 
@@ -315,17 +296,12 @@ func TestDispatcher_ProcessOrderCompleted_PartsServiceFailure(t *testing.T) {
 		},
 	}
 
-	testPart := &domain.Part{
-		ID:       203,
-		Quantity: 5,
-	}
-
-	payload, _ := json.Marshal(map[string]interface{}{"order_id": 57, "amount": 3000.0})
+	payload, _ := json.Marshal(map[string]interface{}{"order_id": 57})
 	event := sqlc.OutboxEvent{
 		ID:            3,
 		AggregateType: "order",
 		AggregateID:   57,
-		EventType:     "order_completed",
+		EventType:     "order_created",
 		Payload:       payload,
 		Status:        "pending",
 	}
@@ -334,8 +310,7 @@ func TestDispatcher_ProcessOrderCompleted_PartsServiceFailure(t *testing.T) {
 
 	mockOrderRepo.On("FetchPendingOutboxEvents", mock.Anything, int32(50)).Return([]sqlc.OutboxEvent{event}, nil).Once()
 	mockOrderRepo.On("FindWithItemsByID", mock.Anything, int64(57)).Return(testOrder, nil)
-	mockPartRepo.On("FindByID", mock.Anything, int64(203)).Return(testPart, nil)
-	mockPartRepo.On("DecreaseQuantity", mock.Anything, int64(203), 2, "complete-order-57-part-203").Return(gRPCErr)
+	mockPartRepo.On("DecreaseQuantity", mock.Anything, int64(203), 2, "create-order-57-part-203").Return(gRPCErr)
 	mockOrderRepo.On("MarkOutboxEventFailed", mock.Anything, int64(3), mock.MatchedBy(func(errStr string) bool {
 		return assert.Contains(t, errStr, "failed to decrease part 203 quantity")
 	})).Return(nil)
@@ -351,4 +326,51 @@ func TestDispatcher_ProcessOrderCompleted_PartsServiceFailure(t *testing.T) {
 
 	mockOrderRepo.AssertExpectations(t)
 	mockPartRepo.AssertExpectations(t)
+}
+
+func TestDispatcher_ProcessOrderCompleted_Success(t *testing.T) {
+	mockOrderRepo := new(MockOrderRepo)
+	mockPartRepo := new(MockPartRepoForOrders)
+	mockCache := new(MockCache)
+
+	dispatcher := NewDispatcher(nil, mockOrderRepo, mockPartRepo, nil, mockCache)
+	dispatcher.pollInterval = 10 * time.Millisecond
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	testOrder := &domain.Order{
+		ID:       58,
+		Discount: 0,
+		Items: []domain.OrderItem{
+			{PartID: 204, Quantity: 1, Price: 1000},
+		},
+	}
+
+	payload, _ := json.Marshal(map[string]interface{}{"order_id": 58, "amount": 1000.0})
+	event := sqlc.OutboxEvent{
+		ID:            4,
+		AggregateType: "order",
+		AggregateID:   58,
+		EventType:     "order_completed",
+		Payload:       payload,
+		Status:        "pending",
+	}
+
+	mockOrderRepo.On("FetchPendingOutboxEvents", mock.Anything, int32(50)).Return([]sqlc.OutboxEvent{event}, nil).Once()
+	mockOrderRepo.On("FindWithItemsByID", mock.Anything, int64(58)).Return(testOrder, nil)
+	mockCache.On("InvalidateOrders").Return(nil)
+	mockOrderRepo.On("MarkOutboxEventProcessed", mock.Anything, int64(4)).Return(nil)
+	mockOrderRepo.On("FetchPendingOutboxEvents", mock.Anything, int32(50)).Return([]sqlc.OutboxEvent{}, nil)
+
+	go func() {
+		time.Sleep(30 * time.Millisecond)
+		cancel()
+	}()
+
+	err := dispatcher.Start(ctx)
+	assert.NoError(t, err)
+
+	mockOrderRepo.AssertExpectations(t)
+	mockCache.AssertExpectations(t)
 }

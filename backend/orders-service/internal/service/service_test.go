@@ -316,6 +316,8 @@ func TestCreateOrder_SingleItem(t *testing.T) {
 		},
 	}, nil)
 	mockCache.On("InvalidateOrders").Return(nil)
+	mockOrderRepo.On("CreateOutboxEvent", mock.Anything, "order", int64(100), "order_created", mock.Anything).Return(nil)
+	mockPartRepo.On("DecreaseQuantity", ctx, int64(50), 1, "create-order-100-part-50").Return(nil)
 
 	req := domain.CreateOrderRequest{
 		PartID:      50,
@@ -357,6 +359,42 @@ func TestCreateOrder_EmptyItems(t *testing.T) {
 	_, err := svc.CreateOrder(ctx, req, 1, "Менеджер")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "at least one part must be selected")
+}
+
+// Тест удаления заказа с возвратом запчастей на склад
+func TestDeleteOrder_RestoresPartQuantity(t *testing.T) {
+	mockOrderRepo := new(MockOrderRepository)
+	mockPartRepo := new(MockPartRepositoryForOrders)
+	mockCache := new(MockCacheService)
+	mockPublisher := new(MockEventPublisher)
+
+	svc := NewOrdersService(mockOrderRepo, mockPartRepo, mockCache, mockPublisher)
+	ctx := context.Background()
+
+	orderID := int64(42)
+	order := &domain.Order{
+		ID: orderID,
+		Items: []domain.OrderItem{
+			{PartID: 10, Quantity: 2},
+			{PartID: 20, Quantity: 1},
+		},
+	}
+
+	mockOrderRepo.On("FindWithItemsByID", ctx, orderID).Return(order, nil)
+	mockOrderRepo.On("DeleteItemsByOrderID", mock.Anything, orderID).Return(nil)
+	mockOrderRepo.On("Delete", mock.Anything, orderID).Return(nil)
+	mockOrderRepo.On("CreateOutboxEvent", mock.Anything, "order", orderID, "order_deleted", mock.Anything).Return(nil)
+
+	mockPartRepo.On("IncreaseQuantity", ctx, int64(10), 2, "delete-order-42-part-10").Return(nil)
+	mockPartRepo.On("IncreaseQuantity", ctx, int64(20), 1, "delete-order-42-part-20").Return(nil)
+	mockCache.On("InvalidateOrders").Return(nil)
+
+	err := svc.DeleteOrder(ctx, orderID)
+	require.NoError(t, err)
+
+	mockOrderRepo.AssertExpectations(t)
+	mockPartRepo.AssertExpectations(t)
+	mockCache.AssertExpectations(t)
 }
 
 // Тест смены статуса заказа
@@ -548,6 +586,8 @@ func TestCreateOrder_Deduplication(t *testing.T) {
 		Items:      []domain.OrderItem{{PartID: 50, Quantity: 1, Price: 5000}},
 	}, nil)
 	mockCache.On("InvalidateOrders").Return(nil)
+	mockOrderRepo.On("CreateOutboxEvent", mock.Anything, "order", int64(100), "order_created", mock.Anything).Return(nil)
+	mockPartRepo.On("DecreaseQuantity", ctx, int64(50), 1, "create-order-100-part-50").Return(nil)
 
 	req := domain.CreateOrderRequest{
 		PartID:      50,

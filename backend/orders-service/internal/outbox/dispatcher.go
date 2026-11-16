@@ -104,6 +104,10 @@ func (d *Dispatcher) Start(ctx context.Context) error {
 // processEvent диспетчеризирует обработку отдельного события
 func (d *Dispatcher) processEvent(ctx context.Context, event outbox.Event) error {
 	switch event.EventType {
+	case "order_created":
+		return d.handleOrderCreated(ctx, event)
+	case "order_deleted":
+		return d.handleOrderDeleted(ctx, event)
 	case "order_completed":
 		return d.handleOrderCompleted(ctx, event)
 	case "user_action":
@@ -116,7 +120,54 @@ func (d *Dispatcher) processEvent(ctx context.Context, event outbox.Event) error
 	}
 }
 
-// handleOrderCompleted выполняет гарантированное списание запчастей в parts-service и отправку в Redis Stream
+// handleOrderCreated выполняет гарантированное списание запчастей в parts-service при создании заказа
+func (d *Dispatcher) handleOrderCreated(ctx context.Context, event outbox.Event) error {
+	orderID := event.AggregateID
+	order, err := d.orderRepo.FindWithItemsByID(ctx, orderID)
+	if err != nil {
+		slog.WarnContext(ctx, "Order not found during outbox creation processing",
+			logger.Err(err),
+			slog.Int64("order_id", orderID))
+		return nil
+	}
+
+	return d.deductOrderItems(ctx, orderID, order.Items)
+}
+
+// handleOrderDeleted выполняет гарантированный возврат запчастей в parts-service при удалении заказа
+func (d *Dispatcher) handleOrderDeleted(ctx context.Context, event outbox.Event) error {
+	if d.partRepo == nil {
+		return nil
+	}
+
+	var payload struct {
+		OrderID int64 `json:"order_id"`
+		Items   []struct {
+			PartID   int64 `json:"part_id"`
+			Quantity int   `json:"quantity"`
+		} `json:"items"`
+	}
+
+	if err := json.Unmarshal(event.Payload, &payload); err != nil {
+		slog.WarnContext(ctx, "Failed to unmarshal order_deleted payload",
+			logger.Err(err),
+			slog.Int64("event_id", event.ID))
+		return nil
+	}
+
+	for _, item := range payload.Items {
+		if item.PartID <= 0 {
+			continue
+		}
+		opID := fmt.Sprintf("delete-order-%d-part-%d", payload.OrderID, item.PartID)
+		if err := d.partRepo.IncreaseQuantity(ctx, item.PartID, item.Quantity, opID); err != nil {
+			return fmt.Errorf("failed to restore part %d quantity for order %d: %w", item.PartID, payload.OrderID, err)
+		}
+	}
+	return nil
+}
+
+// handleOrderCompleted выполняет публикацию события в Redis Stream (остатки уже списаны при создании заказа)
 func (d *Dispatcher) handleOrderCompleted(ctx context.Context, event outbox.Event) error {
 	orderID := event.AggregateID
 	order, err := d.orderRepo.FindWithItemsByID(ctx, orderID)
@@ -127,17 +178,12 @@ func (d *Dispatcher) handleOrderCompleted(ctx context.Context, event outbox.Even
 		return nil
 	}
 
-	// 1. Гарантированное списание запчастей через gRPC с идемпотентным operationID
-	if err := d.deductOrderItems(ctx, orderID, order.Items); err != nil {
-		return err
-	}
-
-	// 2. Публикация события order_completed в Redis Stream events:orders
+	// 1. Публикация события order_completed в Redis Stream events:orders
 	if err := d.publishOrderCompleted(ctx, orderID, order, event.Payload); err != nil {
 		return err
 	}
 
-	// 3. Инвалидация кэша заказов
+	// 2. Инвалидация кэша заказов
 	if d.cache != nil {
 		if err := d.cache.InvalidateOrders(); err != nil {
 			slog.WarnContext(ctx, "Orders Outbox: failed to invalidate orders cache", logger.Err(err))
@@ -165,24 +211,9 @@ func (d *Dispatcher) deductSingleItem(ctx context.Context, orderID int64, item d
 		return nil
 	}
 
-	part, errPart := d.partRepo.FindByID(ctx, item.PartID)
-	if errPart != nil {
-		slog.WarnContext(ctx, "Part not found in parts-service during outbox processing",
-			logger.Err(errPart),
-			slog.Int64("part_id", item.PartID))
-		return nil
-	}
-
-	if part.Quantity > item.Quantity {
-		opID := fmt.Sprintf("complete-order-%d-part-%d", orderID, item.PartID)
-		if err := d.partRepo.DecreaseQuantity(ctx, item.PartID, item.Quantity, opID); err != nil {
-			return fmt.Errorf("failed to decrease part %d quantity: %w", item.PartID, err)
-		}
-		return nil
-	}
-
-	if err := d.partRepo.DeletePart(ctx, item.PartID); err != nil {
-		return fmt.Errorf("failed to delete depleted part %d: %w", item.PartID, err)
+	opID := fmt.Sprintf("create-order-%d-part-%d", orderID, item.PartID)
+	if err := d.partRepo.DecreaseQuantity(ctx, item.PartID, item.Quantity, opID); err != nil {
+		return fmt.Errorf("failed to decrease part %d quantity: %w", item.PartID, err)
 	}
 	return nil
 }

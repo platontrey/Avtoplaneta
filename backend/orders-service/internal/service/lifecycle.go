@@ -100,6 +100,13 @@ func (s *ordersService) CreateOrder(ctx context.Context, req domain.CreateOrderR
 			}
 		}
 
+		if part.Quantity < item.Quantity {
+			return nil, domain.ValidationError{
+				Field:   "quantity",
+				Message: fmt.Sprintf("деталь '%s' (ID %d) не может быть оформлена в заказ: запрошено %d, на складе %d", part.Name, part.ID, item.Quantity, part.Quantity),
+			}
+		}
+
 		itemPrice := part.Price
 		if item.Price != nil && *item.Price >= 0 {
 			itemPrice = *item.Price
@@ -218,12 +225,31 @@ func (s *ordersService) CreateOrder(ctx context.Context, req domain.CreateOrderR
 			}
 		}
 
+		payload, _ := json.Marshal(map[string]interface{}{
+			"order_id": order.ID,
+		})
+		if err := s.orderRepo.CreateOutboxEvent(txCtx, "order", order.ID, "order_created", payload); err != nil {
+			slog.WarnContext(ctx, "Failed to create order_created outbox event", logger.Err(err))
+		}
+
 		var errLoad error
 		completeOrder, errLoad = s.orderRepo.FindWithItemsByID(txCtx, order.ID)
 		return errLoad
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	// Сразу при создании заказа списываем остатки запчастей со склада (Fast-path).
+	// Outbox dispatcher дополнительно гарантирует списание при сетевых сбоях.
+	for _, item := range completeOrder.Items {
+		if item.PartID <= 0 {
+			continue
+		}
+		opID := fmt.Sprintf("create-order-%d-part-%d", completeOrder.ID, item.PartID)
+		if err := s.partRepo.DecreaseQuantity(ctx, item.PartID, item.Quantity, opID); err != nil {
+			slog.WarnContext(ctx, "Fast-path decrease failed, Outbox Dispatcher will retry", logger.Err(err), slog.Int64("part_id", item.PartID))
+		}
 	}
 
 	// Если быстрая продажа, сразу завершаем заказ
@@ -394,7 +420,7 @@ func (s *ordersService) UpdateOrderDetails(ctx context.Context, orderID int64, r
 	return &slice[0], nil
 }
 
-// CompleteOrder завершает заказ и списывает остатки
+// CompleteOrder завершает заказ (остатки уже списаны при создании заказа)
 func (s *ordersService) CompleteOrder(ctx context.Context, orderID int64) error {
 	slog.InfoContext(ctx, "Starting order completion", slog.Int64("order_id", orderID))
 
@@ -433,31 +459,7 @@ func (s *ordersService) CompleteOrder(ctx context.Context, orderID int64) error 
 		return err
 	}
 
-	// 2. Быстрый путь (Fast-path): списываем остатки и отправляем событие сразу,
-	// а Outbox-диспетчер гарантирует повторы и доставку в случае любых сетевых сбоев
-	for _, item := range order.Items {
-		if item.PartID <= 0 {
-			continue
-		}
-
-		part, errPart := s.partRepo.FindByID(ctx, item.PartID)
-		if errPart != nil {
-			slog.WarnContext(ctx, "Part not found during order completion (may already be deleted)", logger.Err(errPart), slog.Int64("part_id", item.PartID))
-			continue
-		}
-
-		if part.Quantity > item.Quantity {
-			opID := fmt.Sprintf("complete-order-%d-part-%d", orderID, item.PartID)
-			if err := s.partRepo.DecreaseQuantity(ctx, item.PartID, item.Quantity, opID); err != nil {
-				slog.WarnContext(ctx, "Fast-path decrease failed, Outbox Dispatcher will retry", logger.Err(err), slog.Int64("part_id", item.PartID))
-			}
-		} else {
-			if err := s.partRepo.DeletePart(ctx, item.PartID); err != nil {
-				slog.WarnContext(ctx, "Fast-path delete failed, Outbox Dispatcher will retry", logger.Err(err), slog.Int64("part_id", item.PartID))
-			}
-		}
-	}
-
+	// 2. Быстрый путь (Fast-path): уведомляем через publisher
 	if s.publisher != nil {
 		if err := s.publisher.PublishOrderCompleted(ctx, orderID, totalAmount); err != nil {
 			slog.WarnContext(ctx, "Fast-path publish failed, Outbox Dispatcher will retry", logger.Err(err), slog.Int64("order_id", orderID))
@@ -477,15 +479,31 @@ func (s *ordersService) CompleteOrder(ctx context.Context, orderID int64) error 
 	return nil
 }
 
-// DeleteOrder удаляет заказ
+// DeleteOrder удаляет заказ и возвращает списанные детали на склад
 func (s *ordersService) DeleteOrder(ctx context.Context, orderID int64) error {
 	slog.InfoContext(ctx, "Starting order deletion", slog.Int64("order_id", orderID))
 
-	err := repository.RunInTransaction(ctx, s.orderRepo.GetPool(), func(txCtx context.Context) error {
-		if _, err := s.orderRepo.FindByID(txCtx, orderID); err != nil {
-			return domain.NotFoundError{Resource: "order", ID: orderID}
-		}
+	order, err := s.orderRepo.FindWithItemsByID(ctx, orderID)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to find order for deletion", logger.Err(err), slog.Int64("order_id", orderID))
+		return domain.NotFoundError{Resource: "order", ID: orderID}
+	}
 
+	type deletedItemPayload struct {
+		PartID   int64 `json:"part_id"`
+		Quantity int   `json:"quantity"`
+	}
+	var itemsPayload []deletedItemPayload
+	for _, it := range order.Items {
+		if it.PartID > 0 {
+			itemsPayload = append(itemsPayload, deletedItemPayload{
+				PartID:   it.PartID,
+				Quantity: it.Quantity,
+			})
+		}
+	}
+
+	err = repository.RunInTransaction(ctx, s.orderRepo.GetPool(), func(txCtx context.Context) error {
 		if err := s.orderRepo.DeleteItemsByOrderID(txCtx, orderID); err != nil {
 			return fmt.Errorf("failed to delete order items for order %d: %w", orderID, err)
 		}
@@ -494,10 +512,31 @@ func (s *ordersService) DeleteOrder(ctx context.Context, orderID int64) error {
 			return fmt.Errorf("failed to delete order %d: %w", orderID, err)
 		}
 
+		if len(itemsPayload) > 0 {
+			payload, _ := json.Marshal(map[string]interface{}{
+				"order_id": orderID,
+				"items":    itemsPayload,
+			})
+			if err := s.orderRepo.CreateOutboxEvent(txCtx, "order", orderID, "order_deleted", payload); err != nil {
+				slog.WarnContext(ctx, "Failed to create order_deleted outbox event", logger.Err(err), slog.Int64("order_id", orderID))
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
 		return err
+	}
+
+	// Fast-path: восстанавливаем списанные остатки на складе в parts-service
+	for _, item := range order.Items {
+		if item.PartID <= 0 {
+			continue
+		}
+		opID := fmt.Sprintf("delete-order-%d-part-%d", orderID, item.PartID)
+		if err := s.partRepo.IncreaseQuantity(ctx, item.PartID, item.Quantity, opID); err != nil {
+			slog.WarnContext(ctx, "Fast-path restore failed, Outbox Dispatcher will retry", logger.Err(err), slog.Int64("part_id", item.PartID))
+		}
 	}
 
 	if s.cache != nil {
