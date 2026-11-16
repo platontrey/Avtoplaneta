@@ -159,7 +159,9 @@ class _MonthlySalesChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxSales = data.fold<double>(
+    // Отображаем месяцы хронологически слева направо (от более ранних к актуальным)
+    final chartData = data.reversed.toList();
+    final maxSales = chartData.fold<double>(
       0,
       (max, item) => item.sales > max ? item.sales : max,
     );
@@ -169,7 +171,29 @@ class _MonthlySalesChart extends StatelessWidget {
         maxY: maxSales > 0 ? maxSales * 1.15 : 1,
         borderData: FlBorderData(show: false),
         gridData: const FlGridData(show: false),
-        barTouchData: BarTouchData(enabled: true),
+        barTouchData: BarTouchData(
+          enabled: true,
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+              final index = group.x.toInt();
+              if (index < 0 || index >= chartData.length) return null;
+              final item = chartData[index];
+              final currency = NumberFormat.currency(
+                locale: 'ru_RU',
+                symbol: '₽',
+                decimalDigits: 0,
+              );
+              return BarTooltipItem(
+                '${item.month}\n${currency.format(rod.toY)}',
+                const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              );
+            },
+          ),
+        ),
         titlesData: FlTitlesData(
           topTitles: const AxisTitles(
             sideTitles: SideTitles(showTitles: false),
@@ -185,13 +209,13 @@ class _MonthlySalesChart extends StatelessWidget {
               showTitles: true,
               getTitlesWidget: (value, meta) {
                 final index = value.toInt();
-                if (index < 0 || index >= data.length) {
+                if (index < 0 || index >= chartData.length) {
                   return const SizedBox.shrink();
                 }
                 return Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(
-                    data[index].month,
+                    chartData[index].month,
                     style: const TextStyle(
                       color: Colors.white54,
                       fontSize: 10,
@@ -203,12 +227,12 @@ class _MonthlySalesChart extends StatelessWidget {
           ),
         ),
         barGroups: List.generate(
-          data.length,
+          chartData.length,
           (index) => BarChartGroupData(
             x: index,
             barRods: [
               BarChartRodData(
-                toY: data[index].sales,
+                toY: chartData[index].sales,
                 color: AppTheme.successColor,
                 width: 16,
                 borderRadius: const BorderRadius.vertical(

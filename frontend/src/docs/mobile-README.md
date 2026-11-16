@@ -133,6 +133,9 @@ stateDiagram-v2
 | `ApiEndpoints.vehicleCatalog` | `/api/vehicle-catalog` | Статический |
 | `ApiEndpoints.defectReports` | `/api/defect-reports` | Статический |
 | `ApiEndpoints.uploadPartPhoto` | `/api/uploadpartphoto/$partId` | Параметризованный |
+| `ApiEndpoints.shelves` | `/api/v1/shelves` | Статический |
+| `ApiEndpoints.adminShelves` | `/api/v1/admin/shelves` | Статический |
+| `ApiEndpoints.adminShelfById` | `/api/v1/admin/shelves/$id` | Параметризованный |
 | `ApiEndpoints.statistics` | `/api/v1/statistics` | Статический |
 | `ApiEndpoints.authMe` | `/auth/me` | Статический |
 | `ApiEndpoints.authLogin` | `/auth/login` | Статический |

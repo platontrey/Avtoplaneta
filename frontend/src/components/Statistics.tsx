@@ -3,8 +3,8 @@
 */
 
 import { useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart } from 'recharts';
-import { Package, Boxes, DollarSign, TrendingUp, TrendingDown, ChartNoAxesCombined, RefreshCw, Calendar, Warehouse } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Package, Boxes, DollarSign, TrendingUp, TrendingDown, ChartNoAxesCombined, RefreshCw, Calendar, Warehouse, Receipt } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -155,11 +155,45 @@ function Statistics() {
     sales: item.sales,
   })) || [];
 
-  // Анализ продаж
+  // Анализ продаж и расчет метрик роста
   const totalPeriodSales = data?.monthlySales?.reduce((acc, curr) => acc + curr.sales, 0) || 0;
   const recentMonthSales = data?.monthlySales && data.monthlySales.length > 0
     ? data.monthlySales[0].sales
     : 0;
+  const prevMonthSales = data?.monthlySales && data.monthlySales.length > 1
+    ? data.monthlySales[1].sales
+    : undefined;
+
+  // 1. Месячный рост (MoM) для карточки "Продажи за последний месяц"
+  const recentMonthGrowth = prevMonthSales !== undefined
+    ? (prevMonthSales > 0
+        ? ((recentMonthSales - prevMonthSales) / prevMonthSales) * 100
+        : (recentMonthSales > 0 ? 100 : 0))
+    : data?.earningsGrowth;
+
+  // 2. Среднемесячная выручка и сравнение текущего месяца со средним
+  const activeMonthsCount = data?.monthlySales?.length || 1;
+  const averageMonthlySales = totalPeriodSales / activeMonthsCount;
+  const vsAverageGrowth = averageMonthlySales > 0
+    ? ((recentMonthSales - averageMonthlySales) / averageMonthlySales) * 100
+    : 0;
+
+  // 3. Динамика продаж за период (сравнение с предшествующим аналогичным периодом)
+  let periodGrowth: number | undefined = undefined;
+  if (data?.monthlySales && data.monthlySales.length >= 24) {
+    const curYear = data.monthlySales.slice(0, 12).reduce((a, b) => a + b.sales, 0);
+    const prevYear = data.monthlySales.slice(12, 24).reduce((a, b) => a + b.sales, 0);
+    if (prevYear > 0) {
+      periodGrowth = ((curYear - prevYear) / prevYear) * 100;
+    }
+  } else if (data?.monthlySales && data.monthlySales.length >= 2) {
+    const half = Math.floor(data.monthlySales.length / 2);
+    const recentHalf = data.monthlySales.slice(0, half).reduce((a, b) => a + b.sales, 0) / half;
+    const olderHalf = data.monthlySales.slice(half).reduce((a, b) => a + b.sales, 0) / (data.monthlySales.length - half);
+    if (olderHalf > 0) {
+      periodGrowth = ((recentHalf - olderHalf) / olderHalf) * 100;
+    }
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
@@ -215,6 +249,7 @@ function Statistics() {
 
               <Card className="relative overflow-hidden">
                 <CardHeader className="pb-2">
+                  <GrowthIndicator growth={recentMonthGrowth} />
                   <div className="p-2 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg w-fit">
                     <Calendar className="h-5 w-5" />
                   </div>
@@ -223,13 +258,14 @@ function Statistics() {
                 <CardContent>
                   <div className="text-2xl sm:text-3xl font-bold">₽{formatPrice(recentMonthSales)}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {data.monthlySales.length > 0 ? data.monthlySales[0].month : 'Текущий период'}
+                    {data.monthlySales.length > 0 ? data.monthlySales[0].month : 'Текущий период'} (динамика MoM)
                   </p>
                 </CardContent>
               </Card>
 
               <Card className="relative overflow-hidden">
                 <CardHeader className="pb-2">
+                  <GrowthIndicator growth={periodGrowth} />
                   <div className="p-2 bg-violet-500/10 text-violet-600 dark:text-violet-400 rounded-lg w-fit">
                     <ChartNoAxesCombined className="h-5 w-5" />
                   </div>
@@ -237,25 +273,26 @@ function Statistics() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl sm:text-3xl font-bold">₽{formatPrice(totalPeriodSales)}</div>
-                  <p className="text-xs text-muted-foreground mt-1">Агрегировано по месяцам</p>
+                  <p className="text-xs text-muted-foreground mt-1">Агрегировано за период</p>
                 </CardContent>
               </Card>
 
               <Card className="relative overflow-hidden">
                 <CardHeader className="pb-2">
+                  <GrowthIndicator growth={vsAverageGrowth} />
                   <div className="p-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-lg w-fit">
-                    <Boxes className="h-5 w-5" />
+                    <Receipt className="h-5 w-5" />
                   </div>
-                  <CardTitle className="text-sm font-medium text-muted-foreground mt-2">Активных периодов</CardTitle>
+                  <CardTitle className="text-sm font-medium text-muted-foreground mt-2">Среднемесячная выручка</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl sm:text-3xl font-bold">{data.monthlySales.length} мес.</div>
-                  <p className="text-xs text-muted-foreground mt-1">Глубина истории продаж</p>
+                  <div className="text-2xl sm:text-3xl font-bold">₽{formatPrice(averageMonthlySales)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">В среднем за {data.monthlySales.length} мес.</p>
                 </CardContent>
               </Card>
             </div>
 
-            {/* График динамики продаж */}
+            {/* График динамики продаж: столбчатая диаграмма точно как в Склад и запасы */}
             <Card>
               <CardHeader>
                 <CardTitle>Динамика реализации по месяцам</CardTitle>
@@ -266,30 +303,26 @@ function Statistics() {
               <CardContent>
                 {monthlySalesData.length > 0 ? (
                   <ResponsiveContainer width="100%" height={320}>
-                    <AreaChart data={[...monthlySalesData].reverse()}>
-                      <defs>
-                        <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
-                        </linearGradient>
-                      </defs>
+                    <BarChart data={[...monthlySalesData].reverse()}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                       <XAxis dataKey="name" stroke="var(--border)" tick={axisTickStyle} />
-                      <YAxis stroke="var(--border)" tick={axisTickStyle} />
+                      <YAxis
+                        stroke="var(--border)"
+                        tick={axisTickStyle}
+                        tickFormatter={(value) => `₽${(value / 1000).toFixed(0)}k`}
+                      />
                       <Tooltip
                         contentStyle={tooltipContentStyle}
                         itemStyle={tooltipItemStyle}
                         formatter={(value) => [`₽${formatPrice(Number(value))}`, 'Выручка']}
                       />
-                      <Area
-                        type="monotone"
+                      <Bar
                         dataKey="sales"
-                        stroke="#10b981"
-                        strokeWidth={2}
-                        fillOpacity={1}
-                        fill="url(#salesGradient)"
+                        fill="#10b981"
+                        radius={[6, 6, 0, 0]}
+                        maxBarSize={60}
                       />
-                    </AreaChart>
+                    </BarChart>
                   </ResponsiveContainer>
                 ) : (
                   <div className="py-12 text-center text-muted-foreground text-sm">
