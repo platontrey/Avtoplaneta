@@ -40,7 +40,6 @@ type PartRepository interface {
 	GetSupplierCodes(ctx context.Context) ([]string, error)
 	GetNextSupplierCode(ctx context.Context) (string, error)
 	PeekNextSupplierCode(ctx context.Context) (string, error)
-	GetNextPartNumber(ctx context.Context) (string, error)
 
 	GetTotalEarnings(ctx context.Context) (float64, error)
 	UpdateTotalEarnings(ctx context.Context, amount float64) error

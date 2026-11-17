@@ -19,14 +19,6 @@ SELECT COALESCE(MAX(CAST(supplier_code AS BIGINT)), 0) + 1 AS next_code
 FROM parts
 WHERE supplier_code ~ '^[0-9]+$' AND LENGTH(supplier_code) < 10;
 
--- name: GetNextPartNumberSequence :one
-SELECT nextval('part_number_seq')::bigint;
-
--- name: GetMaxPartNumberFallback :one
-SELECT COALESCE(MAX(CAST(number AS BIGINT)), 0) + 1 AS next_number
-FROM parts
-WHERE number ~ '^[0-9]+$' AND LENGTH(number) < 15;
-
 -- name: DeleteZeroQuantityPartsBySupplierCode :many
 DELETE FROM parts
 WHERE BTRIM(supplier_code) = BTRIM($1)

@@ -100,10 +100,6 @@ func (m *MockRepository) PeekNextSupplierCode(ctx context.Context) (string, erro
 	args := m.Called(ctx)
 	return args.String(0), args.Error(1)
 }
-func (m *MockRepository) GetNextPartNumber(ctx context.Context) (string, error) {
-	args := m.Called(ctx)
-	return args.String(0), args.Error(1)
-}
 func (m *MockRepository) GetTotalEarnings(ctx context.Context) (float64, error) {
 	args := m.Called(ctx)
 	return args.Get(0).(float64), args.Error(1)

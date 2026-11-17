@@ -57,19 +57,12 @@ func (s *inventoryService) DuplicatePart(ctx context.Context, id int64) (*domain
 
 	clone := *source
 	clone.ID = 0
+	clone.Number = ""
 	clone.Photos = domain.StringArray{}
 	clone.Photo = ""
 	clone.ToDeleteAt = nil
 	if clone.Quantity < 0 {
 		clone.Quantity = 1
-	}
-
-	// Генерируем новый свободный порядковый номер детали
-	newNumber, err := s.repo.GetNextPartNumber(ctx)
-	if err != nil || newNumber == "" {
-		slog.WarnContext(ctx, "DuplicatePart: failed to get next part number, falling back to empty", logger.Err(err))
-	} else {
-		clone.Number = newNumber
 	}
 
 	if err := s.repo.Create(ctx, &clone); err != nil {

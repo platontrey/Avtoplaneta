@@ -156,10 +156,6 @@ func (m *MockPartRepository) PeekNextSupplierCode(ctx context.Context) (string, 
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockPartRepository) GetNextPartNumber(ctx context.Context) (string, error) {
-	args := m.Called(ctx)
-	return args.String(0), args.Error(1)
-}
 
 func (m *MockPartRepository) UpdatePartPhotos(ctx context.Context, id int64, photos domain.StringArray) error {
 	args := m.Called(ctx, id, photos)
@@ -319,12 +315,12 @@ func (suite *ServiceTestSuite) TestDuplicatePart() {
 	}
 
 	suite.mockRepo.On("FindByID", mock.Anything, int64(10)).Return(sourcePart, nil)
-	suite.mockRepo.On("GetNextPartNumber", mock.Anything).Return("555", nil)
 	suite.mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(p *domain.Part) bool {
-		return p.Name == "Existing Part" && len(p.Photos) == 0 && p.Photo == "" && p.ID == 0 && p.Number == "555"
+		return p.Name == "Existing Part" && len(p.Photos) == 0 && p.Photo == "" && p.ID == 0 && p.Number == ""
 	})).Return(nil).Run(func(args mock.Arguments) {
 		p := args.Get(1).(*domain.Part)
 		p.ID = 11
+		p.Number = "11"
 	})
 	duplicatedResult := &domain.Part{
 		PartCore: domain.PartCore{
@@ -337,7 +333,7 @@ func (suite *ServiceTestSuite) TestDuplicatePart() {
 			Photos:   domain.StringArray{},
 		},
 		PartSpecifications: domain.PartSpecifications{
-			Number: "555",
+			Number: "11",
 		},
 	}
 	suite.mockRepo.On("FindByID", mock.Anything, int64(11)).Return(duplicatedResult, nil)
@@ -346,7 +342,7 @@ func (suite *ServiceTestSuite) TestDuplicatePart() {
 	assert.NoError(suite.T(), err)
 	assert.NotNil(suite.T(), res)
 	assert.Equal(suite.T(), int64(11), res.ID)
-	assert.Equal(suite.T(), "555", res.Number)
+	assert.Equal(suite.T(), "11", res.Number)
 	assert.Empty(suite.T(), res.Photos)
 	assert.Empty(suite.T(), res.Photo)
 }

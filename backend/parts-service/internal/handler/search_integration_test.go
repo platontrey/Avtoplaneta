@@ -153,9 +153,6 @@ func (m *mockPartRepository) GetNextSupplierCode(ctx context.Context) (string, e
 func (m *mockPartRepository) PeekNextSupplierCode(ctx context.Context) (string, error) {
 	return "1", nil
 }
-func (m *mockPartRepository) GetNextPartNumber(ctx context.Context) (string, error) {
-	return "1", nil
-}
 func (m *mockPartRepository) FetchPendingOutboxEvents(ctx context.Context, limit int32) ([]sqlc.OutboxEvent, error) {
 	args := m.Called(ctx, limit)
 	if args.Get(0) == nil {

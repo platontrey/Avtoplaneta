@@ -3,16 +3,8 @@ UPDATE parts
 SET number = id::text
 WHERE number IS DISTINCT FROM id::text;
 
--- 2. Актуализируем последовательность part_number_seq
-DO $$
-DECLARE
-    max_id BIGINT;
-BEGIN
-    SELECT COALESCE(MAX(id), 0) INTO max_id FROM parts;
-    IF max_id > 0 THEN
-        PERFORM setval('part_number_seq', max_id);
-    END IF;
-END $$;
+-- 2. Удаляем дублирующую последовательность part_number_seq (номером детали является id из parts_id_seq)
+DROP SEQUENCE IF EXISTS part_number_seq;
 
 -- 3. Создаем индекс по номеру детали для быстрых выборок
 CREATE INDEX IF NOT EXISTS idx_parts_number ON parts (number);

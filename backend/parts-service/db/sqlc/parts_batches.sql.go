@@ -104,19 +104,6 @@ func (q *Queries) DeleteZeroQuantityPartsBySupplierCode(ctx context.Context, btr
 	return items, nil
 }
 
-const GetMaxPartNumberFallback = `-- name: GetMaxPartNumberFallback :one
-SELECT COALESCE(MAX(CAST(number AS BIGINT)), 0) + 1 AS next_number
-FROM parts
-WHERE number ~ '^[0-9]+$' AND LENGTH(number) < 15
-`
-
-func (q *Queries) GetMaxPartNumberFallback(ctx context.Context) (int32, error) {
-	row := q.db.QueryRow(ctx, GetMaxPartNumberFallback)
-	var next_number int32
-	err := row.Scan(&next_number)
-	return next_number, err
-}
-
 const GetMaxSupplierCodeFallback = `-- name: GetMaxSupplierCodeFallback :one
 SELECT COALESCE(MAX(CAST(supplier_code AS BIGINT)), 0) + 1 AS next_code
 FROM parts
@@ -136,17 +123,6 @@ SELECT nextval('defect_batch_seq')::bigint
 
 func (q *Queries) GetNextDefectBatchSequence(ctx context.Context) (int64, error) {
 	row := q.db.QueryRow(ctx, GetNextDefectBatchSequence)
-	var column_1 int64
-	err := row.Scan(&column_1)
-	return column_1, err
-}
-
-const GetNextPartNumberSequence = `-- name: GetNextPartNumberSequence :one
-SELECT nextval('part_number_seq')::bigint
-`
-
-func (q *Queries) GetNextPartNumberSequence(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, GetNextPartNumberSequence)
 	var column_1 int64
 	err := row.Scan(&column_1)
 	return column_1, err

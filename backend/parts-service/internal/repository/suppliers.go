@@ -151,16 +151,3 @@ func (r *partRepository) PeekNextSupplierCode(ctx context.Context) (string, erro
 	}
 	return strconv.FormatInt(lastVal+1, 10), nil
 }
-
-func (r *partRepository) GetNextPartNumber(ctx context.Context) (string, error) {
-	seqVal, err := r.queries.GetNextPartNumberSequence(ctx)
-	if err != nil {
-		slog.WarnContext(ctx, "Repository: nextval(part_number_seq) failed, falling back to max number query", logger.Err(err))
-		maxVal, fallbackErr := r.queries.GetMaxPartNumberFallback(ctx)
-		if fallbackErr == nil && maxVal > 0 {
-			return strconv.FormatInt(int64(maxVal), 10), nil
-		}
-		return "1", nil
-	}
-	return strconv.FormatInt(seqVal, 10), nil
-}
