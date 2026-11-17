@@ -1,49 +1,91 @@
 /*
- * Copyright (c) 2025 Avtoplaneta. All rights reserved.
+ * Copyright (c) 2025-2026 Avtoplaneta. All rights reserved.
  */
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 // CSRF token management - centralized
-let csrfToken: string | null = null;
+let csrfToken: string | null = typeof window !== 'undefined' ? localStorage.getItem('csrf_token') : null;
+let pendingFetch: Promise<string | null> | null = null;
 
-const fetchCsrfToken = async (): Promise<void> => {
-  try {
-    console.log('csrf: Fetching CSRF token...');
-    const response = await fetch(`${API_BASE_URL}/auth/csrf-token`, {
-      credentials: 'include',
-    });
-    console.log('csrf: CSRF token fetch response status:', response.status);
-    if (response.ok) {
-      const data = await response.json();
-      csrfToken = data.csrf_token;
-      console.log('csrf: CSRF token fetched successfully:', csrfToken ? 'present' : 'null');
+export const setCsrfToken = (token: string | null): void => {
+  csrfToken = token;
+  if (typeof window !== 'undefined') {
+    if (token) {
+      localStorage.setItem('csrf_token', token);
     } else {
-      console.error('csrf: Failed to fetch CSRF token, status:', response.status);
+      localStorage.removeItem('csrf_token');
     }
-  } catch (error) {
-    console.error('csrf: Failed to fetch CSRF token:', error);
   }
 };
 
-// Initialize CSRF token on app start
-fetchCsrfToken();
+export const fetchCsrfToken = async (): Promise<string | null> => {
+  if (pendingFetch) {
+    return pendingFetch;
+  }
 
-// Helper function to get auth headers
-export const getAuthHeaders = () => {
+  pendingFetch = (async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/csrf-token`, {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const token = data.csrf_token || null;
+        setCsrfToken(token);
+        return token;
+      }
+      console.error('csrf: Failed to fetch CSRF token, status:', response.status);
+    } catch (error) {
+      console.error('csrf: Failed to fetch CSRF token:', error);
+    } finally {
+      pendingFetch = null;
+    }
+    return csrfToken;
+  })();
+
+  return pendingFetch;
+};
+
+// Гарантирует наличие CSRF токена перед отправкой мутирующих запросов
+export const ensureCsrfToken = async (): Promise<string> => {
+  if (csrfToken) {
+    return csrfToken;
+  }
+  const token = await fetchCsrfToken();
+  return token || '';
+};
+
+// Initialize CSRF token on app start
+if (typeof window !== 'undefined') {
+  void fetchCsrfToken();
+}
+
+// Helper function to get auth headers (синхронно, с fallback на localStorage)
+export const getAuthHeaders = (): Record<string, string> => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   };
 
-  // Add CSRF token if available
-  if (csrfToken) {
-    headers['X-CSRF-Token'] = csrfToken;
-    console.log('csrf: Including CSRF token in headers');
-  } else {
-    console.warn('csrf: No CSRF token available for request');
+  const token = csrfToken || (typeof window !== 'undefined' ? localStorage.getItem('csrf_token') : null);
+  if (token) {
+    headers['X-CSRF-Token'] = token;
   }
 
+  return headers;
+};
+
+// Асинхронная версия с гарантией получения токена
+export const getAuthHeadersAsync = async (): Promise<Record<string, string>> => {
+  const token = await ensureCsrfToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
+  if (token) {
+    headers['X-CSRF-Token'] = token;
+  }
   return headers;
 };
 

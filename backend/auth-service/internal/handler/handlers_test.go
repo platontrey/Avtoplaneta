@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
 	"auth-service/internal/config"
@@ -62,6 +63,7 @@ func (suite *HandlersTestSuite) TestHealthEndpoint() {
 func (suite *HandlersTestSuite) TestUserLoginHandler_Success() {
 	user := &domain.User{ID: 1, Email: "test@example.com", Name: "Test", Role: "operator"}
 	suite.mockService.On("AuthenticateUser", "test@example.com", "password123").Return(user, nil)
+	suite.mockService.On("GenerateCSRFToken", mock.Anything).Return("mock-csrf-token", nil)
 
 	jsonData, _ := json.Marshal(map[string]string{"email": "test@example.com", "password": "password123"})
 	req, _ := http.NewRequest("POST", "/auth/login", bytes.NewBuffer(jsonData))
@@ -70,6 +72,7 @@ func (suite *HandlersTestSuite) TestUserLoginHandler_Success() {
 	suite.router.ServeHTTP(w, req)
 
 	assert.Equal(suite.T(), http.StatusOK, w.Code)
+	assert.Equal(suite.T(), "mock-csrf-token", w.Header().Get("X-CSRF-Token"))
 }
 
 func (suite *HandlersTestSuite) TestUserLoginHandler_Unauthorized() {
@@ -105,7 +108,7 @@ func (suite *HandlersTestSuite) TestGetCurrentUserHandler_NoAuth() {
 }
 
 func (suite *HandlersTestSuite) TestRefreshTokenHandler_EmptyToken() {
-	req, _ := http.NewRequest("POST", "/auth/refresh", bytes.NewBufferString(`{}`))
+	req, _ := http.NewRequest("POST", "/auth/login", bytes.NewBufferString(`{}`))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	suite.router.ServeHTTP(w, req)

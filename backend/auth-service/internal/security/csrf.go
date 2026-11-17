@@ -82,10 +82,15 @@ func (m *memoryCSRFManager) ValidateToken(userID *int64, sessionToken, incomingT
 
 	if time.Now().After(stored.expiresAt) {
 		m.Invalidate(*userID)
-		return false
+		return sessionToken != "" && sessionToken == incomingToken
 	}
 
-	return stored.token == incomingToken
+	if stored.token == incomingToken {
+		return true
+	}
+
+	// Fallback к токену из сессии на случай рассинхронизации памяти инстанса
+	return sessionToken != "" && sessionToken == incomingToken
 }
 
 func (m *memoryCSRFManager) Invalidate(userID int64) {

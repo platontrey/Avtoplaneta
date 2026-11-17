@@ -47,17 +47,31 @@ func (h *Handler) GoogleAuthCallbackHandler(c *gin.Context) {
 		return
 	}
 
+	var csrfToken string
+	if h.authService != nil {
+		if tok, err := h.authService.GenerateCSRFToken(&createdUser.ID); err == nil {
+			csrfToken = tok
+		}
+	}
+
 	if h.sessionStore != nil {
 		session, _ := h.sessionStore.Get(c.Request, "auth-session")
 		if session != nil {
 			session.Values["user_id"] = createdUser.ID
 			session.Values["login_time"] = time.Now().Unix()
+			if csrfToken != "" {
+				session.Values["csrf_token"] = csrfToken
+			}
 			if err := h.sessionStore.Save(c.Request, c.Writer, session); err != nil {
 				slog.ErrorContext(c.Request.Context(), "Failed to save session", logger.Err(err))
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось создать сессию"})
 				return
 			}
 		}
+	}
+
+	if csrfToken != "" {
+		c.Header("X-CSRF-Token", csrfToken)
 	}
 
 	slog.InfoContext(c.Request.Context(), "Google login successful",
@@ -204,17 +218,31 @@ func (h *Handler) UserLoginHandler(c *gin.Context) {
 		return
 	}
 
+	var csrfToken string
+	if h.authService != nil {
+		if tok, err := h.authService.GenerateCSRFToken(&user.ID); err == nil {
+			csrfToken = tok
+		}
+	}
+
 	if h.sessionStore != nil {
 		session, _ := h.sessionStore.Get(c.Request, "auth-session")
 		if session != nil {
 			session.Values["user_id"] = user.ID
 			session.Values["login_time"] = time.Now().Unix()
+			if csrfToken != "" {
+				session.Values["csrf_token"] = csrfToken
+			}
 			if err := h.sessionStore.Save(c.Request, c.Writer, session); err != nil {
 				slog.ErrorContext(c.Request.Context(), "Failed to save session", logger.Err(err))
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось создать сессию"})
 				return
 			}
 		}
+	}
+
+	if csrfToken != "" {
+		c.Header("X-CSRF-Token", csrfToken)
 	}
 
 	var secret string
@@ -233,6 +261,7 @@ func (h *Handler) UserLoginHandler(c *gin.Context) {
 		Message:      "Login successful",
 		Token:        accessToken,
 		RefreshToken: refreshToken,
+		CSRFToken:    csrfToken,
 	}
 	c.JSON(http.StatusOK, response)
 }
@@ -351,7 +380,7 @@ func (h *Handler) GetCSRFTokenHandler(c *gin.Context) {
 		return
 	}
 
-	if userID == nil && h.sessionStore != nil {
+	if h.sessionStore != nil {
 		session, _ := h.sessionStore.Get(c.Request, "auth-session")
 		if session != nil {
 			session.Values["csrf_token"] = token
@@ -364,6 +393,7 @@ func (h *Handler) GetCSRFTokenHandler(c *gin.Context) {
 	}
 
 	c.Header("Cache-Control", "no-store")
+	c.Header("X-CSRF-Token", token)
 	c.JSON(http.StatusOK, gin.H{"csrf_token": token})
 }
 

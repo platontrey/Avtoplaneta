@@ -66,6 +66,7 @@ func (q *Queries) CreateOrdersOutboxEvent(ctx context.Context, arg CreateOrdersO
 const FetchPendingOrdersOutboxEvents = `-- name: FetchPendingOrdersOutboxEvents :many
 SELECT id, aggregate_id, created_at, processed_at, retry_count, status, aggregate_type, event_type, payload, last_error FROM outbox_events
 WHERE status = 'pending'
+  AND aggregate_type IN ('order', 'user_action')
 ORDER BY created_at ASC
 LIMIT $1
 FOR UPDATE SKIP LOCKED

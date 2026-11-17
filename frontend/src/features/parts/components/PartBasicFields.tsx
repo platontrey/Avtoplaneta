@@ -90,15 +90,17 @@ export function PartBasicFields() {
                 {errors.model && <p className="text-destructive text-xs mt-1">{errors.model.message}</p>}
             </FormRow>
 
-            {/* VIN */}
-            <FormRow label="VIN / Номер кузова" htmlFor="vin">
-                <Input
-                    id="vin"
-                    {...register("vin")}
-                    placeholder="WVWZZZ..."
-                    autoComplete="off"
-                />
-            </FormRow>
+            {/* Номер детали */}
+            {shows("number") && (
+                <FormRow label="Номер детали" htmlFor="number">
+                    <Input
+                        id="number"
+                        {...register("number")}
+                        placeholder="Номер детали / Артикул"
+                        autoComplete="off"
+                    />
+                </FormRow>
+            )}
 
             {/* Период выпуска автомобиля */}
             {shows("car_release_period") && (

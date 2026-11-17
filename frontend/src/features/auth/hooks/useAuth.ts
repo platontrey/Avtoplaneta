@@ -9,6 +9,7 @@ import type { LoginCredentials, AuthState } from '../types';
 import { authApi } from '../api/authApi';
 import { logUserActivity } from '@/features/admin/api/adminApi';
 import { AUTH_ME_QUERY_KEY, useCurrentUser } from './useCurrentUser';
+import { setCsrfToken, ensureCsrfToken } from '@/lib/csrf';
 
 export interface UseAuthReturn extends AuthState {
   loading: boolean;
@@ -44,6 +45,10 @@ export function useAuth(): UseAuthReturn {
           : '',
       });
       localStorage.setItem('userId', userData.id.toString());
+      if ((userData as any).csrf_token) {
+        setCsrfToken((userData as any).csrf_token);
+      }
+      await ensureCsrfToken();
 
       // Логируем успешный вход пользователя
       logUserActivity({
@@ -70,7 +75,7 @@ export function useAuth(): UseAuthReturn {
     } finally {
       queryClient.setQueryData(AUTH_ME_QUERY_KEY, null);
       localStorage.removeItem('userId');
-      localStorage.removeItem('csrf_token');
+      setCsrfToken(null);
       window.location.href = '/login';
     }
   }, [queryClient, user]);

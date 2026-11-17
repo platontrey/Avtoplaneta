@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { UserPlus } from 'lucide-react';
-import { getAuthHeaders } from '@/lib/csrf';
+import { getAuthHeadersAsync } from '@/lib/csrf';
 import { useAuth } from '@/hooks/useAuth';
 import { getUserActivityLogs, logUserActivity } from '@/features/admin/api/adminApi';
 import type { UserActivityLog } from '@/lib/types';
@@ -185,12 +185,10 @@ export const AdminPanel: React.FC = () => {
   }) => {
     setLoading(true);
     try {
+      const authHeaders = await getAuthHeadersAsync();
       const response = await fetch(`${API_BASE_URL}/api/v1/admin/users`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': getAuthHeaders()['X-CSRF-Token'] || '',
-        },
+        headers: authHeaders,
         credentials: 'include',
         body: JSON.stringify(newUser),
       });
@@ -229,12 +227,10 @@ export const AdminPanel: React.FC = () => {
     }
   ) => {
     try {
+      const authHeaders = await getAuthHeadersAsync();
       const response = await fetch(`${API_BASE_URL}/api/v1/admin/users/${userId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': getAuthHeaders()['X-CSRF-Token'] || '',
-        },
+        headers: authHeaders,
         credentials: 'include',
         body: JSON.stringify(editForm),
       });
@@ -265,10 +261,11 @@ export const AdminPanel: React.FC = () => {
     }
 
     try {
+      const authHeaders = await getAuthHeadersAsync();
       const response = await fetch(`${API_BASE_URL}/api/v1/admin/users/${userId}`, {
         method: 'DELETE',
         headers: {
-          'X-CSRF-Token': getAuthHeaders()['X-CSRF-Token'] || '',
+          'X-CSRF-Token': authHeaders['X-CSRF-Token'] || '',
         },
         credentials: 'include',
       });
@@ -307,12 +304,10 @@ export const AdminPanel: React.FC = () => {
 
     setLoading(true);
     try {
+      const authHeaders = await getAuthHeadersAsync();
       const response = await fetch(`${API_BASE_URL}/api/v1/admin/parts/zero-quantity`, {
         method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
+        headers: authHeaders,
         credentials: 'include',
         body: JSON.stringify({ supplier_code: selectedSupplierCode }),
       });

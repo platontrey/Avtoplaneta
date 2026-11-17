@@ -6,6 +6,7 @@ RETURNING *;
 -- name: FetchPendingOutboxEvents :many
 SELECT * FROM outbox_events
 WHERE status = 'pending'
+  AND aggregate_type = 'part'
 ORDER BY id ASC
 LIMIT $1
 FOR UPDATE SKIP LOCKED;

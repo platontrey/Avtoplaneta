@@ -11,6 +11,7 @@ INSERT INTO outbox_events (
 -- name: FetchPendingOrdersOutboxEvents :many
 SELECT * FROM outbox_events
 WHERE status = 'pending'
+  AND aggregate_type IN ('order', 'user_action')
 ORDER BY created_at ASC
 LIMIT $1
 FOR UPDATE SKIP LOCKED;

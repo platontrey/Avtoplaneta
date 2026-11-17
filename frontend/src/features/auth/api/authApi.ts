@@ -3,7 +3,7 @@
  */
 
 import type { User, LoginCredentials } from '../types';
-import { getAuthHeaders } from '@/lib/csrf';
+import { getAuthHeaders, setCsrfToken } from '@/lib/csrf';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -21,7 +21,12 @@ export const authApi = {
       throw new Error(`Не удалось войти: ${errorText}`);
     }
 
+    const csrfHeader = response.headers.get('X-CSRF-Token');
     const data = await response.json();
+    const token = data.csrf_token || csrfHeader;
+    if (token) {
+      setCsrfToken(token);
+    }
     return data.user || data;
   },
 

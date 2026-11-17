@@ -151,10 +151,10 @@ export function PartSpecificationsFields({ brand: propBrand, model: propModel }:
                 </FormRow>
             )}
 
-            {/* Номер детали */}
-            {shows("number") && (
-                <FormRow label="Номер детали" htmlFor="number">
-                    <Input id="number" {...register("number")} placeholder="Номер детали" />
+            {/* VIN / Номер кузова (Н.К.) */}
+            {shows("vin") && (
+                <FormRow label="VIN / Номер кузова (Н.К.)" htmlFor="vin">
+                    <Input id="vin" {...register("vin")} placeholder="WVWZZZ..." autoComplete="off" />
                 </FormRow>
             )}
 

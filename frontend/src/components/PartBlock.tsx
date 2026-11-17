@@ -101,6 +101,9 @@ function PartBlock({
     };
 
     const handlePointerDown = (e: React.PointerEvent) => {
+        if (e.pointerType === 'mouse') {
+            return;
+        }
         const target = e.target as HTMLElement;
         if (target.closest('input, a, [role="button"], button')) {
             return;
@@ -197,6 +200,13 @@ function PartBlock({
             >
                 <AccordionTrigger
                     className="flex items-center justify-between w-full hover:bg-accent hover:text-accent-foreground pr-4 pointer-events-auto"
+                    onClick={(e) => {
+                        const selection = window.getSelection()?.toString();
+                        if (selection && selection.trim().length > 0) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }
+                    }}
                 >
                     <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
                         <img
@@ -215,24 +225,52 @@ function PartBlock({
                             }}
                             title="Нажмите для увеличения фото"
                         />
-                        <div className="flex flex-col min-w-0 flex-1">
-                            <span className="truncate text-sm sm:text-base font-semibold">{part.name || 'Unnamed Part'}</span>
+                        <div
+                            className="flex flex-col min-w-0 flex-1 select-text cursor-text"
+                            onPointerDown={(e) => e.stopPropagation()}
+                        >
+                            {/* Строка 1: Название детали */}
+                            <span className="truncate text-sm sm:text-base font-semibold select-text cursor-text">
+                                {part.name || 'Unnamed Part'}
+                            </span>
+
+                            {/* Строка 2: Бренд и модель */}
                             {(part.brand || part.model) && (
-                                <span className="text-xs sm:text-sm text-muted-foreground truncate">
+                                <span className="text-xs sm:text-sm text-muted-foreground truncate select-text cursor-text">
                                     {part.brand && part.model ? `${part.brand} ${part.model}` : part.brand || part.model}
                                 </span>
                             )}
-                            <div className="flex flex-wrap gap-2 mt-1">
-                                {part.category && (
-                                    <span className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium">{part.category}</span>
+
+                            {/* Строка 3: Номер детали, категория, количество */}
+                            <div className="flex flex-wrap items-center gap-2 mt-1 select-text cursor-text">
+                                {part.number && (
+                                    <span
+                                        className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text"
+                                        title={`Номер детали: ${part.number}`}
+                                    >
+                                        № {part.number}
+                                    </span>
                                 )}
-                                <span className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium">Кол: {part.quantity ?? 0}</span>
-                                <span className="text-sm bg-primary text-primary-foreground dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30 border border-primary/20 px-3 py-1 rounded-md font-semibold">Цена: {part.price && Number(part.price) > 0 ? `₽${part.price}` : 'отсутствует'}</span>
+                                {part.category && (
+                                    <span className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text">
+                                        {part.category}
+                                    </span>
+                                )}
+                                <span className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text">
+                                    Кол: {part.quantity ?? 0}
+                                </span>
+                            </div>
+
+                            {/* Строка 4: Цена и активный заказ */}
+                            <div className="flex flex-wrap items-center gap-2 mt-1 select-text cursor-text">
+                                <span className="text-sm bg-primary text-primary-foreground dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30 border border-primary/20 px-3 py-1 rounded-md font-semibold select-text cursor-text">
+                                    Цена: {part.price && Number(part.price) > 0 ? `₽${part.price}` : 'отсутствует'}
+                                </span>
                                 {activeOrderId && (
                                     <Link
                                         to="/orders"
                                         onClick={(e) => e.stopPropagation()}
-                                        className="text-xs sm:text-sm bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded-md font-semibold hover:bg-amber-500/25 transition-colors"
+                                        className="text-xs sm:text-sm bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded-md font-semibold hover:bg-amber-500/25 transition-colors select-text cursor-text"
                                         title={`Эта деталь находится в активном заказе #${activeOrderId}`}
                                     >
                                         📦 В заказе #{activeOrderId}
@@ -334,118 +372,153 @@ function PartBlock({
                                             <div key={index} className="relative group">
                                                 <button
                                                     type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        onOpenPhotoViewer?.(part, index);
-                                                    }}
+                                                    onClick={() => onOpenPhotoViewer?.(part, index)}
                                                     className="bg-transparent border-none p-0 pointer-events-auto w-full group/img focus:outline-none"
-                                                    title="Нажмите для увеличения фото"
+                                                    title="Нажмите для полноэкранного просмотра"
                                                 >
                                                     <img
                                                         src={`${API_BASE_URL}${photoPath}${part.updated_at ? `?v=${encodeURIComponent(part.updated_at)}` : ''}`}
                                                         alt={`${part.name} - фото ${index + 1}`}
-                                                        loading="lazy"
-                                                        decoding="async"
-                                                        className="w-full h-24 object-cover rounded-lg border cursor-pointer group-hover/img:ring-2 group-hover/img:ring-primary/50 group-hover/img:brightness-105 transition-all"
                                                         onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
                                                             e.currentTarget.onerror = null;
                                                             e.currentTarget.src = '/placeholder-part.svg';
                                                         }}
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                        className="w-full h-24 object-cover rounded-lg border cursor-pointer group-hover/img:ring-2 group-hover/img:ring-primary/50 group-hover/img:brightness-105 transition-all"
                                                     />
                                                 </button>
-                                                {/* Действия над фото */}
-                                                <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => handleCopyPhoto(photoPath, e)}
-                                                        className={`rounded-full w-6 h-6 flex items-center justify-center shadow transition-all ${
-                                                            copiedPhotoPath === photoPath 
-                                                                ? 'bg-emerald-600 text-white' 
-                                                                : 'bg-neutral-900/85 hover:bg-neutral-800 text-white'
-                                                        }`}
-                                                        title="Скопировать фото в буфер обмена"
-                                                    >
-                                                        {copiedPhotoPath === photoPath ? (
-                                                            <Check className="w-3 h-3 text-white" />
-                                                        ) : (
-                                                            <Copy className="w-3 h-3 text-white" />
-                                                        )}
-                                                    </button>
-
-                                                    {user?.role === 'admin' && (
-                                                        <>
-                                                            <button
-                                                                type="button"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    const photoUrl = photoPath.startsWith('http') || photoPath.startsWith('data:')
-                                                                        ? photoPath
-                                                                        : `${API_BASE_URL}${photoPath.startsWith('/') ? photoPath : `/${photoPath}`}`;
-                                                                    onOpenCropper?.(part, photoUrl, photoPath);
-                                                                }}
-                                                                className="bg-neutral-900/85 hover:bg-neutral-800 text-white rounded-full w-6 h-6 flex items-center justify-center shadow transition-colors"
-                                                                title="Редактировать фото"
-                                                            >
-                                                                <Crop className="w-3 h-3" />
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    onDeletePhoto?.(part, photoPath);
-                                                                }}
-                                                                className="bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center shadow transition-colors"
-                                                                title="Удалить фото"
-                                                            >
-                                                                <X className="w-3 h-3" />
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                </div>
+                                                {user?.role === 'admin' && (
+                                                    <div className="absolute top-1 right-1 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <Button
+                                                            size="icon"
+                                                            variant="secondary"
+                                                            className="h-6 w-6 rounded-full shadow-sm bg-background/80 backdrop-blur-sm hover:bg-background"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                onOpenCropper?.(part, `${API_BASE_URL}${photoPath}`, photoPath);
+                                                            }}
+                                                            title="Обрезать / Редактировать фото"
+                                                        >
+                                                            <Crop className="h-3 w-3" />
+                                                        </Button>
+                                                        <Button
+                                                            size="icon"
+                                                            variant="secondary"
+                                                            className={`h-6 w-6 rounded-full shadow-sm backdrop-blur-sm transition-colors ${
+                                                                copiedPhotoPath === photoPath
+                                                                    ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                                                                    : 'bg-background/80 hover:bg-background'
+                                                            }`}
+                                                            onClick={(e) => handleCopyPhoto(photoPath, e)}
+                                                            title={copiedPhotoPath === photoPath ? "Скопировано в буфер!" : "Скопировать фото в буфер обмена"}
+                                                        >
+                                                            {copiedPhotoPath === photoPath ? (
+                                                                <Check className="h-3 w-3 text-white" />
+                                                            ) : (
+                                                                <Copy className="h-3 w-3" />
+                                                            )}
+                                                        </Button>
+                                                        <Button
+                                                            size="icon"
+                                                            variant="destructive"
+                                                            className="h-6 w-6 rounded-full shadow-sm"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                onDeletePhoto?.(part, photoPath);
+                                                            }}
+                                                            title="Удалить это фото"
+                                                        >
+                                                            <X className="h-3 w-3" />
+                                                        </Button>
+                                                    </div>
+                                                )}
+                                                {index === 0 && (
+                                                    <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1 rounded backdrop-blur-sm pointer-events-none">
+                                                        Главное
+                                                    </span>
+                                                )}
                                             </div>
                                         ))}
-                                    </div>
 
-                                    {/* Добавление фото (только админ) */}
-                                    {user?.role === 'admin' && (
-                                        <div className="mt-3">
-                                            <label className="inline-block">
+                                        {/* Кнопка добавления фото */}
+                                        {user?.role === 'admin' && (
+                                            <div className="relative group border-2 border-dashed border-border rounded-lg h-24 flex items-center justify-center hover:border-primary transition-colors">
                                                 <input
                                                     type="file"
                                                     accept="image/*"
-                                                    onChange={(e) => {
-                                                        const file = e.target.files?.[0];
-                                                        if (file && onAddPhoto) {
-                                                            void onAddPhoto(part, file);
-                                                        }
-                                                        e.target.value = '';
-                                                    }}
+                                                    multiple
                                                     className="hidden"
+                                                    id={`add-photo-${part.id}`}
+                                                    onChange={async (e) => {
+                                                        const files = e.target.files;
+                                                        if (files && files.length > 0 && onAddPhoto) {
+                                                            for (let i = 0; i < files.length; i++) {
+                                                                await onAddPhoto(part, files[i]);
+                                                            }
+                                                            e.target.value = '';
+                                                        }
+                                                    }}
                                                 />
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="cursor-pointer"
-                                                    asChild
-                                                >
-                                                    <span>
-                                                        <Plus className="h-4 w-4 mr-2" />
-                                                        Добавить фото
-                                                    </span>
-                                                </Button>
-                                            </label>
-                                        </div>
-                                    )}
+                                                <label htmlFor={`add-photo-${part.id}`} className="inline-block">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        type="button"
+                                                        className="cursor-pointer"
+                                                        tabIndex={-1}
+                                                    >
+                                                        <Plus className="h-4 w-4 mr-1" />
+                                                        Добавить
+                                                    </Button>
+                                                </label>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Загрузка первого фото, если фоток нет */}
+                            {(!part.photos || part.photos.length === 0) && user?.role === 'admin' && (
+                                <div>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        multiple
+                                        className="hidden"
+                                        id={`add-first-photo-${part.id}`}
+                                        onChange={async (e) => {
+                                            const files = e.target.files;
+                                            if (files && files.length > 0 && onAddPhoto) {
+                                                for (let i = 0; i < files.length; i++) {
+                                                    await onAddPhoto(part, files[i]);
+                                                }
+                                                e.target.value = '';
+                                            }
+                                        }}
+                                    />
+                                    <label htmlFor={`add-first-photo-${part.id}`} className="inline-block">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            type="button"
+                                            className="cursor-pointer"
+                                            tabIndex={-1}
+                                        >
+                                            <Plus className="h-4 w-4 mr-1" />
+                                            Добавить фотографии
+                                        </Button>
+                                    </label>
                                 </div>
                             )}
 
                             {/* Описание */}
                             {part.description && (
-                                <div className="bg-muted/50 rounded-lg p-3 text-sm">
-                                    <div className="font-semibold text-muted-foreground mb-1">
+                                <div className="bg-muted/50 rounded-lg p-3 text-sm select-text cursor-text">
+                                    <div className="font-semibold text-muted-foreground mb-1 select-text cursor-text">
                                         Описание:
                                     </div>
-                                    <div className="text-foreground whitespace-pre-line leading-relaxed">
+                                    <div className="text-foreground whitespace-pre-line leading-relaxed select-text cursor-text">
                                         {part.description}
                                     </div>
                                 </div>
@@ -453,12 +526,12 @@ function PartBlock({
 
                             {/* Дефект */}
                             {(part.category !== 'Автохимия и масла' && part.category !== 'Аксессуары и тюннинг') && part.defect && (
-                                <div className="bg-amber-500/10 border border-amber-500/25 text-amber-950 dark:text-amber-200 rounded-xl p-3 text-sm flex items-start gap-2.5">
-                                    <div className="flex-1">
-                                        <div className="text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-0.5">
+                                <div className="bg-amber-500/10 border border-amber-500/25 text-amber-950 dark:text-amber-200 rounded-xl p-3 text-sm flex items-start gap-2.5 select-text cursor-text">
+                                    <div className="flex-1 select-text cursor-text">
+                                        <div className="text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-0.5 select-text cursor-text">
                                             Дефект
                                         </div>
-                                        <div className="font-medium">{part.defect}</div>
+                                        <div className="font-medium select-text cursor-text">{part.defect}</div>
                                     </div>
                                 </div>
                             )}
@@ -483,14 +556,14 @@ function PartBlock({
                                         { code: 'body_brand', label: 'Марка кузова', value: part.body_brand },
                                         { code: 'engine_brand', label: 'Марка двигателя', value: part.engine_brand },
                                         { code: 'car_release_date', label: 'Год выпуска', value: part.car_release_date },
-                                        { code: 'vin', label: 'VIN / Номер кузова', value: part.vin },
+                                        { code: 'vin', label: 'VIN / Номер кузова (Н.К.)', value: part.vin },
                                         { code: 'car_release_period', label: 'Период выпуска', value: part.car_release_period },
                                         { code: 'drive', label: 'Привод', value: part.drive },
                                         { code: 'color', label: 'Цвет кузовных деталей', value: part.color },
                                         { code: 'front_rear', label: 'Перед/зад', value: formatPosValue('front_rear', part.front_rear) },
                                         { code: 'left_right', label: 'Право/лево', value: formatPosValue('left_right', part.left_right) },
                                         { code: 'top_bottom', label: 'Верх/низ', value: part.top_bottom },
-                                        { code: 'number', label: 'Номер', value: part.number },
+                                        { code: 'number', label: 'Номер детали', value: part.number },
                                         { code: 'manufacturer', label: 'Производитель', value: part.manufacturer },
                                         { code: 'manufacturer_code', label: 'Код производителя', value: part.manufacturer_code },
                                         { code: 'oem_code', label: 'OEM код', value: part.oem_code },
@@ -518,12 +591,12 @@ function PartBlock({
                                         .map((item, idx) => (
                                             <div
                                                 key={idx}
-                                                className="bg-muted/40 hover:bg-muted/70 border border-border/60 rounded-xl p-2.5 flex flex-col justify-between transition-colors min-h-[58px]"
+                                                className="bg-muted/40 hover:bg-muted/70 border border-border/60 rounded-xl p-2.5 flex flex-col justify-between transition-colors min-h-[58px] select-text cursor-text"
                                             >
-                                                <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground truncate" title={item.label}>
+                                                <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground truncate select-text cursor-text" title={item.label}>
                                                     {item.label}
                                                 </span>
-                                                <span className="text-sm font-semibold text-foreground break-words mt-0.5 line-clamp-2" title={String(item.value)}>
+                                                <span className="text-sm font-semibold text-foreground break-words mt-0.5 line-clamp-2 select-text cursor-text" title={String(item.value)}>
                                                     {item.value}
                                                 </span>
                                             </div>

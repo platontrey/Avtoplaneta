@@ -6,15 +6,15 @@ import (
 
 // User модель учетной записи пользователя
 type User struct {
-	ID       int64  `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Name     string `json:"name"`
-	Initials string `json:"initials,omitempty"`
-	INN      string `json:"inn,omitempty"`
-	Provider string `json:"provider"`
-	Role     string `json:"role"`
-	Password string `json:"-"`
+	ID        int64  `json:"id"`
+	Username  string `json:"username"`
+	Email     string `json:"email"`
+	Name      string `json:"name"`
+	Initials  string `json:"initials,omitempty"`
+	INN       string `json:"inn,omitempty"`
+	Provider  string `json:"provider"`
+	Role      string `json:"role"`
+	Password  string `json:"-"`
 	AvatarURL string `json:"avatar_url,omitempty"`
 }
 
@@ -37,6 +37,7 @@ type LoginResponse struct {
 	Message      string `json:"message"`
 	Token        string `json:"token,omitempty"`
 	RefreshToken string `json:"refresh_token,omitempty"`
+	CSRFToken    string `json:"csrf_token,omitempty"`
 }
 
 // UserActivityLog запись в журнале активности пользователей
