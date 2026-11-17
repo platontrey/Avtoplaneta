@@ -88,6 +88,11 @@ export function PartSpecificationsFields({ brand: propBrand, model: propModel }:
                 </FormRow>
             )}
 
+            {/* VIN / Номер кузова (Н.К.) */}
+            <FormRow label="VIN / Номер кузова (Н.К.)" htmlFor="vin">
+                <Input id="vin" {...register("vin")} placeholder="WVWZZZ..." autoComplete="off" />
+            </FormRow>
+
             {/* Год выпуска */}
             {shows("car_release_date") && (
                 <FormRow label="Год выпуска" htmlFor="car_release_date">
@@ -148,13 +153,6 @@ export function PartSpecificationsFields({ brand: propBrand, model: propModel }:
             {shows("color") && (
                 <FormRow label="Цвет деталей" htmlFor="color">
                     <Input id="color" {...register("color")} placeholder="Например: Черный, Серебристый" />
-                </FormRow>
-            )}
-
-            {/* VIN / Номер кузова (Н.К.) */}
-            {shows("vin") && (
-                <FormRow label="VIN / Номер кузова (Н.К.)" htmlFor="vin">
-                    <Input id="vin" {...register("vin")} placeholder="WVWZZZ..." autoComplete="off" />
                 </FormRow>
             )}
 

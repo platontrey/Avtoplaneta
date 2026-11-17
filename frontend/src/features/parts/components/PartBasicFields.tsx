@@ -32,7 +32,7 @@ export function PartBasicFields() {
 
     return (
         <div className="grid gap-3 sm:gap-4 py-4">
-            {/* Название */}
+            {/* 1. Название */}
             <FormRow label="Название *" htmlFor="name">
                 <Input
                     id="name"
@@ -43,7 +43,7 @@ export function PartBasicFields() {
                 {errors.name && <p className="text-destructive text-xs mt-1">{errors.name.message}</p>}
             </FormRow>
 
-            {/* Бренд */}
+            {/* 2. Бренд */}
             <FormRow label="Бренд *" htmlFor="brand">
                 <Controller
                     name="brand"
@@ -69,7 +69,7 @@ export function PartBasicFields() {
                 {errors.brand && <p className="text-destructive text-xs mt-1">{errors.brand.message}</p>}
             </FormRow>
 
-            {/* Модель */}
+            {/* 3. Модель */}
             <FormRow label="Модель *" htmlFor="model">
                 <Controller
                     name="model"
@@ -90,17 +90,29 @@ export function PartBasicFields() {
                 {errors.model && <p className="text-destructive text-xs mt-1">{errors.model.message}</p>}
             </FormRow>
 
-            {/* Номер детали */}
-            {shows("number") && (
-                <FormRow label="Номер детали" htmlFor="number">
-                    <Input
-                        id="number"
-                        {...register("number")}
-                        placeholder="Номер детали / Артикул"
-                        autoComplete="off"
-                    />
-                </FormRow>
-            )}
+            {/* 4. Цена */}
+            <FormRow label="Цена (₽)" htmlFor="price">
+                <Input
+                    id="price"
+                    type="number"
+                    step="100"
+                    min={0}
+                    {...register("price", {
+                        setValueAs: (v) => (v === "" || v === undefined ? undefined : Number(v)),
+                    })}
+                    placeholder="0"
+                />
+            </FormRow>
+
+            {/* 5. Номер детали */}
+            <FormRow label="Номер детали" htmlFor="number">
+                <Input
+                    id="number"
+                    {...register("number")}
+                    placeholder="Номер детали / Артикул"
+                    autoComplete="off"
+                />
+            </FormRow>
 
             {/* Период выпуска автомобиля */}
             {shows("car_release_period") && (
@@ -151,20 +163,6 @@ export function PartBasicFields() {
                             ))}
                         </ClearableSelect>
                     )}
-                />
-            </FormRow>
-
-            {/* Цена */}
-            <FormRow label="Цена (₽)" htmlFor="price">
-                <Input
-                    id="price"
-                    type="number"
-                    step="100"
-                    min={0}
-                    {...register("price", {
-                        setValueAs: (v) => (v === "" || v === undefined ? undefined : Number(v)),
-                    })}
-                    placeholder="0"
                 />
             </FormRow>
 
