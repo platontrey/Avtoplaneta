@@ -241,14 +241,14 @@ function PartBlock({
                                 </span>
                             )}
 
-                            {/* Строка 3: Номер детали, категория, количество */}
+                            {/* Строка 3: Код производителя, категория, количество */}
                             <div className="flex flex-wrap items-center gap-2 mt-1 select-text cursor-text">
-                                {part.number && (
+                                {part.manufacturer_code && (
                                     <span
                                         className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text"
-                                        title={`Номер детали: ${part.number}`}
+                                        title={`Код производителя: ${part.manufacturer_code}`}
                                     >
-                                        № {part.number}
+                                        Код: {part.manufacturer_code}
                                     </span>
                                 )}
                                 {part.category && (
@@ -261,11 +261,19 @@ function PartBlock({
                                 </span>
                             </div>
 
-                            {/* Строка 4: Цена и активный заказ */}
+                            {/* Строка 4: Цена, номер детали и активный заказ */}
                             <div className="flex flex-wrap items-center gap-2 mt-1 select-text cursor-text">
                                 <span className="text-sm bg-primary text-primary-foreground dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30 border border-primary/20 px-3 py-1 rounded-md font-semibold select-text cursor-text">
                                     Цена: {part.price && Number(part.price) > 0 ? `₽${part.price}` : 'отсутствует'}
                                 </span>
+                                {part.number && (
+                                    <span
+                                        className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text"
+                                        title={`Номер детали: ${part.number}`}
+                                    >
+                                        № {part.number}
+                                    </span>
+                                )}
                                 {activeOrderId && (
                                     <Link
                                         to="/orders"
