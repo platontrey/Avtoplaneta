@@ -50,14 +50,9 @@ func (r *partRepository) GetStatistics(ctx context.Context) (domain.StatisticsRe
 	stats.TotalValue = totals.TotalValue
 
 	now := time.Now()
-	// Срез на начало текущего месяца
-	cutoff := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	// Срез на 30 дней назад для стабильного расчёта динамики роста склада
+	cutoff := now.AddDate(0, 0, -30)
 	prev, err := r.queries.GetStatsTotalsBefore(ctx, pgtype.Timestamptz{Time: cutoff, Valid: true})
-	if err == nil && prev.PrevParts == 0 {
-		// Fallback: 30 дней назад, если на начало месяца данных не было
-		cutoff = now.AddDate(0, 0, -30)
-		prev, err = r.queries.GetStatsTotalsBefore(ctx, pgtype.Timestamptz{Time: cutoff, Valid: true})
-	}
 
 	if err == nil && prev.PrevParts > 0 {
 		stats.PartsGrowth = calculateGrowth(float64(totals.TotalParts), float64(prev.PrevParts))
