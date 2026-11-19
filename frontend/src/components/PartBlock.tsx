@@ -202,7 +202,7 @@ function PartBlock({
 
     return (
         <motion.div
-            className="bg-card border border-border rounded-lg mb-4 relative group hover:shadow-md transition-shadow p-4"
+            className="bg-card border border-border rounded-lg mb-2.5 sm:mb-3 relative group hover:shadow-md transition-shadow p-3 sm:p-3.5"
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
@@ -234,7 +234,7 @@ function PartBlock({
                 className="border-b last:border-b-0"
             >
                 <AccordionTrigger
-                    className="flex items-center justify-between w-full hover:bg-accent hover:text-accent-foreground pr-4 pointer-events-auto"
+                    className="flex items-center justify-between w-full hover:bg-accent hover:text-accent-foreground py-1.5 sm:py-2 pr-2 sm:pr-4 pointer-events-auto"
                     onClick={(e) => {
                         const selection = window.getSelection()?.toString();
                         if (selection && selection.trim().length > 0) {
@@ -253,7 +253,7 @@ function PartBlock({
                             }}
                             loading="lazy"
                             decoding="async"
-                            className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded-lg border cursor-pointer ml-3 mr-3 hover:ring-2 hover:ring-primary/50 transition-all shrink-0"
+                            className="w-12 h-12 sm:w-14 sm:h-14 object-cover rounded-md border cursor-pointer ml-1 mr-2.5 hover:ring-2 hover:ring-primary/50 transition-all shrink-0"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 onOpenPhotoViewer?.(part, 0);
@@ -265,97 +265,109 @@ function PartBlock({
                             onPointerDown={(e) => e.stopPropagation()}
                         >
                             {/* Строка 1: Название детали */}
-                            <span className="truncate text-sm sm:text-base font-semibold select-text cursor-text">
+                            <span className="truncate text-sm sm:text-base font-semibold select-text cursor-text leading-snug">
                                 {part.name || 'Unnamed Part'}
                             </span>
 
                             {/* Строка 2: Бренд и модель */}
                             {(part.brand || part.model) && (
-                                <span className="text-xs sm:text-sm text-muted-foreground truncate select-text cursor-text">
+                                <span className="text-xs text-muted-foreground truncate select-text cursor-text leading-tight mt-0.5">
                                     {part.brand && part.model ? `${part.brand} ${part.model}` : part.brand || part.model}
                                 </span>
                             )}
-
-                            {/* Строка 3: Характеристики детали */}
-                            {hasSpecsBadges && (
-                                <div className="flex flex-wrap items-center gap-2 mt-1 select-text cursor-text">
-                                    {bodyBrandVal && (
-                                        <span
-                                            className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text"
-                                            title={`Марка кузова: ${bodyBrandVal}`}
-                                        >
-                                            Кузов: {bodyBrandVal}
-                                        </span>
-                                    )}
-                                    {engineBrandVal && (
-                                        <span
-                                            className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text"
-                                            title={`Марка двигателя: ${engineBrandVal}`}
-                                        >
-                                            Двигатель: {engineBrandVal}
-                                        </span>
-                                    )}
-                                    {frontRearVal && (
-                                        <span
-                                            className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text"
-                                            title={`Перед/зад: ${frontRearVal}`}
-                                        >
-                                            Перед/зад: {frontRearVal}
-                                        </span>
-                                    )}
-                                    {leftRightVal && (
-                                        <span
-                                            className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text"
-                                            title={`Право/лево: ${leftRightVal}`}
-                                        >
-                                            Право/лево: {leftRightVal}
-                                        </span>
-                                    )}
-                                    {deliveryCodeVal && (
-                                        <span
-                                            className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text"
-                                            title={`Код поставки: ${deliveryCodeVal}`}
-                                        >
-                                            Код поставки: {deliveryCodeVal}
-                                        </span>
-                                    )}
-                                    {supplierCodeVal && (
-                                        <span
-                                            className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text"
-                                            title={`Код поставщика: ${supplierCodeVal}`}
-                                        >
-                                            Код поставщика: {supplierCodeVal}
-                                        </span>
-                                    )}
-                                    {locationVal && (
-                                        <span
-                                            className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text"
-                                            title={`Местоположение: ${locationVal}`}
-                                        >
-                                            Местоположение: {locationVal}
-                                        </span>
-                                    )}
-                                    {manufacturerCodeVal && (
-                                        <span
-                                            className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text"
-                                            title={`Код производителя: ${manufacturerCodeVal}`}
-                                        >
-                                            Код производителя: {manufacturerCodeVal}
-                                        </span>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Строка 4: Цена и активный заказ */}
-                            <div className="flex flex-wrap items-center gap-2 mt-1 select-text cursor-text">
-                                <span className="text-sm bg-primary text-primary-foreground dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30 border border-primary/20 px-3 py-1 rounded-md font-semibold select-text cursor-text">
+                            {/* Бейджи: Цена и характеристики */}
+                            <div className="flex flex-wrap items-center gap-1.5 mt-1.5 select-text cursor-text">
+                                {/* Цена */}
+                                <span className="text-xs bg-primary text-primary-foreground dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30 border border-primary/20 px-2.5 py-0.5 rounded-md font-semibold select-text cursor-text">
                                     Цена: {part.price && Number(part.price) > 0 ? `₽${part.price}` : 'отсутствует'}
                                 </span>
+
+                                {/* Код производителя */}
+                                {manufacturerCodeVal && (
+                                    <span
+                                        className="text-xs bg-secondary text-secondary-foreground border border-border px-2 py-0.5 rounded-md font-medium select-text cursor-text"
+                                        title={`Код производителя: ${manufacturerCodeVal}`}
+                                    >
+                                        Код: {manufacturerCodeVal}
+                                    </span>
+                                )}
+
+                                {/* Марка кузова */}
+                                {bodyBrandVal && (
+                                    <span
+                                        className="text-xs bg-secondary text-secondary-foreground border border-border px-2 py-0.5 rounded-md font-medium select-text cursor-text"
+                                        title={`Марка кузова: ${bodyBrandVal}`}
+                                    >
+                                        Кузов: {bodyBrandVal}
+                                    </span>
+                                )}
+
+                                {/* Марка двигателя */}
+                                {engineBrandVal && (
+                                    <span
+                                        className="text-xs bg-secondary text-secondary-foreground border border-border px-2 py-0.5 rounded-md font-medium select-text cursor-text"
+                                        title={`Марка двигателя: ${engineBrandVal}`}
+                                    >
+                                        Двигатель: {engineBrandVal}
+                                    </span>
+                                )}
+
+                                {/* Перед/зад */}
+                                {frontRearVal && (
+                                    <span
+                                        className="text-xs bg-secondary text-secondary-foreground border border-border px-2 py-0.5 rounded-md font-medium select-text cursor-text"
+                                        title={`Перед/зад: ${frontRearVal}`}
+                                    >
+                                        Перед/зад: {frontRearVal}
+                                    </span>
+                                )}
+
+                                {/* Право/лево */}
+                                {leftRightVal && (
+                                    <span
+                                        className="text-xs bg-secondary text-secondary-foreground border border-border px-2 py-0.5 rounded-md font-medium select-text cursor-text"
+                                        title={`Право/лево: ${leftRightVal}`}
+                                    >
+                                        Право/лево: {leftRightVal}
+                                    </span>
+                                )}
+
+                                {/* Код поставки */}
+                                {deliveryCodeVal && (
+                                    <span
+                                        className="text-xs bg-secondary text-secondary-foreground border border-border px-2 py-0.5 rounded-md font-medium select-text cursor-text"
+                                        title={`Код поставки: ${deliveryCodeVal}`}
+                                    >
+                                        Поставка: {deliveryCodeVal}
+                                    </span>
+                                )}
+
+                                {/* Код поставщика */}
+                                {supplierCodeVal && (
+                                    <span
+                                        className="text-xs bg-secondary text-secondary-foreground border border-border px-2 py-0.5 rounded-md font-medium select-text cursor-text"
+                                        title={`Код поставщика: ${supplierCodeVal}`}
+                                    >
+                                        Поставщик: {supplierCodeVal}
+                                    </span>
+                                )}
+
+                                {/* Местоположение */}
+                                {locationVal && (
+                                    <span
+                                        className="text-xs bg-secondary text-secondary-foreground border border-border px-2 py-0.5 rounded-md font-medium select-text cursor-text"
+                                        title={`Местоположение: ${locationVal}`}
+                                    >
+                                        Место: {locationVal}
+                                    </span>
+                                )}
+
+                                {/* Активный заказ */}
                                 {activeOrderId && (
                                     <Link
                                         to="/orders"
                                         onClick={(e) => e.stopPropagation()}
-                                        className="text-xs sm:text-sm bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded-md font-semibold hover:bg-amber-500/25 transition-colors select-text cursor-text"
+                                        className="text-xs bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-md font-semibold hover:bg-amber-500/25 transition-colors select-text cursor-text"
                                         title={`Эта деталь находится в активном заказе #${activeOrderId}`}
                                     >
                                         📦 В заказе #{activeOrderId}
