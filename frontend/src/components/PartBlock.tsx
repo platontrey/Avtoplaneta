@@ -172,15 +172,24 @@ function PartBlock({
 
     if (isLoading) {
         return (
-            <div className="border rounded-lg mb-2 p-4">
-                <div className="flex items-center space-x-4">
-                    <Skeleton className="h-4 w-48" />
-                    <Skeleton className="h-8 w-8 rounded" />
-                </div>
-                <div className="mt-4 space-y-2">
-                    {[32, 40, 36, 28, 30, 34, 26].map((width, index) => (
-                        <Skeleton key={index} className={`h-4 w-${width}`} />
-                    ))}
+            <div className="bg-card border border-border rounded-lg mb-3 sm:mb-3.5 p-3.5 sm:p-4">
+                <div className="flex items-center space-x-2 sm:space-x-3">
+                    <Skeleton className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg shrink-0 ml-1 mr-3" />
+                    <div className="flex flex-col min-w-0 flex-1">
+                        <Skeleton className="h-4 sm:h-5 w-40 sm:w-56 mb-1.5 rounded" />
+                        <Skeleton className="h-3 sm:h-3.5 w-24 sm:w-36 mb-2 rounded" />
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                            <Skeleton className="h-6 w-24 rounded-md" />
+                            <Skeleton className="h-6 w-28 rounded-md" />
+                            <Skeleton className="h-6 w-20 rounded-md" />
+                            <Skeleton className="h-6 w-24 rounded-md" />
+                        </div>
+                    </div>
+                    <div className="flex space-x-1 shrink-0">
+                        <Skeleton className="w-8 h-8 rounded" />
+                        <Skeleton className="w-8 h-8 rounded" />
+                        <Skeleton className="w-8 h-8 rounded" />
+                    </div>
                 </div>
             </div>
         );
@@ -192,7 +201,7 @@ function PartBlock({
 
     return (
         <motion.div
-            className="bg-card border border-border rounded-lg mb-2.5 sm:mb-3 relative group hover:shadow-md transition-shadow p-3 sm:p-3.5"
+            className="bg-card border border-border rounded-lg mb-3 sm:mb-3.5 relative group hover:shadow-md transition-shadow p-3.5 sm:p-4"
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
@@ -224,7 +233,7 @@ function PartBlock({
                 className="border-b last:border-b-0"
             >
                 <AccordionTrigger
-                    className="flex items-center justify-between w-full hover:bg-accent hover:text-accent-foreground py-1.5 sm:py-2 pr-2 sm:pr-4 pointer-events-auto"
+                    className="flex items-center justify-between w-full hover:bg-accent hover:text-accent-foreground py-2 sm:py-2.5 pr-2 sm:pr-4 pointer-events-auto"
                     onClick={(e) => {
                         const selection = window.getSelection()?.toString();
                         if (selection && selection.trim().length > 0) {
@@ -243,7 +252,7 @@ function PartBlock({
                             }}
                             loading="lazy"
                             decoding="async"
-                            className="w-12 h-12 sm:w-14 sm:h-14 object-cover rounded-md border cursor-pointer ml-1 mr-2.5 hover:ring-2 hover:ring-primary/50 transition-all shrink-0"
+                            className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded-lg border cursor-pointer ml-1 mr-3 hover:ring-2 hover:ring-primary/50 transition-all shrink-0"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 onOpenPhotoViewer?.(part, 0);
@@ -261,21 +270,21 @@ function PartBlock({
 
                             {/* Строка 2: Бренд и модель */}
                             {(part.brand || part.model) && (
-                                <span className="text-xs text-muted-foreground truncate select-text cursor-text leading-tight mt-0.5">
+                                <span className="text-xs sm:text-sm text-muted-foreground truncate select-text cursor-text leading-tight mt-0.5">
                                     {part.brand && part.model ? `${part.brand} ${part.model}` : part.brand || part.model}
                                 </span>
                             )}
                             {/* Бейджи: Цена и характеристики */}
-                            <div className="flex flex-wrap items-center gap-1.5 mt-1.5 select-text cursor-text">
+                            <div className="flex flex-wrap items-center gap-2 mt-2 select-text cursor-text">
                                 {/* Цена */}
-                                <span className="text-xs bg-primary text-primary-foreground dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30 border border-primary/20 px-2.5 py-0.5 rounded-md font-semibold select-text cursor-text">
+                                <span className="text-xs sm:text-sm bg-primary text-primary-foreground dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30 border border-primary/20 px-3 py-1 rounded-md font-semibold select-text cursor-text">
                                     Цена: {part.price && Number(part.price) > 0 ? `₽${part.price}` : 'отсутствует'}
                                 </span>
 
                                 {/* Код производителя */}
                                 {manufacturerCodeVal && (
                                     <span
-                                        className="text-xs bg-secondary text-secondary-foreground border border-border px-2 py-0.5 rounded-md font-medium select-text cursor-text"
+                                        className="text-xs sm:text-sm bg-secondary text-secondary-foreground border border-border px-2.5 sm:px-3 py-1 rounded-md font-medium select-text cursor-text"
                                         title={`Код производителя: ${manufacturerCodeVal}`}
                                     >
                                         Код: {manufacturerCodeVal}
@@ -285,7 +294,7 @@ function PartBlock({
                                 {/* Марка кузова */}
                                 {bodyBrandVal && (
                                     <span
-                                        className="text-xs bg-secondary text-secondary-foreground border border-border px-2 py-0.5 rounded-md font-medium select-text cursor-text"
+                                        className="text-xs sm:text-sm bg-secondary text-secondary-foreground border border-border px-2.5 sm:px-3 py-1 rounded-md font-medium select-text cursor-text"
                                         title={`Марка кузова: ${bodyBrandVal}`}
                                     >
                                         Кузов: {bodyBrandVal}
@@ -295,7 +304,7 @@ function PartBlock({
                                 {/* Марка двигателя */}
                                 {engineBrandVal && (
                                     <span
-                                        className="text-xs bg-secondary text-secondary-foreground border border-border px-2 py-0.5 rounded-md font-medium select-text cursor-text"
+                                        className="text-xs sm:text-sm bg-secondary text-secondary-foreground border border-border px-2.5 sm:px-3 py-1 rounded-md font-medium select-text cursor-text"
                                         title={`Марка двигателя: ${engineBrandVal}`}
                                     >
                                         Двигатель: {engineBrandVal}
@@ -305,7 +314,7 @@ function PartBlock({
                                 {/* Перед/зад */}
                                 {frontRearVal && (
                                     <span
-                                        className="text-xs bg-secondary text-secondary-foreground border border-border px-2 py-0.5 rounded-md font-medium select-text cursor-text"
+                                        className="text-xs sm:text-sm bg-secondary text-secondary-foreground border border-border px-2.5 sm:px-3 py-1 rounded-md font-medium select-text cursor-text"
                                         title={`Перед/зад: ${frontRearVal}`}
                                     >
                                         Перед/зад: {frontRearVal}
@@ -315,7 +324,7 @@ function PartBlock({
                                 {/* Право/лево */}
                                 {leftRightVal && (
                                     <span
-                                        className="text-xs bg-secondary text-secondary-foreground border border-border px-2 py-0.5 rounded-md font-medium select-text cursor-text"
+                                        className="text-xs sm:text-sm bg-secondary text-secondary-foreground border border-border px-2.5 sm:px-3 py-1 rounded-md font-medium select-text cursor-text"
                                         title={`Право/лево: ${leftRightVal}`}
                                     >
                                         Право/лево: {leftRightVal}
@@ -325,7 +334,7 @@ function PartBlock({
                                 {/* Код поставки */}
                                 {deliveryCodeVal && (
                                     <span
-                                        className="text-xs bg-secondary text-secondary-foreground border border-border px-2 py-0.5 rounded-md font-medium select-text cursor-text"
+                                        className="text-xs sm:text-sm bg-secondary text-secondary-foreground border border-border px-2.5 sm:px-3 py-1 rounded-md font-medium select-text cursor-text"
                                         title={`Код поставки: ${deliveryCodeVal}`}
                                     >
                                         Поставка: {deliveryCodeVal}
@@ -335,7 +344,7 @@ function PartBlock({
                                 {/* Код поставщика */}
                                 {supplierCodeVal && (
                                     <span
-                                        className="text-xs bg-secondary text-secondary-foreground border border-border px-2 py-0.5 rounded-md font-medium select-text cursor-text"
+                                        className="text-xs sm:text-sm bg-secondary text-secondary-foreground border border-border px-2.5 sm:px-3 py-1 rounded-md font-medium select-text cursor-text"
                                         title={`Код поставщика: ${supplierCodeVal}`}
                                     >
                                         Поставщик: {supplierCodeVal}
@@ -345,7 +354,7 @@ function PartBlock({
                                 {/* Местоположение */}
                                 {locationVal && (
                                     <span
-                                        className="text-xs bg-secondary text-secondary-foreground border border-border px-2 py-0.5 rounded-md font-medium select-text cursor-text"
+                                        className="text-xs sm:text-sm bg-secondary text-secondary-foreground border border-border px-2.5 sm:px-3 py-1 rounded-md font-medium select-text cursor-text"
                                         title={`Местоположение: ${locationVal}`}
                                     >
                                         Место: {locationVal}
@@ -357,7 +366,7 @@ function PartBlock({
                                     <Link
                                         to="/orders"
                                         onClick={(e) => e.stopPropagation()}
-                                        className="text-xs bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-md font-semibold hover:bg-amber-500/25 transition-colors select-text cursor-text"
+                                        className="text-xs sm:text-sm bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded-md font-semibold hover:bg-amber-500/25 transition-colors select-text cursor-text"
                                         title={`Эта деталь находится в активном заказе #${activeOrderId}`}
                                     >
                                         📦 В заказе #{activeOrderId}

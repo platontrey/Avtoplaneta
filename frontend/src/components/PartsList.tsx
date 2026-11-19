@@ -391,24 +391,25 @@ function PartsList({ parts, isLoading, error, onLoadMore, hasMore, isInfiniteScr
 
     if (isLoading && parts.length === 0) {
         return (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-3.5">
                 {Array.from({ length: 6 }).map((_, index) => (
-                    <div key={index} className="border rounded-lg mb-4 p-4 relative group hover:shadow-md transition-shadow bg-card">
+                    <div key={index} className="bg-card border border-border rounded-lg mb-3 sm:mb-3.5 p-3.5 sm:p-4">
                         <div className="flex items-center space-x-2 sm:space-x-3 flex-1">
-                            <Skeleton className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg" />
+                            <Skeleton className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg shrink-0 ml-1 mr-3" />
                             <div className="flex flex-col min-w-0 flex-1">
-                                <Skeleton className="h-4 w-32 sm:w-48 mb-1" />
-                                <Skeleton className="h-3 w-20 sm:w-32 mb-2" />
-                                <div className="flex gap-2 mt-1">
-                                    <Skeleton className="h-5 w-16 rounded-md" />
-                                    <Skeleton className="h-5 w-12 rounded-md" />
-                                    <Skeleton className="h-5 w-20 rounded-md" />
+                                <Skeleton className="h-4 sm:h-5 w-40 sm:w-56 mb-1.5 rounded" />
+                                <Skeleton className="h-3 sm:h-3.5 w-24 sm:w-36 mb-2 rounded" />
+                                <div className="flex flex-wrap items-center gap-2 mt-1">
+                                    <Skeleton className="h-6 w-24 rounded-md" />
+                                    <Skeleton className="h-6 w-28 rounded-md" />
+                                    <Skeleton className="h-6 w-20 rounded-md" />
+                                    <Skeleton className="h-6 w-24 rounded-md" />
                                 </div>
                             </div>
                             <div className="flex space-x-1 shrink-0">
-                                <Skeleton className="h-8 w-8 rounded" />
-                                <Skeleton className="h-8 w-8 rounded" />
-                                <Skeleton className="h-8 w-8 rounded" />
+                                <Skeleton className="w-8 h-8 rounded" />
+                                <Skeleton className="w-8 h-8 rounded" />
+                                <Skeleton className="w-8 h-8 rounded" />
                             </div>
                         </div>
                     </div>
