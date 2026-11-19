@@ -3,7 +3,7 @@
  */
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop';
+import ReactCrop, { centerCrop, makeAspectCrop, convertToPixelCrop } from 'react-image-crop';
 import type { Crop, PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { Button } from '@/components/ui/button';
@@ -182,10 +182,11 @@ export default function ImageCropper({ src, onCropComplete, onCancel, aspect: in
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        const w = canvas.clientWidth;
-        const h = canvas.clientHeight;
+        const w = canvas.clientWidth || canvas.width;
+        const h = canvas.clientHeight || canvas.height;
+        if (w <= 0 || h <= 0) return;
 
-        let newCrop;
+        let newCrop: Crop;
         if (preset !== null && preset !== undefined) {
             newCrop = centerCrop(
                 makeAspectCrop(
@@ -210,6 +211,7 @@ export default function ImageCropper({ src, onCropComplete, onCancel, aspect: in
             };
         }
         setCrop(newCrop);
+        setCompletedCrop(convertToPixelCrop(newCrop, w, h));
     };
 
     // Initialize crop selection when entering crop mode
@@ -220,9 +222,13 @@ export default function ImageCropper({ src, onCropComplete, onCancel, aspect: in
             setPan({ x: 0, y: 0 });
             
             // Wait brief moment for canvas to finish layout transitions
-            setTimeout(() => {
+            const timer = setTimeout(() => {
                 applyAspectPreset(aspectPreset ?? null);
-            }, 100);
+            }, 50);
+            return () => clearTimeout(timer);
+        } else {
+            setCrop(undefined);
+            setCompletedCrop(undefined);
         }
     }, [mode]);
 
@@ -593,8 +599,8 @@ export default function ImageCropper({ src, onCropComplete, onCancel, aspect: in
         if (!completedCrop || !canvasRef.current) return;
 
         const canvas = canvasRef.current;
-        const displayedWidth = canvas.clientWidth;
-        const displayedHeight = canvas.clientHeight;
+        const displayedWidth = canvas.clientWidth || canvas.width;
+        const displayedHeight = canvas.clientHeight || canvas.height;
 
         const scaleX = canvas.width / displayedWidth;
         const scaleY = canvas.height / displayedHeight;
@@ -650,8 +656,8 @@ export default function ImageCropper({ src, onCropComplete, onCancel, aspect: in
         if (!canvas) return null;
 
         if (mode === 'crop' && completedCrop && completedCrop.width > 0 && completedCrop.height > 0) {
-            const displayedWidth = canvas.clientWidth;
-            const displayedHeight = canvas.clientHeight;
+            const displayedWidth = canvas.clientWidth || canvas.width;
+            const displayedHeight = canvas.clientHeight || canvas.height;
             const scaleX = canvas.width / displayedWidth;
             const scaleY = canvas.height / displayedHeight;
 
@@ -854,39 +860,30 @@ export default function ImageCropper({ src, onCropComplete, onCancel, aspect: in
                                     willChange: 'transform'
                                 }}
                             >
-                                {mode === 'crop' ? (
-                                    <ReactCrop
-                                        crop={crop}
-                                        onChange={setCrop}
-                                        onComplete={setCompletedCrop}
-                                        aspect={aspectPreset ?? undefined}
-                                        className="max-w-[92vw] md:max-w-full max-h-[46vh] md:max-h-[68vh]"
-                                    >
-                                        <canvas 
-                                            ref={canvasRef} 
-                                            draggable={false}
-                                            onDragStart={(e) => e.preventDefault()}
-                                            className="max-w-[92vw] md:max-w-[78vw] max-h-[46vh] md:max-h-[70vh] shadow-2xl block select-none" 
-                                            style={{ touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}
-                                        />
-                                    </ReactCrop>
-                                ) : (
+                                <ReactCrop
+                                    crop={mode === 'crop' ? crop : undefined}
+                                    onChange={setCrop}
+                                    onComplete={setCompletedCrop}
+                                    aspect={mode === 'crop' ? (aspectPreset ?? undefined) : undefined}
+                                    disabled={mode !== 'crop'}
+                                    className="max-w-[92vw] md:max-w-full max-h-[46vh] md:max-h-[68vh]"
+                                >
                                     <canvas 
                                         ref={canvasRef} 
                                         draggable={false}
                                         onDragStart={(e) => e.preventDefault()}
-                                        className="max-w-[92vw] md:max-w-[78vw] max-h-[46vh] md:max-h-[70vh] shadow-2xl block select-none"
+                                        className="max-w-[92vw] md:max-w-[78vw] max-h-[46vh] md:max-h-[70vh] shadow-2xl block select-none" 
                                         style={{ touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}
-                                        onMouseDown={handleMouseDown}
-                                        onMouseMove={handleMouseMove}
-                                        onMouseUp={handleMouseUpOrLeave}
-                                        onMouseLeave={handleMouseUpOrLeave}
-                                        onTouchStart={handleTouchStart}
-                                        onTouchMove={handleTouchMove}
-                                        onTouchEnd={handleTouchEnd}
-                                        onTouchCancel={handleTouchEnd}
+                                        onMouseDown={mode !== 'crop' ? handleMouseDown : undefined}
+                                        onMouseMove={mode !== 'crop' ? handleMouseMove : undefined}
+                                        onMouseUp={mode !== 'crop' ? handleMouseUpOrLeave : undefined}
+                                        onMouseLeave={mode !== 'crop' ? handleMouseUpOrLeave : undefined}
+                                        onTouchStart={mode !== 'crop' ? handleTouchStart : undefined}
+                                        onTouchMove={mode !== 'crop' ? handleTouchMove : undefined}
+                                        onTouchEnd={mode !== 'crop' ? handleTouchEnd : undefined}
+                                        onTouchCancel={mode !== 'crop' ? handleTouchEnd : undefined}
                                     />
-                                )}
+                                </ReactCrop>
                             </div>
                         </div>
 
