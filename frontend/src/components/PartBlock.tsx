@@ -34,6 +34,21 @@ export interface PartBlockProps {
     onDuplicatePart?: (part: Part) => Promise<void>;
 }
 
+const formatPosValue = (code: 'front_rear' | 'left_right', val?: string) => {
+    if (!val) return null;
+    const v = val.trim();
+    if (!v) return null;
+    if (code === 'front_rear') {
+        if (v.toUpperCase() === 'F' || v.toLowerCase() === 'перед' || v.toLowerCase() === 'передний') return 'F (Перед)';
+        if (v.toUpperCase() === 'R' || v.toLowerCase() === 'зад' || v.toLowerCase() === 'задний') return 'R (Зад)';
+    }
+    if (code === 'left_right') {
+        if (v.toUpperCase() === 'L' || v.toLowerCase() === 'лево' || v.toLowerCase() === 'левый') return 'L (Лево)';
+        if (v.toUpperCase() === 'R' || v.toLowerCase() === 'право' || v.toLowerCase() === 'правый') return 'R (Право)';
+    }
+    return v;
+};
+
 function PartBlock({
     part,
     isLoading = false,
@@ -52,6 +67,26 @@ function PartBlock({
     onDuplicatePart,
 }: PartBlockProps) {
     const { user } = useAuth();
+
+    const frontRearVal = formatPosValue('front_rear', part.front_rear);
+    const leftRightVal = formatPosValue('left_right', part.left_right);
+    const bodyBrandVal = part.body_brand?.trim();
+    const engineBrandVal = part.engine_brand?.trim();
+    const deliveryCodeVal = part.number?.trim();
+    const supplierCodeVal = part.supplier_code?.trim();
+    const locationVal = part.location?.trim();
+    const manufacturerCodeVal = part.manufacturer_code?.trim();
+
+    const hasSpecsBadges = Boolean(
+        bodyBrandVal ||
+        engineBrandVal ||
+        frontRearVal ||
+        leftRightVal ||
+        deliveryCodeVal ||
+        supplierCodeVal ||
+        locationVal ||
+        manufacturerCodeVal
+    );
     const accordionRef = useRef<HTMLDivElement>(null);
     const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
     const [, setIsPressed] = useState(false);
@@ -241,39 +276,81 @@ function PartBlock({
                                 </span>
                             )}
 
-                            {/* Строка 3: Код производителя, категория, количество */}
-                            <div className="flex flex-wrap items-center gap-2 mt-1 select-text cursor-text">
-                                {part.manufacturer_code && (
-                                    <span
-                                        className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text"
-                                        title={`Код производителя: ${part.manufacturer_code}`}
-                                    >
-                                        Код: {part.manufacturer_code}
-                                    </span>
-                                )}
-                                {part.category && (
-                                    <span className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text">
-                                        {part.category}
-                                    </span>
-                                )}
-                                <span className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text">
-                                    Кол: {part.quantity ?? 0}
-                                </span>
-                            </div>
+                            {/* Строка 3: Характеристики детали */}
+                            {hasSpecsBadges && (
+                                <div className="flex flex-wrap items-center gap-2 mt-1 select-text cursor-text">
+                                    {bodyBrandVal && (
+                                        <span
+                                            className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text"
+                                            title={`Марка кузова: ${bodyBrandVal}`}
+                                        >
+                                            Кузов: {bodyBrandVal}
+                                        </span>
+                                    )}
+                                    {engineBrandVal && (
+                                        <span
+                                            className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text"
+                                            title={`Марка двигателя: ${engineBrandVal}`}
+                                        >
+                                            Двигатель: {engineBrandVal}
+                                        </span>
+                                    )}
+                                    {frontRearVal && (
+                                        <span
+                                            className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text"
+                                            title={`Перед/зад: ${frontRearVal}`}
+                                        >
+                                            Перед/зад: {frontRearVal}
+                                        </span>
+                                    )}
+                                    {leftRightVal && (
+                                        <span
+                                            className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text"
+                                            title={`Право/лево: ${leftRightVal}`}
+                                        >
+                                            Право/лево: {leftRightVal}
+                                        </span>
+                                    )}
+                                    {deliveryCodeVal && (
+                                        <span
+                                            className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text"
+                                            title={`Код поставки: ${deliveryCodeVal}`}
+                                        >
+                                            Код поставки: {deliveryCodeVal}
+                                        </span>
+                                    )}
+                                    {supplierCodeVal && (
+                                        <span
+                                            className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text"
+                                            title={`Код поставщика: ${supplierCodeVal}`}
+                                        >
+                                            Код поставщика: {supplierCodeVal}
+                                        </span>
+                                    )}
+                                    {locationVal && (
+                                        <span
+                                            className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text"
+                                            title={`Местоположение: ${locationVal}`}
+                                        >
+                                            Местоположение: {locationVal}
+                                        </span>
+                                    )}
+                                    {manufacturerCodeVal && (
+                                        <span
+                                            className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text"
+                                            title={`Код производителя: ${manufacturerCodeVal}`}
+                                        >
+                                            Код производителя: {manufacturerCodeVal}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
 
-                            {/* Строка 4: Цена, номер детали и активный заказ */}
+                            {/* Строка 4: Цена и активный заказ */}
                             <div className="flex flex-wrap items-center gap-2 mt-1 select-text cursor-text">
                                 <span className="text-sm bg-primary text-primary-foreground dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30 border border-primary/20 px-3 py-1 rounded-md font-semibold select-text cursor-text">
                                     Цена: {part.price && Number(part.price) > 0 ? `₽${part.price}` : 'отсутствует'}
                                 </span>
-                                {part.id && (
-                                    <span
-                                        className="text-sm bg-secondary text-secondary-foreground border border-border px-3 py-1 rounded-md font-medium select-text cursor-text"
-                                        title={`Номер детали в базе: ${part.id}`}
-                                    >
-                                        № {part.id}
-                                    </span>
-                                )}
                                 {activeOrderId && (
                                     <Link
                                         to="/orders"
@@ -571,12 +648,12 @@ function PartBlock({
                                         { code: 'front_rear', label: 'Перед/зад', value: formatPosValue('front_rear', part.front_rear) },
                                         { code: 'left_right', label: 'Право/лево', value: formatPosValue('left_right', part.left_right) },
                                         { code: 'top_bottom', label: 'Верх/низ', value: part.top_bottom },
-                                        { code: 'number', label: 'Номер детали', value: part.number },
+                                        { code: 'number', label: 'Код поставки', value: part.number },
                                         { code: 'manufacturer', label: 'Производитель', value: part.manufacturer },
                                         { code: 'manufacturer_code', label: 'Код производителя', value: part.manufacturer_code },
                                         { code: 'oem_code', label: 'OEM код', value: part.oem_code },
                                         { code: 'condition', label: 'Состояние', value: part.condition },
-                                        { code: 'supplier_code', label: 'Код поставки', value: part.supplier_code },
+                                        { code: 'supplier_code', label: 'Код поставщика', value: part.supplier_code },
                                         { code: 'transmission', label: 'Трансмиссия', value: part.transmission },
                                         { code: 'transmission_model', label: 'Модель трансмиссии', value: part.transmission_model },
                                         { code: 'wear_percentage', label: 'Процент износа', value: part.wear_percentage ? `${part.wear_percentage}%` : null },
