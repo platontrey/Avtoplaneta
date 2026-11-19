@@ -77,16 +77,6 @@ function PartBlock({
     const locationVal = part.location?.trim();
     const manufacturerCodeVal = part.manufacturer_code?.trim();
 
-    const hasSpecsBadges = Boolean(
-        bodyBrandVal ||
-        engineBrandVal ||
-        frontRearVal ||
-        leftRightVal ||
-        deliveryCodeVal ||
-        supplierCodeVal ||
-        locationVal ||
-        manufacturerCodeVal
-    );
     const accordionRef = useRef<HTMLDivElement>(null);
     const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
     const [, setIsPressed] = useState(false);
