@@ -13,7 +13,7 @@
 | :--- | :--- | :--- |
 | **`pkg/logger`** | `logger` | Структурированное логирование на базе стандартного `log/slog`. Поддержка JSON/текстового формата, уровней (Debug, Info, Warn, Error) и автоматической связки с OpenTelemetry (`trace_id`, `span_id`). Хелпер `logger.Err(err)`. |
 | **`pkg/tracing`** | `tracing` | Инициализация глобального OpenTelemetry TracerProvider, экспорт спанов в Grafana Tempo по протоколу OTLP (gRPC/HTTP), W3C Trace Context. |
-| **`pkg/postgres`** | `postgres` | Пул соединений PostgreSQL (`*pgxpool.Pool`) со встроенной трассировкой SQL-запросов через `otelpgx`, проверкой доступности (Ping) и экспортом метрик пула соединений. |
+| **`pkg/postgres`** | `postgres` | Пул соединений PostgreSQL (`*pgxpool.Pool`) со встроенной трассировкой SQL-запросов через `otelpgx`, проверкой доступности (Ping), экспортом метрик пула соединений, транзакционным раннером (`RunInTransaction`) и кастомными драйверными типами (`StringArray` для JSONB). |
 | **`pkg/redisclient`** | `redisclient` | Клиент Redis (`*redis.Client`) со встроенной трассировкой команд через `otelredis` и поддержкой конфигурации через переменные окружения. |
 | **`pkg/metrics`** | `metrics` | Унифицированный сбор Prometheus метрик: Gin middleware `metrics.GinMiddleware(service)` с защитой от High Cardinality (через `c.FullPath()`), эндпоинт `/metrics` и счетчики Outbox. |
 | **`pkg/outbox`** | `outbox` | Универсальный движок Transactional Outbox диспетчера: мгновенное пробуждение через PostgreSQL `LISTEN/NOTIFY`, страховочный поллинг, ретраи ошибок и сбор метрик. |
@@ -27,6 +27,8 @@
 | **`pkg/authcontext`** | `authcontext` | Извлечение и парсинг доверенных заголовков Traefik ForwardAuth (`X-User-ID`, `X-User-Role`, `X-User-Name`, `X-User-Email`) из `context.Context` или `*gin.Context`. |
 | **`pkg/httpcache`** | `httpcache` | Хелперы условного кэширования: генерация и валидация ETag, обработка заголовков `If-None-Match` с моментальным ответом `304 Not Modified`. |
 | **`pkg/userdirectory`** | `userdirectory` | In-memory кэширующий клиент для разрешения имен и ролей пользователей через gRPC вызовы к `auth-service`. |
+| **`pkg/env`** | `env` | Безопасное чтение переменных окружения с типизированными fallback-значениями (`env.String`, `env.Int`, `env.Bool`, `env.Duration`). |
+| **`pkg/timeutil`** | `timeutil` | Форматирование человекочитаемого времени на русском языке: склонение числительных (`FormatPlural`), расчет интервалов до событий (`FormatTimeUntil`). |
 
 ---
 

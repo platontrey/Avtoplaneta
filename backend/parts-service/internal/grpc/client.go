@@ -3,7 +3,6 @@ package grpc
 import (
 	"context"
 	"log/slog"
-	"os"
 	"strconv"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 
 	authv1 "avtoplaneta/gen/auth/v1"
 	ordersv1 "avtoplaneta/gen/orders/v1"
+	"avtoplaneta/pkg/env"
 	"avtoplaneta/pkg/grpcclient"
 	"avtoplaneta/pkg/logger"
 	"parts-service/internal/domain"
@@ -27,8 +27,8 @@ var (
 
 // InitGRPCClients инициализирует подключения к auth-service и orders-service
 func InitGRPCClients() {
-	authAddr := getGRPCAddr("AUTH_GRPC_ADDR", "localhost:9083")
-	ordersAddr := getGRPCAddr("ORDERS_GRPC_ADDR", "localhost:9082")
+	authAddr := env.String("AUTH_GRPC_ADDR", "localhost:9083")
+	ordersAddr := env.String("ORDERS_GRPC_ADDR", "localhost:9082")
 
 	var err error
 	authConn, err = grpcclient.NewClient(authAddr)
@@ -131,11 +131,4 @@ func GetMonthlySalesGRPC(ctx context.Context) ([]domain.MonthlySales, error) {
 
 func errGRPCNotInitialized() error {
 	return status.Error(codes.Unavailable, "gRPC client not initialized")
-}
-
-func getGRPCAddr(envKey, defaultAddr string) string {
-	if addr := os.Getenv(envKey); addr != "" {
-		return addr
-	}
-	return defaultAddr
 }

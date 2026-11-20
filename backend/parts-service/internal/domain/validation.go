@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+
+	"avtoplaneta/pkg/timeutil"
 )
 
 // ValidatePart выполняет валидацию данных запчасти
@@ -118,37 +120,8 @@ func ProcessPartUpdates(updates map[string]interface{}, part *Part) (map[string]
 	return processedUpdates, nil
 }
 
-func formatPlural(count int, one, few, many string) string {
-	if count == 1 {
-		return fmt.Sprintf("через 1 %s", one)
-	}
-	if count < 5 {
-		return fmt.Sprintf("через %d %s", count, few)
-	}
-	return fmt.Sprintf("через %d %s", count, many)
-}
-
-// FormatTimeUntil форматирует время до будущей даты
+// FormatTimeUntil форматирует человекочитаемое время до будущей даты.
+// Делегирует платформенной функции avtoplaneta/pkg/timeutil.FormatTimeUntil.
 func FormatTimeUntil(targetTime time.Time, now time.Time) string {
-	duration := targetTime.Sub(now)
-	if duration <= 0 {
-		return "уже прошло"
-	}
-
-	days := int(duration.Hours() / 24)
-	if days > 0 {
-		return formatPlural(days, "день", "дня", "дней")
-	}
-
-	hours := int(duration.Hours()) % 24
-	if hours > 0 {
-		return formatPlural(hours, "час", "часа", "часов")
-	}
-
-	minutes := int(duration.Minutes()) % 60
-	if minutes > 0 {
-		return formatPlural(minutes, "минуту", "минуты", "минут")
-	}
-
-	return "скоро"
+	return timeutil.FormatTimeUntil(targetTime, now)
 }

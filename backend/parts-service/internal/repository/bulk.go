@@ -2,13 +2,16 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/Masterminds/squirrel"
+	"github.com/jackc/pgx/v5"
 
-	"avtoplaneta/pkg/logger"
 	partsv1 "avtoplaneta/gen/parts/v1"
+	"avtoplaneta/pkg/logger"
 	"parts-service/db/sqlc"
 	"parts-service/internal/domain"
 )
@@ -321,7 +324,6 @@ func (r *partRepository) BulkUpdateWithProto(ctx context.Context, req *partsv1.B
 	return []domain.Part{}, nil
 }
 
-
 func (r *partRepository) BulkDelete(ctx context.Context, ids []int64) error {
 	slog.InfoContext(ctx, "PartRepository.BulkDelete: Starting bulk delete",
 		slog.Any("ids", ids),
@@ -336,6 +338,8 @@ func (r *partRepository) BulkDelete(ctx context.Context, ids []int64) error {
 	return nil
 }
 
+// BulkUpdate выполняет пакетное обновление произвольных полей запчастей через pgx.Batch и squirrel.
+// Избегает оверхеда временных таблиц и исключает одиночные запросы в цикле (AGENTS.md п. 3.4.9).
 func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]interface{}) (int, error) {
 	slog.InfoContext(ctx, "PartRepository.BulkUpdate: Starting bulk update", slog.Int("count", len(updates)))
 
@@ -345,34 +349,13 @@ func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]in
 
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to begin tx for bulk update: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
-	// Создаем временную таблицу
-	_, err = tx.Exec(ctx, `
-		CREATE TEMP TABLE temp_parts_update (
-			id BIGINT PRIMARY KEY,
-			name TEXT, quantity INTEGER, description TEXT, category TEXT,
-			price DOUBLE PRECISION, brand TEXT, model TEXT, location TEXT, address TEXT,
-			salesman TEXT, status TEXT, photos JSONB,
-			body_brand TEXT, engine_brand TEXT, car_release_date TEXT, car_release_period TEXT,
-			front_rear TEXT, left_right TEXT, top_bottom TEXT,
-			number TEXT, manufacturer TEXT, manufacturer_code TEXT,
-			oem_code TEXT, color TEXT, condition TEXT,
-			supplier_code TEXT, defect TEXT, transmission TEXT, transmission_model TEXT,
-			drive TEXT, wear_percentage TEXT,
-			season TEXT, diameter TEXT, width TEXT, profile TEXT,
-			tire_quantity TEXT, drilling TEXT, "offset" TEXT,
-			center_hole_diameter TEXT, tire_model TEXT
-		) ON COMMIT DROP
-	`)
-	if err != nil {
-		slog.ErrorContext(ctx, "PartRepository.BulkUpdate: Failed to create temp table", logger.Err(err))
-		return 0, err
-	}
+	batch := &pgx.Batch{}
+	now := time.Now()
 
-	// Вставляем данные во временную таблицу
 	for i, update := range updates {
 		var id int64
 		if idVal, exists := update["id"]; exists {
@@ -392,91 +375,60 @@ func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]in
 			return 0, fmt.Errorf("update at index %d missing 'id' field", i)
 		}
 
-		delete(update, "id")
+		builder := r.psq.Update("parts").Where(squirrel.Eq{"id": id, "deleted_at": nil})
+		fieldCount := 0
 
-		_, err = tx.Exec(ctx, `
-			INSERT INTO temp_parts_update (id, name, quantity, description, category, price, brand, model, location, address, salesman, status, photos,
-				body_brand, engine_brand, car_release_date, car_release_period, front_rear, left_right, top_bottom, number, manufacturer,
-				manufacturer_code, oem_code, color, condition, supplier_code, defect, transmission, transmission_model, drive, wear_percentage,
-				season, diameter, width, profile, tire_quantity, drilling, "offset", center_hole_diameter, tire_model)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41)`,
-			id,
-			update["name"], update["quantity"], update["description"], update["category"],
-			update["price"], update["brand"], update["model"], update["location"], update["address"],
-			update["salesman"], update["status"], update["photos"],
-			update["body_brand"], update["engine_brand"], update["car_release_date"], update["car_release_period"],
-			update["front_rear"], update["left_right"], update["top_bottom"],
-			update["number"], update["manufacturer"], update["manufacturer_code"],
-			update["oem_code"], update["color"], update["condition"],
-			update["supplier_code"], update["defect"], update["transmission"], update["transmission_model"],
-			update["drive"], update["wear_percentage"],
-			update["season"], update["diameter"], update["width"], update["profile"],
-			update["tire_quantity"], update["drilling"], update["offset"],
-			update["center_hole_diameter"], update["tire_model"],
-		)
-		if err != nil {
-			slog.ErrorContext(ctx, "PartRepository.BulkUpdate: Failed to insert into temp table", logger.Err(err), slog.Int("index", i))
-			return 0, err
+		for key, value := range update {
+			if key == "id" {
+				continue
+			}
+			if key == "photos" {
+				if arr, ok := value.(domain.StringArray); ok {
+					jsonVal, _ := json.Marshal(arr)
+					builder = builder.Set(key, jsonVal)
+				} else {
+					builder = builder.Set(key, value)
+				}
+			} else if key == "offset" {
+				builder = builder.Set(`"offset"`, value)
+			} else {
+				builder = builder.Set(key, value)
+			}
+			fieldCount++
 		}
+
+		if fieldCount == 0 {
+			continue
+		}
+
+		builder = builder.Set("updated_at", now)
+		sqlStr, args, err := builder.ToSql()
+		if err != nil {
+			return 0, fmt.Errorf("failed to build update query at index %d: %w", i, err)
+		}
+
+		batch.Queue(sqlStr, args...)
 	}
 
-	// Batch UPDATE из temp таблицы
-	_, err = tx.Exec(ctx, `
-		UPDATE parts SET
-			name = COALESCE(t.name, parts.name),
-			quantity = COALESCE(t.quantity, parts.quantity),
-			description = COALESCE(t.description, parts.description),
-			category = COALESCE(t.category, parts.category),
-			price = COALESCE(t.price, parts.price),
-			brand = COALESCE(t.brand, parts.brand),
-			model = COALESCE(t.model, parts.model),
-			location = COALESCE(t.location, parts.location),
-			address = COALESCE(t.address, parts.address),
-			salesman = COALESCE(t.salesman, parts.salesman),
-			status = COALESCE(t.status, parts.status),
-			photos = COALESCE(t.photos, parts.photos),
-			body_brand = COALESCE(t.body_brand, parts.body_brand),
-			engine_brand = COALESCE(t.engine_brand, parts.engine_brand),
-			car_release_date = COALESCE(t.car_release_date, parts.car_release_date),
-			car_release_period = COALESCE(t.car_release_period, parts.car_release_period),
-			front_rear = COALESCE(t.front_rear, parts.front_rear),
-			left_right = COALESCE(t.left_right, parts.left_right),
-			top_bottom = COALESCE(t.top_bottom, parts.top_bottom),
-			number = COALESCE(t.number, parts.number),
-			manufacturer = COALESCE(t.manufacturer, parts.manufacturer),
-			manufacturer_code = COALESCE(t.manufacturer_code, parts.manufacturer_code),
-			oem_code = COALESCE(t.oem_code, parts.oem_code),
-			color = COALESCE(t.color, parts.color),
-			condition = COALESCE(t.condition, parts.condition),
-			supplier_code = COALESCE(t.supplier_code, parts.supplier_code),
-			defect = COALESCE(t.defect, parts.defect),
-			transmission = COALESCE(t.transmission, parts.transmission),
-			transmission_model = COALESCE(t.transmission_model, parts.transmission_model),
-			drive = COALESCE(t.drive, parts.drive),
-			wear_percentage = COALESCE(t.wear_percentage, parts.wear_percentage),
-			season = COALESCE(t.season, parts.season),
-			diameter = COALESCE(t.diameter, parts.diameter),
-			width = COALESCE(t.width, parts.width),
-			profile = COALESCE(t.profile, parts.profile),
-			tire_quantity = COALESCE(t.tire_quantity, parts.tire_quantity),
-			drilling = COALESCE(t.drilling, parts.drilling),
-			"offset" = COALESCE(t."offset", parts."offset"),
-			center_hole_diameter = COALESCE(t.center_hole_diameter, parts.center_hole_diameter),
-			tire_model = COALESCE(t.tire_model, parts.tire_model),
-			updated_at = NOW()
-		FROM temp_parts_update t
-		WHERE parts.id = t.id
-	`)
-	if err != nil {
-		slog.ErrorContext(ctx, "PartRepository.BulkUpdate: Failed to execute batch update", logger.Err(err))
-		return 0, err
+	if batch.Len() == 0 {
+		return 0, nil
 	}
 
-	// Количество обновленных строк
-	var updatedCount int64
-	err = tx.QueryRow(ctx, "SELECT COUNT(*) FROM temp_parts_update").Scan(&updatedCount)
-	if err != nil {
-		return 0, err
+	br := tx.SendBatch(ctx, batch)
+	var updatedCount int
+
+	for i := 0; i < batch.Len(); i++ {
+		cmdTag, err := br.Exec()
+		if err != nil {
+			_ = br.Close()
+			slog.ErrorContext(ctx, "PartRepository.BulkUpdate: Failed to execute batch item", logger.Err(err), slog.Int("index", i))
+			return 0, fmt.Errorf("failed to execute batch update at index %d: %w", i, err)
+		}
+		updatedCount += int(cmdTag.RowsAffected())
+	}
+
+	if err := br.Close(); err != nil {
+		return 0, fmt.Errorf("failed to close batch: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -484,6 +436,6 @@ func (r *partRepository) BulkUpdate(ctx context.Context, updates []map[string]in
 		return 0, err
 	}
 
-	slog.InfoContext(ctx, "PartRepository.BulkUpdate: Successfully completed bulk update", slog.Int64("updated_count", updatedCount))
-	return int(updatedCount), nil
+	slog.InfoContext(ctx, "PartRepository.BulkUpdate: Successfully completed bulk update", slog.Int("updated_count", updatedCount))
+	return updatedCount, nil
 }

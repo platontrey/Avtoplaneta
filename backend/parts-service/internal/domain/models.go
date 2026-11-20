@@ -1,43 +1,12 @@
 package domain
 
 import (
-	"database/sql/driver"
-	"encoding/json"
-	"errors"
 	"time"
 )
 
-// StringArray - кастомный тип для работы с JSONB массивами строк в PostgreSQL
+// StringArray доменный тип среза строк для работы со списками фотографий и тегов.
+// Является чистым типом Go без привязки к базе данных или инфраструктурным драйверам.
 type StringArray []string
-
-// Scan реализует sql.Scanner интерфейс для чтения из БД
-func (a *StringArray) Scan(value interface{}) error {
-	if value == nil {
-		*a = StringArray{}
-		return nil
-	}
-
-	bytes, ok := value.([]byte)
-	if !ok {
-		return errors.New("failed to scan StringArray: value is not []byte")
-	}
-
-	var arr []string
-	if err := json.Unmarshal(bytes, &arr); err != nil {
-		return err
-	}
-
-	*a = arr
-	return nil
-}
-
-// Value реализует driver.Valuer интерфейс для записи в БД
-func (a StringArray) Value() (driver.Value, error) {
-	if len(a) == 0 {
-		return json.Marshal([]string{})
-	}
-	return json.Marshal(a)
-}
 
 // PartCore содержит основные поля запчасти
 type PartCore struct {

@@ -20,14 +20,18 @@ var partColumns = `id, name, quantity, description, category, price, salesman, l
 	season, diameter, width, profile, tire_quantity, drilling, "offset",
 	center_hole_diameter, tire_model, created_at, updated_at, deleted_at`
 
-func scanPart(row pgx.Row) (*domain.Part, error) {
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanSinglePart(scanner rowScanner) (*domain.Part, error) {
 	var p domain.Part
 	var photos []byte
 	var toDeleteAt *time.Time
 	var createdAt, updatedAt time.Time
 	var deletedAt *time.Time
 
-	err := row.Scan(
+	err := scanner.Scan(
 		&p.ID, &p.Name, &p.Quantity, &p.Description, &p.Category, &p.Price,
 		&p.Salesman, &p.Location, &p.Address, &p.Status, &p.Brand, &p.Model, &photos,
 		&p.SellerID, &toDeleteAt, &p.VIN,
@@ -52,38 +56,18 @@ func scanPart(row pgx.Row) (*domain.Part, error) {
 	return &p, nil
 }
 
+func scanPart(row pgx.Row) (*domain.Part, error) {
+	return scanSinglePart(row)
+}
+
 func scanParts(rows pgx.Rows) ([]domain.Part, error) {
 	var parts []domain.Part
 	for rows.Next() {
-		var p domain.Part
-		var photos []byte
-		var toDeleteAt *time.Time
-		var createdAt, updatedAt time.Time
-		var deletedAt *time.Time
-
-		err := rows.Scan(
-			&p.ID, &p.Name, &p.Quantity, &p.Description, &p.Category, &p.Price,
-			&p.Salesman, &p.Location, &p.Address, &p.Status, &p.Brand, &p.Model, &photos,
-			&p.SellerID, &toDeleteAt, &p.VIN,
-			&p.BodyBrand, &p.EngineBrand, &p.CarReleaseDate, &p.CarReleasePeriod, &p.FrontRear, &p.LeftRight, &p.TopBottom,
-			&p.Number, &p.Manufacturer, &p.ManufacturerCode, &p.OEMCode, &p.Color, &p.Condition,
-			&p.SupplierCode, &p.Defect, &p.Transmission, &p.TransmissionModel, &p.Drive, &p.WearPercentage,
-			&p.Season, &p.Diameter, &p.Width, &p.Profile, &p.TireQuantity, &p.Drilling, &p.Offset,
-			&p.CenterHoleDiameter, &p.TireModel,
-			&createdAt, &updatedAt, &deletedAt,
-		)
+		p, err := scanSinglePart(rows)
 		if err != nil {
 			return nil, err
 		}
-
-		p.ToDeleteAt = toDeleteAt
-		if photos != nil {
-			_ = json.Unmarshal(photos, &p.Photos)
-		}
-		if len(p.Photos) > 0 {
-			p.Photo = p.Photos[0]
-		}
-		parts = append(parts, p)
+		parts = append(parts, *p)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
