@@ -15,7 +15,7 @@ COPY auth-service/ .
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    GOMAXPROCS=16 CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /auth-service .
+    GOMAXPROCS=16 CGO_ENABLED=0 GOOS=linux go build -tags="sonic avx" -ldflags="-w -s" -o /auth-service .
 
 FROM alpine:3.19
 
@@ -24,14 +24,17 @@ RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app
 
 COPY --from=builder /auth-service .
-COPY config ./config
+COPY auth-service/entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
 
-RUN adduser -D -g '' appuser && mkdir -p /app/uploads/avatars /app/downloads && chown -R appuser:appuser /app
+RUN adduser -D -g '' appuser && chown -R appuser:appuser /app
+
 USER appuser
 
-EXPOSE 8083
+EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8083/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
+ENTRYPOINT ["./entrypoint.sh"]
 CMD ["./auth-service"]

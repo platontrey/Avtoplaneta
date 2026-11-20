@@ -69,29 +69,29 @@ proto-rebuild: proto-clean proto ## Полная перегенерация Prot
 build-all: build-services ## Алиас для build-services
 
 build-services: ## Проверить компиляцию всех микросервисов и общих пакетов
-	cd auth-service && go build -o /dev/null ./...
-	cd parts-service && go build -o /dev/null ./...
-	cd orders-service && go build -o /dev/null ./...
-	cd messaging-service && go build -o /dev/null ./...
-	cd export-service && go build -o /dev/null ./...
-	cd template-service && go build -o /dev/null ./...
+	cd auth-service && go build -tags="sonic avx" -o /dev/null ./...
+	cd parts-service && go build -tags="sonic avx" -o /dev/null ./...
+	cd orders-service && go build -tags="sonic avx" -o /dev/null ./...
+	cd messaging-service && go build -tags="sonic avx" -o /dev/null ./...
+	cd export-service && go build -tags="sonic avx" -o /dev/null ./...
+	cd template-service && go build -tags="sonic avx" -o /dev/null ./...
 	cd pkg && go test -run=^$$ ./...
 	@echo "All services build OK"
 
 # Сборка бинарников для запуска в контейнерах (без компиляции внутри Docker)
 build-binaries: ## Скомпилировать статические бинарники всех сервисов в папку bin/
 	@echo "Building auth-service static binary..."
-	cd auth-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o bin/auth-service .
+	cd auth-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -tags="sonic avx" -ldflags="-w -s" -o bin/auth-service .
 	@echo "Building parts-service static binary..."
-	cd parts-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o bin/parts-service .
+	cd parts-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -tags="sonic avx" -ldflags="-w -s" -o bin/parts-service .
 	@echo "Building orders-service static binary..."
-	cd orders-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o bin/orders-service .
+	cd orders-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -tags="sonic avx" -ldflags="-w -s" -o bin/orders-service .
 	@echo "Building messaging-service static binary..."
-	cd messaging-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o bin/messaging-service .
+	cd messaging-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -tags="sonic avx" -ldflags="-w -s" -o bin/messaging-service .
 	@echo "Building export-service static binary..."
-	cd export-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o bin/export-service .
+	cd export-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -tags="sonic avx" -ldflags="-w -s" -o bin/export-service .
 	@echo "Building template-service static binary..."
-	cd template-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o bin/template-service .
+	cd template-service && mkdir -p bin && CGO_ENABLED=0 GOOS=linux go build -tags="sonic avx" -ldflags="-w -s" -o bin/template-service .
 	@echo "All static binaries built successfully."
 
 # Установка всех Go-зависимостей
@@ -108,11 +108,11 @@ deps: ## Загрузить все Go-зависимости (go mod download в
 
 # Запуск всех сервисов в фоне (для разработки)
 start-dev: ## Запустить локально все микросервисы в фоновом режиме
-	cd auth-service && go run . &
-	cd parts-service && go run . &
-	cd orders-service && go run . &
-	cd messaging-service && go run . &
-	cd export-service && go run . &
+	cd auth-service && go run -tags="sonic avx" . &
+	cd parts-service && go run -tags="sonic avx" . &
+	cd orders-service && go run -tags="sonic avx" . &
+	cd messaging-service && go run -tags="sonic avx" . &
+	cd export-service && go run -tags="sonic avx" . &
 	@echo "All services started"
 
 # Запуск всех юнит-тестов во всех сервисах

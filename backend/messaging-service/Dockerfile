@@ -15,7 +15,7 @@ COPY messaging-service/ .
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    GOMAXPROCS=16 CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /messaging-service .
+    GOMAXPROCS=16 CGO_ENABLED=0 GOOS=linux go build -tags="sonic avx" -ldflags="-w -s" -o /messaging-service .
 
 FROM alpine:3.19
 

@@ -105,8 +105,9 @@
    Для тяжелых исторических данных и логов использовать `PARTITION BY RANGE (created_at)`, чтобы архивация и удаление старых данных производились мгновенно через `DROP TABLE partition_...` без блокировок и деградации производительности.
 
 ### 3.6. Шаблон и генерация новых сервисов (`make new-service`)
-- Эталонный сервис находится в `backend/template-service` (многоэтапный `Dockerfile` с кэш-моунтами, `sqlc.yaml`, раннер миграций, graceful shutdown, health/metrics).
+- Эталонный сервис находится в `backend/template-service` (многоэтапный `Dockerfile` с кэш-моунтами и тегами `-tags="sonic avx"`, `sqlc.yaml`, раннер миграций, graceful shutdown, health/metrics).
 - Команда создания: `cd backend && make new-service NAME=<name> PORT=<port> GRPC_PORT=<grpc_port>`.
+- **Сборка с поддержкой Sonic SIMD:** Все микросервисы (`Dockerfile`, `Makefile` команды `build-services`, `build-binaries`, `start-dev`) обязаны компилироваться со строгими флагами `-tags="sonic avx"`. Это активирует аппаратное ускорение сериализации/десериализации JSON в Gin/Sonic через векторные инструкции процессора AVX.
 
 ---
 
@@ -131,7 +132,7 @@
 
 ### 5.2. Богатая доменная модель (Rich Domain Model) vs DTO
 - Бизнес-правила и валидации инкапсулируются в методах самих сущностей в `domain` (чистые юнит-тесты без моков БД).
-- Запрещено засорять `domain` форматированными строками представления (`CreatedAtFormatted`, `TimeAgo`) или запросами фронтенда (`CreateOrderRequest`). DTO принадлежат слою `handler`.
+- Запрещено засорять `domain` форматированными строками представления (`CreatedAtFormatted`, `TimeAgo`) или запросами фронтенда (`CreateOrderRequest`). DTO принадлежат слою `handler``.
 - Запрещен «маппинг ради маппинга»: в Go модели `sqlc` маппятся напрямую в `domain`, без промежуточных пустых слоев.
 
 ### 5.3. Реестр общей библиотеки `backend/pkg/*` (Обязательное переиспользование)
@@ -149,7 +150,7 @@
 - **`pkg/constants`**: Общесистемные константы (статусы, роли, стримы, каналы).
 - **`pkg/redisstream`**: `ConsumerGroupWorker` с надежным PEL-восстановлением (`XAutoClaim`) и DLQ.
 - **`pkg/authcontext`**: Извлечение данных пользователя из заголовков ForwardAuth (`X-User-ID`, `X-User-Role`).
-- **`pkg/httpcache`**: Хелперы валидации ETag и ответа `304 Not Modified`.
+- **`pkg/httpcache`**: Хелперы валидации ETag и ответа `304 Not Modified``.
 - **`pkg/userdirectory`**: Кэширующий gRPC-клиент каталога пользователей.
 - **`pkg/env`**: Безопасное чтение переменных окружения с типизированными fallback-значениями.
 - **`pkg/timeutil`**: Форматирование человекочитаемого времени на русском языке (`FormatPlural`, `FormatTimeUntil`).
