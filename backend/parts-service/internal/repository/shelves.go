@@ -1,9 +1,10 @@
 package repository
 
 import (
-	"strings"
-	"fmt"
 	"context"
+	"errors"
+	"fmt"
+	"strings"
 
 	"parts-service/internal/domain"
 )
@@ -29,7 +30,7 @@ func (r *partRepository) GetShelves(ctx context.Context) ([]domain.Shelf, error)
 func (r *partRepository) CreateShelf(ctx context.Context, name string) (*domain.Shelf, error) {
 	trimmed := strings.TrimSpace(name)
 	if trimmed == "" {
-		return nil, fmt.Errorf("shelf name cannot be empty")
+		return nil, errors.New("shelf name cannot be empty")
 	}
 	shelf, err := r.queries.CreateShelf(ctx, trimmed)
 	if err != nil {
@@ -48,7 +49,7 @@ func (r *partRepository) DeleteShelf(ctx context.Context, id int64) error {
 		return fmt.Errorf("failed to delete shelf: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("shelf not found")
+		return errors.New("shelf not found")
 	}
 	return nil
 }

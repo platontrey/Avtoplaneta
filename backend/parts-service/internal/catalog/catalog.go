@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"errors"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -143,16 +144,16 @@ func LoadPartCatalog() (*PartCatalog, error) {
 
 func validatePartCatalog(catalog *PartCatalog) error {
 	if strings.TrimSpace(catalog.Version) == "" {
-		return fmt.Errorf("part catalog version is empty")
+		return errors.New("part catalog version is empty")
 	}
 	if len(catalog.Parts) == 0 {
-		return fmt.Errorf("part catalog contains no templates")
+		return errors.New("part catalog contains no templates")
 	}
 
 	attributeCodes := make(map[string]struct{}, len(catalog.Attributes))
 	for _, attribute := range catalog.Attributes {
 		if attribute.Code == "" {
-			return fmt.Errorf("part catalog contains an attribute with an empty code")
+			return errors.New("part catalog contains an attribute with an empty code")
 		}
 		if _, exists := attributeCodes[attribute.Code]; exists {
 			return fmt.Errorf("part catalog contains duplicate attribute %q", attribute.Code)
@@ -166,7 +167,7 @@ func validatePartCatalog(catalog *PartCatalog) error {
 	formCategories := make(map[string]struct{}, len(catalog.PartFormCategories))
 	for _, category := range catalog.PartFormCategories {
 		if category.Name == "" {
-			return fmt.Errorf("part catalog contains a form category with an empty name")
+			return errors.New("part catalog contains a form category with an empty name")
 		}
 		if _, exists := formCategories[category.Name]; exists {
 			return fmt.Errorf("part catalog contains duplicate form category %q", category.Name)

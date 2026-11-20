@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"errors"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -53,17 +54,17 @@ func LoadVehicleCatalog() (*VehicleCatalog, error) {
 
 func validateVehicleCatalog(catalog *VehicleCatalog) error {
 	if strings.TrimSpace(catalog.Version) == "" {
-		return fmt.Errorf("vehicle catalog version is empty")
+		return errors.New("vehicle catalog version is empty")
 	}
 	if len(catalog.Brands) == 0 {
-		return fmt.Errorf("vehicle catalog contains no brands")
+		return errors.New("vehicle catalog contains no brands")
 	}
 
 	seenBrands := make(map[string]struct{}, len(catalog.Brands))
 	for _, brand := range catalog.Brands {
 		name := strings.TrimSpace(brand.Name)
 		if name == "" {
-			return fmt.Errorf("vehicle catalog contains a brand without a name")
+			return errors.New("vehicle catalog contains a brand without a name")
 		}
 		key := strings.ToLower(name)
 		if _, exists := seenBrands[key]; exists {
@@ -94,7 +95,7 @@ func validateVehicleCatalog(catalog *VehicleCatalog) error {
 	if !sort.SliceIsSorted(catalog.Brands, func(i, j int) bool {
 		return vehicleSortKey(catalog.Brands[i].Name) < vehicleSortKey(catalog.Brands[j].Name)
 	}) {
-		return fmt.Errorf("vehicle catalog brands are not sorted")
+		return errors.New("vehicle catalog brands are not sorted")
 	}
 
 	return nil
