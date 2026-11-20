@@ -6,12 +6,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"avtoplaneta/pkg/authcontext"
 	"orders-service/internal/domain"
 )
 
 // ListCustomersHandler возвращает список клиентов с фильтрацией и поиском
 func (h *Handler) ListCustomersHandler(c *gin.Context) {
 	ctx := c.Request.Context()
+
+	user, ok := authcontext.FromRequest(c.Request)
+	if ok && user.IsAuthenticated() && user.Role == "operator" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Операторы склада не имеют доступа к клиентской базе"})
+		return
+	}
+
 	category := c.Query("category")
 	search := c.Query("q")
 	if search == "" {
@@ -47,6 +55,13 @@ func (h *Handler) ListCustomersHandler(c *gin.Context) {
 // GetCustomerHandler возвращает карточку клиента и историю его заказов
 func (h *Handler) GetCustomerHandler(c *gin.Context) {
 	ctx := c.Request.Context()
+
+	user, ok := authcontext.FromRequest(c.Request)
+	if ok && user.IsAuthenticated() && user.Role == "operator" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Операторы склада не имеют доступа к клиентам"})
+		return
+	}
+
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid customer ID"})
@@ -58,7 +73,7 @@ func (h *Handler) GetCustomerHandler(c *gin.Context) {
 		if domain.IsNotFoundError(err) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch customer details"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch customer"})
 		}
 		return
 	}
@@ -66,9 +81,16 @@ func (h *Handler) GetCustomerHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, details)
 }
 
-// CreateCustomerHandler создаёт карточку клиента
+// CreateCustomerHandler создает нового клиента
 func (h *Handler) CreateCustomerHandler(c *gin.Context) {
 	ctx := c.Request.Context()
+
+	user, ok := authcontext.FromRequest(c.Request)
+	if ok && user.IsAuthenticated() && user.Role == "operator" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Операторы склада не могут создавать клиентов"})
+		return
+	}
+
 	var req domain.CreateCustomerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data"})
@@ -90,9 +112,16 @@ func (h *Handler) CreateCustomerHandler(c *gin.Context) {
 	c.JSON(http.StatusCreated, customer)
 }
 
-// UpdateCustomerHandler обновляет карточку клиента
+// UpdateCustomerHandler обновляет данные клиента
 func (h *Handler) UpdateCustomerHandler(c *gin.Context) {
 	ctx := c.Request.Context()
+
+	user, ok := authcontext.FromRequest(c.Request)
+	if ok && user.IsAuthenticated() && user.Role == "operator" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Операторы склада не могут редактировать клиентов"})
+		return
+	}
+
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid customer ID"})
@@ -123,6 +152,13 @@ func (h *Handler) UpdateCustomerHandler(c *gin.Context) {
 // DeleteCustomerHandler удаляет карточку клиента
 func (h *Handler) DeleteCustomerHandler(c *gin.Context) {
 	ctx := c.Request.Context()
+
+	user, ok := authcontext.FromRequest(c.Request)
+	if ok && user.Role != "" && user.Role != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Только администратор может удалять клиентов"})
+		return
+	}
+
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid customer ID"})

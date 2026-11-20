@@ -6,6 +6,7 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useOrders, useCompletedOrders } from '@/hooks/useOrders';
+import { useCurrentUser } from '@/features/auth/hooks/useCurrentUser';
 import {
   updateOrderDetails,
   updateOrderItem,
@@ -17,7 +18,7 @@ import type { Order, OrderItem } from '@/lib/types';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, History, ClipboardList, Users } from 'lucide-react';
+import { Plus, History, ClipboardList, Users, UserCheck, Shield, Warehouse } from 'lucide-react';
 import { CustomersTab } from '@/features/customers/components/CustomersTab';
 import { calcOrderTotal } from '../utils/orderHelpers';
 import { OrdersFiltersBar } from './OrdersFiltersBar';
@@ -25,16 +26,23 @@ import { OrderMobileCard } from './OrderMobileCard';
 import { OrdersTable } from './OrdersTable';
 import { EditOrderDialog } from './EditOrderDialog';
 import { CompleteOrderDialog, DeleteOrderDialog } from './OrderActionDialogs';
+import { WarehouseOrdersView } from './WarehouseOrdersView';
+import { AdminSalesDashboard } from './AdminSalesDashboard';
 
 export const Orders: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { data: user, isLoading: userLoading } = useCurrentUser();
+  const userRole = user?.role || 'operator';
 
   const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'customers'>('active');
   const [searchQuery, setSearchQuery] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [warehouseFilter, setWarehouseFilter] = useState<string>('all');
   const [locationFilter, setLocationFilter] = useState<string>('all');
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
+  const [sellerFilter, setSellerFilter] = useState<string>('all');
+  const [myOrdersOnly, setMyOrdersOnly] = useState<boolean>(true);
 
   const { data: activeOrders, isLoading: activeLoading, error: activeError, refetch: refetchActive } = useOrders();
   const { data: completedOrders, isLoading: completedLoading } = useCompletedOrders(activeTab === 'completed');
@@ -172,11 +180,39 @@ export const Orders: React.FC = () => {
     return Array.from(locs);
   }, [activeOrders]);
 
+  const uniqueSellers = useMemo(() => {
+    const sellers = new Set<string>();
+    for (const o of activeOrders || []) {
+      if (o.seller) sellers.add(o.seller);
+    }
+    return Array.from(sellers);
+  }, [activeOrders]);
+
   const filteredOrders = useMemo(() => {
     const list = activeTab === 'active' ? activeOrders || [] : completedOrders || [];
     const q = searchQuery.trim().toLowerCase();
 
     return list.filter((order) => {
+      // Для менеджера: фильтр "Мои заказы" vs "Все заказы"
+      if (userRole === 'manager' && myOrdersOnly) {
+        const isMine =
+          order.seller_id === user?.id ||
+          order.seller === user?.name ||
+          !order.seller ||
+          !order.seller_id;
+        if (!isMine) return false;
+      }
+
+      // Для администратора: фильтр по конкретному продавцу
+      if (userRole === 'admin' && sellerFilter !== 'all' && order.seller !== sellerFilter) {
+        return false;
+      }
+
+      // Фильтр по источнику
+      if (sourceFilter !== 'all' && order.source !== sourceFilter) {
+        return false;
+      }
+
       if (activeTab === 'active') {
         if (paymentFilter !== 'all' && (order.payment_status || 'unpaid') !== paymentFilter) {
           return false;
@@ -210,14 +246,27 @@ export const Orders: React.FC = () => {
         inItems
       );
     });
-  }, [activeOrders, completedOrders, activeTab, searchQuery, paymentFilter, warehouseFilter, locationFilter]);
+  }, [
+    activeOrders,
+    completedOrders,
+    activeTab,
+    searchQuery,
+    paymentFilter,
+    warehouseFilter,
+    locationFilter,
+    sourceFilter,
+    sellerFilter,
+    myOrdersOnly,
+    userRole,
+    user,
+  ]);
 
   const totalListSum = useMemo(
     () => filteredOrders.reduce((sum, o) => sum + calcOrderTotal(o), 0),
     [filteredOrders]
   );
 
-  if (activeLoading && activeTab === 'active') {
+  if ((activeLoading && activeTab === 'active') || userLoading) {
     return (
       <div className="container mx-auto p-4 space-y-4">
         <Skeleton className="h-9 w-56" />
@@ -245,22 +294,99 @@ export const Orders: React.FC = () => {
     );
   }
 
+  // =========================================================================
+  // ПРЕДСТАВЛЕНИЕ 1: ОПЕРАТОР СКЛАДА (WMS-терминал комплектовщика)
+  // =========================================================================
+  if (userRole === 'operator') {
+    return (
+      <div className="container mx-auto p-4 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Warehouse className="w-6 h-6 text-amber-500" />
+              <h1 className="text-2xl font-bold">Складской терминал комплектации</h1>
+            </div>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+              Сборка деталей с ячеек хранения, осмотр дефектов и маркировка грузовых мест
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={() => navigate('/inventory')} variant="outline" className="gap-1.5">
+              <span>Складской каталог запчастей</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Рабочий терминал сборщика */}
+        <WarehouseOrdersView
+          orders={activeOrders || []}
+          onUpdateStatus={(orderId, status) =>
+            handleQuickUpdate(orderId, { warehouse_status: status })
+          }
+          isUpdating={quickUpdateMutation.isPending}
+        />
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // ПРЕДСТАВЛЕНИЕ 2 и 3: МЕНЕДЖЕР ПРОДАЖ И АДМИНИСТРАТОР
+  // =========================================================================
   return (
     <div className="container mx-auto p-4 space-y-5">
+      {/* Для администратора: сводный дашборд продаж и выручки */}
+      {userRole === 'admin' && activeTab === 'active' && (
+        <AdminSalesDashboard orders={activeOrders || []} />
+      )}
+
       {/* Шапка и переключение вкладок */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">
-            {activeTab === 'customers' ? 'База клиентов' : 'Управление заказами'}
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            {userRole === 'admin' ? (
+              <Shield className="w-6 h-6 text-emerald-500" />
+            ) : (
+              <UserCheck className="w-6 h-6 text-blue-500" />
+            )}
+            <h1 className="text-2xl font-bold">
+              {activeTab === 'customers'
+                ? 'База клиентов CRM'
+                : userRole === 'admin'
+                ? 'Управление заказами и продажами'
+                : 'Рабочее место менеджера'}
+            </h1>
+          </div>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             {activeTab === 'customers'
               ? 'Единая база покупателей, история заказов, реквизиты для ТК и категории'
-              : `Найдено: ${filteredOrders.length} · Сумма: ₽${totalListSum.toLocaleString('ru-RU')}`}
+              : `Отобрано: ${filteredOrders.length} заказов · Сумма: ₽${totalListSum.toLocaleString('ru-RU')}`}
           </p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Переключатель "Мои сделки / Все сделки" для менеджера */}
+          {userRole === 'manager' && activeTab !== 'customers' && (
+            <div className="inline-flex rounded-lg border bg-muted p-1">
+              <Button
+                variant={myOrdersOnly ? 'default' : 'ghost'}
+                size="sm"
+                className="text-xs h-7 px-2.5"
+                onClick={() => setMyOrdersOnly(true)}
+              >
+                Мои сделки
+              </Button>
+              <Button
+                variant={!myOrdersOnly ? 'default' : 'ghost'}
+                size="sm"
+                className="text-xs h-7 px-2.5"
+                onClick={() => setMyOrdersOnly(false)}
+              >
+                Все сделки отдела
+              </Button>
+            </div>
+          )}
+
           <div className="inline-flex rounded-lg border bg-muted p-1">
             <Button
               variant={activeTab === 'active' ? 'default' : 'ghost'}
@@ -314,6 +440,12 @@ export const Orders: React.FC = () => {
               locationFilter={locationFilter}
               onLocationFilterChange={setLocationFilter}
               uniqueLocations={uniqueLocations}
+              sourceFilter={sourceFilter}
+              onSourceFilterChange={setSourceFilter}
+              sellerFilter={sellerFilter}
+              onSellerFilterChange={setSellerFilter}
+              uniqueSellers={uniqueSellers}
+              userRole={userRole}
             />
           </CardHeader>
 
@@ -339,6 +471,7 @@ export const Orders: React.FC = () => {
                       onOpenEdit={(o) => setEditingOrder(o)}
                       onComplete={(o) => setOrderToComplete(o)}
                       onDelete={(o) => setOrderToDelete(o)}
+                      userRole={userRole}
                     />
                   ))}
                 </div>
@@ -351,6 +484,7 @@ export const Orders: React.FC = () => {
                   onOpenEdit={(o) => setEditingOrder(o)}
                   onComplete={(o) => setOrderToComplete(o)}
                   onDelete={(o) => setOrderToDelete(o)}
+                  userRole={userRole}
                 />
               </>
             )}

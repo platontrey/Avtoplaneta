@@ -51,6 +51,11 @@ export interface AddOrderItemPayload {
   price?: number;
 }
 
+export interface MonthlySalesEntry {
+  month: string;
+  sales: number;
+}
+
 export const getOrders = async (): Promise<Order[]> => {
   return safeFetchJson<Order[]>(`${ORDERS_API_URL}/api/v1/orders`, {
     credentials: 'include',
@@ -151,4 +156,11 @@ export const createOrder = async (orderData: CreateOrderPayload): Promise<Order>
   }).catch(console.warn);
 
   return result;
+};
+
+export const getMonthlySales = async (): Promise<MonthlySalesEntry[]> => {
+  return safeFetchJson<MonthlySalesEntry[]>(`${ORDERS_API_URL}/api/v1/monthly-sales`, {
+    credentials: 'include',
+    headers: getAuthHeaders(),
+  });
 };

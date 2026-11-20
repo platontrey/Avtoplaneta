@@ -6,7 +6,7 @@ import React from 'react';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PAYMENT_OPTIONS, WAREHOUSE_OPTIONS } from '../constants';
+import { PAYMENT_OPTIONS, WAREHOUSE_OPTIONS, SOURCE_LABELS } from '../constants';
 
 interface OrdersFiltersBarProps {
   searchQuery: string;
@@ -19,6 +19,12 @@ interface OrdersFiltersBarProps {
   locationFilter: string;
   onLocationFilterChange: (value: string) => void;
   uniqueLocations: string[];
+  sourceFilter?: string;
+  onSourceFilterChange?: (value: string) => void;
+  sellerFilter?: string;
+  onSellerFilterChange?: (value: string) => void;
+  uniqueSellers?: string[];
+  userRole?: string;
 }
 
 export const OrdersFiltersBar: React.FC<OrdersFiltersBarProps> = ({
@@ -32,10 +38,16 @@ export const OrdersFiltersBar: React.FC<OrdersFiltersBarProps> = ({
   locationFilter,
   onLocationFilterChange,
   uniqueLocations,
+  sourceFilter = 'all',
+  onSourceFilterChange,
+  sellerFilter = 'all',
+  onSellerFilterChange,
+  uniqueSellers = [],
+  userRole,
 }) => {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-      <div className="relative">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-2.5">
+      <div className="relative sm:col-span-2">
         <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={searchQuery}
@@ -88,6 +100,38 @@ export const OrdersFiltersBar: React.FC<OrdersFiltersBarProps> = ({
               ))}
             </SelectContent>
           </Select>
+
+          {onSourceFilterChange && (
+            <Select value={sourceFilter} onValueChange={onSourceFilterChange}>
+              <SelectTrigger className="h-9 text-xs sm:text-sm">
+                <SelectValue placeholder="Источник сделки" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">🌐 Все каналы</SelectItem>
+                {Object.entries(SOURCE_LABELS).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {userRole === 'admin' && onSellerFilterChange && uniqueSellers.length > 0 && (
+            <Select value={sellerFilter} onValueChange={onSellerFilterChange}>
+              <SelectTrigger className="h-9 text-xs sm:text-sm">
+                <SelectValue placeholder="Менеджер" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">👤 Все менеджеры</SelectItem>
+                {uniqueSellers.map((seller) => (
+                  <SelectItem key={seller} value={seller}>
+                    {seller}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </>
       )}
     </div>

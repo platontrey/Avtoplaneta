@@ -19,6 +19,7 @@ interface OrdersTableProps {
   onOpenEdit: (order: Order) => void;
   onComplete: (order: Order) => void;
   onDelete: (order: Order) => void;
+  userRole?: string;
 }
 
 export const OrdersTable: React.FC<OrdersTableProps> = ({
@@ -28,6 +29,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
   onOpenEdit,
   onComplete,
   onDelete,
+  userRole,
 }) => {
   const isCompleted = activeTab === 'completed';
 
@@ -98,18 +100,20 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                     📍 Склад: <span className="font-medium text-foreground">{order.location || 'Неизвестно'}</span>
                   </div>
                   {order.notes && (
-                    <div className="mt-1.5 inline-flex items-center gap-1 text-xs bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-200 px-2 py-0.5 rounded">
-                      <MessageSquare className="h-3 w-3 shrink-0" />
-                      <span>{order.notes}</span>
+                    <div className="text-xs text-muted-foreground mt-1 flex items-start gap-1">
+                      <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                      <span className="italic">{order.notes}</span>
                     </div>
                   )}
                 </TableCell>
 
                 <TableCell className="align-top">
-                  <div className="font-bold text-base">₽{total.toLocaleString('ru-RU')}</div>
-                  {Number(order.discount) > 0 && (
-                    <div className="text-xs text-amber-600">
-                      −₽{Number(order.discount).toLocaleString('ru-RU')} скидка
+                  <div className="font-bold text-base text-emerald-600 dark:text-emerald-400">
+                    ₽{total.toLocaleString('ru-RU')}
+                  </div>
+                  {Boolean(order.discount && order.discount > 0) && (
+                    <div className="text-xs text-muted-foreground line-through">
+                      Скидка: ₽{(order.discount || 0).toLocaleString('ru-RU')}
                     </div>
                   )}
                 </TableCell>
@@ -119,9 +123,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                     <TableCell className="align-top">
                       <Select
                         value={order.payment_status || 'unpaid'}
-                        onValueChange={(value) =>
-                          onQuickUpdate(order.id, { payment_status: value })
-                        }
+                        onValueChange={(val) => onQuickUpdate(order.id, { payment_status: val })}
                       >
                         <SelectTrigger className="h-8 text-xs">
                           <SelectValue />
@@ -129,7 +131,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                         <SelectContent>
                           {PAYMENT_OPTIONS.map((opt) => (
                             <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
+                              <span className="flex items-center gap-1.5">{opt.label}</span>
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -139,9 +141,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                     <TableCell className="align-top">
                       <Select
                         value={order.warehouse_status || 'inspecting'}
-                        onValueChange={(value) =>
-                          onQuickUpdate(order.id, { warehouse_status: value })
-                        }
+                        onValueChange={(val) => onQuickUpdate(order.id, { warehouse_status: val })}
                       >
                         <SelectTrigger className="h-8 text-xs">
                           <SelectValue />
@@ -159,9 +159,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                     <TableCell className="align-top">
                       <Select
                         value={order.delivery_method || 'pickup'}
-                        onValueChange={(value) =>
-                          onQuickUpdate(order.id, { delivery_method: value })
-                        }
+                        onValueChange={(val) => onQuickUpdate(order.id, { delivery_method: val })}
                       >
                         <SelectTrigger className="h-8 text-xs">
                           <SelectValue />
@@ -174,8 +172,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                           ))}
                         </SelectContent>
                       </Select>
+
                       {(order.transport_company || order.tracking_number) && (
-                        <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
+                        <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                           <Truck className="h-3 w-3 shrink-0" />
                           <span className="truncate max-w-[160px]">
                             {[order.transport_company, order.tracking_number]
@@ -205,14 +204,16 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                           <CheckCircle2 className="h-3.5 w-3.5" />
                           <span>Завершить</span>
                         </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => onDelete(order)}
-                          title="Удалить заказ"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        {userRole === 'admin' && (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => onDelete(order)}
+                            title="Удалить заказ"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </>

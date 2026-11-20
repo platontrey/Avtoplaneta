@@ -33,6 +33,20 @@ func (h *Handler) GetOrdersHandler(c *gin.Context) {
 		return
 	}
 
+	user, ok := authcontext.FromRequest(c.Request)
+	if ok && user.IsAuthenticated() {
+		// Для роли оператора склада (WMS) маскируем коммерческие данные (цены, скидки, общую сумму)
+		if user.Role == "operator" {
+			for i := range orders {
+				orders[i].TotalAmount = 0
+				orders[i].Discount = 0
+				for j := range orders[i].Items {
+					orders[i].Items[j].Price = 0
+				}
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, orders)
 }
 
@@ -44,6 +58,20 @@ func (h *Handler) GetCompletedOrdersHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch completed orders"})
 		return
 	}
+
+	user, ok := authcontext.FromRequest(c.Request)
+	if ok && user.IsAuthenticated() {
+		if user.Role == "operator" {
+			for i := range orders {
+				orders[i].TotalAmount = 0
+				orders[i].Discount = 0
+				for j := range orders[i].Items {
+					orders[i].Items[j].Price = 0
+				}
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, orders)
 }
 
@@ -59,6 +87,11 @@ func (h *Handler) CreateOrderHandler(c *gin.Context) {
 	user, ok := authcontext.FromRequest(c.Request)
 	if !ok || !user.IsAuthenticated() {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
+
+	if user.Role == "operator" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Операторы склада не могут создавать заказы"})
 		return
 	}
 
@@ -138,6 +171,13 @@ func (h *Handler) UpdateOrderDetailsHandler(c *gin.Context) {
 		return
 	}
 
+	user, ok := authcontext.FromRequest(c.Request)
+	if ok && user.Role == "operator" {
+		// Оператор склада может менять только складской статус и заметки, но не финансовые данные
+		req.PaymentStatus = nil
+		req.Discount = nil
+	}
+
 	updated, err := h.ordersService.UpdateOrderDetails(ctx, orderID, req)
 	if err != nil {
 		if domain.IsNotFoundError(err) {
@@ -160,6 +200,12 @@ func (h *Handler) CompleteOrderHandler(c *gin.Context) {
 	orderID, err := strconv.ParseInt(orderIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
+		return
+	}
+
+	user, ok := authcontext.FromRequest(c.Request)
+	if ok && user.Role == "operator" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Операторы склада не могут завершать заказы и производить списание"})
 		return
 	}
 
@@ -187,6 +233,12 @@ func (h *Handler) DeleteOrderHandler(c *gin.Context) {
 		return
 	}
 
+	user, ok := authcontext.FromRequest(c.Request)
+	if ok && user.Role != "" && user.Role != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Только администратор может удалять заказы"})
+		return
+	}
+
 	if err := h.ordersService.DeleteOrder(ctx, orderID); err != nil {
 		if domain.IsNotFoundError(err) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -208,6 +260,12 @@ func (h *Handler) AddOrderItemHandler(c *gin.Context) {
 	orderID, err := strconv.ParseInt(orderIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
+		return
+	}
+
+	user, ok := authcontext.FromRequest(c.Request)
+	if ok && user.Role == "operator" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Операторы склада не могут изменять состав позиций заказа"})
 		return
 	}
 
@@ -255,6 +313,12 @@ func (h *Handler) UpdateOrderItemHandler(c *gin.Context) {
 		return
 	}
 
+	user, ok := authcontext.FromRequest(c.Request)
+	if ok && user.Role == "operator" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Операторы склада не могут редактировать позиции заказа"})
+		return
+	}
+
 	var req domain.UpdateOrderItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data"})
@@ -286,6 +350,12 @@ func (h *Handler) DeleteOrderItemHandler(c *gin.Context) {
 	itemID, err := strconv.ParseInt(c.Param("itemId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID"})
+		return
+	}
+
+	user, ok := authcontext.FromRequest(c.Request)
+	if ok && user.Role == "operator" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Операторы склада не могут удалять позиции заказа"})
 		return
 	}
 
