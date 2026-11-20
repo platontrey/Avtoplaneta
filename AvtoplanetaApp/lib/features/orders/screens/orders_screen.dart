@@ -8,6 +8,7 @@ import '../../../core/api/api_endpoints.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/models/customer.dart';
 import '../../../core/models/order.dart';
+import '../../../core/models/user.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/phone_launcher.dart';
 import '../../../shared/widgets/app_states.dart';
@@ -30,6 +31,8 @@ class OrdersScreen extends ConsumerStatefulWidget {
 class _OrdersScreenState extends ConsumerState<OrdersScreen> {
   String _tab = 'active'; // 'active', 'completed', or 'customers'
   String _customerCategory = ''; // '', 'regular', 'vip', 'wholesale', 'blacklist'
+  String _warehouseFilter = ''; // '', 'inspecting', 'transfer', 'ready'
+  bool _myOrdersOnly = true; // For managers: filter orders assigned to current manager
   String _searchQuery = '';
   final _searchController = TextEditingController();
 
@@ -52,17 +55,36 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     }
   }
 
-  List<Order> _filterOrders(List<Order> orders) {
+  List<Order> _filterOrders(List<Order> orders, User? user) {
+    var result = orders;
+
+    // Manager: optional "Мои сделки" filter
+    if (user != null && user.role == 'manager' && _myOrdersOnly) {
+      result = result.where((o) {
+        if (o.sellerName.isEmpty) return true;
+        return o.sellerName.toLowerCase() == user.name.toLowerCase() ||
+            o.sellerName.toLowerCase() == user.username.toLowerCase();
+      }).toList();
+    }
+
+    // Warehouse status quick filter
+    if (_warehouseFilter.isNotEmpty) {
+      result = result.where((o) => o.warehouseStatus == _warehouseFilter).toList();
+    }
+
     final q = _searchQuery.trim().toLowerCase();
-    if (q.isEmpty) return orders;
-    return orders.where((o) {
-      return o.id.toString().contains(q) ||
-          o.partName.toLowerCase().contains(q) ||
-          o.buyerNumber.toLowerCase().contains(q) ||
-          o.orderNumber.toLowerCase().contains(q) ||
-          o.trackingNumber.toLowerCase().contains(q) ||
-          o.sellerName.toLowerCase().contains(q);
-    }).toList();
+    if (q.isNotEmpty) {
+      result = result.where((o) {
+        return o.id.toString().contains(q) ||
+            o.partName.toLowerCase().contains(q) ||
+            o.buyerNumber.toLowerCase().contains(q) ||
+            o.orderNumber.toLowerCase().contains(q) ||
+            o.trackingNumber.toLowerCase().contains(q) ||
+            o.sellerName.toLowerCase().contains(q) ||
+            o.location.toLowerCase().contains(q);
+      }).toList();
+    }
+    return result;
   }
 
   List<Customer> _filterCustomers(List<Customer> customers) {
@@ -94,16 +116,34 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     );
   }
 
+  Widget _warehouseFilterChip(String key, String label) {
+    final isSelected = _warehouseFilter == key;
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) {
+        setState(() => _warehouseFilter = key);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(authProvider).valueOrNull;
+    final isOperator = user?.isOperatorOnly ?? false;
+
+    // Operators cannot access customers view
+    if (isOperator && _tab == 'customers') {
+      _tab = 'active';
+    }
+
     final ordersAsync = _tab == 'active'
         ? ref.watch(ordersProvider)
         : ref.watch(completedOrdersProvider);
-    final user = ref.watch(authProvider).valueOrNull;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Заказы'),
+        title: Text(isOperator ? 'Склад / Сборка' : 'Заказы'),
         actions: [
           IconButton(
             tooltip: 'Обновить',
@@ -112,7 +152,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
           ),
         ],
       ),
-      floatingActionButton: _tab == 'customers'
+      floatingActionButton: _tab == 'customers' && !isOperator
           ? FloatingActionButton.extended(
               onPressed: () => CustomerFormSheet.show(context),
               icon: const Icon(LucideIcons.user_plus),
@@ -128,22 +168,26 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: SegmentedButton<String>(
-                    segments: const [
+                    segments: [
                       ButtonSegment(
                         value: 'active',
-                        icon: Icon(LucideIcons.shopping_bag, size: 16),
-                        label: Text('В работе'),
+                        icon: Icon(
+                          isOperator ? LucideIcons.package_check : LucideIcons.shopping_bag,
+                          size: 16,
+                        ),
+                        label: Text(isOperator ? 'Сборка' : 'В работе'),
                       ),
-                      ButtonSegment(
+                      const ButtonSegment(
                         value: 'completed',
                         icon: Icon(LucideIcons.archive, size: 16),
                         label: Text('История'),
                       ),
-                      ButtonSegment(
-                        value: 'customers',
-                        icon: Icon(LucideIcons.users, size: 16),
-                        label: Text('Клиенты'),
-                      ),
+                      if (!isOperator)
+                        const ButtonSegment(
+                          value: 'customers',
+                          icon: Icon(LucideIcons.users, size: 16),
+                          label: Text('Клиенты'),
+                        ),
                     ],
                     selected: {_tab},
                     onSelectionChanged: (selection) {
@@ -158,7 +202,9 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                   decoration: InputDecoration(
                     hintText: _tab == 'customers'
                         ? 'Поиск клиентов: имя, телефон, город, ТК...'
-                        : 'Поиск по запчасти, клиенту, треку, №...',
+                        : (isOperator
+                            ? 'Поиск: ячейка, запчасть, трек, №...'
+                            : 'Поиск по запчасти, клиенту, треку, №...'),
                     prefixIcon: const Icon(LucideIcons.search, size: 18),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
@@ -190,6 +236,42 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                       ],
                     ),
                   ),
+                ] else ...[
+                  const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        if (user != null && user.role == 'manager') ...[
+                          ChoiceChip(
+                            label: const Text('Мои сделки'),
+                            selected: _myOrdersOnly,
+                            onSelected: (_) => setState(() => _myOrdersOnly = true),
+                          ),
+                          const SizedBox(width: 6),
+                          ChoiceChip(
+                            label: const Text('Все сделки'),
+                            selected: !_myOrdersOnly,
+                            onSelected: (_) => setState(() => _myOrdersOnly = false),
+                          ),
+                          const SizedBox(width: 10),
+                          Container(
+                            height: 20,
+                            width: 1,
+                            color: Theme.of(context).dividerColor,
+                          ),
+                          const SizedBox(width: 10),
+                        ],
+                        _warehouseFilterChip('', 'Все'),
+                        const SizedBox(width: 6),
+                        _warehouseFilterChip('inspecting', '🔍 Проверка'),
+                        const SizedBox(width: 6),
+                        _warehouseFilterChip('transfer', '🔄 В сборке'),
+                        const SizedBox(width: 6),
+                        _warehouseFilterChip('ready', '📦 Собран'),
+                      ],
+                    ),
+                  ),
                 ],
               ],
             ),
@@ -207,7 +289,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                       onAction: _refresh,
                     ),
                     data: (data) {
-                      final filtered = _filterOrders(data.orders);
+                      final filtered = _filterOrders(data.orders, user);
                       return RefreshIndicator(
                         onRefresh: _refresh,
                         child: ListView.separated(
@@ -217,6 +299,34 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                           separatorBuilder: (_, i) => SizedBox(height: i == 0 ? 14 : 10),
                           itemBuilder: (_, i) {
                             if (i == 0) {
+                              if (isOperator) {
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF00ACC1).withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: const Color(0xFF00ACC1).withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    children: [
+                                      Icon(LucideIcons.boxes, color: Color(0xFF00ACC1), size: 20),
+                                      SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          'Складской терминал: проверка, перемещение и сборка заказов по ячейкам.',
+                                          style: TextStyle(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF00ACC1),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
                               return Card(
                                 child: ListTile(
                                   leading: const CircleAvatar(
@@ -233,7 +343,9 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                             }
                             if (i == 1) {
                               return AppSectionHeader(
-                                title: _tab == 'active' ? 'В работе' : 'Завершённые продажи',
+                                title: _tab == 'active'
+                                    ? (isOperator ? 'Очередь на сборку' : 'В работе')
+                                    : 'Завершённые продажи',
                                 caption: '${filtered.length} заказов',
                               );
                             }
@@ -244,14 +356,16 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                                     ? 'Активных заказов нет'
                                     : 'История заказов пуста',
                                 message: _tab == 'active'
-                                    ? 'Выберите запчасть и создайте заказ.'
+                                    ? (isOperator
+                                        ? 'Все текущие заказы укомплектованы.'
+                                        : 'Выберите запчасть и создайте заказ.')
                                     : 'Завершённые продажи появятся здесь.',
                               );
                             }
                             return _OrderCard(
                               order: filtered[i - 2],
                               isCompleted: _tab == 'completed',
-                              canChangeStatus: user?.isOperator == true,
+                              canChangeStatus: true,
                               onStatusChanged: () {
                                 ref.invalidate(ordersProvider);
                                 ref.invalidate(completedOrdersProvider);
@@ -370,7 +484,8 @@ class _CustomerCard extends StatelessWidget {
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
                               decoration: TextDecoration.underline,
-                              decorationColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
+                              decorationColor:
+                                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
                             ),
                           ),
                         ),
@@ -491,7 +606,7 @@ class _CustomerCard extends StatelessWidget {
   }
 }
 
-class _OrderCard extends StatelessWidget {
+class _OrderCard extends ConsumerWidget {
   final Order order;
   final bool isCompleted;
   final bool canChangeStatus;
@@ -519,7 +634,7 @@ class _OrderCard extends StatelessWidget {
 
   static const _warehouseLabels = {
     'inspecting': ('На проверке', Color(0xFF00ACC1)),
-    'transfer': ('Перемещение', Color(0xFF5E35B1)),
+    'transfer': ('В сборке', Color(0xFF5E35B1)),
     'ready': ('Собран', Color(0xFF43A047)),
   };
 
@@ -530,7 +645,10 @@ class _OrderCard extends StatelessWidget {
   };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider).valueOrNull;
+    final isOperator = user?.isOperatorOnly ?? false;
+
     final statusColor = Color(order.statusColor);
     final payInfo = _paymentLabels[order.paymentStatus] ?? ('Не оплачен', const Color(0xFFE53935));
     final whInfo = _warehouseLabels[order.warehouseStatus] ?? ('На проверке', const Color(0xFF00ACC1));
@@ -619,6 +737,35 @@ class _OrderCard extends StatelessWidget {
                 ),
               ],
             ),
+            // Prominent Warehouse Cell Badge for Warehouse Operator
+            if (isOperator && order.location.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF00ACC1).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF00ACC1).withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(LucideIcons.map_pin, size: 16, color: Color(0xFF00ACC1)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Ячейка склада: ${order.location}',
+                        style: const TextStyle(
+                          color: Color(0xFF00ACC1),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             if (order.items.length > 1)
               Column(
@@ -629,7 +776,7 @@ class _OrderCard extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: 4),
                       child: _PartLinkRow(
                         label:
-                            '${item.quantity} × ${item.partName.isNotEmpty ? item.partName : (order.partName.isNotEmpty ? order.partName : 'Запчасть #${item.partId}')}${item.price > 0 ? ' (${item.price.toStringAsFixed(0)} ₽)' : ''}',
+                            '${item.quantity} × ${item.partName.isNotEmpty ? item.partName : (order.partName.isNotEmpty ? order.partName : 'Запчасть #${item.partId}')}${(!isOperator && item.price > 0) ? ' (${item.price.toStringAsFixed(0)} ₽)' : ''}',
                         partId: !isCompleted && item.partId > 0 ? item.partId : null,
                       ),
                     ),
@@ -640,7 +787,8 @@ class _OrderCard extends StatelessWidget {
                 label: '${order.totalQuantity} × ${order.partName}',
                 partId: !isCompleted ? order.effectivePartId : null,
               ),
-            if (order.totalAmount > 0) ...[
+            // Hide financial totals from operator
+            if (!isOperator && order.totalAmount > 0) ...[
               const SizedBox(height: 6),
               Text(
                 'Итого: ${order.totalAmount.toStringAsFixed(0)} ₽${order.discount > 0 ? ' (скидка ${order.discount.toStringAsFixed(0)} ₽)' : ''}',
@@ -656,7 +804,8 @@ class _OrderCard extends StatelessWidget {
               spacing: 6,
               runSpacing: 6,
               children: [
-                _chip(payInfo.$1, payInfo.$2, icon: LucideIcons.wallet),
+                if (!isOperator)
+                  _chip(payInfo.$1, payInfo.$2, icon: LucideIcons.wallet),
                 _chip(whInfo.$1, whInfo.$2, icon: LucideIcons.package),
                 _chip(
                   order.transportCompany.isNotEmpty
@@ -674,13 +823,13 @@ class _OrderCard extends StatelessWidget {
               spacing: 12,
               runSpacing: 8,
               children: [
-                if (order.location.isNotEmpty)
+                if (!isOperator && order.location.isNotEmpty)
                   _info(LucideIcons.map_pin, order.location),
                 if (order.sellerName.isNotEmpty)
                   _info(LucideIcons.user, order.sellerName),
                 if (order.orderNumber.isNotEmpty)
                   _info(LucideIcons.hash, 'Сделка ${order.orderNumber}'),
-                if (order.buyerNumber.isNotEmpty)
+                if (!isOperator && order.buyerNumber.isNotEmpty)
                   InkWell(
                     onTap: () => PhoneLauncher.makeCall(order.buyerNumber, context),
                     borderRadius: BorderRadius.circular(4),
@@ -735,42 +884,42 @@ class _OrderCard extends StatelessWidget {
   }
 
   Widget _chip(String label, Color color, {IconData? icon}) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.14),
-      borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: color.withValues(alpha: 0.35)),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (icon != null) ...[
-          Icon(icon, size: 13, color: color),
-          const SizedBox(width: 5),
-        ],
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
-            color: color,
-          ),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
         ),
-      ],
-    ),
-  );
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 13, color: color),
+              const SizedBox(width: 5),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      );
 
   Widget _info(IconData icon, String text) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Icon(icon, size: 14, color: AppTheme.mutedColor),
-      const SizedBox(width: 5),
-      Text(
-        text,
-        style: const TextStyle(color: AppTheme.mutedColor, fontSize: 12),
-      ),
-    ],
-  );
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppTheme.mutedColor),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: const TextStyle(color: AppTheme.mutedColor, fontSize: 12),
+          ),
+        ],
+      );
 }
 
 class _PartLinkRow extends StatelessWidget {
@@ -823,7 +972,31 @@ class _PartLinkRow extends StatelessWidget {
 class _OrderActions extends ConsumerWidget {
   final Order order;
   final VoidCallback onChanged;
+
   const _OrderActions({required this.order, required this.onChanged});
+
+  Future<void> _updateWarehouseStatus(
+    BuildContext context,
+    WidgetRef ref,
+    String status,
+    String label,
+  ) async {
+    try {
+      final repo = ref.read(ordersRepositoryProvider);
+      await repo.updateOrder(order.id, {'warehouse_status': status});
+      if (!context.mounted) return;
+      onChanged();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Статус заказа #${order.id}: $label')),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      final failure = AppFailure.from(error);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка обновления: ${failure.message}')),
+      );
+    }
+  }
 
   Future<void> _confirmAction(
     BuildContext context,
@@ -878,6 +1051,141 @@ class _OrderActions extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider).valueOrNull;
+    final isOperator = user?.isOperatorOnly ?? false;
+    final isAdmin = user?.isAdmin ?? false;
+
+    // Warehouse Operator Actions
+    if (isOperator) {
+      return Row(
+        children: [
+          if (order.warehouseStatus == 'inspecting') ...[
+            Expanded(
+              flex: 4,
+              child: SizedBox(
+                height: 36,
+                child: FilledButton.tonalIcon(
+                  onPressed: () => _updateWarehouseStatus(
+                    context,
+                    ref,
+                    'transfer',
+                    'Перемещение в сборку',
+                  ),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    visualDensity: VisualDensity.compact,
+                    textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                  icon: const Icon(LucideIcons.arrow_right, size: 14),
+                  label: const Text('В сборку', overflow: TextOverflow.ellipsis),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              flex: 4,
+              child: SizedBox(
+                height: 36,
+                child: FilledButton.icon(
+                  onPressed: () => _updateWarehouseStatus(
+                    context,
+                    ref,
+                    'ready',
+                    'Собран',
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF43A047),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    visualDensity: VisualDensity.compact,
+                    textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                  icon: const Icon(LucideIcons.package_check, size: 14),
+                  label: const Text('Собран', overflow: TextOverflow.ellipsis),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+          ] else if (order.warehouseStatus == 'transfer') ...[
+            Expanded(
+              flex: 5,
+              child: SizedBox(
+                height: 36,
+                child: FilledButton.icon(
+                  onPressed: () => _updateWarehouseStatus(
+                    context,
+                    ref,
+                    'ready',
+                    'Собран',
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF43A047),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    visualDensity: VisualDensity.compact,
+                    textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                  icon: const Icon(LucideIcons.package_check, size: 14),
+                  label: const Text('Собран / Готов', overflow: TextOverflow.ellipsis),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+          ] else ...[
+            Expanded(
+              flex: 5,
+              child: Container(
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF43A047).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF43A047).withValues(alpha: 0.4)),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(LucideIcons.circle_check, size: 15, color: Color(0xFF43A047)),
+                    SizedBox(width: 6),
+                    Text(
+                      'Готов к выдаче',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF43A047),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+          ],
+          Expanded(
+            flex: 3,
+            child: SizedBox(
+              height: 36,
+              child: OutlinedButton.icon(
+                onPressed: () => _EditOrderSheet.show(
+                  context,
+                  order: order,
+                  onChanged: onChanged,
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  visualDensity: VisualDensity.compact,
+                  textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                icon: const Icon(LucideIcons.pencil, size: 13),
+                label: const Text('Детали', overflow: TextOverflow.ellipsis),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Manager / Admin Actions
     return Row(
       children: [
         Expanded(
@@ -926,34 +1234,36 @@ class _OrderActions extends ConsumerWidget {
             ),
           ),
         ),
-        const SizedBox(width: 6),
-        Expanded(
-          flex: 3,
-          child: SizedBox(
-            height: 36,
-            child: OutlinedButton.icon(
-              onPressed: () => _confirmAction(
-                context,
-                ref,
-                title: 'Отмена заказа',
-                description:
-                    'Отменить заказ #${order.id}? Запчасти останутся в наличии на складе.',
-                actionLabel: 'Отменить заказ',
-                path: ApiEndpoints.orderById(order.id),
-                method: 'DELETE',
+        if (isAdmin) ...[
+          const SizedBox(width: 6),
+          Expanded(
+            flex: 3,
+            child: SizedBox(
+              height: 36,
+              child: OutlinedButton.icon(
+                onPressed: () => _confirmAction(
+                  context,
+                  ref,
+                  title: 'Отмена заказа',
+                  description:
+                      'Отменить заказ #${order.id}? Запчасти останутся в наличии на складе.',
+                  actionLabel: 'Отменить заказ',
+                  path: ApiEndpoints.orderById(order.id),
+                  method: 'DELETE',
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: BorderSide(color: Colors.red.withValues(alpha: 0.4)),
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  visualDensity: VisualDensity.compact,
+                  textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                icon: const Icon(LucideIcons.x, size: 14),
+                label: const Text('Отмена', overflow: TextOverflow.ellipsis),
               ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.red,
-                side: BorderSide(color: Colors.red.withValues(alpha: 0.4)),
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                visualDensity: VisualDensity.compact,
-                textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-              icon: const Icon(LucideIcons.x, size: 14),
-              label: const Text('Отмена', overflow: TextOverflow.ellipsis),
             ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -1044,32 +1354,40 @@ class _EditOrderSheetState extends ConsumerState<_EditOrderSheet> {
     if (_saving) return;
     setState(() => _saving = true);
     try {
+      final user = ref.read(authProvider).valueOrNull;
+      final isOperator = user?.isOperatorOnly ?? false;
       final repo = ref.read(ordersRepositoryProvider);
-      await repo.updateOrder(
-        widget.order.id,
-        {
-          'payment_status': _paymentStatus,
-          'warehouse_status': _warehouseStatus,
-          'delivery_method': _deliveryMethod,
-          'source': _source,
-          'buyer_number': _buyerController.text.trim(),
-          'order_number': _orderNumberController.text.trim(),
-          'transport_company': _tkController.text.trim(),
-          'tracking_number': _trackingController.text.trim(),
-          'notes': _notesController.text.trim(),
-          'discount': double.tryParse(_discountController.text) ?? 0,
-        },
-      );
 
-      for (final item in widget.order.items) {
-        final newQty = int.tryParse(_qtyControllers[item.id]?.text ?? '') ?? item.quantity;
-        final newPrice = double.tryParse(_priceControllers[item.id]?.text ?? '') ?? item.price;
-        if (newQty != item.quantity || newPrice != item.price) {
-          await repo.updateOrderItem(
-            widget.order.id,
-            item.id,
-            {'quantity': newQty, 'price': newPrice},
-          );
+      final updatePayload = <String, dynamic>{
+        'warehouse_status': _warehouseStatus,
+        'delivery_method': _deliveryMethod,
+        'transport_company': _tkController.text.trim(),
+        'tracking_number': _trackingController.text.trim(),
+        'notes': _notesController.text.trim(),
+      };
+
+      if (!isOperator) {
+        updatePayload['payment_status'] = _paymentStatus;
+        updatePayload['source'] = _source;
+        updatePayload['buyer_number'] = _buyerController.text.trim();
+        updatePayload['order_number'] = _orderNumberController.text.trim();
+        updatePayload['discount'] = double.tryParse(_discountController.text) ?? 0;
+      }
+
+      await repo.updateOrder(widget.order.id, updatePayload);
+
+      // Operator cannot edit item prices
+      if (!isOperator) {
+        for (final item in widget.order.items) {
+          final newQty = int.tryParse(_qtyControllers[item.id]?.text ?? '') ?? item.quantity;
+          final newPrice = double.tryParse(_priceControllers[item.id]?.text ?? '') ?? item.price;
+          if (newQty != item.quantity || newPrice != item.price) {
+            await repo.updateOrderItem(
+              widget.order.id,
+              item.id,
+              {'quantity': newQty, 'price': newPrice},
+            );
+          }
         }
       }
 
@@ -1092,7 +1410,10 @@ class _EditOrderSheetState extends ConsumerState<_EditOrderSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(authProvider).valueOrNull;
+    final isOperator = user?.isOperatorOnly ?? false;
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 12, 20, bottomInset + 20),
       child: SingleChildScrollView(
@@ -1104,7 +1425,9 @@ class _EditOrderSheetState extends ConsumerState<_EditOrderSheet> {
               children: [
                 Expanded(
                   child: Text(
-                    'Заказ #${widget.order.id}',
+                    isOperator
+                        ? 'Складская комплектация #${widget.order.id}'
+                        : 'Заказ #${widget.order.id}',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
@@ -1115,92 +1438,122 @@ class _EditOrderSheetState extends ConsumerState<_EditOrderSheet> {
               ],
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _paymentStatus,
-                    decoration: const InputDecoration(labelText: 'Оплата'),
-                    items: const [
-                      DropdownMenuItem(value: 'unpaid', child: Text('Не оплачен')),
-                      DropdownMenuItem(value: 'prepaid', child: Text('Предоплата')),
-                      DropdownMenuItem(value: 'paid', child: Text('Оплачен')),
-                    ],
-                    onChanged: (v) {
-                      if (v != null) setState(() => _paymentStatus = v);
-                    },
+            if (isOperator) ...[
+              // Warehouse Operator fields: only warehouse status & delivery
+              DropdownButtonFormField<String>(
+                initialValue: _warehouseStatus,
+                decoration: const InputDecoration(labelText: 'Статус сборки на складе'),
+                items: const [
+                  DropdownMenuItem(value: 'inspecting', child: Text('🔍 На проверке')),
+                  DropdownMenuItem(value: 'transfer', child: Text('🔄 В процессе сборки')),
+                  DropdownMenuItem(value: 'ready', child: Text('📦 Собран и готов к выдаче')),
+                ],
+                onChanged: (v) {
+                  if (v != null) setState(() => _warehouseStatus = v);
+                },
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _deliveryMethod,
+                decoration: const InputDecoration(labelText: 'Способ выдачи / доставки'),
+                items: const [
+                  DropdownMenuItem(value: 'pickup', child: Text('Самовывоз со склада')),
+                  DropdownMenuItem(value: 'tk', child: Text('ТК (Транспортная компания)')),
+                  DropdownMenuItem(value: 'city', child: Text('Доставка курьером по городу')),
+                ],
+                onChanged: (v) {
+                  if (v != null) setState(() => _deliveryMethod = v);
+                },
+              ),
+            ] else ...[
+              // Manager / Admin: payment status & warehouse status
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _paymentStatus,
+                      decoration: const InputDecoration(labelText: 'Оплата'),
+                      items: const [
+                        DropdownMenuItem(value: 'unpaid', child: Text('Не оплачен')),
+                        DropdownMenuItem(value: 'prepaid', child: Text('Предоплата')),
+                        DropdownMenuItem(value: 'paid', child: Text('Оплачен')),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) setState(() => _paymentStatus = v);
+                      },
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _warehouseStatus,
-                    decoration: const InputDecoration(labelText: 'Склад'),
-                    items: const [
-                      DropdownMenuItem(value: 'inspecting', child: Text('Проверка')),
-                      DropdownMenuItem(value: 'transfer', child: Text('Перемещение')),
-                      DropdownMenuItem(value: 'ready', child: Text('Собран')),
-                    ],
-                    onChanged: (v) {
-                      if (v != null) setState(() => _warehouseStatus = v);
-                    },
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _warehouseStatus,
+                      decoration: const InputDecoration(labelText: 'Склад'),
+                      items: const [
+                        DropdownMenuItem(value: 'inspecting', child: Text('Проверка')),
+                        DropdownMenuItem(value: 'transfer', child: Text('В сборке')),
+                        DropdownMenuItem(value: 'ready', child: Text('Собран')),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) setState(() => _warehouseStatus = v);
+                      },
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _deliveryMethod,
-                    decoration: const InputDecoration(labelText: 'Доставка'),
-                    items: const [
-                      DropdownMenuItem(value: 'tk', child: Text('ТК')),
-                      DropdownMenuItem(value: 'pickup', child: Text('Самовывоз')),
-                      DropdownMenuItem(value: 'city', child: Text('По городу')),
-                    ],
-                    onChanged: (v) {
-                      if (v != null) setState(() => _deliveryMethod = v);
-                    },
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _deliveryMethod,
+                      decoration: const InputDecoration(labelText: 'Доставка'),
+                      items: const [
+                        DropdownMenuItem(value: 'tk', child: Text('ТК')),
+                        DropdownMenuItem(value: 'pickup', child: Text('Самовывоз')),
+                        DropdownMenuItem(value: 'city', child: Text('По городу')),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) setState(() => _deliveryMethod = v);
+                      },
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _source,
-                    decoration: const InputDecoration(labelText: 'Площадка'),
-                    items: const [
-                      DropdownMenuItem(value: 'drom', child: Text('Дром')),
-                      DropdownMenuItem(value: 'avito', child: Text('Авито')),
-                      DropdownMenuItem(value: 'messenger', child: Text('Мессенджер')),
-                      DropdownMenuItem(value: 'pickup', child: Text('На месте')),
-                    ],
-                    onChanged: (v) {
-                      if (v != null) setState(() => _source = v);
-                    },
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _source,
+                      decoration: const InputDecoration(labelText: 'Площадка'),
+                      items: const [
+                        DropdownMenuItem(value: 'drom', child: Text('Дром')),
+                        DropdownMenuItem(value: 'avito', child: Text('Авито')),
+                        DropdownMenuItem(value: 'messenger', child: Text('Мессенджер')),
+                        DropdownMenuItem(value: 'pickup', child: Text('На месте')),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) setState(() => _source = v);
+                      },
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _buyerController,
-                    decoration: const InputDecoration(labelText: 'Контакт клиента'),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _buyerController,
+                      decoration: const InputDecoration(labelText: 'Контакт клиента'),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _orderNumberController,
-                    decoration: const InputDecoration(labelText: '№ сделки'),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _orderNumberController,
+                      decoration: const InputDecoration(labelText: '№ сделки'),
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
             if (_deliveryMethod == 'tk') ...[
               const SizedBox(height: 12),
               Row(
@@ -1225,27 +1578,29 @@ class _EditOrderSheetState extends ConsumerState<_EditOrderSheet> {
             Row(
               children: [
                 Expanded(
-                  flex: 2,
+                  flex: isOperator ? 1 : 2,
                   child: TextFormField(
                     controller: _notesController,
-                    decoration: const InputDecoration(labelText: 'Примечание'),
+                    decoration: const InputDecoration(labelText: 'Примечание / комментарий'),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _discountController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Скидка (₽)'),
+                if (!isOperator) ...[
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _discountController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Скидка (₽)'),
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
             if (widget.order.items.isNotEmpty) ...[
               const SizedBox(height: 16),
-              const Text(
-                'Позиции заказа',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              Text(
+                isOperator ? 'Состав заказа для комплектации' : 'Позиции заказа',
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
               ),
               const SizedBox(height: 8),
               for (final item in widget.order.items)
@@ -1265,28 +1620,42 @@ class _EditOrderSheetState extends ConsumerState<_EditOrderSheet> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _qtyControllers[item.id],
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                          decoration: const InputDecoration(
-                            labelText: 'Кол-во',
-                            isDense: true,
+                      if (isOperator)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppTheme.surfaceColor,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '${item.quantity} шт.',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                        )
+                      else ...[
+                        Expanded(
+                          child: TextFormField(
+                            controller: _qtyControllers[item.id],
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            decoration: const InputDecoration(
+                              labelText: 'Кол-во',
+                              isDense: true,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _priceControllers[item.id],
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Цена ₽',
-                            isDense: true,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _priceControllers[item.id],
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Цена ₽',
+                              isDense: true,
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -1306,7 +1675,9 @@ class _EditOrderSheetState extends ConsumerState<_EditOrderSheet> {
                         ),
                       )
                     : const Icon(LucideIcons.check),
-                label: const Text('Сохранить изменения'),
+                label: Text(
+                  isOperator ? 'Сохранить статус сборки' : 'Сохранить изменения',
+                ),
               ),
             ),
           ],

@@ -48,6 +48,7 @@ class User {
   bool get isAdmin => role == 'admin';
   bool get isManager => role == 'manager' || role == 'admin';
   bool get isOperator => true; // все роли включают operator права
+  bool get isOperatorOnly => role == 'operator';
 }
 
 class LoginResponse {
