@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"bytes"
 	"context"
 	"crypto/sha512"
@@ -73,10 +74,10 @@ func GenerateXMLPriceList(parts []domain.Part, sellerINNs map[int64]string, base
 // SendToDromAPI отправляет XML прайс-лист на API Drom.ru
 func SendToDromAPI(ctx context.Context, cfg *config.Config, xmlData []byte) error {
 	if cfg.DromAPIKey == "" {
-		return fmt.Errorf("DROM_API_KEY не установлен в переменных окружения")
+		return errors.New("DROM_API_KEY не установлен в переменных окружения")
 	}
 	if cfg.DromPacketID == "" {
-		return fmt.Errorf("DROM_PACKET_ID не установлен в переменных окружения")
+		return errors.New("DROM_PACKET_ID не установлен в переменных окружения")
 	}
 
 	// Вычисляем auth хэш sha512

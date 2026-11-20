@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -35,7 +36,7 @@ func (s *inventoryService) AddPart(ctx context.Context, part *domain.Part) (*dom
 		Stream: constants.StreamOrdersEvents,
 		Values: map[string]interface{}{
 			"type":    "part_index_requested",
-			"part_id": fmt.Sprintf("%d", createdPart.ID),
+			"part_id": strconv.FormatInt(createdPart.ID, 10),
 		},
 	}).Err()
 	if err != nil {
@@ -141,7 +142,7 @@ func (s *inventoryService) UpdatePart(ctx context.Context, id int64, updates map
 		Stream: constants.StreamOrdersEvents,
 		Values: map[string]interface{}{
 			"type":    "part_index_requested",
-			"part_id": fmt.Sprintf("%d", id),
+			"part_id": strconv.FormatInt(id, 10),
 		},
 	}).Err()
 	if err != nil {
@@ -165,7 +166,7 @@ func (s *inventoryService) DeletePart(ctx context.Context, id int64) error {
 	for _, photoPath := range part.Photos {
 		if photoPath != "" {
 			if err := DeletePhotoFile(photoPath); err != nil {
-				fmt.Printf("Warning: Failed to delete photo file: %v\n", err)
+				slog.WarnContext(ctx, "Failed to delete photo file", slog.String("path", photoPath), logger.Err(err))
 			}
 		}
 	}
@@ -179,7 +180,7 @@ func (s *inventoryService) DeletePart(ctx context.Context, id int64) error {
 		Stream: constants.StreamOrdersEvents,
 		Values: map[string]interface{}{
 			"type":    "part_delete_requested",
-			"part_id": fmt.Sprintf("%d", id),
+			"part_id": strconv.FormatInt(id, 10),
 		},
 	}).Err()
 	if err != nil {

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -42,7 +43,7 @@ func (h *Handler) CreateDefectReportHandler(c *gin.Context) {
 	var defectReportData catalog.DefectReportRequest
 
 	if err := c.ShouldBindJSON(&defectReportData); err != nil {
-		fmt.Printf("Invalid JSON in createDefectReport: %v\n", err)
+		slog.WarnContext(c.Request.Context(), "Invalid JSON in createDefectReport", "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -68,7 +69,7 @@ func (h *Handler) CreateDefectReportHandler(c *gin.Context) {
 
 	createdParts, err := h.defectReports.Create(c.Request.Context(), &defectReportData, true)
 	if err != nil {
-		fmt.Printf("Failed to process defect report: %v\n", err)
+		slog.ErrorContext(c.Request.Context(), "Failed to process defect report", "error", err)
 		if service.DefectReportUnavailable(err) {
 			c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
 			return
@@ -76,7 +77,7 @@ func (h *Handler) CreateDefectReportHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось обработать дефектную ведомость"})
 		return
 	}
-	fmt.Printf("Created defect report for %s %s %d with %d parts (Seller: %s)\n", defectReportData.Brand, defectReportData.Model, defectReportData.Year, len(createdParts), defectReportData.SellerName)
+	slog.InfoContext(c.Request.Context(), "Created defect report", "brand", defectReportData.Brand, "model", defectReportData.Model, "year", defectReportData.Year, "parts_count", len(createdParts), "seller", defectReportData.SellerName)
 
 	// Логируем активность пользователя
 	h.logUserActivity(c, "create_defect_report", "part", fmt.Sprintf("Created defect report with %d parts for %s %s %d", len(createdParts), defectReportData.Brand, defectReportData.Model, defectReportData.Year), nil)

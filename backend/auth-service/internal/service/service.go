@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"context"
 	"fmt"
 	"log/slog"
@@ -73,13 +74,13 @@ func NewAuthService(
 func (s *authService) AuthenticateUser(email, password string) (*domain.User, error) {
 	trimmedIdentifier := strings.TrimSpace(email)
 	if trimmedIdentifier == "" {
-		return nil, fmt.Errorf("логин не может быть пустым")
+		return nil, errors.New("логин не может быть пустым")
 	}
 
 	if s.rateLimiter != nil {
 		if limited, _ := s.rateLimiter.IsLimited(strings.ToLower(trimmedIdentifier)+":user", 10, time.Minute); limited {
 			slog.Warn("Rate limit exceeded for user login", slog.String("identifier", trimmedIdentifier))
-			return nil, fmt.Errorf("слишком много попыток входа")
+			return nil, errors.New("слишком много попыток входа")
 		}
 	}
 
@@ -87,19 +88,19 @@ func (s *authService) AuthenticateUser(email, password string) (*domain.User, er
 	if err != nil {
 		slog.Warn("User not found during login", slog.String("identifier", trimmedIdentifier))
 		time.Sleep(time.Second)
-		return nil, fmt.Errorf("неверные учетные данные")
+		return nil, errors.New("неверные учетные данные")
 	}
 
 	if user.Provider != "local" || user.Password == "" {
 		slog.Warn("Attempt to login with non-local user", slog.String("identifier", trimmedIdentifier))
 		time.Sleep(time.Second)
-		return nil, fmt.Errorf("неверные учетные данные")
+		return nil, errors.New("неверные учетные данные")
 	}
 
 	if err := security.CheckPassword(user.Password, password); err != nil {
 		slog.Warn("Invalid password during login", slog.String("identifier", trimmedIdentifier))
 		time.Sleep(time.Second)
-		return nil, fmt.Errorf("неверные учетные данные")
+		return nil, errors.New("неверные учетные данные")
 	}
 
 	slog.Info("User authenticated successfully", slog.String("email", user.Email), slog.String("name", user.Name))
@@ -164,7 +165,7 @@ func (s *authService) CreateUser(req domain.CreateUserRequest) (*domain.User, er
 	}
 
 	if req.Username == "" && req.Email == "" {
-		return nil, fmt.Errorf("необходимо указать логин или email")
+		return nil, errors.New("необходимо указать логин или email")
 	}
 
 	if req.Username != "" {
@@ -173,7 +174,7 @@ func (s *authService) CreateUser(req domain.CreateUserRequest) (*domain.User, er
 			return nil, err
 		}
 		if exists {
-			return nil, fmt.Errorf("пользователь с таким логином уже существует")
+			return nil, errors.New("пользователь с таким логином уже существует")
 		}
 	}
 
@@ -183,14 +184,14 @@ func (s *authService) CreateUser(req domain.CreateUserRequest) (*domain.User, er
 			return nil, err
 		}
 		if exists {
-			return nil, fmt.Errorf("пользователь с таким email уже существует")
+			return nil, errors.New("пользователь с таким email уже существует")
 		}
 	}
 
 	hashedPassword, err := security.HashPassword(req.Password)
 	if err != nil {
 		slog.Error("Failed to hash password", logger.Err(err))
-		return nil, fmt.Errorf("не удалось создать пользователя")
+		return nil, errors.New("не удалось создать пользователя")
 	}
 
 	user := &domain.User{
@@ -238,7 +239,7 @@ func (s *authService) GetUsers() ([]domain.User, error) {
 func (s *authService) UpdateUser(userID int64, req domain.UpdateUserRequest) (*domain.User, error) {
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil {
-		return nil, fmt.Errorf("пользователь не найден")
+		return nil, errors.New("пользователь не найден")
 	}
 
 	req.Username = strings.ToLower(strings.TrimSpace(req.Username))
@@ -250,7 +251,7 @@ func (s *authService) UpdateUser(userID int64, req domain.UpdateUserRequest) (*d
 			return nil, err
 		}
 		if exists {
-			return nil, fmt.Errorf("пользователь с таким логином уже существует")
+			return nil, errors.New("пользователь с таким логином уже существует")
 		}
 	}
 
@@ -260,7 +261,7 @@ func (s *authService) UpdateUser(userID int64, req domain.UpdateUserRequest) (*d
 			return nil, err
 		}
 		if exists {
-			return nil, fmt.Errorf("пользователь с таким email уже существует")
+			return nil, errors.New("пользователь с таким email уже существует")
 		}
 	}
 
@@ -282,7 +283,7 @@ func (s *authService) UpdateUser(userID int64, req domain.UpdateUserRequest) (*d
 	if updateParams.Username == "" && updateParams.Name == "" && updateParams.Email == "" &&
 		updateParams.Initials == "" && updateParams.INN == "" &&
 		updateParams.Role == "" && updateParams.AvatarURL == nil {
-		return nil, fmt.Errorf("нет полей для обновления")
+		return nil, errors.New("нет полей для обновления")
 	}
 
 	oldName := user.Name
@@ -307,7 +308,7 @@ func (s *authService) UpdateUser(userID int64, req domain.UpdateUserRequest) (*d
 func (s *authService) DeleteUser(userID int64) error {
 	_, err := s.userRepo.FindByID(userID)
 	if err != nil {
-		return fmt.Errorf("пользователь не найден")
+		return errors.New("пользователь не найден")
 	}
 
 	if err := s.userRepo.Delete(userID); err != nil {
@@ -376,7 +377,7 @@ func (s *authService) GenerateCSRFToken(userID *int64) (string, error) {
 func (s *authService) UpdateProfile(userID int64, req domain.UpdateProfileRequest) (*domain.User, error) {
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil {
-		return nil, fmt.Errorf("пользователь не найден")
+		return nil, errors.New("пользователь не найден")
 	}
 
 	req.Username = strings.ToLower(strings.TrimSpace(req.Username))
@@ -386,7 +387,7 @@ func (s *authService) UpdateProfile(userID int64, req domain.UpdateProfileReques
 			return nil, err
 		}
 		if exists {
-			return nil, fmt.Errorf("пользователь с таким логином уже существует")
+			return nil, errors.New("пользователь с таким логином уже существует")
 		}
 	}
 
@@ -416,7 +417,7 @@ func (s *authService) UpdateProfile(userID int64, req domain.UpdateProfileReques
 func (s *authService) ChangePassword(userID int64, oldPassword, newPassword string) error {
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil {
-		return fmt.Errorf("пользователь не найден")
+		return errors.New("пользователь не найден")
 	}
 
 	if strings.ToLower(strings.TrimSpace(user.Provider)) != "local" {
@@ -424,12 +425,12 @@ func (s *authService) ChangePassword(userID int64, oldPassword, newPassword stri
 	}
 
 	if !security.VerifyPassword(user.Password, oldPassword) {
-		return fmt.Errorf("неверный текущий пароль")
+		return errors.New("неверный текущий пароль")
 	}
 
 	newPassword = strings.TrimSpace(newPassword)
 	if len(newPassword) < 8 {
-		return fmt.Errorf("новый пароль должен содержать минимум 8 символов")
+		return errors.New("новый пароль должен содержать минимум 8 символов")
 	}
 
 	hashed, err := security.HashPassword(newPassword)
@@ -448,7 +449,7 @@ func (s *authService) ChangePassword(userID int64, oldPassword, newPassword stri
 func (s *authService) UpdateAvatar(userID int64, avatarURL string) (*domain.User, error) {
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil {
-		return nil, fmt.Errorf("пользователь не найден")
+		return nil, errors.New("пользователь не найден")
 	}
 
 	updatedUser, err := s.userRepo.UpdateAvatar(userID, strings.TrimSpace(avatarURL))
@@ -464,7 +465,7 @@ func (s *authService) UpdateAvatar(userID int64, avatarURL string) (*domain.User
 func (s *authService) DeleteAvatar(userID int64) (*domain.User, error) {
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil {
-		return nil, fmt.Errorf("пользователь не найден")
+		return nil, errors.New("пользователь не найден")
 	}
 
 	updatedUser, err := s.userRepo.UpdateAvatar(userID, "")

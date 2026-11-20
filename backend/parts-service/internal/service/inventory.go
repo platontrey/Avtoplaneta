@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"strconv"
 	"time"
@@ -103,7 +102,7 @@ func (s *inventoryService) getInventoryFromElasticsearchWithCount(ctx context.Co
 
 	esParts, totalES, err := s.es.SearchParts(esQuery, from, params.Limit)
 	if err != nil {
-		fmt.Printf("Error searching with Elasticsearch: %v\n", err)
+		slog.WarnContext(ctx, "Error searching with Elasticsearch, falling back to database", logger.Err(err))
 		// Fallback to database
 		return s.getInventoryFromDatabaseWithCount(ctx, params)
 	}

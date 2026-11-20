@@ -1,6 +1,7 @@
 package security
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -27,7 +28,7 @@ type CookieSessionStore struct {
 // NewCookieSessionStore создает новое хранилище сессий на cookies
 func NewCookieSessionStore(sessionSecret string) (*CookieSessionStore, error) {
 	if len(sessionSecret) < 32 {
-		return nil, fmt.Errorf("SESSION_SECRET должен быть не менее 32 символов")
+		return nil, errors.New("SESSION_SECRET должен быть не менее 32 символов")
 	}
 
 	cs := sessions.NewCookieStore([]byte(sessionSecret))
@@ -84,17 +85,17 @@ func ValidateSessionCookie(store SessionStore, cookieHeader string) (int64, erro
 
 	val, ok := session.Values["user_id"]
 	if !ok || val == nil {
-		return 0, fmt.Errorf("user_id отсутствует в сессии")
+		return 0, errors.New("user_id отсутствует в сессии")
 	}
 
 	userID, ok := GetUserIDFromSessionValue(val)
 	if !ok {
-		return 0, fmt.Errorf("неверный тип user_id в сессии")
+		return 0, errors.New("неверный тип user_id в сессии")
 	}
 
 	if loginTime, ok := session.Values["login_time"].(int64); ok {
 		if time.Now().Unix()-loginTime > 86400*30 {
-			return 0, fmt.Errorf("сессия истекла")
+			return 0, errors.New("сессия истекла")
 		}
 	}
 

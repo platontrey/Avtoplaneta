@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -36,10 +37,10 @@ func (h *Handler) UploadPartPhotoHandler(c *gin.Context) {
 	// Получить обновленную часть для возврата всех фото
 	updatedPart, err := h.inventoryService.GetPartByID(ctx, int64(partID))
 	if err != nil {
-		fmt.Printf("DEBUG UploadPartPhotoHandler: Failed to fetch updated part: %v\n", err)
+		slog.DebugContext(ctx, "UploadPartPhotoHandler: failed to fetch updated part", "error", err)
 		updatedPart = &domain.Part{}
 	} else {
-		fmt.Printf("DEBUG UploadPartPhotoHandler: Updated part photos: %v\n", updatedPart.Photos)
+		slog.DebugContext(ctx, "UploadPartPhotoHandler: updated part photos", "photos", updatedPart.Photos)
 	}
 
 	response := gin.H{
@@ -71,11 +72,11 @@ func (h *Handler) DeletePartPhotoHandler(c *gin.Context) {
 	if photoPath == "" {
 		photoPath = c.Query("photo_url")
 	}
-	fmt.Printf("DeletePartPhotoHandler: partID=%d, photoPath='%s'\n", partID, photoPath)
+	slog.DebugContext(c.Request.Context(), "DeletePartPhotoHandler: started", "part_id", partID, "photo_path", photoPath)
 
 	ctx := c.Request.Context()
 	if err := h.inventoryService.DeletePartPhoto(ctx, int64(partID), photoPath); err != nil {
-		fmt.Printf("DeletePartPhotoHandler: Error deleting photo: %v\n", err)
+		slog.ErrorContext(ctx, "DeletePartPhotoHandler: error deleting photo", "error", err, "part_id", partID, "photo_path", photoPath)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -86,7 +87,7 @@ func (h *Handler) DeletePartPhotoHandler(c *gin.Context) {
 	if photoPath != "" {
 		photoInfo = photoPath
 	}
-	fmt.Printf("DeletePartPhotoHandler: Successfully deleted %s for part ID %d\n", photoInfo, partID)
+	slog.InfoContext(ctx, "DeletePartPhotoHandler: photo deleted", "photo_info", photoInfo, "part_id", partID)
 	h.logUserActivity(c, "delete_photo", "part", fmt.Sprintf("Deleted photo %s for part ID: %d", photoInfo, partID), &partIDUint)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Фото удалено успешно"})

@@ -161,7 +161,7 @@ func collectPhotosToDelete(parts []domain.Part) []string {
 func (s *inventoryService) resolveDeleteIDs(ctx context.Context, req *partsv1.BulkDeletePartsRequest) ([]int64, error) {
 	if req.Scope != nil && req.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_FILTER {
 		if isFilterEmpty(req.Scope.Filter) && !req.ConfirmEntireCatalog {
-			return nil, fmt.Errorf("массовое удаление всего каталога требует явного подтверждения (confirm_entire_catalog)")
+			return nil, errors.New("массовое удаление всего каталога требует явного подтверждения (confirm_entire_catalog)")
 		}
 		resolved, err := s.resolvePartIDsFromFilter(ctx, req.Scope.Filter)
 		if err != nil {
@@ -264,7 +264,7 @@ func convertLegacyPartsUpdates(parts []*partsv1.BulkUpdatePartData) ([]map[strin
 func (s *inventoryService) prepareBulkUpdateFilter(ctx context.Context, req *partsv1.BulkUpdatePartsRequest) (map[string]interface{}, bool, error) {
 	if req.Scope.Type == partsv1.BulkScopeType_BULK_SCOPE_TYPE_FILTER {
 		if isFilterEmpty(req.Scope.Filter) && !req.ConfirmEntireCatalog {
-			return nil, false, fmt.Errorf("массовая операция над всем каталогом требует явного подтверждения (confirm_entire_catalog)")
+			return nil, false, errors.New("массовая операция над всем каталогом требует явного подтверждения (confirm_entire_catalog)")
 		}
 
 		params := inventoryQueryParamsFromProtoFilter(req.Scope.Filter)

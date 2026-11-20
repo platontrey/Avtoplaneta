@@ -1,6 +1,7 @@
 package search
 
 import (
+	"errors"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -64,7 +65,7 @@ func InitElasticsearch(url string) error {
 // SearchParts выполняет поиск запчастей по запросу
 func SearchParts(query map[string]interface{}, from, size int) ([]ElasticsearchPart, int64, error) {
 	if esClient == nil {
-		return nil, 0, fmt.Errorf("elasticsearch client is not initialized")
+		return nil, 0, errors.New("elasticsearch client is not initialized")
 	}
 
 	queryBody := map[string]interface{}{

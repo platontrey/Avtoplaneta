@@ -1,6 +1,7 @@
 package security
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -73,7 +74,7 @@ func ValidateJWTToken(tokenString, secret string) (*JWTClaims, error) {
 
 	claims, ok := token.Claims.(*JWTClaims)
 	if !ok || !token.Valid {
-		return nil, fmt.Errorf("невалидные claims")
+		return nil, errors.New("невалидные claims")
 	}
 
 	return claims, nil
@@ -94,12 +95,12 @@ func ValidateRefreshToken(tokenString, secret string) (int64, error) {
 
 	claims, ok := token.Claims.(*jwt.RegisteredClaims)
 	if !ok || !token.Valid {
-		return 0, fmt.Errorf("невалидные claims в refresh token")
+		return 0, errors.New("невалидные claims в refresh token")
 	}
 
 	var userID int64
 	if _, err := fmt.Sscanf(claims.Subject, "%d", &userID); err != nil {
-		return 0, fmt.Errorf("невалидный subject в refresh token")
+		return 0, errors.New("невалидный subject в refresh token")
 	}
 
 	return userID, nil

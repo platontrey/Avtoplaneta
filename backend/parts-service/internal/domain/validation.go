@@ -1,7 +1,7 @@
 package domain
 
 import (
-	"fmt"
+	"errors"
 	"strconv"
 	"time"
 
@@ -11,16 +11,16 @@ import (
 // ValidatePart выполняет валидацию данных запчасти
 func ValidatePart(part *Part) error {
 	if len(part.Name) > 255 {
-		return fmt.Errorf("название слишком длинное")
+		return errors.New("название слишком длинное")
 	}
 	if len(part.Description) > 1000 {
-		return fmt.Errorf("описание слишком длинное")
+		return errors.New("описание слишком длинное")
 	}
 	if part.Quantity < 0 {
-		return fmt.Errorf("количество должно быть не менее 0")
+		return errors.New("количество должно быть не менее 0")
 	}
 	if part.Price < 0 {
-		return fmt.Errorf("цена не может быть отрицательной")
+		return errors.New("цена не может быть отрицательной")
 	}
 	return nil
 }
@@ -32,7 +32,7 @@ func normalizeQuantity(value interface{}) (interface{}, error) {
 	}
 	intQty := int(qty)
 	if intQty < 0 {
-		return nil, fmt.Errorf("количество должно быть не менее 0")
+		return nil, errors.New("количество должно быть не менее 0")
 	}
 	return intQty, nil
 }
@@ -44,7 +44,7 @@ func normalizePrice(value interface{}) (interface{}, error) {
 	}
 	parsedPrice, err := strconv.ParseFloat(price, 64)
 	if err != nil {
-		return nil, fmt.Errorf("неверный формат цены")
+		return nil, errors.New("неверный формат цены")
 	}
 	return parsedPrice, nil
 }

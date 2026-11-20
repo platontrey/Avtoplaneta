@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -66,7 +67,7 @@ func (h *Handler) GetInventoryHandler(c *gin.Context) {
 	ctx := c.Request.Context()
 	parts, total, err := h.inventoryService.GetInventoryWithCount(ctx, queryParams)
 	if err != nil {
-		fmt.Printf("GetInventory FAILED with error: %v\n", err)
+		slog.ErrorContext(ctx, "GetInventory failed", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось получить инвентарь: " + err.Error()})
 		return
 	}
@@ -88,12 +89,12 @@ func (h *Handler) GetInventoryHandler(c *gin.Context) {
 func (h *Handler) AddPartHandler(c *gin.Context) {
 	var part domain.Part
 	if err := c.ShouldBindJSON(&part); err != nil {
-		fmt.Printf("Invalid JSON in AddPart: %v\n", err)
+		slog.WarnContext(c.Request.Context(), "Invalid JSON in AddPart", "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	fmt.Printf("Received part data: %+v\n", part)
+		slog.DebugContext(c.Request.Context(), "Received part data", "part", part)
 
 	ctx := c.Request.Context()
 	createdPart, err := h.inventoryService.AddPart(ctx, &part)
@@ -146,16 +147,16 @@ func (h *Handler) UpdatePartHandler(c *gin.Context) {
 
 	var updateData map[string]interface{}
 	if err := c.ShouldBindJSON(&updateData); err != nil {
-		fmt.Printf("Invalid JSON in UpdatePart: %v\n", err)
+		slog.WarnContext(c.Request.Context(), "Invalid JSON in UpdatePart", "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	fmt.Printf("Received updates for part %s: %+v\n", partIDStr, updateData)
+		slog.DebugContext(c.Request.Context(), "Received updates for part", "part_id", partIDStr, "updates", updateData)
 
 	ctx := c.Request.Context()
 	if err := h.inventoryService.UpdatePart(ctx, int64(partID), updateData); err != nil {
-		fmt.Printf("UpdatePart FAILED with error: %v\n", err)
+		slog.ErrorContext(ctx, "UpdatePart failed", "part_id", partIDStr, "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Не удалось обновить часть: %v", err)})
 		return
 	}

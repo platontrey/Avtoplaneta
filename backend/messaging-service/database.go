@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"embed"
-	"fmt"
 	"log"
+	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -70,7 +70,7 @@ func InitRedis() {
 		log.Fatal("Failed to connect to Redis:", err)
 	}
 
-	fmt.Println("Redis connected successfully")
+	slog.Info("Redis connected successfully")
 	// Обновляем ссылку на RedisClient в сервисе
 	if svc != nil {
 		svc.(*messagingService).redis = RedisClient

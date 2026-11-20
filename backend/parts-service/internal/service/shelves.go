@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -14,7 +13,7 @@ import (
 
 // DeleteZeroQuantityPartsBySupplier удаляет запчасти с нулевым количеством по поставщику
 func (s *inventoryService) DeleteZeroQuantityPartsBySupplier(ctx context.Context, supplierCode string) (int64, error) {
-	fmt.Printf("Service: DeleteZeroQuantityPartsBySupplier called with supplier_code='%s'\n", supplierCode)
+	slog.InfoContext(ctx, "DeleteZeroQuantityPartsBySupplier started", slog.String("supplier_code", supplierCode))
 
 	var (
 		deletedCount int64
@@ -31,7 +30,7 @@ func (s *inventoryService) DeleteZeroQuantityPartsBySupplier(ctx context.Context
 		deletedCount, err = s.repo.DeleteZeroQuantityPartsBySupplier(ctx, supplierCode)
 	}
 	if err != nil {
-		fmt.Printf("Service: DeleteZeroQuantityPartsBySupplier failed for supplier_code='%s': %v\n", supplierCode, err)
+		slog.ErrorContext(ctx, "DeleteZeroQuantityPartsBySupplier failed", slog.String("supplier_code", supplierCode), logger.Err(err))
 		return 0, err
 	}
 
@@ -47,7 +46,10 @@ func (s *inventoryService) DeleteZeroQuantityPartsBySupplier(ctx context.Context
 		s.invalidateStatisticsCache(ctx)
 	}
 
-	fmt.Printf("Service: DeleteZeroQuantityPartsBySupplier completed successfully for supplier_code='%s', deleted %d parts\n", supplierCode, deletedCount)
+	slog.InfoContext(ctx, "DeleteZeroQuantityPartsBySupplier completed successfully",
+		slog.String("supplier_code", supplierCode),
+		slog.Int64("deleted_count", deletedCount),
+	)
 	return deletedCount, nil
 }
 
@@ -73,10 +75,10 @@ func (s *inventoryService) GetSupplierBatches(ctx context.Context) ([]domain.Sup
 func (s *inventoryService) GetSupplierCodes(ctx context.Context) ([]string, error) {
 	codes, err := s.repo.GetSupplierCodes(ctx)
 	if err != nil {
-		fmt.Printf("Service: GetSupplierCodes failed: %v\n", err)
+		slog.ErrorContext(ctx, "GetSupplierCodes failed", logger.Err(err))
 		return nil, err
 	}
-	fmt.Printf("Service: GetSupplierCodes returned %d codes\n", len(codes))
+	slog.DebugContext(ctx, "GetSupplierCodes returned codes", slog.Int("count", len(codes)))
 	return codes, nil
 }
 

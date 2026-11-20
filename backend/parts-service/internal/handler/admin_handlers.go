@@ -168,17 +168,17 @@ func (h *Handler) DeleteZeroQuantityPartsBySupplierHandler(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("DeleteZeroQuantityPartsBySupplierHandler: supplier_code='%s'\n", supplierCode)
-
 	ctx := c.Request.Context()
+	slog.DebugContext(ctx, "DeleteZeroQuantityPartsBySupplierHandler started", "supplier_code", supplierCode)
+
 	deletedCount, err := h.inventoryService.DeleteZeroQuantityPartsBySupplier(ctx, supplierCode)
 	if err != nil {
-		fmt.Printf("DeleteZeroQuantityPartsBySupplierHandler: error deleting parts for supplier_code='%s': %v\n", supplierCode, err)
+		slog.ErrorContext(ctx, "DeleteZeroQuantityPartsBySupplierHandler: error deleting parts", "supplier_code", supplierCode, "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось удалить запчасти"})
 		return
 	}
 
-	fmt.Printf("DeleteZeroQuantityPartsBySupplierHandler: successfully deleted %d parts for supplier_code='%s'\n", deletedCount, supplierCode)
+	slog.InfoContext(ctx, "DeleteZeroQuantityPartsBySupplierHandler: successfully deleted parts", "deleted_count", deletedCount, "supplier_code", supplierCode)
 
 	// Логируем массовое удаление запчастей с quantity=0
 	h.logUserActivity(c, "delete_zero_quantity_parts", "part", fmt.Sprintf("Deleted %d zero-quantity parts for supplier code: %s", deletedCount, supplierCode), nil)

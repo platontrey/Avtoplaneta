@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"errors"
 	"context"
 	"fmt"
 	"io/fs"
@@ -80,7 +81,7 @@ func Connect(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
 // RunMigrations применяет миграции из fs.FS с версионированием через schema_migrations
 func RunMigrations(ctx context.Context, pool *pgxpool.Pool, fsys fs.FS, dir string) error {
 	if pool == nil {
-		return fmt.Errorf("postgres pool cannot be nil")
+		return errors.New("postgres pool cannot be nil")
 	}
 
 	// 1. Создаем таблицу schema_migrations при ее отсутствии

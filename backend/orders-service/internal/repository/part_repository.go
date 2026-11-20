@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"context"
 	"fmt"
 	"log/slog"
@@ -47,7 +48,7 @@ func (r *partRepositoryForOrders) FindByID(ctx context.Context, id int64) (*doma
 }
 
 func (r *partRepositoryForOrders) UpdateQuantity(ctx context.Context, id int64, newQuantity int) error {
-	return fmt.Errorf("UpdateQuantity is not supported via gRPC yet")
+	return errors.New("UpdateQuantity is not supported via gRPC yet")
 }
 
 func (r *partRepositoryForOrders) DecreaseQuantity(ctx context.Context, id int64, amount int, operationID string) error {
