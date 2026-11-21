@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Edit, Trash2, CheckCircle2 } from 'lucide-react';
 import type { Order } from '@/lib/types';
-import { SOURCE_LABELS, PAYMENT_OPTIONS, WAREHOUSE_OPTIONS, DELIVERY_OPTIONS } from '../constants';
+import { SOURCE_LABELS, PAYMENT_OPTIONS, WAREHOUSE_OPTIONS, DELIVERY_OPTIONS, normalizeWarehouseStatus } from '../constants';
 import { calcOrderTotal, renderOrderParts } from '../utils/orderHelpers';
 
 interface OrderMobileCardProps {
@@ -106,7 +106,7 @@ export const OrderMobileCard: React.FC<OrderMobileCardProps> = ({
             </Select>
 
             <Select
-              value={order.warehouse_status || 'inspecting'}
+              value={normalizeWarehouseStatus(order.warehouse_status)}
               onValueChange={(value) =>
                 onQuickUpdate(order.id, { warehouse_status: value })
               }

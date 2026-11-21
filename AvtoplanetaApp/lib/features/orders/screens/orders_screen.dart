@@ -1320,7 +1320,11 @@ class _EditOrderSheetState extends ConsumerState<_EditOrderSheet> {
     super.initState();
     final o = widget.order;
     _paymentStatus = o.paymentStatus;
-    _warehouseStatus = o.warehouseStatus;
+    var ws = o.warehouseStatus;
+    if (ws == 'transfer') ws = 'picking';
+    if (ws == 'ready') ws = 'packed';
+    if (ws.isEmpty) ws = 'pending';
+    _warehouseStatus = ws;
     _deliveryMethod = o.deliveryMethod;
     _source = o.source;
     _buyerController = TextEditingController(text: o.buyerNumber);

@@ -19,7 +19,7 @@ import {
   Truck,
 } from 'lucide-react';
 import type { Order } from '@/lib/types';
-import { WAREHOUSE_OPTIONS, DELIVERY_OPTIONS } from '../constants';
+import { DELIVERY_OPTIONS, getWarehouseStatusLabel } from '../constants';
 
 interface WarehouseOrdersViewProps {
   orders: Order[];
@@ -383,7 +383,7 @@ export const WarehouseOrdersView: React.FC<WarehouseOrdersViewProps> = ({
                   <div className="text-xs text-muted-foreground">
                     Текущий статус:{' '}
                     <span className="font-semibold text-foreground">
-                      {WAREHOUSE_OPTIONS.find((w) => w.value === currentStatus)?.label || currentStatus}
+                      {getWarehouseStatusLabel(currentStatus)}
                     </span>
                   </div>
 

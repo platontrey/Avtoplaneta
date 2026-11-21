@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trash2 } from 'lucide-react';
 import type { Order, OrderItem } from '@/lib/types';
-import { PAYMENT_OPTIONS, WAREHOUSE_OPTIONS, DELIVERY_OPTIONS } from '../constants';
+import { PAYMENT_OPTIONS, WAREHOUSE_OPTIONS, DELIVERY_OPTIONS, normalizeWarehouseStatus } from '../constants';
 
 interface EditOrderDialogProps {
   order: Order | null;
@@ -66,7 +66,7 @@ export const EditOrderDialog: React.FC<EditOrderDialogProps> = ({
       setOrderNumber(order.order_number || '');
       setSource(order.source || 'drom');
       setPayment(order.payment_status || 'unpaid');
-      setWarehouse(order.warehouse_status || 'pending');
+      setWarehouse(normalizeWarehouseStatus(order.warehouse_status));
       setDelivery(order.delivery_method || 'pickup');
       setTk(order.transport_company || '');
       setTracking(order.tracking_number || '');
