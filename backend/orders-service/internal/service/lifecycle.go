@@ -151,9 +151,9 @@ func (s *ordersService) CreateOrder(ctx context.Context, req domain.CreateOrderR
 	warehouseStatus := strings.TrimSpace(req.WarehouseStatus)
 	if warehouseStatus == "" {
 		if req.QuickSale {
-			warehouseStatus = "ready"
+			warehouseStatus = "packed"
 		} else {
-			warehouseStatus = "inspecting"
+			warehouseStatus = "pending"
 		}
 	}
 
@@ -171,9 +171,9 @@ func (s *ordersService) CreateOrder(ctx context.Context, req domain.CreateOrderR
 		}
 	}
 
-	initialStatus := "Принят в обработку"
-	if paymentStatus == "unpaid" && !req.QuickSale {
-		initialStatus = "Ожидает предоплаты"
+	initialStatus := "processing"
+	if req.QuickSale {
+		initialStatus = "ready"
 	}
 
 	customerID := s.resolveCustomerForOrder(ctx, req, buyerNumber)
@@ -278,8 +278,14 @@ func (s *ordersService) CreateOrder(ctx context.Context, req domain.CreateOrderR
 // UpdateOrderStatus обновляет статус заказа
 func (s *ordersService) UpdateOrderStatus(ctx context.Context, orderID int64, status string) error {
 	validStatuses := map[string]bool{
-		"yellow":                      true,
+		"new":                         true,
+		"processing":                  true,
+		"ready":                       true,
+		"completed":                   true,
+		"cancelled":                   true,
+		// legacy compatibility
 		"green":                       true,
+		"yellow":                      true,
 		"red":                         true,
 		"Принят в обработку":          true,
 		"Ожидает предоплаты":          true,
@@ -305,6 +311,20 @@ func (s *ordersService) UpdateOrderStatus(ctx context.Context, orderID int64, st
 	}
 
 	switch status {
+	case "new":
+		updates["warehouse_status"] = "pending"
+	case "ready", "Готов к выдаче":
+		updates["status"] = "ready"
+		updates["status_text"] = "Готов к выдаче"
+		updates["warehouse_status"] = "packed"
+	case "completed", "green", "Выдан клиенту":
+		updates["status"] = "completed"
+		updates["status_text"] = "Выдан / Завершён"
+		updates["payment_status"] = "paid"
+		updates["warehouse_status"] = "shipped"
+	case "cancelled", "Отменен", "Возврат":
+		updates["status"] = "cancelled"
+		updates["status_text"] = "Отменен"
 	case "Оплачен":
 		updates["payment_status"] = "paid"
 	case "Ожидает предоплаты":
@@ -312,18 +332,9 @@ func (s *ordersService) UpdateOrderStatus(ctx context.Context, orderID int64, st
 	case "На фотофиксации":
 		updates["warehouse_status"] = "inspecting"
 	case "Перемещение между складами":
-		updates["warehouse_status"] = "transfer"
+		updates["warehouse_status"] = "picking"
 	case "Проверен":
-		updates["warehouse_status"] = "ready"
-	case "Упаковывается":
-		updates["warehouse_status"] = "packing"
-	case "Готов к выдаче":
-		updates["warehouse_status"] = "ready"
-		updates["payment_status"] = "paid"
-	case "Отправлен":
-		updates["payment_status"] = "paid"
-	case "Выдан клиенту":
-		updates["payment_status"] = "paid"
+		updates["warehouse_status"] = "packed"
 	}
 
 	if err := s.orderRepo.Update(ctx, orderID, updates); err != nil {
@@ -368,15 +379,21 @@ func (s *ordersService) UpdateOrderDetails(ctx context.Context, orderID int64, r
 		updates["warehouse_status"] = ws
 		if req.Status == nil {
 			switch ws {
+			case "pending":
+				updates["status"] = "new"
+				updates["status_text"] = "В очереди на сборку"
 			case "inspecting":
-				updates["status"] = "На фотофиксации"
-				updates["status_text"] = "На фотофиксации"
-			case "transfer":
-				updates["status"] = "Перемещение между складами"
-				updates["status_text"] = "Перемещение между складами"
-			case "ready":
-				updates["status"] = "Проверен"
-				updates["status_text"] = "Проверен"
+				updates["status"] = "processing"
+				updates["status_text"] = "На осмотре / фото"
+			case "picking", "transfer":
+				updates["status"] = "processing"
+				updates["status_text"] = "В процессе сборки"
+			case "packed", "ready":
+				updates["status"] = "ready"
+				updates["status_text"] = "Собран / Готов к выдаче"
+			case "shipped":
+				updates["status"] = "completed"
+				updates["status_text"] = "Выдан / Отгружен"
 			}
 		}
 	}

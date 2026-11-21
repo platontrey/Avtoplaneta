@@ -13,10 +13,10 @@ import (
 
 const CompleteOrderRecord = `-- name: CompleteOrderRecord :exec
 UPDATE orders
-SET status = 'green',
-    status_text = 'Завершён',
+SET status = 'completed',
+    status_text = 'Выдан / Завершён',
     payment_status = 'paid',
-    warehouse_status = 'ready',
+    warehouse_status = 'shipped',
     auto_deleted = TRUE,
     completed_at = NOW(),
     updated_at = NOW()

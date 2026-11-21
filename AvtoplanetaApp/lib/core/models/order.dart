@@ -56,36 +56,43 @@ abstract class Order with _$Order {
 
   // Цвета статусов для UI
   static const statusColors = {
-    'Ожидает забора ТК': 0xFFFB8C00,
-    'Требуется заказ ТК': 0xFFE53935,
-    'К отправке в ТК': 0xFF1E88E5,
-    'Ожидает трек-номер': 0xFF8E24AA,
-    'Требует уточнения': 0xFFD81B60,
-    'Принят в обработку': 0xFF039BE5,
-    'На фотофиксации': 0xFF00ACC1,
-    'Перемещение между складами': 0xFF5E35B1,
-    'Ожидает предоплаты': 0xFFFDD835,
-    'Проверен': 0xFF43A047,
-    'Выдан / Завершён': 0xFF43A047,
+    'new': 0xFF1E88E5, // Синий - новый
+    'processing': 0xFFFB8C00, // Оранжевый - в работе
+    'ready': 0xFF43A047, // Зелёный - готов к выдаче
+    'completed': 0xFF546E7A, // Серый/нейтральный - завершён
+    'cancelled': 0xFFE53935, // Красный - отменён
+    // Совместимость с историческими данными:
+    'green': 0xFF43A047,
+    'yellow': 0xFFFB8C00,
     'red': 0xFFE53935,
     'brown': 0xFF795548,
-    'yellow': 0xFFFDD835,
-    'green': 0xFF43A047,
+    'Принят в обработку': 0xFF1E88E5,
+    'Ожидает предоплаты': 0xFFFB8C00,
+    'На фотофиксации': 0xFF00ACC1,
+    'Перемещение между складами': 0xFF5E35B1,
+    'Проверен': 0xFF43A047,
+    'Выдан / Завершён': 0xFF43A047,
   };
 
-  int get statusColor => statusColors[status] ?? 0xFF9E9E9E;
+  int get statusColor => statusColors[status] ?? 0xFF1E88E5;
 
   String get displayStatusText {
     final localizedStatus = const {
+      'new': 'Новый заказ',
+      'processing': 'В работе',
+      'ready': 'Готов к выдаче',
+      'completed': 'Выдан / Завершён',
+      'cancelled': 'Отменён',
+      // Совместимость со старыми записями
       'red': 'Нужен транспорт',
       'brown': 'Ожидание ответа',
       'yellow': 'Нужна доставка',
-      'green': 'Доставлено',
+      'green': 'Выдан / Завершён',
     }[status];
     if (localizedStatus != null) {
       return localizedStatus;
     }
-    return status.isNotEmpty ? status : statusText;
+    return status.isNotEmpty ? status : (statusText.isNotEmpty ? statusText : 'В работе');
   }
 }
 

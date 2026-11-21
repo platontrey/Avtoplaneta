@@ -264,11 +264,13 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                         ],
                         _warehouseFilterChip('', 'Все'),
                         const SizedBox(width: 6),
-                        _warehouseFilterChip('inspecting', '🔍 Проверка'),
+                        _warehouseFilterChip('pending', '📋 Очередь'),
                         const SizedBox(width: 6),
-                        _warehouseFilterChip('transfer', '🔄 В сборке'),
+                        _warehouseFilterChip('inspecting', '🔍 Осмотр'),
                         const SizedBox(width: 6),
-                        _warehouseFilterChip('ready', '📦 Собран'),
+                        _warehouseFilterChip('picking', '🛒 Сборка'),
+                        const SizedBox(width: 6),
+                        _warehouseFilterChip('packed', '🎁 Собран'),
                       ],
                     ),
                   ),
@@ -633,7 +635,12 @@ class _OrderCard extends ConsumerWidget {
   };
 
   static const _warehouseLabels = {
-    'inspecting': ('На проверке', Color(0xFF00ACC1)),
+    'pending': ('В очереди', Color(0xFF78909C)),
+    'inspecting': ('Осмотр / Фото', Color(0xFF00ACC1)),
+    'picking': ('В сборке', Color(0xFF5E35B1)),
+    'packed': ('Собран', Color(0xFF43A047)),
+    'shipped': ('Отгружен', Color(0xFF1E88E5)),
+    // Совместимость
     'transfer': ('В сборке', Color(0xFF5E35B1)),
     'ready': ('Собран', Color(0xFF43A047)),
   };
@@ -1057,9 +1064,10 @@ class _OrderActions extends ConsumerWidget {
 
     // Warehouse Operator Actions
     if (isOperator) {
+      final ws = order.warehouseStatus;
       return Row(
         children: [
-          if (order.warehouseStatus == 'inspecting') ...[
+          if (ws == 'pending' || ws == 'inspecting') ...[
             Expanded(
               flex: 4,
               child: SizedBox(
@@ -1068,15 +1076,15 @@ class _OrderActions extends ConsumerWidget {
                   onPressed: () => _updateWarehouseStatus(
                     context,
                     ref,
-                    'transfer',
-                    'Перемещение в сборку',
+                    'picking',
+                    'Сборка деталей с полки',
                   ),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 6),
                     visualDensity: VisualDensity.compact,
                     textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                   ),
-                  icon: const Icon(LucideIcons.arrow_right, size: 14),
+                  icon: const Icon(LucideIcons.boxes, size: 14),
                   label: const Text('В сборку', overflow: TextOverflow.ellipsis),
                 ),
               ),
@@ -1090,8 +1098,8 @@ class _OrderActions extends ConsumerWidget {
                   onPressed: () => _updateWarehouseStatus(
                     context,
                     ref,
-                    'ready',
-                    'Собран',
+                    'packed',
+                    'Собран и упакован',
                   ),
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF43A047),
@@ -1106,7 +1114,7 @@ class _OrderActions extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 6),
-          ] else if (order.warehouseStatus == 'transfer') ...[
+          ] else if (ws == 'picking' || ws == 'transfer') ...[
             Expanded(
               flex: 5,
               child: SizedBox(
@@ -1115,8 +1123,8 @@ class _OrderActions extends ConsumerWidget {
                   onPressed: () => _updateWarehouseStatus(
                     context,
                     ref,
-                    'ready',
-                    'Собран',
+                    'packed',
+                    'Собран и упакован',
                   ),
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF43A047),
@@ -1126,7 +1134,7 @@ class _OrderActions extends ConsumerWidget {
                     textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                   icon: const Icon(LucideIcons.package_check, size: 14),
-                  label: const Text('Собран / Готов', overflow: TextOverflow.ellipsis),
+                  label: const Text('Собран и упакован', overflow: TextOverflow.ellipsis),
                 ),
               ),
             ),
@@ -1148,7 +1156,7 @@ class _OrderActions extends ConsumerWidget {
                     Icon(LucideIcons.circle_check, size: 15, color: Color(0xFF43A047)),
                     SizedBox(width: 6),
                     Text(
-                      'Готов к выдаче',
+                      'Собран / Готов к выдаче',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -1444,9 +1452,11 @@ class _EditOrderSheetState extends ConsumerState<_EditOrderSheet> {
                 initialValue: _warehouseStatus,
                 decoration: const InputDecoration(labelText: 'Статус сборки на складе'),
                 items: const [
-                  DropdownMenuItem(value: 'inspecting', child: Text('🔍 На проверке')),
-                  DropdownMenuItem(value: 'transfer', child: Text('🔄 В процессе сборки')),
-                  DropdownMenuItem(value: 'ready', child: Text('📦 Собран и готов к выдаче')),
+                  DropdownMenuItem(value: 'pending', child: Text('📋 В очереди на сборку')),
+                  DropdownMenuItem(value: 'inspecting', child: Text('🔍 Осмотр / Фото')),
+                  DropdownMenuItem(value: 'picking', child: Text('🛒 В процессе сборки')),
+                  DropdownMenuItem(value: 'packed', child: Text('🎁 Собран и упакован')),
+                  DropdownMenuItem(value: 'shipped', child: Text('🚚 Отгружен / Выдан')),
                 ],
                 onChanged: (v) {
                   if (v != null) setState(() => _warehouseStatus = v);
@@ -1489,9 +1499,11 @@ class _EditOrderSheetState extends ConsumerState<_EditOrderSheet> {
                       initialValue: _warehouseStatus,
                       decoration: const InputDecoration(labelText: 'Склад'),
                       items: const [
-                        DropdownMenuItem(value: 'inspecting', child: Text('Проверка')),
-                        DropdownMenuItem(value: 'transfer', child: Text('В сборке')),
-                        DropdownMenuItem(value: 'ready', child: Text('Собран')),
+                        DropdownMenuItem(value: 'pending', child: Text('В очереди')),
+                        DropdownMenuItem(value: 'inspecting', child: Text('Осмотр / Фото')),
+                        DropdownMenuItem(value: 'picking', child: Text('В сборке')),
+                        DropdownMenuItem(value: 'packed', child: Text('Собран')),
+                        DropdownMenuItem(value: 'shipped', child: Text('Отгружен')),
                       ],
                       onChanged: (v) {
                         if (v != null) setState(() => _warehouseStatus = v);

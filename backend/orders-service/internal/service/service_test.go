@@ -409,7 +409,7 @@ func TestUpdateOrderStatus(t *testing.T) {
 
 	t.Run("ValidStatus", func(t *testing.T) {
 		mockOrderRepo.On("Update", ctx, int64(200), mock.MatchedBy(func(u map[string]interface{}) bool {
-			return u["status"] == "Готов к выдаче"
+			return u["status"] == "ready" || u["status"] == "Готов к выдаче"
 		})).Return(nil)
 		mockCache.On("InvalidateOrders").Return(nil)
 

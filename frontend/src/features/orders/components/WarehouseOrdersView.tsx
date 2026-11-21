@@ -33,15 +33,22 @@ export const WarehouseOrdersView: React.FC<WarehouseOrdersViewProps> = ({
   isUpdating = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'inspecting' | 'transfer' | 'ready'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'inspecting' | 'picking' | 'packed'>('all');
   const [pickedItems, setPickedItems] = useState<Record<string, boolean>>({});
 
   // Фильтрация заданий для склада
   const filteredOrders = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return orders.filter((order) => {
-      if (statusFilter !== 'all' && (order.warehouse_status || 'inspecting') !== statusFilter) {
-        return false;
+      const ws = order.warehouse_status || 'pending';
+      if (statusFilter !== 'all') {
+        if (statusFilter === 'picking' && (ws === 'picking' || ws === 'transfer')) {
+          // match
+        } else if (statusFilter === 'packed' && (ws === 'packed' || ws === 'ready')) {
+          // match
+        } else if (ws !== statusFilter) {
+          return false;
+        }
       }
       if (!q) return true;
 
@@ -191,31 +198,40 @@ export const WarehouseOrdersView: React.FC<WarehouseOrdersViewProps> = ({
             Все ({orders.length})
           </Button>
           <Button
+            variant={statusFilter === 'pending' ? 'default' : 'ghost'}
+            size="sm"
+            className="text-xs gap-1"
+            onClick={() => setStatusFilter('pending')}
+          >
+            <Package className="w-3.5 h-3.5 text-slate-500" />
+            <span>Очередь ({orders.filter((o) => (o.warehouse_status || 'pending') === 'pending').length})</span>
+          </Button>
+          <Button
             variant={statusFilter === 'inspecting' ? 'default' : 'ghost'}
             size="sm"
             className="text-xs gap-1"
             onClick={() => setStatusFilter('inspecting')}
           >
-            <Camera className="w-3.5 h-3.5 text-amber-500" />
-            <span>Осмотр ({orders.filter((o) => o.warehouse_status === 'inspecting').length})</span>
+            <Camera className="w-3.5 h-3.5 text-cyan-500" />
+            <span>Осмотр / Фото ({orders.filter((o) => o.warehouse_status === 'inspecting').length})</span>
           </Button>
           <Button
-            variant={statusFilter === 'transfer' ? 'default' : 'ghost'}
+            variant={statusFilter === 'picking' ? 'default' : 'ghost'}
             size="sm"
             className="text-xs gap-1"
-            onClick={() => setStatusFilter('transfer')}
+            onClick={() => setStatusFilter('picking')}
           >
-            <Boxes className="w-3.5 h-3.5 text-blue-500" />
-            <span>В сборке ({orders.filter((o) => o.warehouse_status === 'transfer').length})</span>
+            <Boxes className="w-3.5 h-3.5 text-indigo-500" />
+            <span>В сборке ({orders.filter((o) => o.warehouse_status === 'picking' || o.warehouse_status === 'transfer').length})</span>
           </Button>
           <Button
-            variant={statusFilter === 'ready' ? 'default' : 'ghost'}
+            variant={statusFilter === 'packed' ? 'default' : 'ghost'}
             size="sm"
             className="text-xs gap-1"
-            onClick={() => setStatusFilter('ready')}
+            onClick={() => setStatusFilter('packed')}
           >
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Готовы ({orders.filter((o) => o.warehouse_status === 'ready').length})</span>
+            <span>Собраны ({orders.filter((o) => o.warehouse_status === 'packed' || o.warehouse_status === 'ready').length})</span>
           </Button>
         </div>
       </div>

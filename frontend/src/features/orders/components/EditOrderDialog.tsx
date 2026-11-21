@@ -52,7 +52,7 @@ export const EditOrderDialog: React.FC<EditOrderDialogProps> = ({
   const [orderNumber, setOrderNumber] = useState('');
   const [source, setSource] = useState('drom');
   const [payment, setPayment] = useState('unpaid');
-  const [warehouse, setWarehouse] = useState('inspecting');
+  const [warehouse, setWarehouse] = useState('pending');
   const [delivery, setDelivery] = useState('pickup');
   const [tk, setTk] = useState('');
   const [tracking, setTracking] = useState('');
@@ -66,7 +66,7 @@ export const EditOrderDialog: React.FC<EditOrderDialogProps> = ({
       setOrderNumber(order.order_number || '');
       setSource(order.source || 'drom');
       setPayment(order.payment_status || 'unpaid');
-      setWarehouse(order.warehouse_status || 'inspecting');
+      setWarehouse(order.warehouse_status || 'pending');
       setDelivery(order.delivery_method || 'pickup');
       setTk(order.transport_company || '');
       setTracking(order.tracking_number || '');

@@ -24,7 +24,7 @@ WITH order_totals AS (
 SELECT c.id, c.name, c.phone, c.city, c.preferred_tk, c.passport_or_inn,
        c.category, c.discount_percent, c.notes, c.created_at, c.updated_at,
        COUNT(o.id)::bigint AS total_orders,
-       COALESCE(SUM(CASE WHEN o.auto_deleted = TRUE OR o.status = 'green' THEN order_totals.total ELSE 0 END), 0)::double precision AS total_spent,
+       COALESCE(SUM(CASE WHEN o.auto_deleted = TRUE OR o.status IN ('green', 'completed') OR o.payment_status = 'paid' THEN order_totals.total ELSE 0 END), 0)::double precision AS total_spent,
        MAX(o.created_at)::timestamptz AS last_order_at
 FROM customers c
 LEFT JOIN orders o ON o.customer_id = c.id
