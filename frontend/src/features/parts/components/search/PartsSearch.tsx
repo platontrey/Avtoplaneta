@@ -18,6 +18,7 @@ import { API_BASE_URL } from '@/lib/api';
 import { useVehicleOptions } from '@/features/vehicles/useVehicleCatalog';
 import { usePartCatalog } from '@/features/catalog/usePartCatalog';
 import type { PartFilters } from '@/hooks/useParts';
+import { getPartDescription } from '@/features/parts/utils/partDescription';
 
 import { ActiveFilterBadges, type ActiveFilterItem } from './ActiveFilterBadges';
 import { GeneralFiltersTab } from './GeneralFiltersTab';
@@ -694,9 +695,12 @@ export const PartsSearch: React.FC<PartsSearchProps> = ({
                           onClick={() => handleResultClick(result)}
                         >
                           <div className="font-medium text-sm">{result.name}</div>
-                          {result.description && (
-                            <div className="text-xs text-muted-foreground truncate mt-0.5">{result.description}</div>
-                          )}
+                          {(() => {
+                            const desc = getPartDescription(result as any);
+                            return desc ? (
+                              <div className="text-xs text-muted-foreground truncate mt-0.5" title={desc}>{desc}</div>
+                            ) : null;
+                          })()}
                         </div>
                       ))}
                     </motion.div>
