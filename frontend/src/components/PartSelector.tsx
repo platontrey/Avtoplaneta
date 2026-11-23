@@ -11,7 +11,6 @@ import { Button } from './ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_BASE_URL } from '@/lib/api';
 import { getAuthHeaders } from '@/lib/csrf';
-import { getPartDescription } from '@/features/parts/utils/partDescription';
 
 interface PartSelectorProps {
     value?: string;
@@ -346,12 +345,9 @@ function PartSelector({ value, onChange, placeholder = "Выберите зап�
                                             <div className="text-xs text-muted-foreground mt-0.5">
                                                 {result.brand} - {result.model} • Кол-во: {result.quantity} • {result.location || 'Нет локации'}
                                             </div>
-                                            {(() => {
-                                                const desc = getPartDescription(result as any);
-                                                return desc ? (
-                                                    <div className="text-xs text-muted-foreground truncate mt-0.5" title={desc}>{desc}</div>
-                                                ) : null;
-                                            })()}
+                                            {result.description && (
+                                                <div className="text-xs text-muted-foreground truncate mt-0.5">{result.description}</div>
+                                            )}
                                         </button>
                                     ))}
                                 </div>
