@@ -609,13 +609,13 @@ function PartBlock({
                             )}
 
                             {/* Описание */}
-                            {part.description && (
+                            {Boolean(part.description?.trim()) && (
                                 <div className="bg-muted/50 rounded-lg p-3 text-sm select-text cursor-text">
                                     <div className="font-semibold text-muted-foreground mb-1 select-text cursor-text">
                                         Описание:
                                     </div>
                                     <div className="text-foreground whitespace-pre-line leading-relaxed select-text cursor-text">
-                                        {part.description}
+                                        {part.description?.trim()}
                                     </div>
                                 </div>
                             )}

@@ -186,11 +186,16 @@ func convertSelectedPart(selectedPart catalog.DefectReportPart, report *catalog.
 
 	color := resolveReportPartColor(selectedPart.Color, selectedPart.Category, report.InteriorColor, report.BodyColor)
 
+	desc := strings.TrimSpace(selectedPart.Description)
+	if desc == "" {
+		desc = strings.TrimSpace(report.Description)
+	}
+
 	return domain.Part{
 		PartCore: domain.PartCore{
 			Name:        strings.TrimSpace(selectedPart.Name),
 			Quantity:    selectedPart.Quantity,
-			Description: strings.TrimSpace(selectedPart.Description),
+			Description: desc,
 			Category:    strings.TrimSpace(selectedPart.Category),
 			Price:       selectedPart.Price,
 			Salesman:    strings.TrimSpace(defaultUserName),

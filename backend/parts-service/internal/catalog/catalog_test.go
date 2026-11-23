@@ -15,6 +15,7 @@ func TestEmbeddedCatalogAndDefectExpansion(t *testing.T) {
 		Brand:             "BMW",
 		Model:             "E90",
 		Year:              2011,
+		Description:       "Тестовое описание детали",
 		CarReleasePeriod:  "2005-2011",
 		VIN:               "TESTVIN123",
 		BodyBrand:         "BMW E90",
@@ -33,6 +34,9 @@ func TestEmbeddedCatalogAndDefectExpansion(t *testing.T) {
 
 	// 1. Трансмиссия: должна содержать car_release_period, transmission, transmission_model, drive
 	transmission := findExpandedPart(t, parts, "Трансмиссия")
+	if transmission.Description != report.Description {
+		t.Errorf("transmission description = %q, want %q", transmission.Description, report.Description)
+	}
 	if transmission.CarReleasePeriod != report.CarReleasePeriod {
 		t.Errorf("transmission release period = %q, want %q", transmission.CarReleasePeriod, report.CarReleasePeriod)
 	}
@@ -165,6 +169,7 @@ func TestApplyBindingsToParts(t *testing.T) {
 		Brand:             "BMW",
 		Model:             "E90",
 		Year:              2011,
+		Description:       "Общее описание для ведомости",
 		CarReleasePeriod:  "2005-2011",
 		VIN:               "TESTVIN123",
 		Transmission:      "АКПП",
@@ -182,7 +187,10 @@ func TestApplyBindingsToParts(t *testing.T) {
 
 	catalog.ApplyBindingsToParts(parts, report)
 
-	// Трансмиссия должна получить все 4 характеристики
+	// Трансмиссия должна получить описание и все характеристики
+	if parts[0].Description != "Общее описание для ведомости" {
+		t.Errorf("parts[0].Description = %q, want %q", parts[0].Description, "Общее описание для ведомости")
+	}
 	if parts[0].CarReleasePeriod != "2005-2011" {
 		t.Errorf("parts[0].CarReleasePeriod = %q, want 2005-2011", parts[0].CarReleasePeriod)
 	}

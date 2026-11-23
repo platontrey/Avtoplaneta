@@ -559,6 +559,7 @@ export default function DefectReport() {
                         <Label className="font-medium text-sm">{part.name}</Label>
                         <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
                           <div>Категория: {part.category}</div>
+                          {Boolean(part.description?.trim()) && <div>Описание: {part.description}</div>}
                           {part.color && <div>Цвет: {part.color}</div>}
                           {part.car_release_date && <div>Год: {part.car_release_date}</div>}
                           {part.car_release_period && <div className="text-blue-600 dark:text-blue-400 font-medium">Период выпуска: {part.car_release_period}</div>}

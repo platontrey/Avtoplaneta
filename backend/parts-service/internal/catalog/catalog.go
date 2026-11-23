@@ -214,7 +214,7 @@ func validatePartCatalog(catalog *PartCatalog) error {
 
 func isDefectPartField(field string) bool {
 	switch field {
-	case "body_brand", "engine_brand", "car_release_date", "car_release_period", "front_rear", "left_right", "top_bottom",
+	case "description", "body_brand", "engine_brand", "car_release_date", "car_release_period", "front_rear", "left_right", "top_bottom",
 		"number", "manufacturer", "manufacturer_code", "oem_code", "color", "condition", "supplier_code",
 		"defect", "transmission", "transmission_model", "drive", "wear_percentage", "season", "diameter",
 		"width", "profile", "tire_quantity", "drilling", "offset", "center_hole_diameter", "tire_model", "vin":
@@ -229,7 +229,9 @@ func (catalog *PartCatalog) ExpandDefectReport(report DefectReportRequest) []Def
 	if report.Year > 0 {
 		yearStr = strconv.Itoa(report.Year)
 	}
+	reportDesc := strings.TrimSpace(report.Description)
 	values := map[string]string{
+		"description":        reportDesc,
 		"body_brand":         strings.TrimSpace(report.BodyBrand),
 		"engine_brand":       strings.TrimSpace(report.EngineBrand),
 		"year":               yearStr,
@@ -251,7 +253,7 @@ func (catalog *PartCatalog) ExpandDefectReport(report DefectReportRequest) []Def
 		part := DefectReportPart{
 			Name:         template.Name,
 			Category:     template.Category,
-			Description:  "",
+			Description:  reportDesc,
 			Quantity:     template.Quantity,
 			Price:        template.Price,
 			SupplierCode: supplierCode,
@@ -283,7 +285,9 @@ func (catalog *PartCatalog) ApplyBindingsToParts(parts []DefectReportPart, repor
 	if report.Year > 0 {
 		yearStr = strconv.Itoa(report.Year)
 	}
+	reportDesc := strings.TrimSpace(report.Description)
 	values := map[string]string{
+		"description":        reportDesc,
 		"body_brand":         strings.TrimSpace(report.BodyBrand),
 		"engine_brand":       strings.TrimSpace(report.EngineBrand),
 		"year":               yearStr,
@@ -303,6 +307,9 @@ func (catalog *PartCatalog) ApplyBindingsToParts(parts []DefectReportPart, repor
 	for i := range parts {
 		if strings.TrimSpace(parts[i].SupplierCode) == "" {
 			parts[i].SupplierCode = supplierCode
+		}
+		if strings.TrimSpace(parts[i].Description) == "" && reportDesc != "" {
+			parts[i].Description = reportDesc
 		}
 		for _, binding := range catalog.ReportBindings {
 			if !bindingApplies(binding, parts[i].Category) {
@@ -337,6 +344,8 @@ func containsString(values []string, target string) bool {
 
 func setDefectPartField(part *DefectReportPart, field, value string) {
 	switch field {
+	case "description":
+		part.Description = value
 	case "body_brand":
 		part.BodyBrand = value
 	case "engine_brand":
@@ -400,6 +409,8 @@ func setDefectPartField(part *DefectReportPart, field, value string) {
 
 func getDefectPartField(part *DefectReportPart, field string) string {
 	switch field {
+	case "description":
+		return part.Description
 	case "body_brand":
 		return part.BodyBrand
 	case "engine_brand":
