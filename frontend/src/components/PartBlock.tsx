@@ -278,6 +278,16 @@ function PartBlock({
                                 </span>
                             )}
 
+                            {/* Строка 3: Краткое описание / превью */}
+                            {descriptionText && (
+                                <span
+                                    className="text-xs text-muted-foreground/85 line-clamp-1 select-text cursor-text leading-tight mt-1"
+                                    title={descriptionText}
+                                >
+                                    {descriptionText}
+                                </span>
+                            )}
+
                             {/* Бейджи: Цена и характеристики */}
                             <div className="flex flex-wrap items-center gap-2 mt-2 select-text cursor-text">
                                 {/* Цена */}
