@@ -8,7 +8,7 @@ import '../storage/secure_storage.dart';
 
 const _baseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'https://backend-server.ru',
+  defaultValue: 'https://avtoplaneta70.ru',
 );
 
 class ApiClient {

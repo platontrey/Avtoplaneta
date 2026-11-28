@@ -95,7 +95,7 @@ class ErrorReporter {
   ));
 
   static const int maxLogsCount = 100;
-  static const String _defaultBaseUrl = 'https://backend-server.ru';
+  static const String _defaultBaseUrl = 'https://avtoplaneta70.ru';
 
   /// Инициализация сервиса: загрузка метаданных устройства и локального кэша логов
   Future<void> init() async {

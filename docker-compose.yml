@@ -21,7 +21,7 @@ services:
       - "traefik.enable=true"
     environment:
       - ACME_EMAIL=${ACME_EMAIL:-admin@example.com}
-      - PUBLIC_DOMAIN=${PUBLIC_DOMAIN:-backend-server.ru}
+      - PUBLIC_DOMAIN=${PUBLIC_DOMAIN:-avtoplaneta70.ru}
     healthcheck:
       test: ["CMD", "traefik", "healthcheck"]
       interval: 30s
@@ -45,28 +45,28 @@ services:
       - "traefik.http.routers.frontend-http.entrypoints=web"
       - "traefik.http.routers.frontend-http.middlewares=redirect-to-https@file"
       - "traefik.http.routers.frontend-http.priority=1"
-      # Direct public TLS via Let's Encrypt (DNS only mode).
-      - "traefik.http.routers.frontend.rule=Host(`${PUBLIC_DOMAIN:-backend-server.ru}`) || Host(`www.${PUBLIC_DOMAIN:-backend-server.ru}`)"
+      # Public TLS via Let's Encrypt HTTP-01 (works with DNS only and Cloudflare Full SSL).
+      - "traefik.http.routers.frontend.rule=Host(`${PUBLIC_DOMAIN:-avtoplaneta70.ru}`) || Host(`www.${PUBLIC_DOMAIN:-avtoplaneta70.ru}`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls=true"
       - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
       - "traefik.http.routers.frontend.middlewares=compress-res@file"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
       # Keep LAN and direct IP access separate so ACME never requests a certificate for IP addresses.
-      - "traefik.http.routers.frontend-lan.rule=Host(`192.168.1.3`) || Host(`185.103.70.118`)"
+      - "traefik.http.routers.frontend-lan.rule=Host(`192.168.1.108`) || Host(`83.172.6.190`)"
       - "traefik.http.routers.frontend-lan.entrypoints=websecure"
       - "traefik.http.routers.frontend-lan.tls=true"
       - "traefik.http.routers.frontend-lan.middlewares=compress-res@file"
       - "traefik.http.routers.frontend-lan.service=frontend"
       # SPA fallback for browser HTML navigation on /orders
-      - "traefik.http.routers.frontend-orders.rule=(Host(`${PUBLIC_DOMAIN:-backend-server.ru}`) || Host(`www.${PUBLIC_DOMAIN:-backend-server.ru}`)) && PathPrefix(`/orders`) && HeaderRegexp(`Accept`, `.*text/html.*`)"
+      - "traefik.http.routers.frontend-orders.rule=(Host(`${PUBLIC_DOMAIN:-avtoplaneta70.ru}`) || Host(`www.${PUBLIC_DOMAIN:-avtoplaneta70.ru}`)) && PathPrefix(`/orders`) && HeaderRegexp(`Accept`, `.*text/html.*`)"
       - "traefik.http.routers.frontend-orders.priority=250"
       - "traefik.http.routers.frontend-orders.entrypoints=websecure"
       - "traefik.http.routers.frontend-orders.tls=true"
       - "traefik.http.routers.frontend-orders.tls.certresolver=letsencrypt"
       - "traefik.http.routers.frontend-orders.middlewares=compress-res@file"
       - "traefik.http.routers.frontend-orders.service=frontend"
-      - "traefik.http.routers.frontend-orders-lan.rule=Host(`192.168.1.3`) && PathPrefix(`/orders`) && HeaderRegexp(`Accept`, `.*text/html.*`)"
+      - "traefik.http.routers.frontend-orders-lan.rule=Host(`192.168.1.108`) && PathPrefix(`/orders`) && HeaderRegexp(`Accept`, `.*text/html.*`)"
       - "traefik.http.routers.frontend-orders-lan.priority=250"
       - "traefik.http.routers.frontend-orders-lan.entrypoints=websecure"
       - "traefik.http.routers.frontend-orders-lan.tls=true"
@@ -91,21 +91,21 @@ services:
       - "9083"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.auth.rule=(Host(`${PUBLIC_DOMAIN:-backend-server.ru}`) || Host(`www.${PUBLIC_DOMAIN:-backend-server.ru}`)) && (PathPrefix(`/auth`) || PathPrefix(`/admin/`) || PathPrefix(`/api/admin`) || PathPrefix(`/api/v1/admin`) || PathPrefix(`/api/users`) || PathPrefix(`/api/app`))"
+      - "traefik.http.routers.auth.rule=(Host(`${PUBLIC_DOMAIN:-avtoplaneta70.ru}`) || Host(`www.${PUBLIC_DOMAIN:-avtoplaneta70.ru}`)) && (PathPrefix(`/auth`) || PathPrefix(`/admin/`) || PathPrefix(`/api/admin`) || PathPrefix(`/api/v1/admin`) || PathPrefix(`/api/users`) || PathPrefix(`/api/app`))"
       - "traefik.http.routers.auth.entrypoints=websecure"
       - "traefik.http.routers.auth.tls=true"
       - "traefik.http.routers.auth.tls.certresolver=letsencrypt"
       - "traefik.http.routers.auth.middlewares=compress-res@file"
       - "traefik.http.services.auth.loadbalancer.server.port=8083"
       # Скачивание APK мобильного приложения без сжатия Brotli/Gzip (публичный домен)
-      - "traefik.http.routers.auth-app-download.rule=(Host(`${PUBLIC_DOMAIN:-backend-server.ru}`) || Host(`www.${PUBLIC_DOMAIN:-backend-server.ru}`)) && PathPrefix(`/api/app/download`)"
+      - "traefik.http.routers.auth-app-download.rule=(Host(`${PUBLIC_DOMAIN:-avtoplaneta70.ru}`) || Host(`www.${PUBLIC_DOMAIN:-avtoplaneta70.ru}`)) && PathPrefix(`/api/app/download`)"
       - "traefik.http.routers.auth-app-download.entrypoints=websecure"
       - "traefik.http.routers.auth-app-download.tls=true"
       - "traefik.http.routers.auth-app-download.tls.certresolver=letsencrypt"
       - "traefik.http.routers.auth-app-download.priority=1000"
       - "traefik.http.routers.auth-app-download.service=auth"
       # Скачивание APK по прямому IP (LAN и внешний IP) без сжатия
-      - "traefik.http.routers.auth-app-download-lan.rule=(Host(`192.168.1.3`) || Host(`185.103.70.118`)) && PathPrefix(`/api/app/download`)"
+      - "traefik.http.routers.auth-app-download-lan.rule=(Host(`192.168.1.108`) || Host(`83.172.6.190`)) && PathPrefix(`/api/app/download`)"
       - "traefik.http.routers.auth-app-download-lan.entrypoints=websecure"
       - "traefik.http.routers.auth-app-download-lan.tls=true"
       - "traefik.http.routers.auth-app-download-lan.priority=1000"
@@ -115,7 +115,7 @@ services:
       - "traefik.http.routers.auth-app-download-http.entrypoints=web"
       - "traefik.http.routers.auth-app-download-http.priority=1000"
       - "traefik.http.routers.auth-app-download-http.service=auth"
-      - "traefik.http.routers.auth-lan.rule=(Host(`192.168.1.3`) || Host(`185.103.70.118`)) && (PathPrefix(`/auth`) || PathPrefix(`/admin/`) || PathPrefix(`/api/admin`) || PathPrefix(`/api/v1/admin`) || PathPrefix(`/api/users`) || PathPrefix(`/api/app`))"
+      - "traefik.http.routers.auth-lan.rule=(Host(`192.168.1.108`) || Host(`83.172.6.190`)) && (PathPrefix(`/auth`) || PathPrefix(`/admin/`) || PathPrefix(`/api/admin`) || PathPrefix(`/api/v1/admin`) || PathPrefix(`/api/users`) || PathPrefix(`/api/app`))"
       - "traefik.http.routers.auth-lan.entrypoints=websecure"
       - "traefik.http.routers.auth-lan.tls=true"
       - "traefik.http.routers.auth-lan.middlewares=compress-res@file"
@@ -131,8 +131,8 @@ services:
       - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - GOOGLE_CALLBACK_URL=https://${PUBLIC_DOMAIN:-backend-server.ru}/auth/google/callback
-      - ALLOWED_ORIGINS=https://${PUBLIC_DOMAIN:-backend-server.ru},https://www.${PUBLIC_DOMAIN:-backend-server.ru},https://192.168.1.3
+      - GOOGLE_CALLBACK_URL=https://${PUBLIC_DOMAIN:-avtoplaneta70.ru}/auth/google/callback
+      - ALLOWED_ORIGINS=https://${PUBLIC_DOMAIN:-avtoplaneta70.ru},https://www.${PUBLIC_DOMAIN:-avtoplaneta70.ru},https://192.168.1.108
       - PARTS_SERVICE_URL=http://parts-service:8081
       - PARTS_GRPC_ADDR=parts-service:9081
       - REDIS_URL=redis:6379
@@ -164,7 +164,7 @@ services:
       - "9081"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.parts-public.rule=(Host(`${PUBLIC_DOMAIN:-backend-server.ru}`) || Host(`www.${PUBLIC_DOMAIN:-backend-server.ru}`)) && (PathPrefix(`/uploads`) || PathPrefix(`/api/inventory`) || PathPrefix(`/api/part-catalog`) || PathPrefix(`/api/vehicle-catalog`) || PathPrefix(`/api/statistics`) || PathPrefix(`/api/v1/inventory`) || PathPrefix(`/api/v1/statistics`) || PathPrefix(`/api/v1/parts/item`) || PathPrefix(`/api/v1/part-catalog`) || PathPrefix(`/api/v1/vehicle-catalog`) || PathPrefix(`/api/v1/catalogs`) || PathPrefix(`/api/v1/shelves`))"
+      - "traefik.http.routers.parts-public.rule=(Host(`${PUBLIC_DOMAIN:-avtoplaneta70.ru}`) || Host(`www.${PUBLIC_DOMAIN:-avtoplaneta70.ru}`)) && (PathPrefix(`/uploads`) || PathPrefix(`/api/inventory`) || PathPrefix(`/api/part-catalog`) || PathPrefix(`/api/vehicle-catalog`) || PathPrefix(`/api/statistics`) || PathPrefix(`/api/v1/inventory`) || PathPrefix(`/api/v1/statistics`) || PathPrefix(`/api/v1/parts/item`) || PathPrefix(`/api/v1/part-catalog`) || PathPrefix(`/api/v1/vehicle-catalog`) || PathPrefix(`/api/v1/catalogs`) || PathPrefix(`/api/v1/shelves`))"
       - "traefik.http.routers.parts-public.entrypoints=websecure"
       - "traefik.http.routers.parts-public.tls=true"
       - "traefik.http.routers.parts-public.tls.certresolver=letsencrypt"
@@ -176,14 +176,14 @@ services:
       - "traefik.http.routers.parts-uploads-http.entrypoints=web"
       - "traefik.http.routers.parts-uploads-http.middlewares=compress-res@file"
       - "traefik.http.routers.parts-uploads-http.service=parts"
-      - "traefik.http.routers.parts-secure.rule=(Host(`${PUBLIC_DOMAIN:-backend-server.ru}`) || Host(`www.${PUBLIC_DOMAIN:-backend-server.ru}`)) && (PathPrefix(`/api/addpart`) || PathPrefix(`/api/updatepart`) || PathPrefix(`/api/deletepart`) || PathPrefix(`/api/uploadpartphoto`) || PathPrefix(`/api/deletepartphoto`) || PathPrefix(`/api/markpartfordeletion`) || PathPrefix(`/api/defect-reports`) || PathPrefix(`/api/v1/parts`) || PathPrefix(`/api/v1/uploadpartphoto`) || PathPrefix(`/api/v1/deletepartphoto`) || PathPrefix(`/api/v1/defect-reports`) || PathPrefix(`/api/v1/admin/parts`) || PathPrefix(`/api/v1/admin/supplier-codes`) || PathPrefix(`/api/admin/bulk-`) || PathPrefix(`/api/admin/supplier-codes`) || PathPrefix(`/api/admin/delete-zero-quantity-parts`) || PathPrefix(`/api/v1/admin/shelves`))"
+      - "traefik.http.routers.parts-secure.rule=(Host(`${PUBLIC_DOMAIN:-avtoplaneta70.ru}`) || Host(`www.${PUBLIC_DOMAIN:-avtoplaneta70.ru}`)) && (PathPrefix(`/api/addpart`) || PathPrefix(`/api/updatepart`) || PathPrefix(`/api/deletepart`) || PathPrefix(`/api/uploadpartphoto`) || PathPrefix(`/api/deletepartphoto`) || PathPrefix(`/api/markpartfordeletion`) || PathPrefix(`/api/defect-reports`) || PathPrefix(`/api/v1/parts`) || PathPrefix(`/api/v1/uploadpartphoto`) || PathPrefix(`/api/v1/deletepartphoto`) || PathPrefix(`/api/v1/defect-reports`) || PathPrefix(`/api/v1/admin/parts`) || PathPrefix(`/api/v1/admin/supplier-codes`) || PathPrefix(`/api/admin/bulk-`) || PathPrefix(`/api/admin/supplier-codes`) || PathPrefix(`/api/admin/delete-zero-quantity-parts`) || PathPrefix(`/api/v1/admin/shelves`))"
       - "traefik.http.routers.parts-secure.entrypoints=websecure"
       - "traefik.http.routers.parts-secure.tls=true"
       - "traefik.http.routers.parts-secure.tls.certresolver=letsencrypt"
       - "traefik.http.routers.parts-secure.middlewares=compress-res@file,auth-forward@file"
       - "traefik.http.routers.parts-secure.service=parts"
       - "traefik.http.services.parts.loadbalancer.server.port=8081"
-      - "traefik.http.routers.parts-lan.rule=(Host(`192.168.1.3`) || Host(`185.103.70.118`)) && (PathPrefix(`/uploads`) || PathPrefix(`/api/inventory`) || PathPrefix(`/api/part-catalog`) || PathPrefix(`/api/vehicle-catalog`) || PathPrefix(`/api/statistics`) || PathPrefix(`/api/v1/inventory`) || PathPrefix(`/api/v1/statistics`) || PathPrefix(`/api/v1/parts/item`) || PathPrefix(`/api/v1/parts`) || PathPrefix(`/api/v1/part-catalog`) || PathPrefix(`/api/v1/vehicle-catalog`) || PathPrefix(`/api/v1/catalogs`) || PathPrefix(`/api/v1/shelves`) || PathPrefix(`/api/addpart`) || PathPrefix(`/api/updatepart`) || PathPrefix(`/api/deletepart`) || PathPrefix(`/api/uploadpartphoto`) || PathPrefix(`/api/deletepartphoto`) || PathPrefix(`/api/markpartfordeletion`) || PathPrefix(`/api/defect-reports`) || PathPrefix(`/api/v1/uploadpartphoto`) || PathPrefix(`/api/v1/deletepartphoto`) || PathPrefix(`/api/v1/defect-reports`) || PathPrefix(`/api/v1/admin/parts`) || PathPrefix(`/api/v1/admin/supplier-codes`) || PathPrefix(`/api/admin/bulk-`) || PathPrefix(`/api/admin/supplier-codes`) || PathPrefix(`/api/admin/delete-zero-quantity-parts`) || PathPrefix(`/api/v1/admin/shelves`))"
+      - "traefik.http.routers.parts-lan.rule=(Host(`192.168.1.108`) || Host(`83.172.6.190`)) && (PathPrefix(`/uploads`) || PathPrefix(`/api/inventory`) || PathPrefix(`/api/part-catalog`) || PathPrefix(`/api/vehicle-catalog`) || PathPrefix(`/api/statistics`) || PathPrefix(`/api/v1/inventory`) || PathPrefix(`/api/v1/statistics`) || PathPrefix(`/api/v1/parts/item`) || PathPrefix(`/api/v1/parts`) || PathPrefix(`/api/v1/part-catalog`) || PathPrefix(`/api/v1/vehicle-catalog`) || PathPrefix(`/api/v1/catalogs`) || PathPrefix(`/api/v1/shelves`) || PathPrefix(`/api/addpart`) || PathPrefix(`/api/updatepart`) || PathPrefix(`/api/deletepart`) || PathPrefix(`/api/uploadpartphoto`) || PathPrefix(`/api/deletepartphoto`) || PathPrefix(`/api/markpartfordeletion`) || PathPrefix(`/api/defect-reports`) || PathPrefix(`/api/v1/uploadpartphoto`) || PathPrefix(`/api/v1/deletepartphoto`) || PathPrefix(`/api/v1/defect-reports`) || PathPrefix(`/api/v1/admin/parts`) || PathPrefix(`/api/v1/admin/supplier-codes`) || PathPrefix(`/api/admin/bulk-`) || PathPrefix(`/api/admin/supplier-codes`) || PathPrefix(`/api/admin/delete-zero-quantity-parts`) || PathPrefix(`/api/v1/admin/shelves`))"
       - "traefik.http.routers.parts-lan.entrypoints=websecure"
       - "traefik.http.routers.parts-lan.tls=true"
       - "traefik.http.routers.parts-lan.middlewares=compress-res@file"
@@ -223,14 +223,14 @@ services:
       - "9082"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.orders.rule=(Host(`${PUBLIC_DOMAIN:-backend-server.ru}`) || Host(`www.${PUBLIC_DOMAIN:-backend-server.ru}`)) && (PathPrefix(`/orders`) || PathPrefix(`/admin/orders`) || PathPrefix(`/api/orders`) || PathPrefix(`/api/v1/orders`) || PathPrefix(`/api/v1/admin/orders`) || PathPrefix(`/api/v1/customers`))"
+      - "traefik.http.routers.orders.rule=(Host(`${PUBLIC_DOMAIN:-avtoplaneta70.ru}`) || Host(`www.${PUBLIC_DOMAIN:-avtoplaneta70.ru}`)) && (PathPrefix(`/orders`) || PathPrefix(`/admin/orders`) || PathPrefix(`/api/orders`) || PathPrefix(`/api/v1/orders`) || PathPrefix(`/api/v1/admin/orders`) || PathPrefix(`/api/v1/customers`))"
       - "traefik.http.routers.orders.priority=200"
       - "traefik.http.routers.orders.entrypoints=websecure"
       - "traefik.http.routers.orders.tls=true"
       - "traefik.http.routers.orders.tls.certresolver=letsencrypt"
       - "traefik.http.routers.orders.middlewares=compress-res@file,auth-forward@file"
       - "traefik.http.services.orders.loadbalancer.server.port=8082"
-      - "traefik.http.routers.orders-lan.rule=(Host(`192.168.1.3`) || Host(`185.103.70.118`)) && (PathPrefix(`/orders`) || PathPrefix(`/admin/orders`) || PathPrefix(`/api/orders`) || PathPrefix(`/api/v1/orders`) || PathPrefix(`/api/v1/admin/orders`) || PathPrefix(`/api/v1/customers`))"
+      - "traefik.http.routers.orders-lan.rule=(Host(`192.168.1.108`) || Host(`83.172.6.190`)) && (PathPrefix(`/orders`) || PathPrefix(`/admin/orders`) || PathPrefix(`/api/orders`) || PathPrefix(`/api/v1/orders`) || PathPrefix(`/api/v1/admin/orders`) || PathPrefix(`/api/v1/customers`))"
       - "traefik.http.routers.orders-lan.priority=200"
       - "traefik.http.routers.orders-lan.entrypoints=websecure"
       - "traefik.http.routers.orders-lan.tls=true"
@@ -276,20 +276,20 @@ services:
       - "traefik.http.routers.export-pricelist-http.entrypoints=web"
       - "traefik.http.routers.export-pricelist-http.service=export"
       # Публичный прайс-лист XML (HTTPS)
-      - "traefik.http.routers.export-pricelist.rule=(Host(`${PUBLIC_DOMAIN:-backend-server.ru}`) || Host(`www.${PUBLIC_DOMAIN:-backend-server.ru}`)) && (Path(`/uploads/pricelist.xml`) || Path(`/pricelist.xml`) || Path(`/components/com_jshopping/files/importexport/multi_yml_export/Multi_YML_Export.xml`))"
+      - "traefik.http.routers.export-pricelist.rule=(Host(`${PUBLIC_DOMAIN:-avtoplaneta70.ru}`) || Host(`www.${PUBLIC_DOMAIN:-avtoplaneta70.ru}`)) && (Path(`/uploads/pricelist.xml`) || Path(`/pricelist.xml`) || Path(`/components/com_jshopping/files/importexport/multi_yml_export/Multi_YML_Export.xml`))"
       - "traefik.http.routers.export-pricelist.priority=1000"
       - "traefik.http.routers.export-pricelist.entrypoints=websecure"
       - "traefik.http.routers.export-pricelist.tls=true"
       - "traefik.http.routers.export-pricelist.tls.certresolver=letsencrypt"
       - "traefik.http.routers.export-pricelist.service=export"
       # Доступ к XML по HTTPS по IP (без ACME)
-      - "traefik.http.routers.export-pricelist-lan.rule=(Host(`185.103.70.118`) || Host(`192.168.1.3`)) && (Path(`/uploads/pricelist.xml`) || Path(`/pricelist.xml`) || Path(`/components/com_jshopping/files/importexport/multi_yml_export/Multi_YML_Export.xml`))"
+      - "traefik.http.routers.export-pricelist-lan.rule=(Host(`83.172.6.190`) || Host(`192.168.1.108`)) && (Path(`/uploads/pricelist.xml`) || Path(`/pricelist.xml`) || Path(`/components/com_jshopping/files/importexport/multi_yml_export/Multi_YML_Export.xml`))"
       - "traefik.http.routers.export-pricelist-lan.priority=1000"
       - "traefik.http.routers.export-pricelist-lan.entrypoints=websecure"
       - "traefik.http.routers.export-pricelist-lan.tls=true"
       - "traefik.http.routers.export-pricelist-lan.service=export"
       # Защищенные админские эндпоинты генерации
-      - "traefik.http.routers.export.rule=(Host(`${PUBLIC_DOMAIN:-backend-server.ru}`) || Host(`www.${PUBLIC_DOMAIN:-backend-server.ru}`)) && PathPrefix(`/api/export`)"
+      - "traefik.http.routers.export.rule=(Host(`${PUBLIC_DOMAIN:-avtoplaneta70.ru}`) || Host(`www.${PUBLIC_DOMAIN:-avtoplaneta70.ru}`)) && PathPrefix(`/api/export`)"
       - "traefik.http.routers.export.entrypoints=websecure"
       - "traefik.http.routers.export.tls=true"
       - "traefik.http.routers.export.tls.certresolver=letsencrypt"
@@ -301,7 +301,7 @@ services:
       - PARTS_SERVICE_GRPC_URL=parts-service:9081
       - AUTH_SERVICE_GRPC_URL=auth-service:9083
       - EXPORT_DIR=/app/uploads
-      - PUBLIC_DOMAIN=${PUBLIC_DOMAIN:-${DOMAIN:-backend-server.ru}}
+      - PUBLIC_DOMAIN=${PUBLIC_DOMAIN:-${DOMAIN:-avtoplaneta70.ru}}
       - BASE_IMAGE_URL=${BASE_IMAGE_URL}
       - DROM_API_KEY=${DROM_API_KEY}
       - DROM_PACKET_ID=${DROM_PACKET_ID}
@@ -332,13 +332,13 @@ services:
       - "9084"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.messaging.rule=(Host(`${PUBLIC_DOMAIN:-backend-server.ru}`) || Host(`www.${PUBLIC_DOMAIN:-backend-server.ru}`)) && (PathPrefix(`/api/messaging`) || PathPrefix(`/api/v1/messaging`))"
+      - "traefik.http.routers.messaging.rule=(Host(`${PUBLIC_DOMAIN:-avtoplaneta70.ru}`) || Host(`www.${PUBLIC_DOMAIN:-avtoplaneta70.ru}`)) && (PathPrefix(`/api/messaging`) || PathPrefix(`/api/v1/messaging`))"
       - "traefik.http.routers.messaging.entrypoints=websecure"
       - "traefik.http.routers.messaging.tls=true"
       - "traefik.http.routers.messaging.tls.certresolver=letsencrypt"
       - "traefik.http.routers.messaging.middlewares=compress-res@file,auth-forward@file"
       - "traefik.http.services.messaging.loadbalancer.server.port=8084"
-      - "traefik.http.routers.messaging-lan.rule=(Host(`192.168.1.3`) || Host(`185.103.70.118`)) && (PathPrefix(`/api/messaging`) || PathPrefix(`/api/v1/messaging`))"
+      - "traefik.http.routers.messaging-lan.rule=(Host(`192.168.1.108`) || Host(`83.172.6.190`)) && (PathPrefix(`/api/messaging`) || PathPrefix(`/api/v1/messaging`))"
       - "traefik.http.routers.messaging-lan.entrypoints=websecure"
       - "traefik.http.routers.messaging-lan.tls=true"
       - "traefik.http.routers.messaging-lan.middlewares=compress-res@file"
@@ -353,7 +353,7 @@ services:
       - AUTH_GRPC_ADDR=auth-service:9083
       - DROM_API_KEY=${DROM_API_KEY}
       - DROM_PACKET_ID=${DROM_PACKET_ID}
-      - MESSAGING_SERVICE_URL=https://${PUBLIC_DOMAIN:-backend-server.ru}/api/messaging
+      - MESSAGING_SERVICE_URL=https://${PUBLIC_DOMAIN:-avtoplaneta70.ru}/api/messaging
       - GOMEMLIMIT=1024MiB
       - GOGC=400
       - GOMAXPROCS=8

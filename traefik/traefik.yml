@@ -24,7 +24,8 @@ certificatesResolvers:
     acme:
       email: "platontrey5@gmail.com"
       storage: "/etc/traefik/acme.json"
-      tlsChallenge: {}
+      httpChallenge:
+        entryPoint: web
 
 log:
   level: INFO
